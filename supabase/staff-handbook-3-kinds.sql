@@ -48,8 +48,10 @@
 --     hb_publish_version  reference: never needs re-signing, never emails.
 --                         Draft: no emails (they go out on publish).
 --   New admin RPCs (each audited):
---     hb_create_policy(title, slug, kind, section, body_md)  -> a draft, v1.
---       No email, no Today item, no badge. handbook.policy_created
+--     hb_create_policy(title, slug, kind, section, body_md)  -> a reference
+--       draft, v1. kind must be 'reference' (or empty): nobody is asked to
+--       sign anything until an admin uses hb_convert_to_signed. No email, no
+--       Today item, no badge. handbook.policy_created
 --     hb_publish_policy(policy_id)  draft -> published. For a signed policy
 --       each active bookkeeper gets one handbook_sign_needed email.
 --       handbook.policy_published
@@ -607,9 +609,10 @@ begin
   return me;
 end $$;
 
--- A new policy, always a draft with its first version. Nobody is emailed and
--- nothing shows on Today or the badge until hb_publish_policy (and only then
--- for a signed policy).
+-- A new policy, always a reference draft with its first version. Nobody is
+-- emailed and nothing shows on Today or the badge. A policy only asks for
+-- signatures after an admin runs hb_convert_to_signed (the explicit, audited
+-- step), so p_kind = 'signed' is refused here.
 create or replace function public.hb_create_policy(p_title text, p_slug text, p_kind text, p_section text,
                                                    p_body_md text)
 returns jsonb language plpgsql security definer set search_path = public as $$
@@ -627,7 +630,10 @@ begin
   if v_slug !~ '^[a-z0-9][a-z0-9-]{1,80}$' then
     raise exception 'The link name must be 2 to 81 lower-case letters, numbers or hyphens, starting with a letter or number.';
   end if;
-  if v_kind not in ('signed', 'reference') then raise exception 'Choose Reference or Signed.'; end if;
+  if v_kind <> 'reference' then
+    raise exception 'New policies start as reference. Publish it, then use Make this a signed policy.'
+      using errcode = '22023';
+  end if;
   if v_section is not null and char_length(v_section) > 80 then raise exception 'Keep the section under 80 characters.'; end if;
   if btrim(coalesce(p_body_md, '')) = '' then raise exception 'The policy text is empty.'; end if;
   if char_length(p_body_md) > 200000 then raise exception 'The policy text is too long.'; end if;
@@ -643,7 +649,7 @@ begin
     raise exception 'Another policy already uses the link name %.', v_slug;
   end;
   insert into handbook_versions (policy_id, version_no, body_md, body_sha256, requires_resign, change_note, published_by)
-  values (v_id, 1, p_body_md, encode(sha256(convert_to(p_body_md, 'UTF8')), 'hex'), v_kind = 'signed',
+  values (v_id, 1, p_body_md, encode(sha256(convert_to(p_body_md, 'UTF8')), 'hex'), false,
           'First draft.', lower(me.email))
   returning id into v_vid;
   perform audit_write('handbook.policy_created', null, 'handbook_policy', v_id::text,

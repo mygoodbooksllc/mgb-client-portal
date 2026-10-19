@@ -1239,11 +1239,15 @@ the countersigner is one setting (`handbook_settings`, set by an admin with `hb_
   after `staff-handbook-2-admin.sql`; checks in `staff-handbook-3-kinds-tests.sql`):** each policy
   is `signed` or `reference` (read only, versioned, never signed, never in Today, the badge, the
   grid or email) and `draft` (admins only, quiet) or `published`. Admin **New policy**
-  (`hb_create_policy`, always a draft), **Publish** (`hb_publish_policy`), **Edit details**
+  (`hb_create_policy`, always a reference draft; the server refuses `signed`, so nobody is asked
+  to sign until an admin converts), **Publish** (`hb_publish_policy`), **Edit details**
   (`hb_update_policy`) and **Make this a signed policy** (`hb_convert_to_signed`, needs a confirm
   and a change note). The list groups "Policies to sign", then sections, then "Drafts", with
   client-side search. The server refuses reference policies in sign, countersign and PDF export;
   `HB_logic.js` filters them out of Today, the badge and the grid as a second lock.
+  **Re-run guard:** `staff-handbook.sql` and `staff-handbook-2-admin.sql` stop with an error (and
+  change nothing) once `handbook_policies.kind` exists, unless `set mgb.rerun_superseded = 'on';`
+  runs first; then re-run `staff-handbook-3-kinds.sql` after them.
 
 ### Employee records (added 2026-10-19)
 
@@ -1256,11 +1260,14 @@ member. Database `supabase/staff-hr-records.sql` (checks in `staff-hr-records-te
   IDs or bank details. No table grants at all (admins included) and admin-only RLS as a second lock.
 - **RPCs** (real admins only: role `admin` on the staff row and `is_active_staff_admin()`; temporary
   admins are refused): `hr_list_records` (list columns and which fields are filled, never personal
-  details), `hr_get_record` (audited `hr.record_viewed`), `hr_save_record` (changed fields only, ""
+  details; audited `hr.list_viewed` with the row count only), `hr_get_record` (audited `hr.record_viewed`), `hr_save_record` (changed fields only, ""
   clears; audited `hr.record_saved` with field names only; copies a hire date into
   `staff_profiles.start_date`, never clears it).
 - **Offboarding:** `offboard_staff` is patched in place to set `end_date` (today, Chicago) when the
-  record has none. Re-run `staff-hr-records.sql` after `staff-offboarding.sql`.
+  record has none, audited `hr.end_date_set` (field name only). The file ends by checking the live
+  `offboard_staff` has the patch and fails (rolling back) if not. `staff-offboarding.sql` stops with
+  an error once `staff_hr_records` exists, unless `set mgb.rerun_superseded = 'on';` runs first;
+  then re-run `staff-hr-records.sql` after it.
 - **Front end:** the tab is `realAdmin` in `NAV_PLACES` (`NAV_visibleTabs` needs `ctx.isRealAdmin`:
   role admin and not in "View as"), and `TP_TeamHub` renders it only for a real admin. The open
   record is component state, never the hash. Guide: `docs/staff-guide/employee-records.md`.

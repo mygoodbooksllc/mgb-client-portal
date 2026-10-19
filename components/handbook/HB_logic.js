@@ -7,6 +7,9 @@
 //   signed     bookkeepers sign it (sign panel, Today, badge, grid, emails)
 //   reference  read-only, versioned; nobody signs it
 // Status: draft (admins only, quiet) or published.
+// New policies are always reference drafts. Nobody is asked to sign until an
+// admin uses "Make this a signed policy" (hb_convert_to_signed); the server
+// refuses hb_create_policy with kind 'signed'.
 // The server already leaves reference policies and drafts out of the badge,
 // Today, the grid and the countersign queue. These filters are a second lock
 // so an older server answer can never put them there.
@@ -36,6 +39,20 @@ function HB_slugProblem(slug, taken) {
   if (!HB_SLUG_RE.test(s)) return "Use 2 to 81 lower-case letters, numbers or hyphens, starting with a letter or number.";
   if ((taken || []).indexOf(s) >= 0) return "Another policy already uses this link name.";
   return "";
+}
+
+// hb_create_policy arguments from the New policy form. The kind is always
+// "reference", whatever the caller passes.
+var HB_NEW_POLICY_KIND = "reference";
+function HB_newPolicyArgs(f) {
+  f = f || {};
+  return {
+    p_title: String(f.title || "").trim(),
+    p_slug: String(f.slug || ""),
+    p_kind: HB_NEW_POLICY_KIND,
+    p_section: String(f.section || "").trim() || null,
+    p_body_md: String(f.body || ""),
+  };
 }
 
 // Policies from before kinds existed have no kind / status: signed, published.
@@ -213,6 +230,8 @@ if (typeof module !== "undefined" && module.exports) {
     HB_GENERAL_SECTION: HB_GENERAL_SECTION,
     HB_slugify: HB_slugify,
     HB_slugProblem: HB_slugProblem,
+    HB_NEW_POLICY_KIND: HB_NEW_POLICY_KIND,
+    HB_newPolicyArgs: HB_newPolicyArgs,
     HB_kindOf: HB_kindOf,
     HB_isDraft: HB_isDraft,
     HB_isSigning: HB_isSigning,

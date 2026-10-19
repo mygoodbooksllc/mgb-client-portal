@@ -13,7 +13,7 @@
 //   HB_api.setCountersigner(email)          hb_set_countersigner() (admins)
 //   HB_api.publish(policyId, body, resign, note)  hb_publish_version() (admins)
 //   HB_api.retryExport(sigId)               hb_retry_export() (admins)
-//   HB_api.createPolicy({title, slug, kind, section, body})  hb_create_policy() (admins; a draft)
+//   HB_api.createPolicy({title, slug, section, body})  hb_create_policy() (admins; a reference draft)
 //   HB_api.publishPolicy(policyId)          hb_publish_policy() (admins; draft -> published)
 //   HB_api.updatePolicy(policyId, title, section, sort)  hb_update_policy() (admins)
 //   HB_api.convertToSigned(policyId, note)  hb_convert_to_signed() (admins; reference -> signed)
@@ -79,13 +79,7 @@ const HB_api = {
     return HB_api.rpc("hb_retry_export", { p_signature_id: signatureId });
   },
   createPolicy(f) {
-    return HB_api.rpc("hb_create_policy", {
-      p_title: f.title,
-      p_slug: f.slug,
-      p_kind: f.kind,
-      p_section: f.section || null,
-      p_body_md: f.body,
-    });
+    return HB_api.rpc("hb_create_policy", HB_newPolicyArgs(f));
   },
   publishPolicy(policyId) {
     return HB_api.rpc("hb_publish_policy", { p_policy_id: policyId });

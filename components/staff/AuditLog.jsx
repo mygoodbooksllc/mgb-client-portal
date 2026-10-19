@@ -58,6 +58,8 @@ const AL_ACTIONS = {
   "handbook.policy_converted": "Handbook policy made a signed policy",
   "hr.record_viewed": "Employee record opened",
   "hr.record_saved": "Employee record saved",
+  "hr.list_viewed": "Employee records list opened",
+  "hr.end_date_set": "Employee record end date set (offboarding)",
   "staff_photo.submitted": "Profile photo submitted",
   "staff_photo.replaced": "Profile photo replaced (edited)",
   "staff_photo.restored": "Profile photo restored",
@@ -137,6 +139,8 @@ function AL_summary(row) {
   if (a === "handbook.policy_updated")
     return [d.policy, d.title ? "title" : "", d.section ? "section" : "", d.sort ? "order" : ""].filter(Boolean).join(" · ");
   if (a === "hr.record_viewed") return [row.target_id, d.has_record === false ? "no record yet" : ""].filter(Boolean).join(" · ");
+  if (a === "hr.list_viewed") return typeof d.rows === "number" ? d.rows + (d.rows === 1 ? " person" : " people") : "";
+  if (a === "hr.end_date_set") return [row.target_id, "End date"].filter(Boolean).join(" · ");
   if (a === "hr.record_saved") {
     const f = Array.isArray(d.fields) ? d.fields : [];
     const names = f.map((k) => (typeof HR_fieldLabel === "function" ? HR_fieldLabel(k) : k));

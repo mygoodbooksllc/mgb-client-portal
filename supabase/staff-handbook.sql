@@ -7,6 +7,9 @@
 -- re-run this file, run that one right after it, then
 -- supabase/staff-handbook-3-kinds.sql (policy kinds and drafts), which
 -- redefines most hb_* functions and the read policies again.
+-- Re-run guard: once staff-handbook-3-kinds.sql has run (handbook_policies has
+-- a `kind` column), this file refuses to run unless mgb.rerun_superseded is
+-- 'on' (see the guard below). The whole file is one transaction.
 --
 -- Depends on (checked against the live database 2026-10-13):
 --   * public.staff (id, email unique + lower-case @mygoodbooks.org, name,
@@ -56,6 +59,23 @@
 -- ---------------------------------------------------------------------------
 -- Tables
 -- ---------------------------------------------------------------------------
+begin;
+
+-- Re-run guard (2026-10-19): once staff-handbook-3-kinds.sql has run, re-running this file
+-- would silently put back the pre-kinds hb_* functions and read policies. So it stops here with an error and changes
+-- nothing. On a fresh database the check passes. To re-run it on purpose,
+-- put `set mgb.rerun_superseded = 'on';` on the line before this file, then
+-- run staff-handbook-3-kinds.sql again right after it.
+do $guard$
+begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'handbook_policies' and column_name = 'kind')
+     and coalesce(current_setting('mgb.rerun_superseded', true), '') <> 'on' then
+    raise exception 'Stopped: staff-handbook-3-kinds.sql has already run, and re-running this file would undo it. Nothing was changed. See the re-run guard note at the top of this file.'
+      using errcode = '55000';
+  end if;
+end $guard$;
+
 create table if not exists public.handbook_policies (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique check (slug ~ '^[a-z0-9][a-z0-9-]{1,80}$'),
@@ -892,3 +912,5 @@ select p.id, 1, b.body, encode(sha256(convert_to(b.body, 'UTF8')), 'hex'), true,
        'Version 1, imported from the original policy document.', 'system'
 from b join public.handbook_policies p on p.slug = 'flexible-work-sla'
 on conflict (policy_id, version_no) do nothing;
+
+commit;

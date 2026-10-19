@@ -99,9 +99,22 @@ begin
   perform pg_temp.chk('temporary admin cannot read', v like 'ERR:42501%', v);
   delete from staff_temp_admin_access where staff_email = bk and expires_at > now() + interval '23 hours';
 
+  -- The live offboard_staff carries the end-date patch.
+  perform pg_temp.chk('offboard_staff is patched',
+    position('staff_hr_records' in pg_get_functiondef('public.offboard_staff(text, jsonb)'::regprocedure)) > 0);
+
   -- Admin: list, save, read; each view and save is audited.
+  select count(*) into n_audit from audit_log where action = 'hr.list_viewed';
   v := pg_temp.probe(adm, format($q$select e ->> 'has_record' from jsonb_array_elements(hr_list_records()) e where e ->> 'email' = %L$q$, bk));
   perform pg_temp.chk('admin list shows "no record yet"', v = 'false', v);
+  perform pg_temp.chk('opening the list is audited once',
+    (select count(*) from audit_log where action = 'hr.list_viewed') = n_audit + 1);
+  perform pg_temp.chk('list audit holds the row count only, no values',
+    (select array(select jsonb_object_keys(details)) from audit_log
+      where action = 'hr.list_viewed' order by id desc limit 1) = array['rows']);
+  v := pg_temp.probe(bk, $q$select hr_list_records()::text$q$);
+  perform pg_temp.chk('a refused list call writes no audit row',
+    (select count(*) from audit_log where action = 'hr.list_viewed') = n_audit + 1, v);
   v := pg_temp.probe(adm, $q$select count(*) from jsonb_array_elements(hr_list_records()) e
                              where e ? 'personal_phone' or e ? 'address' or e ? 'notes' or e ? 'personal_email'$q$);
   perform pg_temp.chk('list never carries personal details', v = '0', v);
@@ -152,6 +165,9 @@ begin
     v := pg_temp.probe(adm, format($q$select hr_get_record(%L) -> 'record' ->> 'end_date'$q$, bk2));
     perform pg_temp.chk('offboarding sets the end date to today',
       v = ((now() at time zone 'America/Chicago')::date)::text, v);
+    perform pg_temp.chk('offboarding end date is audited with the field name only',
+      exists (select 1 from audit_log where action = 'hr.end_date_set' and target_id = bk2
+                and details = '{"fields": ["end_date"], "via": "offboarding"}'::jsonb));
   else
     perform pg_temp.chk('offboarding check skipped (only one active bookkeeper)', true);
   end if;

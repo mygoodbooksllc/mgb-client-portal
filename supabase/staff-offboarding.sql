@@ -1,4 +1,5 @@
 -- NOTE: offboard_staff is patched in place by staff-hr-records.sql (employee record end date); re-run that file after this one.
+-- Re-run guard: once staff-hr-records.sql has run (table staff_hr_records exists), this file refuses to run unless mgb.rerun_superseded is 'on' (see the guard after `begin;`).
 -- NOTE: staff_reminders_before_write, tk_set_status, tk_staff_reminders_activity and tk_client_people (where defined here) are superseded by tasks-p2-3-review.sql; re-run that file after this one.
 -- Staff offboarding (owner request 2026-09-29).
 --
@@ -41,6 +42,20 @@
 -- arbitrary settings, so the browser can't use this.
 
 begin;
+
+-- Re-run guard (2026-10-19): once staff-hr-records.sql has run, re-running this file
+-- would silently put back offboard_staff without the employee-record end date. So it stops here with an error and changes
+-- nothing. On a fresh database the check passes. To re-run it on purpose,
+-- put `set mgb.rerun_superseded = 'on';` on the line before this file, then
+-- run staff-hr-records.sql again right after it.
+do $guard$
+begin
+  if to_regclass('public.staff_hr_records') is not null
+     and coalesce(current_setting('mgb.rerun_superseded', true), '') <> 'on' then
+    raise exception 'Stopped: staff-hr-records.sql has already run, and re-running this file would undo it. Nothing was changed. See the re-run guard note at the top of this file.'
+      using errcode = '55000';
+  end if;
+end $guard$;
 
 create or replace function public.staff_reminders_before_write()
 returns trigger

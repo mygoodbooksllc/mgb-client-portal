@@ -17,7 +17,7 @@ Everyone on the staff list appears, active staff first. Each row shows the job t
 - **9 of 13** (for example): the record is missing some details. Hover to see which.
 - **Complete**: every detail is filled in (end date and notes don't count).
 
-The line at the top counts active staff who are complete, missing details, or have no record yet. Use the search box (name, title or manager) and **Active staff / Former staff / Everyone** to narrow the list. The list never shows personal contact details.
+The line at the top counts active staff who are complete, missing details, or have no record yet. Use the search box (name, title or manager) and **Active staff / Former staff / Everyone** to narrow the list. The list never shows personal contact details. Opening the list is logged in the [Audit log](#/help/audit-log) too (who and when, nothing from the records).
 
 ### Open and edit a record
 
@@ -35,7 +35,7 @@ Clearing a field and saving removes that value. The Audit log records which fiel
 ### Hire date, start date and end date
 
 - Saving a **hire date** also sets the start date on the person's profile, which work anniversaries and the **This week** card use. Clearing the hire date leaves the profile's start date alone.
-- **Offboarding** fills in the **end date** with the offboarding day when the record has none. An end date you entered yourself is never replaced. See [How do I offboard a staff member?](#/help/offboarding).
+- **Offboarding** fills in the **end date** with the offboarding day when the record has none, and logs it in the Audit log. An end date you entered yourself is never replaced. See [How do I offboard a staff member?](#/help/offboarding).
 - The end date can't be before the hire date.
 
 ### Handbook signatures

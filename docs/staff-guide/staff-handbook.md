@@ -69,22 +69,18 @@ Your older signed copies are kept. **Version history**, at the bottom of each po
 
 1. On the Handbook tab, click **New policy**.
 2. Type the **Title**. The **Link name** (the policy's address, like `#/team/handbook/paid-time-off`) fills in from the title. You can change it before saving: lower-case letters, numbers and hyphens, 2 to 81 characters. It can't change later.
-3. Pick the **Kind**: **Reference** (the default; nobody signs it) or **Signed**.
-4. Optionally type a **Section**, such as *Time off*. Sections you've used before are suggested.
-5. Write the **Policy text** in Markdown. The preview on the right shows it the way staff will see it.
-6. Click **Save draft**.
+3. Optionally type a **Section**, such as *Time off*. Sections you've used before are suggested.
+4. Write the **Policy text** in Markdown. The preview on the right shows it the way staff will see it.
+5. Click **Save draft**.
 
-A new policy is always a **draft** first. Only admins see drafts (in a **Drafts** group at the bottom of the list), and nobody is emailed. To change the text, open the draft and click **Edit text**. When it's ready, click **Publish** on the draft and confirm:
+A new policy is always a **reference** policy and a **draft** first. Only admins see drafts (in a **Drafts** group at the bottom of the list), and nobody is emailed. To change the text, open the draft and click **Edit text**. When it's ready, click **Publish** on the draft and confirm. Everyone can then read it, and nobody is emailed.
 
-- A reference policy is then visible to everyone. Nobody is emailed.
-- A signed policy asks every active bookkeeper to sign: one email each, a Today row and a badge, and 7 days to sign.
-
-Creating a policy never emails anyone. Only **Publish** does, and only for a signed policy.
+Nobody is ever asked to sign a new policy. To ask bookkeepers to sign one, open it and use **Make this a signed policy** (below). That's the only way a policy starts asking for signatures. If you use it on a draft, the emails go out when you publish.
 
 ### Edit details or change the kind (admins)
 
 - **Edit details** (on any policy) changes the title, the section and the **Order** (lower numbers list first within their group). The link name stays the same, so links in old emails keep working.
-- **Make this a signed policy** (on the latest version of a reference policy) starts asking for signatures. Write a change note, tick the box, and click **Make it a signed policy**. The current text is published again as a new version that every bookkeeper signs (each gets one email and has 7 days). This can't be undone: a signed policy can't go back to reference.
+- **Make this a signed policy** (on the latest version of a reference policy) starts asking for signatures. Write a change note, tick the box, and click **Make it a signed policy**. The current text is saved again as a new version that every active bookkeeper signs: one email each, a Today row and a badge, and 7 days to sign. On a draft, those go out when you publish it. This can't be undone: a signed policy can't go back to reference.
 - New versions of a reference policy are always minor edits: nobody is asked to sign them.
 
 ### Publish a new version (admins)

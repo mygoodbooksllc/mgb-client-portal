@@ -273,10 +273,12 @@ Added 2026-10-19. SQL: `supabase/staff-handbook-3-kinds.sql` (run after `staff-h
 
 | RPC | Does | Audit |
 |---|---|---|
-| `hb_create_policy(title, slug, kind, section, body_md)` | Creates a draft with version 1. The slug matches `^[a-z0-9][a-z0-9-]{1,80}$` and is unique. Never emails. | `handbook.policy_created` |
+| `hb_create_policy(title, slug, kind, section, body_md)` | Creates a reference draft with version 1. `kind` must be `reference` or empty; `signed` is refused (SQLSTATE 22023). The slug matches `^[a-z0-9][a-z0-9-]{1,80}$` and is unique. Never emails. | `handbook.policy_created` |
 | `hb_publish_policy(policy_id)` | Draft → published. A signed policy emails each active bookkeeper once (7 days to sign). A reference policy emails nobody. | `handbook.policy_published` |
 | `hb_update_policy(policy_id, title, section, sort)` | Changes the title, section and list order. The slug never changes. A null sort keeps the current one. | `handbook.policy_updated` |
 | `hb_convert_to_signed(policy_id, body_md, change_note, confirm)` | Reference → signed. Needs `confirm = true` and a change note. Publishes a new version that needs re-signing (the current text when `body_md` is empty). Emails only when the policy is already published. | `handbook.policy_converted` |
+
+**Owner rule: nobody is asked to sign until an admin converts.** Every new policy is a reference policy. The New policy form has no kind choice, and the server refuses `kind = 'signed'` in `hb_create_policy`. The only way a policy starts asking for signatures is the explicit, confirmed and audited `hb_convert_to_signed`. On a draft, the emails wait for `hb_publish_policy`.
 
 **Kind changes:**
 - Reference → signed only through `hb_convert_to_signed`, enforced by a guard trigger.

@@ -40,6 +40,21 @@ t("slugify", () => {
   eq(L.HB_SLUG_RE.test(long), true);
 });
 
+t("newPolicyArgs", () => {
+  eq(L.HB_NEW_POLICY_KIND, "reference");
+  eq(L.HB_newPolicyArgs({ title: " PTO ", slug: "pto", section: "", body: "Text" }), {
+    p_title: "PTO",
+    p_slug: "pto",
+    p_kind: "reference",
+    p_section: null,
+    p_body_md: "Text",
+  });
+  // A caller can't ask for a signed policy here; that takes the convert step.
+  eq(L.HB_newPolicyArgs({ title: "X", slug: "x1", kind: "signed", body: "b" }).p_kind, "reference");
+  eq(L.HB_newPolicyArgs({ title: "X", slug: "x1", section: " Time off ", body: "b" }).p_section, "Time off");
+  eq(L.HB_newPolicyArgs(null).p_kind, "reference");
+});
+
 t("slugProblem", () => {
   eq(L.HB_slugProblem("pto", []), "");
   eq(L.HB_slugProblem("", []), "Add a link name.");
@@ -130,5 +145,5 @@ t("fmtDay", () => {
   eq(L.HB_fmtDay("nope"), "");
 });
 
-assert.ok(n >= 50, "need at least 50 checks, got " + n);
+assert.ok(n >= 60, "need at least 60 checks, got " + n);
 console.log("HB_logic: " + n + " checks passed");

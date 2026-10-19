@@ -426,8 +426,10 @@ function HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel }
 }
 
 // ---------------------------------------------------------------------------
-// New policy (Team › Handbook › New policy). Always saves a draft: nothing is
-// emailed and nothing reaches Today or the badge until Publish (HB_DraftBar).
+// New policy (Team › Handbook › New policy). Always saves a reference draft:
+// nothing is emailed and nothing reaches Today or the badge. Asking anyone to
+// sign takes the explicit "Make this a signed policy" step (HB_ConvertCard);
+// hb_create_policy refuses kind 'signed'.
 // The link name follows the title until it's edited by hand. Unsaved input is
 // kept in sessionStorage like the publish editor's.
 // ---------------------------------------------------------------------------
@@ -440,7 +442,6 @@ function HB_NewPolicy({ policies, onCancel, onCreated }) {
   const [title, setTitle] = React.useState(s0.title || "");
   const [slug, setSlug] = React.useState(s0.slug || "");
   const [slugEdited, setSlugEdited] = React.useState(!!s0.slugEdited);
-  const [kind, setKind] = React.useState(s0.kind === "signed" ? "signed" : "reference");
   const [section, setSection] = React.useState(s0.section || "");
   const [body, setBody] = React.useState(typeof s0.body === "string" ? s0.body : "");
   const [tried, setTried] = React.useState(false);
@@ -454,8 +455,8 @@ function HB_NewPolicy({ policies, onCancel, onCreated }) {
   const dirty = !!(title.trim() || body.trim() || section.trim());
 
   React.useEffect(() => {
-    HB_draftSave(HB_NEW_KEY, dirty ? { title, slug, slugEdited, kind, section, body } : null);
-  }, [title, slug, slugEdited, kind, section, body, dirty]);
+    HB_draftSave(HB_NEW_KEY, dirty ? { title, slug, slugEdited, section, body } : null);
+  }, [title, slug, slugEdited, section, body, dirty]);
 
   React.useEffect(() => {
     if (!dirty) return undefined;
@@ -479,7 +480,7 @@ function HB_NewPolicy({ policies, onCancel, onCreated }) {
     if (problem || busy) return;
     setBusy(true);
     try {
-      const r = await HB_api.createPolicy({ title: title.trim(), slug: linkName, kind, section: section.trim(), body });
+      const r = await HB_api.createPolicy({ title: title.trim(), slug: linkName, section: section.trim(), body });
       HB_draftSave(HB_NEW_KEY, null);
       toast("Draft saved. Only admins can see it until you publish it.");
       HB_changed();
@@ -571,21 +572,10 @@ function HB_NewPolicy({ policies, onCancel, onCreated }) {
           </span>
         )}
 
-        <fieldset className="hb-pub-kind">
-          <legend className="hb-label">Kind</legend>
-          <label className="hb-check">
-            <input type="radio" name="hb-new-kind" checked={kind === "reference"} onChange={() => setKind("reference")} />
-            <span>
-              <strong>Reference.</strong> Everyone can read it. Nobody signs it, and nobody is emailed when it changes.
-            </span>
-          </label>
-          <label className="hb-check">
-            <input type="radio" name="hb-new-kind" checked={kind === "signed"} onChange={() => setKind("signed")} />
-            <span>
-              <strong>Signed.</strong> When you publish it, every bookkeeper gets one email, a Today item and a badge, and has 7 days to sign. The firm countersigns.
-            </span>
-          </label>
-        </fieldset>
+        <p className="hb-muted hb-kind-note">
+          New policies are for reference: everyone can read them and nobody signs. To ask bookkeepers to sign, open the policy
+          and use <strong>Make this a signed policy</strong>.
+        </p>
 
         <label className="hb-label" htmlFor="hb-new-section">
           Section <span className="hb-muted">(optional)</span>
@@ -629,7 +619,6 @@ function HB_NewPolicy({ policies, onCancel, onCreated }) {
         </div>
         <p className="hb-muted hb-hint">
           Markdown: # for headings, - for lists, **bold**.
-          {kind === "signed" ? " Use {{effective_date}} and {{employee_name}} where the signing date and the signer's name go." : ""}
         </p>
         {tried && bodyProblem && (
           <span className="hb-field-error" role="alert">

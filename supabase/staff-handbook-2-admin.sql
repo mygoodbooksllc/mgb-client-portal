@@ -3,6 +3,9 @@
 -- Flat file; every function pins search_path = public.
 -- NOTE: supabase/staff-handbook-3-kinds.sql redefines hb_status,
 -- hb_publish_version, hb_sign and hb_retry_export; re-run it after this file.
+-- Re-run guard: once staff-handbook-3-kinds.sql has run (handbook_policies has
+-- a `kind` column), this file refuses to run unless mgb.rerun_superseded is
+-- 'on' (see the guard below). The whole file is one transaction.
 --
 -- Depends on (all from staff-handbook.sql, checked live 2026-10-14):
 --   handbook_policies, handbook_versions, handbook_signatures, staff,
@@ -27,6 +30,23 @@
 --
 -- Applied to production 2026-10-14 (hb_sign / hb_retry_export guards added
 -- and applied the same day).
+
+begin;
+
+-- Re-run guard (2026-10-19): once staff-handbook-3-kinds.sql has run, re-running this file
+-- would silently put back hb_status, hb_publish_version, hb_sign and hb_retry_export without policy kinds. So it stops here with an error and changes
+-- nothing. On a fresh database the check passes. To re-run it on purpose,
+-- put `set mgb.rerun_superseded = 'on';` on the line before this file, then
+-- run staff-handbook-3-kinds.sql again right after it.
+do $guard$
+begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'handbook_policies' and column_name = 'kind')
+     and coalesce(current_setting('mgb.rerun_superseded', true), '') <> 'on' then
+    raise exception 'Stopped: staff-handbook-3-kinds.sql has already run, and re-running this file would undo it. Nothing was changed. See the re-run guard note at the top of this file.'
+      using errcode = '55000';
+  end if;
+end $guard$;
 
 create or replace function public.hb_publish_version(p_policy_id uuid, p_body_md text, p_requires_resign boolean,
                                                      p_change_note text)
@@ -254,3 +274,5 @@ revoke all on function public.hb_sign(uuid, text, boolean) from public, anon;
 grant execute on function public.hb_sign(uuid, text, boolean) to authenticated;
 revoke all on function public.hb_retry_export(uuid) from public, anon;
 grant execute on function public.hb_retry_export(uuid) to authenticated;
+
+commit;

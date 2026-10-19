@@ -30,7 +30,8 @@
 --                                   only (name, title, type, schedule, manager,
 --                                   hire date, end date, status) plus which
 --                                   fields are filled in (true / false, never
---                                   the values).
+--                                   the values). Audits hr.list_viewed (the
+--                                   row count only).
 --       hr_get_record(email)        the full record. Audits hr.record_viewed.
 --       hr_save_record(email, rec)  creates or updates it. Audits
 --                                   hr.record_saved with the changed field
@@ -38,8 +39,10 @@
 --   * hr_save_record copies a hire date into staff_profiles.start_date (the
 --     date work anniversaries use). It never clears start_date.
 --   * offboard_staff sets end_date to today (America/Chicago) when the person
---     has a record with no end date (and no future hire date). It never
---     overwrites an end date an admin already entered.
+--     has a record with no end date (and no future hire date), and audits
+--     hr.end_date_set (field name only). It never overwrites an end date an
+--     admin already entered. The file ends by checking the live offboard_staff
+--     really has the patch, and fails (rolling everything back) if not.
 --   * Bookkeepers, temporary admins, "View as" and portal clients have no read
 --     path: every RPC checks role = 'admin' on the signed-in staff row and
 --     is_active_staff_admin() on the JWT, and "View as" never changes the JWT.
@@ -132,11 +135,12 @@ $$;
 -- ---------------------------------------------------------------------------
 -- Every staff member (active first), list columns only.
 create or replace function public.hr_list_records()
-returns jsonb language plpgsql stable security definer set search_path = public as $$
+returns jsonb language plpgsql security definer set search_path = public as $$
 declare
   me staff := hr_require_admin();
+  v jsonb;
 begin
-  return coalesce((
+  v := coalesce((
     select jsonb_agg(jsonb_build_object(
         'email', lower(s.email), 'name', s.name, 'role', s.role, 'active', s.active,
         'has_record', r.staff_email is not null,
@@ -149,6 +153,9 @@ begin
     from staff s
     left join staff_hr_records r on r.staff_email = lower(s.email)
     left join staff m on lower(m.email) = r.manager_email), '[]'::jsonb);
+  -- Who opened the list and how many rows it held; never any values.
+  perform audit_write('hr.list_viewed', null, 'staff', null, jsonb_build_object('rows', jsonb_array_length(v)));
+  return v;
 end $$;
 
 -- One full record. Opening it is audited (hr.record_viewed).
@@ -321,9 +328,8 @@ end $$;
 -- ---------------------------------------------------------------------------
 -- Offboarding: set the end date (patched into offboard_staff in place, the
 -- pg_temp.patch_fn idiom from internal-company-profile.sql). If the live
--- function doesn't match the anchor, this step is skipped with a warning and
--- the rest of the file still applies: set the end date by hand in Employee
--- records after offboarding.
+-- function doesn't match the anchor, the file fails and nothing is applied
+-- (see the check at the end).
 -- ---------------------------------------------------------------------------
 create or replace function pg_temp.patch_fn(p_sig text, p_from text, p_to text, p_expected int)
 returns void
@@ -356,11 +362,13 @@ begin
      set end_date = (now() at time zone 'America/Chicago')::date, updated_at = now(), updated_by = v_caller
    where staff_email = v_email and end_date is null
      and (hire_date is null or hire_date <= (now() at time zone 'America/Chicago')::date);
+  if found then
+    perform audit_write('hr.end_date_set', null, 'staff', v_email,
+      jsonb_build_object('fields', jsonb_build_array('end_date'), 'via', 'offboarding'));
+  end if;
 
   -- 4. Deactivate (never delete)
   update staff set active = false where email = v_email and active;$a$, 1);
-exception when others then
-  raise warning 'staff-hr-records: offboard_staff not patched (%). Set end dates by hand.', sqlerrm;
 end $do$;
 
 -- ---------------------------------------------------------------------------
@@ -374,5 +382,15 @@ revoke all on function public.hr_get_record(text) from public, anon;
 grant execute on function public.hr_get_record(text) to authenticated;
 revoke all on function public.hr_save_record(text, jsonb) from public, anon;
 grant execute on function public.hr_save_record(text, jsonb) to authenticated;
+
+-- The offboarding patch must be live. A silent miss would leave end dates
+-- unset with no sign, so fail the whole file instead.
+do $chk$
+declare d text := pg_get_functiondef('public.offboard_staff(text, jsonb)'::regprocedure);
+begin
+  if position('staff_hr_records' in d) = 0 or position('hr.end_date_set' in d) = 0 then
+    raise exception 'staff-hr-records: offboard_staff does not set the employee record end date. Nothing was applied.';
+  end if;
+end $chk$;
 
 commit;

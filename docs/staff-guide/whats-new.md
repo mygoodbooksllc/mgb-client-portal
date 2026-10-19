@@ -12,7 +12,7 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 ### 2026-10-19: Reference policies and employee records
 
 - **Two kinds of handbook policy.** **Team › Handbook** now has **Signed** policies (bookkeepers sign, as before) and **Reference** policies (read only; nobody signs them, and they never add a Today row, a badge or an email). The list starts with **Policies to sign**, then the reference policies by section, with a search box. See [How do I sign the Staff Handbook?](#/help/staff-handbook).
-- **Admins: New policy.** Add a policy from the Handbook tab. It's saved as a draft only admins see, and nobody is emailed until you click **Publish**. **Make this a signed policy** turns a reference policy into one everyone signs.
+- **Admins: New policy.** Add a policy from the Handbook tab. It's saved as a reference draft only admins see. A new policy never asks anyone to sign; **Make this a signed policy** is the one step that does, and only after you confirm it.
 - **Admins: Employee records.** **Team › Employee records** keeps job details, personal contact details and an emergency contact for each staff member, with their handbook signatures. Admins only (not a temporary admin grant), and each record you open is logged. See [How do I keep employee records?](#/help/employee-records).
 
 ### 2026-10-19: A real Home for Basic clients

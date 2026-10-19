@@ -194,19 +194,30 @@ begin
                                where e ->> 'slug' = 'hbt-ref')$q$);
   perform pg_temp.chk('converted policy now asks the bookkeeper to sign', v in ('not_signed', 'overdue'), v);
 
-  -- A signed draft: hidden and quiet until published, then emails.
+  -- New policies are always reference: asking for signatures takes the
+  -- explicit convert step.
   v := pg_temp.probe(adm, $q$select hb_create_policy('Test signed', 'hbt-signed', 'signed', null, 'Sign me') ->> 'kind'$q$);
-  perform pg_temp.chk('admin creates a signed draft', v = 'signed', v);
-  perform pg_temp.chk('signed v1 needs signing',
-    (select v1.requires_resign from handbook_versions v1 join handbook_policies p on p.id = v1.policy_id
-     where p.slug = 'hbt-signed' and v1.version_no = 1));
+  perform pg_temp.chk('creating a signed policy is rejected', v like 'ERR:22023%', v);
+  perform pg_temp.chk('rejected signed create left no policy',
+    not exists (select 1 from handbook_policies where slug = 'hbt-signed'));
+
+  -- A draft converted to signed: hidden and quiet until published, then emails.
+  v := pg_temp.probe(adm, $q$select hb_create_policy('Test signed', 'hbt-signed', null, null, 'Sign me') ->> 'kind'$q$);
+  perform pg_temp.chk('admin creates a reference draft (kind omitted)', v = 'reference', v);
+  v := pg_temp.probe(adm, $q$select hb_convert_to_signed((select id from handbook_policies where slug = 'hbt-signed'), null, 'Needs signing', true) ->> 'notified'$q$);
+  perform pg_temp.chk('converting a draft emails nobody yet', v = '0', v);
+  perform pg_temp.chk('converted draft is signed',
+    (select kind from handbook_policies where slug = 'hbt-signed') = 'signed');
+  perform pg_temp.chk('v1 of a new policy never needs signing; the converted v2 does',
+    (select bool_and(v1.requires_resign = (v1.version_no = 2)) from handbook_versions v1
+       join handbook_policies p on p.id = v1.policy_id where p.slug = 'hbt-signed'));
   perform pg_temp.chk('signed draft emails nobody',
     not exists (select 1 from notification_outbox where payload ->> 'policy_slug' = 'hbt-signed'));
   v := pg_temp.probe(bk, $q$select count(*) from jsonb_array_elements(hb_status() -> 'policies') e where e ->> 'slug' = 'hbt-signed'$q$);
   perform pg_temp.chk('staff: signed draft not in hb_status', v = '0', v);
   v := pg_temp.probe(adm, $q$select count(*) from jsonb_array_elements(hb_status() -> 'grid') e where e ->> 'policy_slug' = 'hbt-signed'$q$);
   perform pg_temp.chk('admin grid leaves drafts out', v = '0', v);
-  select v1.id into v_ver from handbook_versions v1 join handbook_policies p on p.id = v1.policy_id where p.slug = 'hbt-signed';
+  select v1.id into v_ver from handbook_versions v1 join handbook_policies p on p.id = v1.policy_id where p.slug = 'hbt-signed' and v1.version_no = 2;
   v := pg_temp.probe(bk, format($q$select hb_sign(%L, 'x', true)$q$, v_ver));
   perform pg_temp.chk('staff cannot sign a draft', v like 'ERR:%', v);
   v := pg_temp.probe(adm, $q$select hb_publish_policy((select id from handbook_policies where slug = 'hbt-signed')) ->> 'notified'$q$);

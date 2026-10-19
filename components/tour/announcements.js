@@ -1247,7 +1247,7 @@ var ANN_REGISTRY = [
     id: "handbook-policies-employee-records",
     date: "2026-10-19",
     title: "New handbook policies and employee records",
-    summary: "Admins can add handbook policies (reference or signed), and keep an employee record for each staff member.",
+    summary: "Admins can add reference handbook policies, and keep an employee record for each staff member.",
     roles: ["admin"],
     hash: "#/team/handbook",
     steps: () => [
@@ -1255,13 +1255,13 @@ var ANN_REGISTRY = [
         id: "ann-welcome",
         title: "Two new admin tools",
         body: () =>
-          "Add your own handbook policies, either reference (read only) or signed, and keep job and emergency contact details for each staff member. About a minute.",
+          "Add your own reference handbook policies (read only, nobody signs), and keep job and emergency contact details for each staff member. About a minute.",
       },
       TOUR_tabStep(
         "team",
         "handbook",
         "Team › Handbook › New policy",
-        "New policy saves a draft only admins see. Pick Reference (nobody signs it) or Signed (bookkeepers are asked to sign when you publish). Nobody is emailed until you choose Publish.",
+        "New policy saves a reference draft only admins see. Nobody signs a new policy and nobody is emailed. To ask bookkeepers to sign one, open it and use Make this a signed policy.",
       ),
       TOUR_tabStep(
         "team",
