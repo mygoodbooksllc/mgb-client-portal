@@ -163,6 +163,7 @@
 .wb-scope-btn.is-on {
   background: var(--accent-soft);
   border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
   color: var(--ink-strong);
 }
 /* Inbox filter pills: a colored outline per kind (all stays neutral). */
