@@ -10,16 +10,17 @@
 //   WB_useHubKeys     D / Esc / Tab for the hub. Checks at keydown time (window
 //                     capture, before any other handler) whether a layer is
 //                     above the hub; if so the hub does nothing, so one Esc
-//                     closes exactly one layer. D3: the docked Desk is
-//                     non-modal, so Esc acts only with focus inside it
-//                     (WB_deskEscStep) and Tab is trapped only in the phone sheet.
+//                     closes exactly one layer. The docked Desk (R1: the right
+//                     column) is non-modal, so Esc acts only with focus inside
+//                     it (WB_deskEscStep) and Tab is trapped only in the phone sheet.
 //   WB_useHubLayers   html.wb-hub-open (lifts the chat drawer above the panel),
 //                     html.wb-stacked (a drawer is over the hub) and the focus
 //                     return when the stacked drawer closes, only if focus was
 //                     inside the Desk. A body-level MutationObserver runs only
 //                     while the hub is open.
-//   WB_Hub            the panel itself, with the resize handle (dock only).
-//                     WB_Drawer keeps the bar, the height and the drag.
+//   WB_Hub            the panel itself, with the width grip on its left edge
+//                     (dock only). WB_Drawer keeps the rail, the info bar, the
+//                     width and the drag.
 //
 // Pure rules (layers, state, row actions) live in WB_logic.js; state lives in
 // WB_store (saved in mgb_wb_hub). Browser file; loads after WB_Drawer.jsx.
@@ -48,7 +49,7 @@ function WB_useHubKeys(live, panelRef, deskRef) {
       const panel = panelRef.current;
       const tgt = e.target;
       const inPanel = !!(panel && tgt && tgt.nodeType === 1 && panel.contains(tgt));
-      // Esc while dragging the top edge puts the start height back.
+      // Esc while dragging the left edge puts the start width back.
       if (e.key === "Escape" && dk.dragging && typeof dk.cancel === "function") {
         e.preventDefault();
         e.stopPropagation();
@@ -90,7 +91,7 @@ function WB_useHubKeys(live, panelRef, deskRef) {
         const onBody = !tgt || tgt === document.body || tgt === document.documentElement;
         let onBar = false;
         try {
-          onBar = !!(tgt && tgt.nodeType === 1 && tgt.closest && tgt.closest(".wb-bar"));
+          onBar = !!(tgt && tgt.nodeType === 1 && tgt.closest && tgt.closest(".wb-bar, .wb-rail"));
         } catch (err) {}
         if (!inPanel && !(sheet && (onBody || onBar))) return;
         let clears = false;
@@ -246,10 +247,12 @@ function WB_HubTabs({ tab, onPick, counts }) {
 // props: s (store state), me, isAdmin, clients, panelRef, allView, view, chip,
 // today, now, count, loading, currentClientId (the client page I am on, or
 // null), page (the route page, for the Client tab's "For this page" group).
-// mode: "dock" | "sheet". handle (dock only): { show, pct, valueText,
-// onPointerDown, onPointerMove, onPointerUp, onPointerCancel,
-// onLostPointerCapture, onKeyDown } from WB_Drawer's drag controller.
-function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, handle }) {
+// mode: "dock" | "sheet". layout (dock): "push" (the page makes room) or
+// "overlay" (under 1100px the column covers the page's right edge). handle
+// (dock only): { show, w, min, max, valueText, onPointerDown, onPointerMove,
+// onPointerUp, onPointerCancel, onLostPointerCapture, onKeyDown } from
+// WB_Drawer's width drag.
+function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle }) {
   const dock = mode !== "sheet";
   const hub = s.hub;
   const tab = hub.tab;
@@ -301,11 +304,11 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
 
   return (
     <>
-      {/* D3: no scrim. The dock is a region beside the page (non-modal); the phone sheet stays a modal dialog. */}
+      {/* No scrim. The right column is a region beside the page (non-modal); the phone sheet stays a modal dialog. */}
       <section
         ref={panelRef}
         id="wb-panel"
-        className={"wb-panel wb-glass" + (dock ? " is-dock" : " is-sheet")}
+        className={"wb-panel wb-glass" + (dock ? " is-dock is-right" + (layout === "overlay" ? " is-overlay" : " is-push") : " is-sheet")}
         {...(dock ? { role: "region" } : { role: "dialog", "aria-modal": "true" })}
         aria-labelledby="wb-panel-title"
         tabIndex={-1}
@@ -315,12 +318,12 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
           <div
             className="wb-desk-handle"
             role="separator"
-            aria-orientation="horizontal"
+            aria-orientation="vertical"
             aria-controls="wb-panel"
-            aria-label={"Resize " + WORKBENCH_NAME}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={handle.pct}
+            aria-label={WORKBENCH_NAME + " width"}
+            aria-valuemin={handle.min}
+            aria-valuemax={handle.max}
+            aria-valuenow={handle.w}
             aria-valuetext={handle.valueText}
             tabIndex={0}
             data-tour="wb-desk-handle"
@@ -434,7 +437,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
         </div>
         <p className="wb-panel-foot">
           <kbd>D</kbd> opens and closes · <kbd>Esc</kbd> goes back one step
-          {dock && handle && handle.show && <> · drag the top edge to resize</>}
+          {dock && handle && handle.show && <> · drag the left edge to change the width</>}
           {tab === "tasks" && <> · <kbd>↑</kbd> <kbd>↓</kbd> move between tasks · use <b>Add to your {WB_SLATE}</b> to add one</>}
           {tab === "client" && <> · type in the box to find a client · the <b>☆</b> pins one to the top</>}
         </p>

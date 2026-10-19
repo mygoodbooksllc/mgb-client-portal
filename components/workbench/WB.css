@@ -1,16 +1,19 @@
 /* ---------------------------------------------------------------------------
-   Workbench (components/workbench/): the Today page list and the bottom
-   drawer (a bar across the whole bottom of the content area, beside the left
-   nav; --wb-bar-left is set by WB_Drawer from the staff rail's width). App tokens only (styles.css); red = late or waiting on you, amber =
-   coming up, always paired with words. Layers: the bar and panel render in
+   Workbench / Desk (components/workbench/): the Today page list, and the
+   Desk (R1 + R1c): the bottom info bar (full width from the left nav to the
+   right edge; --wb-bar-left is set by WB_Drawer from the staff rail's width)
+   and the right column (the 52px slim rail closed, the Desk open). App tokens
+   only (styles.css); the rail and bar use the left rail's own sidebar tokens
+   (decision 22, no blue); red = late or waiting on you, amber = coming up,
+   always paired with words. Layers: the bar, rail and panel render in
    .wb-desk-root at the end of .app-shell (WB_Drawer), inside the shell's
    stacking context, so everything portaled to <body> (the task, client and
-   chat drawers, tips, the tour) is above them. Docked (above 760px) the bar
-   is 690 and the panel 680 (no scrim since D3: the docked Desk is non-modal),
-   under the sticky top bar (700) and its menus, the search, the nav, the
-   notes and alerts popovers, the chat button (900), modals (2000), the Undo
-   bar (2050) and toasts (2100). The phone sheet is modal and covers the page,
-   so there the bar is 1830 and the panel 1820, still under modals.
+   chat drawers, tips, the tour) is above them. Above 760px the bar and rail
+   are 690 and the panel 680 (no scrim: the column is non-modal), under the
+   sticky top bar (700) and its menus, the search, the nav, the notes and
+   alerts popovers, modals (2000), the Undo bar (2050) and toasts (2100). The
+   phone sheet is modal and covers the page, so there the bar is 1830 and the
+   panel 1820, still under modals.
    --------------------------------------------------------------------------- */
 :root {
   --wb-now: var(--bad);
@@ -19,13 +22,26 @@
   --wb-week-soft: var(--warm-bg);
   --wb-week-text: var(--warm-text);
   --wb-clear: var(--good);
-  --wb-z-bar: 690; /* above the panel so it stays clickable while open; 1830 on the phone sheet */
+  --wb-z-bar: 690; /* the info bar and the rail; 1830 on the phone sheet */
   --wb-z-panel: 680; /* under the top bar (700) and its menus; 1820 on the phone sheet */
-  --wb-bar-h: 44px;
+  --wb-bar-h: 42px; /* the info bar (R1c) */
   --wb-bar-left: 0px;
-  --wb-panel-max: 1100px; /* the list's reading width inside the full-width panel */
+  /* The right column (R1): WB_Drawer writes --desk-w (the column width),
+     --desk-occupy (the room the page keeps on the right: the rail, or the
+     open column when it pushes), --desk-occupy-any (the open column's width,
+     0 closed), --desk-cover (what covers the right edge: rail or column) and
+     --desk-top (the top bar's bottom) on <html>. These are the fallbacks. */
+  --desk-w: 380px;
+  --desk-occupy: 52px;
+  --desk-occupy-any: 0px;
+  --desk-cover: 52px;
+  --desk-top: 56px;
+  --desk-rail-w: 52px;
+  /* The left rail's own fills (styles.css .staff-rail-item), shared by the
+     slim rail and the info bar. */
+  --desk-rail-hover: rgba(255, 255, 255, 0.05);
+  --desk-rail-line: rgba(255, 255, 255, 0.08);
   /* Desk glass (spec D2): light set here, dark sets below (twice, the styles.css pattern). */
-  --desk-max-w: 640px; /* Desk + bar width; set to 100vw to go back to full width */
   --desk-radius: 16px;
   --desk-glass-blur: 0px;
   --desk-glass-sat: 1;
@@ -34,7 +50,9 @@
   --desk-glass-shadow: 0 -10px 36px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.55);
   --desk-row-bg: rgba(255, 255, 255, 0.8);
   --desk-row-bg-hover: rgba(255, 255, 255, 0.94);
-  --desk-solid-bg: var(--surface);
+  /* Solid sidebar color everywhere (2026-10-19d), fallbacks and the phone
+     sheet included, so the on-sidebar text set below always applies. */
+  --desk-solid-bg: var(--sidebar-bg);
   --desk-grip: rgba(15, 23, 42, 0.28);
 }
 @media (prefers-color-scheme: dark) {
@@ -453,7 +471,7 @@
 .wb-undo {
   position: fixed;
   left: 50%;
-  bottom: calc(60px + var(--desk-lift, 0px)); /* D3: above the docked Desk while it is open */
+  bottom: 60px;
   transform: translateX(-50%);
   z-index: 2050;
   display: flex;
@@ -550,123 +568,176 @@
   background: var(--hover-bg);
 }
 
-/* ---- Drawer: collapsed bar ---- */
-/* Room under the page so the bar (and the open dock, D3) never covers content
-   or the footer. WB_Drawer writes --desk-pad (60px closed, the Desk height
-   while docked open) and --desk-lift (0 closed, the Desk height docked) on
-   <html> from WB_deskPagePad; the phone sheet covers the page, so it keeps 60. */
+/* ---- Desk: page room (R1) ----
+   Room under the page for the info bar, and on the right for the rail (or
+   the open column when it pushes). The top bar spans .main's padding, so it
+   reaches over the rail and stays full width. */
 html.wb-drawer-on .main {
-  padding-bottom: calc(var(--desk-pad, 60px) + var(--wb-bar-h) + 8px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(60px + var(--wb-bar-h) + 8px + env(safe-area-inset-bottom, 0px));
 }
-/* Floating things that live in the bottom corner sit above the bar, and
-   above the docked Desk while it is open. */
+html.wb-desk-side .main {
+  padding-right: calc(40px + var(--desk-occupy));
+}
+html.wb-desk-side .tb-bar {
+  margin-right: calc(-40px - var(--desk-occupy));
+}
+@media (max-width: 1024px) {
+  html.wb-desk-side .main {
+    padding-right: calc(24px + var(--desk-occupy));
+  }
+  html.wb-desk-side .tb-bar {
+    margin-right: calc(-24px - var(--desk-occupy));
+  }
+}
+/* Toasts sit above the bar and left of the rail or open column; the Undo bar
+   is centered on the page between the left nav and the right column. */
 html.wb-drawer-on .toast-stack {
-  bottom: calc(24px + var(--desk-lift, 0px) + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(24px + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
 }
-html.wb-drawer-on .si-launcher,
+html.wb-desk-side .toast-stack {
+  right: calc(24px + var(--desk-cover));
+}
+html.wb-drawer-on .wb-undo {
+  bottom: calc(16px + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
+}
+html.wb-desk-side .wb-undo {
+  left: calc(var(--wb-bar-left, 0px) + (100vw - var(--wb-bar-left, 0px) - var(--desk-cover)) / 2);
+}
+/* The client side's chat button (never on a staff page with the Desk). */
 html.wb-drawer-on .chat-fab-wrap {
-  bottom: calc(16px + var(--desk-lift, 0px) + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(16px + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
 }
-/* Wide windows: the centered Desk never reaches the bottom-right corner, so the
-   chat button and toasts stay put instead of riding up with it. */
-@media (min-width: 1100px) {
-  html.wb-drawer-on .si-launcher,
-  html.wb-drawer-on .chat-fab-wrap {
-    bottom: calc(16px + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
-  }
-  html.wb-drawer-on .toast-stack {
-    bottom: calc(24px + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
-  }
+/* The Desk's own container at the end of .app-shell; the bar, rail and panel
+   are fixed, so it takes no room in the shell's flex row. */
+.wb-desk-root,
+.wb-rail-wrap {
+  display: contents;
 }
+
+/* ---- Desk: the bottom info bar (R1c) ----
+   42px, the sidebar color, one line from the left nav to the right edge (to
+   the open column's edge while it is open). Info only: a click opens the
+   right column. */
 .wb-bar {
   position: fixed;
   left: var(--wb-bar-left, 0px);
-  right: 0;
+  right: var(--desk-occupy-any);
   bottom: 0;
-  width: min(var(--desk-max-w), calc(100vw - var(--wb-bar-left, 0px) - 32px));
-  margin-inline: auto; /* centered in the space right of the rail */
   z-index: var(--wb-z-bar);
   box-sizing: border-box;
   height: calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 20px env(safe-area-inset-bottom, 0px);
-  border: 1px solid var(--desk-glass-edge);
-  border-bottom: 0;
-  border-radius: var(--desk-radius) var(--desk-radius) 0 0;
-  background: var(--desk-glass-bg);
-  -webkit-backdrop-filter: blur(var(--desk-glass-blur)) saturate(var(--desk-glass-sat));
-  backdrop-filter: blur(var(--desk-glass-blur)) saturate(var(--desk-glass-sat));
-  color: var(--text);
-  box-shadow: var(--desk-glass-shadow);
+  gap: 18px;
+  min-width: 0;
+  padding: 0 16px env(safe-area-inset-bottom, 0px) 20px;
+  border: 0;
+  border-top: 1px solid var(--desk-rail-line);
+  border-radius: 0;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
   font: inherit;
-  font-size: 13.5px;
+  font-size: 13px;
   cursor: pointer;
   text-align: left;
-  /* D3: a drag up on the closed bar opens the Desk at that height, so touch
-     must not scroll the page from here (the phone sheet resets this). */
-  touch-action: none;
+  white-space: nowrap;
+  overflow: hidden;
 }
-.wb-bar-hint {
+.wb-bar:hover {
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text-active);
+}
+.wb-bar:hover .wb-bar-hint {
+  color: var(--sidebar-text-active);
+}
+.wb-bar:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+.wb-bar > span {
+  min-width: 0;
+}
+.wb-bar-work {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  color: var(--text-muted);
+  gap: 8px;
 }
-.wb-bar:hover {
-  background: var(--desk-row-bg-hover);
-}
-/* Open: the bar is the Desk's foot, one piece with the panel above it. Square
-   top corners, no top edge or shadow, and the panel's background (on hover
-   too; the hint darkens instead). --wb-bar-open-bg turns solid wherever the
-   panel does (the fallbacks and the phone sheet below). */
-.wb-bar.is-open,
-.wb-bar.is-open:hover {
-  border-top-color: transparent;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-  background: var(--wb-bar-open-bg, var(--desk-glass-bg));
-  box-shadow: none;
-}
-.wb-bar.is-open:hover .wb-bar-hint {
-  color: var(--text);
-}
-/* The Desk's own container at the end of .app-shell; the bar and panel are
-   fixed, so it takes no room in the shell's flex row. */
-.wb-desk-root {
-  display: contents;
-}
-.wb-bar-name {
-  font-weight: 700;
-  color: var(--ink-strong);
-  flex: none;
-}
-.wb-bar-count {
-  flex: none;
-  min-width: 22px;
-  padding: 1px 7px;
+.wb-bar-late {
+  padding: 2px 8px;
   border-radius: 999px;
-  background: var(--surface-2);
-  font-size: 12px;
+  background: var(--bad);
+  color: var(--sidebar-text-active);
   font-weight: 700;
-  text-align: center;
+  font-size: 12.5px;
 }
-.wb-bar.has-due .wb-bar-count {
-  background: var(--wb-now);
-  color: #fff;
+.wb-bar-today,
+.wb-bar-clean {
+  color: var(--sidebar-text-active);
+  font-weight: 600;
 }
 .wb-bar-next {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 0 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-muted);
 }
-.wb-bar-kbd,
+.wb-bar-label {
+  color: var(--sidebar-text-muted);
+}
+.wb-bar-next-title {
+  color: var(--sidebar-text-active);
+}
+.wb-bar-next-client {
+  color: var(--sidebar-text-muted);
+}
+.wb-bar-client {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 18px;
+  border-left: 1px solid var(--desk-rail-line);
+}
+.wb-bar-client-name {
+  color: var(--sidebar-text-active);
+  font-weight: 600;
+}
+.wb-bar-client-part::before {
+  content: "·";
+  margin: 0 7px;
+  color: var(--sidebar-text-muted);
+}
+/* Late or stale: a red dot paired with the words. */
+.wb-bar-client-part.is-bad {
+  color: var(--sidebar-text-active);
+}
+.wb-bar-client-part.is-bad::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--bad);
+  vertical-align: 1px;
+}
+.wb-bar-hint {
+  flex: none;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--sidebar-text-muted);
+}
+.wb-bar-kbd {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid var(--desk-rail-line);
+  background: var(--desk-rail-hover);
+  color: var(--sidebar-text-active);
+}
 .wb-panel-foot kbd,
 .wb-keys kbd {
   font-family: var(--font-mono, monospace);
@@ -677,79 +748,210 @@ html.wb-drawer-on .chat-fab-wrap {
   background: var(--surface-2);
   color: var(--text);
 }
+/* Narrow windows: the client line goes first, then the next-up title. */
+@media (max-width: 1100px) {
+  .wb-bar-client {
+    display: none;
+  }
+}
 
-/* ---- Drawer: open panel ----
-   D3: no scrim. The docked Desk is non-modal: the page behind stays
-   scrollable and clickable. Its height is --desk-h (px, written on <html> by
-   WB_Drawer from the snap point; straight from the pointer while dragging);
-   max-height backs the JS up so it never reaches the sticky top bar
-   (--desk-top, measured) even before the first measure. */
-.wb-panel {
+/* ---- Desk: the slim rail (R1, the closed right column) ----
+   52px, the sidebar color, from under the top bar down to the info bar.
+   Four counts (messages, reviews, files, mentions) with flyouts, and the
+   quick-add + at the bottom. */
+.wb-rail {
   position: fixed;
-  left: var(--wb-bar-left, 0px);
+  top: var(--desk-top);
   right: 0;
-  width: min(var(--desk-max-w), calc(100vw - var(--wb-bar-left, 0px) - 32px));
-  margin-inline: auto; /* same width as the bar, centered right of the rail */
-  bottom: calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px)); /* sits above the bar */
-  z-index: var(--wb-z-panel);
+  bottom: calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
+  z-index: var(--wb-z-bar);
   box-sizing: border-box;
-  height: var(--desk-h, min(45vh, 720px));
-  max-height: calc(100vh - var(--desk-top, 0px) - var(--wb-bar-h) - 16px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
-  max-height: calc(100dvh - var(--desk-top, 0px) - var(--wb-bar-h) - 16px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+  width: var(--desk-rail-w);
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--desk-glass-edge);
-  border-bottom: 0;
-  border-radius: var(--desk-radius) var(--desk-radius) 0 0;
-  background: var(--desk-solid-bg);
-  box-shadow: var(--shadow-hover, 0 -8px 28px rgba(0, 0, 0, 0.2));
-  outline: none;
-  animation: wb-rise 0.16s ease-out;
-  transition: height 0.18s ease-out;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0 8px;
+  background: var(--sidebar-bg);
+  border-left: 1px solid var(--desk-rail-line);
+  color: var(--sidebar-text);
+  cursor: pointer;
 }
-/* The docked panel's shadow stops at its bottom edge, so it does not show
-   through the glass bar below as a seam. */
-.wb-panel.is-dock {
-  clip-path: inset(-64px -64px 0 -64px);
-}
-/* ---- D3: the resize handle (role=separator) on the dock's top edge ----
-   A 12px hit strip with a visible 36x4 grip. Pointer events only; touch-action
-   none so a touch drag resizes instead of scrolling the page. */
-.wb-desk-handle {
+.wb-rail-item {
   position: relative;
-  flex: 0 0 12px;
-  height: 12px;
-  margin-bottom: -6px; /* the head keeps its own spacing */
+}
+.wb-rail-btn {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: ns-resize;
-  touch-action: none;
-  border-radius: var(--desk-radius) var(--desk-radius) 0 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sidebar-text);
+  cursor: pointer;
+}
+.wb-rail-btn:hover,
+.wb-rail-btn[aria-expanded="true"] {
+  background: var(--desk-rail-hover);
+  color: var(--sidebar-text-active);
+}
+.wb-rail-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+  color: var(--sidebar-text-active);
+}
+.wb-rail-item:not(.has-count) .wb-rail-btn {
+  color: var(--sidebar-text-muted);
+}
+.wb-rail-badge {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--sidebar-bg);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+}
+.wb-rail-dot {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bad);
+  box-shadow: 0 0 0 2px var(--sidebar-bg);
+}
+/* The flyout: beside the icon, on hover or focus. */
+.wb-rail-tip {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 10px);
+  transform: translateY(-50%);
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  width: max-content;
+  max-width: 280px;
+  padding: 8px 12px;
+  border: 1px solid var(--desk-rail-line);
+  border-radius: 8px;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  font-size: 12.5px;
+  line-height: 1.35;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  z-index: 2;
+}
+.wb-rail-item:hover .wb-rail-tip,
+.wb-rail-btn:focus-visible + .wb-rail-tip {
+  display: flex;
+}
+.wb-rail-tip-head {
+  color: var(--sidebar-text-active);
+  font-weight: 600;
+}
+.wb-rail-tip-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-rail-gap {
+  flex: 1 1 auto;
+  width: 100%;
+}
+.wb-rail-add {
+  position: relative;
+}
+.wb-rail-plus svg {
+  width: 18px;
+  height: 18px;
+}
+/* The + menu opens up and to the left of the rail (the top bar's menu). */
+.wb-rail-menu {
+  top: auto;
+  bottom: 0;
+  right: calc(100% + 10px);
+  cursor: default;
+}
+
+/* ---- Desk: the open right column ----
+   No scrim. The column is non-modal: the page beside it stays scrollable and
+   clickable. From 1100px the page makes room (html.wb-desk-push, through
+   --desk-occupy); under that it covers the page's right edge (.is-overlay).
+   Its width is --desk-w (px, written on <html> by WB_Drawer; straight from
+   the pointer while dragging). */
+.wb-panel {
+  position: fixed;
+  top: var(--desk-top);
+  right: 0;
+  bottom: 0;
+  z-index: var(--wb-z-panel);
+  box-sizing: border-box;
+  width: var(--desk-w);
+  max-width: calc(100vw - var(--wb-bar-left, 0px));
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-left: 1px solid var(--desk-glass-edge);
+  border-radius: 0;
+  background: var(--desk-solid-bg);
   outline: none;
-  z-index: 1;
+  animation: wb-widen 0.14s ease-out;
+}
+.wb-panel.is-overlay {
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.18);
+}
+/* ---- The width grip (role=separator) on the column's left edge ----
+   A 10px hit strip with a visible 4x36 grip. Pointer events only;
+   touch-action none so a touch drag resizes instead of scrolling. */
+.wb-desk-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  width: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ew-resize;
+  touch-action: none;
+  outline: none;
+  z-index: 2;
 }
 .wb-desk-grip {
-  width: 36px;
-  height: 4px;
+  width: 4px;
+  height: 36px;
   border-radius: 999px;
   background: var(--desk-grip);
-  transition: background 0.12s ease-out, width 0.12s ease-out;
+  transition: background 0.12s ease-out, height 0.12s ease-out;
 }
 .wb-desk-handle:hover .wb-desk-grip,
 .wb-desk-handle:focus-visible .wb-desk-grip,
 html.wb-desk-dragging .wb-desk-grip {
-  width: 48px;
-  background: var(--accent, var(--ink-strong));
+  height: 48px;
+  background: var(--gold);
 }
 .wb-desk-handle:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--accent, var(--ink-strong));
+  box-shadow: inset 0 0 0 2px var(--gold);
 }
-/* While dragging: no transitions (the panel follows the pointer), no text
+/* While dragging: no transitions (the column follows the pointer), no text
    selection, the resize cursor everywhere. */
 html.wb-desk-dragging,
 html.wb-desk-dragging * {
-  cursor: ns-resize !important;
+  cursor: ew-resize !important;
   user-select: none !important;
   -webkit-user-select: none !important;
 }
@@ -757,28 +959,42 @@ html.wb-desk-dragging .wb-panel {
   transition: none;
   animation: none;
 }
-/* At strip height only the head, tabs and one row show: the filter chips and
-   the key hints step aside (WB_Drawer sets the class from the height). */
-html.wb-desk-strip .wb-panel .wb-panel-tools,
-html.wb-desk-strip .wb-panel .wb-panel-foot {
-  display: none;
-}
 /* Wheel and touch scrolling inside the Desk never scroll the page. */
 .wb-panel-body {
   overscroll-behavior: contain;
 }
-/* Full-width panel, readable list: head, tools, body and foot share one
-   centered column (the rules between them still run edge to edge). */
 .wb-panel-head,
 .wb-panel-tools,
 .wb-panel-body,
 .wb-panel-foot {
-  padding-inline: max(16px, calc((100% - var(--wb-panel-max)) / 2));
+  padding-inline: 14px;
 }
-/* ---- Desk glass (spec D2): only the Desk panel and its collapsed bar ----
+/* ---- Desk glass (spec D2): only the Desk panel ----
    Menus, modals, tours, the search palette, drawers and the picker list stay
    solid. The panel is solid by default and turns to glass on .wb-glass. */
 .wb-panel.wb-glass {
+  /* The column is the sidebar color in both themes, so everything inside
+     reads with the sidebar's text tokens (light text on navy) instead of the
+     page's dark-on-white set. Opaque --surface keeps menus and the picker
+     list solid. */
+  color-scheme: dark;
+  --text: var(--sidebar-text-active);
+  --ink-strong: var(--sidebar-text-active);
+  --text-muted: var(--sidebar-text);
+  --surface: var(--sidebar-bg);
+  --surface-2: var(--desk-rail-line);
+  --hover-bg: var(--desk-rail-line);
+  --accent-soft: var(--desk-rail-line);
+  --tint-on-surface: var(--desk-rail-line);
+  --border: rgba(255, 255, 255, 0.14);
+  --muted-line: rgba(255, 255, 255, 0.18);
+  --warm-bg: var(--desk-rail-line);
+  --warm-border: rgba(255, 255, 255, 0.14);
+  --warm-text: var(--gold);
+  --desk-row-bg: rgba(255, 255, 255, 0.06);
+  --desk-row-bg-hover: rgba(255, 255, 255, 0.1);
+  --desk-grip: rgba(255, 255, 255, 0.3);
+  color: var(--text);
   background: var(--desk-glass-bg);
   -webkit-backdrop-filter: blur(var(--desk-glass-blur)) saturate(var(--desk-glass-sat));
   backdrop-filter: blur(var(--desk-glass-blur)) saturate(var(--desk-glass-sat));
@@ -810,28 +1026,17 @@ html.wb-desk-strip .wb-panel .wb-panel-foot {
 /* Solid fallbacks: no backdrop-filter, reduced transparency, forced colors,
    and the phone sheet (it covers the page, so glass adds cost, no benefit). */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root {
-    --wb-bar-open-bg: var(--desk-solid-bg);
-  }
   .wb-panel.wb-glass,
-  .wb-bar,
   .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
     background: var(--desk-solid-bg);
   }
   .wb-panel.wb-glass .tk-rows,
   .wb-panel.wb-glass .wb-pick-input {
     background: var(--surface-2);
-  }
-  .wb-bar:hover {
-    background: var(--hover-bg);
   }
 }
 @media (prefers-reduced-transparency: reduce) {
-  :root {
-    --wb-bar-open-bg: var(--desk-solid-bg);
-  }
   .wb-panel.wb-glass,
-  .wb-bar,
   .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
     background: var(--desk-solid-bg);
     -webkit-backdrop-filter: none;
@@ -841,25 +1046,18 @@ html.wb-desk-strip .wb-panel .wb-panel-foot {
   .wb-panel.wb-glass .wb-pick-input {
     background: var(--surface-2);
   }
-  .wb-bar:hover {
-    background: var(--hover-bg);
-  }
 }
 @media (forced-colors: active) {
-  :root {
-    --wb-bar-open-bg: var(--desk-solid-bg);
-  }
   .wb-panel.wb-glass,
-  .wb-bar,
   .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
     background: var(--desk-solid-bg);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
 }
-@keyframes wb-rise {
+@keyframes wb-widen {
   from {
-    transform: translateY(16px);
+    transform: translateX(24px);
     opacity: 0.6;
   }
   to {
@@ -870,7 +1068,7 @@ html.wb-desk-strip .wb-panel .wb-panel-foot {
 @media (prefers-reduced-motion: reduce) {
   .wb-panel {
     animation: none;
-    transition: none; /* D3: a snap jumps */
+    transition: none;
   }
   .wb-desk-grip {
     transition: none;
@@ -955,7 +1153,7 @@ html.wb-desk-strip .wb-panel .wb-panel-foot {
   display: flex;
   flex: 0 0 auto; /* overflow-x:auto lets a flex child shrink to nothing in a short panel */
   gap: 2px;
-  padding-inline: max(16px, calc((100% - var(--wb-panel-max)) / 2));
+  padding-inline: 14px;
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
   scrollbar-width: none;
@@ -1004,7 +1202,6 @@ html.wb-hub-open .si-drawer-layer {
   :root {
     --wb-z-bar: 1830;
     --wb-z-panel: 1820;
-    --wb-bar-open-bg: var(--desk-solid-bg);
   }
   .wb-chips {
     flex-wrap: nowrap;
@@ -1056,38 +1253,49 @@ html.wb-hub-open .si-drawer-layer {
     border-radius: 14px 14px 0 0;
     padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
   }
-  /* Drawer: the bar already spans the width (left 0 without a rail); the
-     panel is a full-height sheet. */
+  /* The Desk on a phone: no rail, the info bar spans the width (left 0
+     without a nav), and the open Desk is a full-height sheet above it. */
+  :root {
+    --desk-occupy: 0px;
+    --desk-occupy-any: 0px;
+    --desk-cover: 0px;
+  }
   .wb-bar {
     left: 0;
-    width: auto;
-    margin-inline: 0;
-    border-left: 0;
-    border-right: 0;
-    border-radius: 0;
+    right: 0;
+    gap: 12px;
     padding-inline: 14px;
   }
-  .wb-bar-hint {
-    display: none; /* no keyboard on a phone */
+  .wb-bar-hint,
+  .wb-bar-client {
+    display: none; /* no keyboard on a phone; the client line needs the width */
   }
-  .wb-bar {
-    touch-action: manipulation; /* no drag-to-open on the sheet */
+  html.wb-desk-side .main {
+    padding-right: 16px;
+  }
+  html.wb-desk-side .tb-bar {
+    margin-right: 0;
+  }
+  html.wb-desk-side .toast-stack {
+    right: 16px;
+  }
+  html.wb-desk-side .wb-undo {
+    left: 50%;
   }
   /* The phone sheet is modal (aria-modal, Tab kept inside): the page behind
-     does not scroll. Full height, no handle, no resize. */
+     does not scroll. Full height, no grip, no resize. */
   html.wb-hub-open body {
     overflow: hidden;
   }
   .wb-panel {
     inset: 0 0 calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px)) 0;
     width: auto;
-    margin-inline: 0;
-    height: auto;
-    max-height: none;
-    transition: none;
+    max-width: none;
     border: 0;
     border-radius: 0;
+    box-shadow: none;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: none;
   }
   /* The sheet covers the page: solid, no blur. */
   .wb-panel.wb-glass,
@@ -1107,16 +1315,19 @@ html.wb-hub-open .si-drawer-layer {
     padding-inline: 12px;
   }
   .wb-undo {
-    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     max-width: calc(100vw - 32px);
   }
 }
 
 @media print {
   .wb-bar,
+  .wb-rail,
   .wb-panel,
   .wb-undo {
     display: none !important;
+  }
+  html.wb-desk-side .main {
+    padding-right: 0;
   }
 }
 

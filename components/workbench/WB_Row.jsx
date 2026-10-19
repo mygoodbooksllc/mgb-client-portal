@@ -462,7 +462,7 @@ function WB_NavBadge({ expanded = true }) {
 function WB_KeysSheet({ onClose }) {
   const rows = [
     ["D", "Open or close the " + WB_NAME],
-    ["↑ / ↓", "With the " + WB_NAME + "'s top edge focused, make it shorter or taller (Home / End: shortest / tallest)"],
+    ["← / →", "With the " + WB_NAME + "'s left edge focused, make it wider or narrower (Page Up / Page Down: next width stop; Home / End: narrowest / widest)"],
     ["j / k", "Next / previous item"],
     ["Enter", "Main action"],
     ["o", "Open where it lives"],

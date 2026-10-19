@@ -988,7 +988,7 @@ const FEATURE_FLAGS = [
     key: "mgb_wb_preview",
     label: "Desk preview",
     description:
-      "Turns the Desk on for you only, in this browser, while the firm-wide wb_enabled switch is off: Today gets the Needs you list and the Desk (press D) shows at the bottom of every staff page. Classic Today below wins if both are on. The page reloads when you toggle it.",
+      "Turns the Desk on for you only, in this browser, while the firm-wide wb_enabled switch is off: Today gets the Needs you list and the Desk (press D) shows on the right of every staff page, with its info bar along the bottom. Classic Today below wins if both are on. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -13850,7 +13850,7 @@ function resettableLocalStorageKeys() {
     // Both key families: the original "mygoodbooks_" keys and the newer
     // "mgb-"/"mgb_" ones (nav, tour, tips, profile prompt, bell, client
     // switcher, inbox context, the Desk's mgb_wb_hub:<email>,
-    // mgb_wb_pins:<email> and its height mgb_wb_desk:<email>, and the staff
+    // mgb_wb_pins:<email> and its width mgb_wb_desk:<email>, and the staff
     // sidebar choice mgb_rail_expanded:<email>). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
     // mgb_wb_classic).
@@ -17050,7 +17050,8 @@ const USAGE_ACTION_LABELS = {
   "wb-drawer": "Desk opened",
   "wb-hub": "Desk: Slate and Client tabs opened, clients picked",
   "wb-pin": "Desk Client tab: clients pinned or unpinned",
-  "wb-resize": "Desk resized (drag or keys)",
+  "wb-resize": "Desk width changed (drag or keys)",
+  "wb-rail": "Desk rail icons used (messages, reviews, files, mentions)",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -29407,6 +29408,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       budgetOn: access.tabs.has("budget"),
       enabled: staffClientTabs,
     });
+  // Is the Desk live for me right now (components/workbench/WB_Drawer.jsx)?
+  // While it is, the floating chat bubble steps aside: the Desk rail's
+  // messages icon opens the same chat drawer (Desk spec decision 20).
+  const wbDeskMounts = !!(
+    staffUser &&
+    typeof WB_deskMounts === "function" &&
+    WB_deskMounts({ showStaffRail, tkShell, previewing: isPreviewingUser, impersonating, email: staffUser.email })
+  );
+  const wbDeskLive = typeof WB_useDeskLive === "function" ? WB_useDeskLive(wbDeskMounts) : false;
   // Search finds what the row opens: the plan's pages plus the staff
   // always-tabs (D2, D17). Previews keep the plan's pages.
   const staffVisibleKeys = staffClientTabs ? new Set([...access.tabs, ...STAFF_ALWAYS_TABS]) : access.tabs;
@@ -30061,14 +30071,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               page={effectivePage}
             />
           )}
-          {/* Desk (was Workbench; components/workbench/WB_Drawer.jsx): a bar at the
-              bottom of every staff page, D opens it. Renders nothing while
+          {/* Desk (was Workbench; components/workbench/WB_Drawer.jsx): an info
+              bar at the bottom and a slim rail on the right of every staff
+              page; D or a click opens the right column. Renders nothing while
               the Desk is off; never while viewing as someone, previewing or
               impersonating (WB_deskMounts, node-tested in WB_logic.test.js). */}
-          {typeof WB_Drawer === "function" &&
-            typeof WB_deskMounts === "function" &&
-            staffUser &&
-            WB_deskMounts({ showStaffRail, tkShell, previewing: isPreviewingUser, impersonating, email: staffUser.email }) && (
+          {typeof WB_Drawer === "function" && wbDeskMounts && (
             // Mine / Everyone is for real admins only (wb_inbox refuses
             // Everyone to a temporary admin).
             // currentClientId: the client page I am on (the hub's Client tab
@@ -30079,6 +30087,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               clients={visibleClients}
               currentClientId={staffClientTabs && client ? client.id : null}
               page={effectivePage}
+              messagesUnread={staffMessagesUnread}
+              chatClientId={NON_CLIENT_PAGES.has(effectivePage) || !client ? null : client.id}
+              clientCounts={staffClientTabs ? clientTabCounts : null}
+              pageClient={
+                staffClientTabs && client
+                  ? {
+                      id: client.id,
+                      name: client.name,
+                      qbo: client.dataSource === "quickbooks",
+                      lastSyncedAt: client.lastSyncedAt || null,
+                      staleHours: typeof OV_syncStaleHours === "function" ? OV_syncStaleHours(access.plan) : 26,
+                    }
+                  : null
+              }
             />
           )}
           {/* The page body. A tab panel of the in-client tab row when a row
@@ -30658,7 +30680,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         )}
       </div>
 
-      {siStaffChat && effectivePage !== "inbox" && !siDrawer && (
+      {siStaffChat && effectivePage !== "inbox" && !siDrawer && !wbDeskLive && (
         <SI_ChatLauncher
           unread={staffMessagesUnread}
           onOpen={() =>

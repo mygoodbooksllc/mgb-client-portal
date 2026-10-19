@@ -1069,6 +1069,47 @@ function TB_Bell({ clients, items, me, isAdmin, page }) {
     }
   };
   const n = unseen.length;
+  // The Desk rail's mentions count (R1) reads the bell's own list: the
+  // mentions, each marked unseen until the bell is opened. Published on
+  // window with an event, only when something changed.
+  const mentionSig = list
+    .filter((i) => String(i.id).indexOf("tkm:") === 0)
+    .map((i) => i.id + (seen.has(i.id) ? "" : "*"))
+    .join("|");
+  useEffect(() => {
+    try {
+      window.TB_bellMentions = list
+        .filter((i) => String(i.id).indexOf("tkm:") === 0)
+        .map((i) => ({ id: i.id, title: i.title, sub: i.sub || "", at: i.at, unseen: !seen.has(i.id) }));
+      window.dispatchEvent(new CustomEvent("tb:bell-mentions"));
+    } catch (e) {}
+  }, [mentionSig]);
+  useEffect(
+    () => () => {
+      try {
+        window.TB_bellMentions = [];
+        window.dispatchEvent(new CustomEvent("tb:bell-mentions"));
+      } catch (e) {}
+    },
+    [],
+  );
+  // The rail's mentions icon opens this menu (and marks them seen).
+  const toggleRef = useRef(toggle);
+  toggleRef.current = toggle;
+  const openRef = useRef(menu.open);
+  openRef.current = menu.open;
+  useEffect(() => {
+    const on = () => {
+      if (!openRef.current) toggleRef.current();
+      setTimeout(() => {
+        const first = menu.rootRef.current && menu.rootRef.current.querySelector('[role="menuitem"]');
+        if (first) first.focus();
+        else if (menu.triggerRef.current) menu.triggerRef.current.focus();
+      }, 30);
+    };
+    window.addEventListener("tb:open-bell", on);
+    return () => window.removeEventListener("tb:open-bell", on);
+  }, []);
   return (
     <div className="tb-item tb-bell notif-wrap" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown} data-tour="tb-bell">
       <button
@@ -1171,7 +1212,11 @@ function TB_TasksBadge({ items, me, client }) {
 // did. With no client open it offers only "New task" (Tasks quick add), and
 // hides when that isn't loaded.
 // ---------------------------------------------------------------------------
-function TB_QuickAdd({ client }) {
+// variant "rail": the same menu at the foot of the Desk rail (R1), opening up
+// and to the left; its own classes (no tb-quick / tb-menu-wrap, which the
+// phone layout hides and the top bar's :has() rules key on).
+function TB_QuickAdd({ client, variant, tabIndex }) {
+  const rail = variant === "rail";
   const menu = TB_useMenu();
   // TK_QuickAddHost may mount after this renders: follow its ready event.
   const [tk, setTk] = useState(TB_tkQuickReady);
@@ -1192,21 +1237,27 @@ function TB_QuickAdd({ client }) {
   };
   const label = client ? `Add for ${client.name}` : "Add";
   return (
-    <div className="tb-item tb-menu-wrap tb-quick" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown} data-tour="tb-quick">
+    <div
+      className={rail ? "wb-rail-add" : "tb-item tb-menu-wrap tb-quick"}
+      ref={menu.rootRef}
+      onKeyDown={menu.onMenuKeyDown}
+      data-tour={rail ? "wb-rail-add" : "tb-quick"}
+    >
       <button
         ref={menu.triggerRef}
         type="button"
-        className="tb-icon-btn"
+        className={rail ? "wb-rail-btn wb-rail-plus" : "tb-icon-btn"}
         aria-label={label}
         title={label}
         aria-haspopup="true"
         aria-expanded={menu.open}
+        {...(rail ? { "data-wb-rail": "add", tabIndex: tabIndex == null ? -1 : tabIndex } : {})}
         onClick={() => menu.setOpen(!menu.open)}
       >
         <TB_PlusIcon />
       </button>
       {menu.open && (
-        <div className="tb-panel tb-menu" role="menu" aria-label={label}>
+        <div className={rail ? "tb-panel tb-menu wb-rail-menu" : "tb-panel tb-menu"} role="menu" aria-label={label}>
           <div className="tb-panel-head">{label}</div>
           <button type="button" role="menuitem" className="tb-menu-item" autoFocus onClick={() => run("task")}>
             New task
