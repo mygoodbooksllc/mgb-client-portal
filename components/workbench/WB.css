@@ -166,11 +166,13 @@
   box-shadow: 0 0 0 1px var(--accent);
   color: var(--ink-strong);
 }
-/* Inbox filter pills: a colored outline per kind (all stays neutral). */
+/* Inbox filter pills: a colored outline per kind (All is gold). */
 .wb-tab-task { --wb-kind: #3b82c4; }
 .wb-tab-review { --wb-kind: #c98a1f; }
 .wb-tab-message { --wb-kind: #2f9e6f; }
 .wb-tab-doc { --wb-kind: #8a63c9; }
+.wb-tab-all:not(.is-on) { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.wb-tab-all:not(.is-on):hover { border-color: var(--accent); }
 .wb-tab:is(.wb-tab-task, .wb-tab-review, .wb-tab-message, .wb-tab-doc) {
   border-color: color-mix(in srgb, var(--wb-kind) 55%, transparent);
 }
