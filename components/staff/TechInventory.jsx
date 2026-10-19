@@ -501,7 +501,7 @@ function TI_Directory({ staff, contacts, me, sb, run }) {
   return (
     <section className="card">
       <h3 className="card-title">Directory</h3>
-      <p className="card-subtitle">Admins only. Names, emails and roles come from Team › Members; add someone there and they appear here.</p>
+      <p className="card-subtitle">Admins only. Names, emails and roles come from HR › Members; add someone there and they appear here.</p>
       <div className="table-scroll">
         <table className="tx-table tx-table-labeled ti-table">
           <thead>

@@ -574,7 +574,7 @@ const TIPS_CATALOG = [
   {
     id: "am-reviews-giving",
     roles: "am",
-    match: (r) => r.page === "team" && TIPS_tab("tp-tab-reviews"),
+    match: (r) => r.page === "hr" && TIPS_tab("tp-tab-reviews"),
     target: "#tr-tab-giving",
     text: "Reviews you give are here. Fill in each person's form; once both are in, meet, agree on action steps and both sign.",
     slug: "account-manager-guide",
@@ -582,7 +582,7 @@ const TIPS_CATALOG = [
   {
     id: "team-reviews-blind",
     roles: "all",
-    match: (r) => r.page === "team" && TIPS_tab("tp-tab-reviews"),
+    match: (r) => r.page === "hr" && TIPS_tab("tp-tab-reviews"),
     // Only where "My review" exists (not for an admin without a review of
     // their own, for whom the text wouldn't fit).
     target: "#tr-tab-my",
@@ -592,7 +592,7 @@ const TIPS_CATALOG = [
   {
     id: "admin-members-temp",
     roles: "admin",
-    match: (r) => r.page === "team" && TIPS_tab("tp-tab-members"),
+    match: (r) => r.page === "hr" && TIPS_tab("tp-tab-members"),
     target: "members-temp",
     text: "Give a bookkeeper the admin pages for 1 hour, 1 day or 1 week, say while you're away. It ends by itself; Revoke ends it early.",
     slug: "staff-management",

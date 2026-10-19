@@ -1,16 +1,16 @@
-// Team Reviews & Team Survey (staff only, Team → Reviews). Owner request 2026-10-07.
+// Team Reviews & Team Survey (staff only, HR → Reviews). Owner request 2026-10-07.
 //
-// The "Reviews" tab of the Team hub (TeamPage.jsx TP_TeamHub). Its own tabs:
+// The "Reviews" tab of the HR hub (TeamPage.jsx TP_TeamHub). Its own tabs:
 //   everyone        My review (current cycle) · History
 //   admins also     Team status · Reviews I'm giving · Survey results · Year-end
 // An admin sees My review only when they are a reviewee this cycle.
 //
-// Routes (hash; the hub owns #/team/reviews, this file what follows it, and
+// Routes (hash; the hub owns #/hr/reviews, this file what follows it, and
 // app.jsx buildHashRoute keeps the whole hash):
-//   #/team/reviews                 default tab
-//   #/team/reviews/<tab>           my | history | team | giving | results | year-end
-//   #/team/reviews/survey          this quarter's team survey
-//   #/team/reviews/r/<review id>   one review: the form you owe, or the comparison
+//   #/hr/reviews                 default tab
+//   #/hr/reviews/<tab>           my | history | team | giving | results | year-end
+//   #/hr/reviews/survey          this quarter's team survey
+//   #/hr/reviews/r/<review id>   one review: the form you owe, or the comparison
 //
 // Everything is enforced in the database (supabase/team-reviews-*.sql): the
 // blind rule, who can see or edit what, locks after signing, no deletes. The
@@ -176,7 +176,7 @@ function TR_NavBadge({ expanded }) {
 }
 
 function TR_goReviews(path) {
-  const next = "#/team/reviews" + (path ? "/" + path : "");
+  const next = "#/hr/reviews" + (path ? "/" + path : "");
   if (window.location.hash !== next) window.location.hash = next;
 }
 
@@ -624,7 +624,7 @@ function TR_SubmittedBanner({ review, kind }) {
 }
 
 // ---------------------------------------------------------------------------
-// One review (#/team/reviews/r/<id>): the form you owe, else the comparison.
+// One review (#/hr/reviews/r/<id>): the form you owe, else the comparison.
 // ---------------------------------------------------------------------------
 function TR_ReviewPage({ reviewId, onBack }) {
   const [state, setState] = React.useState({ review: null, error: "", loading: true });
@@ -873,7 +873,7 @@ function TR_GivingTab({ ov }) {
 // ---------------------------------------------------------------------------
 function TR_parseRoute() {
   const h = String(window.location.hash || "");
-  const m = /^#\/team\/reviews(?:\/(.*))?$/.exec(h);
+  const m = /^#\/hr\/reviews(?:\/(.*))?$/.exec(h);
   const rest = m && m[1] ? m[1].split("/").filter(Boolean) : [];
   if (rest[0] === "r" && rest[1]) return { tab: null, reviewId: rest[1] };
   if (rest[0] === "survey") return { tab: null, survey: true };
@@ -947,7 +947,7 @@ function TR_TeamReviewsPage() {
   else if (tab === "results") body = typeof TR_SurveyResultsTab === "function" ? <TR_SurveyResultsTab /> : null;
   else if (tab === "year-end") body = typeof TR_YearEndTab === "function" ? <TR_YearEndTab ov={ov} /> : null;
 
-  // A nested strip under the Team hub's tab row: .nav-tabs-sub (team-page.css)
+  // A nested strip under the HR hub's tab row: .nav-tabs-sub (team-page.css)
   // draws these as pills so the two levels read apart. Same tablist contract
   // as NAV_TabRow (arrow keys move, Home/End jump), with the hash as state.
   return (

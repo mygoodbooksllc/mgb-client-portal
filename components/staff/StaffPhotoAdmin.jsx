@@ -1,6 +1,6 @@
 // Staff profile photos, admin side (spec docs/staff-photo-spec.md, Part H).
 //
-// Team > Members gets a Photo column (SPA_PhotoCell), a drawer per person
+// HR > Members gets a Photo column (SPA_PhotoCell), a drawer per person
 // (SPA_PhotoDrawer: download, replace with an edited PNG, restore, Not
 // required, history) and a bulk bar above the roster (SPA_BulkBar: Download
 // all as a zip). app.jsx StaffAccessPage mounts all three.

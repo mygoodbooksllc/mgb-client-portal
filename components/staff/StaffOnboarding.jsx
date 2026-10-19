@@ -5,7 +5,7 @@
 //                     each with a link to its Staff guide article. Hides
 //                     itself once every step is done or you click "Hide
 //                     this card".
-//   SON_ProgressTab   Team → Onboarding (#/team/onboarding). Admins:
+//   SON_ProgressTab   Team → Onboarding (#/hr/onboarding). Admins:
 //                     everyone's progress, tick for someone, and edit the
 //                     step list (add, edit, reorder, retire / restore; never
 //                     deleted). Everyone else: their own steps

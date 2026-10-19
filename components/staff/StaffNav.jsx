@@ -1,14 +1,15 @@
-// components/staff/StaffNav.jsx — the staff side's five places, declared once.
+// components/staff/StaffNav.jsx — the staff side's places, declared once.
 //
 // Staff navigation redesign (owner approved 2026-10-08): Today, Inbox, Work,
-// Clients and Team. The rail (app.jsx StaffRail), the phone drawer (Sidebar),
+// Clients and Team; HR joined as a sixth place on 2026-10-19. The rail
+// (app.jsx StaffRail), the phone drawer (Sidebar),
 // the top bar's ⌘K "Pages" group (TopBar.jsx) and the staff tour (Tour.jsx)
 // all read this list, so a place is added or renamed in exactly one spot.
 //
 // Prefix: NAV_. Like every component file, it only touches app.jsx globals
 // (icons, NON_CLIENT_PAGES) at render time, never at the top level.
 //
-// Routes: #/<slug> for a place, #/<slug>/<tab> for a tab inside Work or Team
+// Routes: #/<slug> for a place, #/<slug>/<tab> for a tab inside Work, Team or HR
 // (and #/help/<article>). App owns the first segment (parseHashRoute →
 // setPage); the hub page owns the tab segment through NAV_useHashSub, which
 // rewrites it with history.replaceState so a tab click is not a history
@@ -81,22 +82,37 @@ const NAV_PLACES = [
     key: "team",
     slug: "team",
     label: "Team",
-    hint: "People, reviews, onboarding and the handbook",
+    hint: "People, performance, hours and inventory",
     help: "team-page",
     icon: () => <TeamIcon />,
     visible: (ctx) => !ctx.impersonating,
     tabs: [
       { key: "people", label: "People", help: "time-off-coverage" },
-      { key: "reviews", label: "Reviews", help: "quarterly-reviews", visible: () => typeof TR_TeamReviewsPage === "function" },
-      { key: "onboarding", label: "Onboarding", help: "new-hire-onboarding", visible: () => typeof SON_ProgressTab === "function" },
-      { key: "handbook", label: "Handbook", help: "staff-handbook", visible: () => typeof HB_HandbookTab === "function" },
-      { key: "hours", label: "Hours", help: "hours-budget", admin: true },
-      { key: "reply-times", label: "Reply times", help: "reply-times", admin: true, visible: () => typeof RT_ReplyTimesTab === "function" },
-      { key: "feedback", label: "Feedback", help: "feedback-page", admin: true, visible: () => typeof FB_FeedbackPage === "function" },
       { key: "performance", label: "Performance", help: "performance", visible: () => typeof PF_PerformanceTab === "function" },
       { key: "inventory", label: "Inventory", help: "tech-inventory", visible: () => typeof TI_TechTab === "function" },
+      { key: "hours", label: "Hours", help: "hours-budget", admin: true },
+      { key: "reply-times", label: "Reply times", help: "reply-times", admin: true, visible: () => typeof RT_ReplyTimesTab === "function" },
+      // Feedback and Ledger review are not HR; they stay here for now.
+      { key: "feedback", label: "Feedback", help: "feedback-page", admin: true, visible: () => typeof FB_FeedbackPage === "function" },
       { key: "ledger", label: "Ledger review", help: "ledger-review", admin: true, visible: () => typeof LR_SettingsPanel === "function" },
-      { key: "members", label: "Members", help: "staff-management", admin: true },
+    ],
+  },
+  // HR (2026-10-19): the people-and-paperwork tabs that used to sit under Team.
+  // Handbook, Reviews and Onboarding are every staff member's own, so the
+  // place shows for everyone. Old #/team/<tab> addresses for these tabs are
+  // rewritten to #/hr/<tab> (staffNavRoutes.js, NAV_legacyTeamRedirect).
+  {
+    key: "hr",
+    slug: "hr",
+    label: "HR",
+    hint: "Handbook, reviews and onboarding",
+    help: "team-page",
+    icon: () => <HRIcon />,
+    visible: (ctx) => !ctx.impersonating,
+    tabs: [
+      { key: "handbook", label: "Handbook", help: "staff-handbook", visible: () => typeof HB_HandbookTab === "function" },
+      { key: "reviews", label: "Reviews", help: "quarterly-reviews", visible: () => typeof TR_TeamReviewsPage === "function" },
+      { key: "onboarding", label: "Onboarding", help: "new-hire-onboarding", visible: () => typeof SON_ProgressTab === "function" },
       // Employee records (components/hr/): real admins only, never a
       // temporary admin grant or "View as" (the RPCs refuse them too).
       {
@@ -107,6 +123,7 @@ const NAV_PLACES = [
         realAdmin: true,
         visible: () => typeof HR_RecordsTab === "function",
       },
+      { key: "members", label: "Members", help: "staff-management", admin: true },
     ],
   },
   // MGB (internal): MyGoodBooks' own books, files and close, in the same
@@ -171,7 +188,7 @@ function NAV_go(key, sub) {
   if (window.location.hash !== next) window.location.hash = next;
 }
 
-// Tab state for a hub page (Work, Team), kept in the hash.
+// Tab state for a hub page (Work, Team, HR), kept in the hash.
 //   const [tab, setTab] = NAV_useHashSub("work", ["tasks","close"], "tasks");
 // setTab rewrites "#/<slug>/<tab>" in place (no history entry). A tab that
 // is not in `keys` (someone's old link, an admin tab for a bookkeeper) reads

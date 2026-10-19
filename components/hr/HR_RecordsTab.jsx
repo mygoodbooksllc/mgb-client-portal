@@ -1,4 +1,4 @@
-// Employee records (Team › Employee records). Real admins only: the tab is
+// Employee records (HR › Employee records). Real admins only: the tab is
 // hidden from bookkeepers, temporary admins and "View as" (StaffNav.jsx
 // realAdmin), TeamPage.jsx renders it only for a real admin, and every
 // hr_* RPC refuses anyone else (supabase/staff-hr-records.sql).
@@ -442,7 +442,7 @@ function HR_HandbookCard({ email, staff }) {
       {!isSigner ? (
         <p className="hr-muted">Only active bookkeepers sign handbook policies.</p>
       ) : st && st.error ? (
-        <p className="hr-muted">The handbook status didn't load. Open Team › Handbook to check.</p>
+        <p className="hr-muted">The handbook status didn't load. Open HR › Handbook to check.</p>
       ) : !st || !st.data ? (
         <p className="hr-muted">Loading…</p>
       ) : !rows.length ? (

@@ -587,14 +587,14 @@ function TD_buildRows(x) {
       sort: diff,
       title: `Review due ${TR_fmtDate(ov.due.due_at)}` + (diff < 0 ? " (past due)" : diff === 0 ? " (today)" : ""),
       detail: (ov.cycle && ov.cycle.label ? ov.cycle.label + ": " : "") + (labels || "your part of this quarter's review"),
-      onClick: () => NAV_go("team", "reviews"),
-      actions: [{ label: "Open", primary: diff <= 0, onClick: () => NAV_go("team", "reviews") }],
+      onClick: () => NAV_go("hr", "reviews"),
+      actions: [{ label: "Open", primary: diff <= 0, onClick: () => NAV_go("hr", "reviews") }],
     });
   }
 
   // Staff Handbook: sign (bookkeepers) and countersign (the countersigner).
   (x.handbook || []).forEach((h) => {
-    const open = lk({ place: "team", tab: "handbook", item: "handbook:" + h.slug });
+    const open = lk({ place: "hr", tab: "handbook", item: "handbook:" + h.slug });
     now.push({
       key: h.key,
       kind: "handbook",
@@ -607,14 +607,14 @@ function TD_buildRows(x) {
     });
   });
 
-  // Admins: profile photos waiting for a background edit (Team › Members).
+  // Admins: profile photos waiting for a background edit (HR › Members).
   if (x.photosItem) {
     const p = x.photosItem;
     const openPhotos = () => {
       try {
         sessionStorage.setItem("mgb-photo-open", "needs-edit");
       } catch (e) {}
-      NAV_go("team", "members");
+      NAV_go("hr", "members");
     };
     now.push({
       key: p.key,
@@ -1455,7 +1455,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
     handbook.me && !(typeof TR_isSomeoneElse === "function" && TR_isSomeoneElse(staffUser, handbook.me)) ? handbook.items : TD_NONE;
 
   // Admin item: profile photos waiting for an edit. Derived from the shared
-  // list (also used by Team › Members); hidden in "View as" like the handbook.
+  // list (also used by HR › Members); hidden in "View as" like the handbook.
   const photoList = typeof SP_useAdminList === "function" ? SP_useAdminList(admin) : null;
   const photosItem =
     admin && photoList && photoList.rows && typeof SP_todayItem === "function" && !(typeof TR_isSomeoneElse === "function" && TR_isSomeoneElse(staffUser, (reviews && reviews.data && reviews.data.me) || handbook.me))

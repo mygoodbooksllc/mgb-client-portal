@@ -1,12 +1,12 @@
-// Staff Handbook: the Team › Handbook tab (spec docs/staff-handbook-spec.md).
+// Staff Handbook: the HR › Handbook tab (spec docs/staff-handbook-spec.md).
 //
-//   HB_HandbookTab({ staffUser, isAdmin })   TeamPage.jsx TP_TeamHub body
+//   HB_HandbookTab({ staffUser, isAdmin })   TeamPage.jsx TP_TeamHub body (HR place)
 //
-// Routes (hash; the hub owns #/team/handbook, this file what follows it):
-//   #/team/handbook                    the policy list
-//   #/team/handbook/<slug>             one policy, latest version (HB_PolicyView)
-//   #/team/handbook/<slug>/v<n>        an older version
-// Deep link #/team/handbook?item=handbook:<slug> (Today rows, emails) opens
+// Routes (hash; the HR hub owns #/hr/handbook, this file what follows it):
+//   #/hr/handbook                    the policy list
+//   #/hr/handbook/<slug>             one policy, latest version (HB_PolicyView)
+//   #/hr/handbook/<slug>/v<n>        an older version
+// Deep link #/hr/handbook?item=handbook:<slug> (Today rows, emails) opens
 // that policy; this tab claims it with LK_useArrival.
 //
 // List view: the countersigner line (admins), the countersign queue (the
@@ -20,7 +20,7 @@
 
 function HB_parseRoute() {
   const h = String(window.location.hash || "").split("?")[0];
-  const m = /^#\/team\/handbook(?:\/(.*))?$/.exec(h);
+  const m = /^#\/hr\/handbook(?:\/(.*))?$/.exec(h);
   const rest = m && m[1] ? m[1].split("/").filter(Boolean) : [];
   let slug = null;
   try {
@@ -36,7 +36,7 @@ function HB_useRoute() {
   const [route, setRoute] = React.useState(HB_parseRoute);
   React.useEffect(() => {
     // mgb-tabchange: clicking the Handbook tab rewrites the hash to
-    // #/team/handbook with replaceState (no hashchange), back to the list.
+    // #/hr/handbook with replaceState (no hashchange), back to the list.
     const on = () => setRoute(HB_parseRoute());
     window.addEventListener("hashchange", on);
     window.addEventListener("mgb-tabchange", on);
@@ -221,8 +221,8 @@ function HB_HandbookTab({ staffUser, isAdmin }) {
   // policy form (HB_useRoute hands back a new route object each time).
   React.useEffect(() => setCreating(false), [route]);
 
-  // Deep link: #/team/handbook?item=handbook:<slug>.
-  LK_useArrival({ place: "team", tab: "handbook", staff: true, kinds: ["handbook"] }, !!data, (a) => {
+  // Deep link: #/hr/handbook?item=handbook:<slug>.
+  LK_useArrival({ place: "hr", tab: "handbook", staff: true, kinds: ["handbook"] }, !!data, (a) => {
     const hit = ((data && data.policies) || []).find((p) => p.slug === a.id);
     if (hit) {
       HB_goPolicy(hit.slug);

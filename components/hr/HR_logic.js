@@ -1,4 +1,4 @@
-// Employee records (Team › Employee records, admins only): pure rules shared
+// Employee records (HR › Employee records, admins only): pure rules shared
 // by HR_RecordsTab.jsx and the node test (HR_logic.test.js). No React, no DOM,
 // no Supabase.
 //

@@ -1,6 +1,6 @@
 // Staff Handbook: admin tools (spec docs/staff-handbook-spec.md, Parts A, C, E).
 //
-//   HB_StatusGrid({ status })        Team › Handbook list: policies down the
+//   HB_StatusGrid({ status })        HR › Handbook list: policies down the
 //                                    side, active bookkeepers across the top.
 //   HB_UnfiledCard({ status })       countersigned copies not filed to Drive,
 //                                    each with Retry filing (hb_retry_export).
@@ -10,7 +10,7 @@
 //                                    reference policy or a draft there is no
 //                                    kind of change to pick (see below).
 //   HB_NewPolicy({ policies, bookkeeperCount, onCancel, onCreated })
-//                                    Team › Handbook › New policy: title, link
+//                                    HR › Handbook › New policy: title, link
 //                                    name, kind, section, first text. Always
 //                                    creates a draft (hb_create_policy).
 //   HB_DraftBar({ policy, bookkeeperCount, onDone })
@@ -426,7 +426,7 @@ function HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel }
 }
 
 // ---------------------------------------------------------------------------
-// New policy (Team › Handbook › New policy). Always saves a reference draft:
+// New policy (HR › Handbook › New policy). Always saves a reference draft:
 // nothing is emailed and nothing reaches Today or the badge. Asking anyone to
 // sign takes the explicit "Make this a signed policy" step (HB_ConvertCard);
 // hb_create_policy refuses kind 'signed'.

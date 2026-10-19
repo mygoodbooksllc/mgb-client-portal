@@ -3,7 +3,7 @@
 //
 // One grammar, used by every page (TABS-SPEC 1.2):
 //   #/client/<clientId>/<tab>[/<sub>][?item=<kind>:<id>][&month=YYYY-MM][&account=<qboId>]
-//   #/<place>[/<tab>][?item=<kind>:<id>][&client=<clientId>]   place = work, team, inbox, …
+//   #/<place>[/<tab>][?item=<kind>:<id>][&client=<clientId>]   place = work, team, hr, inbox, …
 //
 // The path is view state that survives a refresh. The query is a one-time
 // pointer: LK_capture reads it at boot and on every hashchange (this file
@@ -33,8 +33,8 @@ const LK_CLIENT_KINDS = ["docreq", "file", "view"];
 // Non-client places that claim something in this build. Anything else on a
 // non-client place is ignored with no toast (TABS-SPEC 1.2).
 // tasks: the Tasks module (TK_DrawerHost, or TK_App while the schema is missing).
-// team/handbook: handbook:<policy slug> (HB_HandbookTab.jsx).
-const LK_PLACE_CLAIMS = { "work/tasks": 1, "work/deadlines": 1, "team/hours": 1, "team/handbook": 1, inbox: 1, tasks: 1 };
+// hr/handbook: handbook:<policy slug> (HB_HandbookTab.jsx).
+const LK_PLACE_CLAIMS = { "work/tasks": 1, "work/deadlines": 1, "team/hours": 1, "hr/handbook": 1, inbox: 1, tasks: 1 };
 
 const LK_COPY = {
   msgDeleted: "That message was deleted.",
@@ -173,7 +173,11 @@ function LK_parsePath(hash) {
   const place = parts[0].toLowerCase();
   // Tasks ids are case-sensitive (client ids, uuids): keep tab and sub as typed.
   if (place === "tasks") return { place, clientId: null, tab: parts[1] || "", sub: parts[2] || "" };
-  return { place, clientId: null, tab: (parts[1] || "").toLowerCase(), sub: (parts[2] || "").toLowerCase() };
+  const tab = (parts[1] || "").toLowerCase();
+  // An arrival stored under the old Team address of a tab that moved to HR
+  // (staffNavRoutes.js rewrites live hashes first; this covers anything else).
+  const moved = place === "team" && typeof NAV_HR_MOVED_TABS !== "undefined" && NAV_HR_MOVED_TABS.indexOf(tab) !== -1;
+  return { place: moved ? "hr" : place, clientId: null, tab, sub: (parts[2] || "").toLowerCase() };
 }
 
 // Parse a full hash with a query into an arrival, or null. `invalid: true`

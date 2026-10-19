@@ -1,5 +1,5 @@
 /* Staff profile photos, admin side (StaffPhotoAdmin.jsx): the Photo column on
-   Team > Members, the per-person drawer and the bulk bar. Classes use the
+   HR > Members, the per-person drawer and the bulk bar. Classes use the
    spa- prefix. --avatar-bg (settings.css) is the navy circle behind photos. */
 
 .spa-cell {

@@ -905,11 +905,12 @@ const BOOKKEEPER_VIEW = "__bookkeeper__";
 // repeating the same three-or-four-way `page !== "x" && page !== "y"` check
 // at every one of those call sites, which is exactly how developer-tools
 // nearly got left out of one of them when it was added.
-// Staff nav redesign (2026-10-08): the five places in the rail (Today, Inbox,
-// Work, Clients, Team — components/staff/StaffNav.jsx) plus Help, Settings
-// and the admin pages the rail doesn't list. Work's Tasks/Close/Deadlines
-// and Team's People/Reviews/Onboarding/... are tabs INSIDE those places
-// (#/work/close, #/team/reviews), not pages of their own any more.
+// Staff nav redesign (2026-10-08): the places in the rail (Today, Inbox,
+// Work, Clients, Team, HR — components/staff/StaffNav.jsx) plus Help, Settings
+// and the admin pages the rail doesn't list. Work's Tasks/Close/Deadlines,
+// Team's People/Hours/... and HR's Handbook/Reviews/Onboarding/... are tabs
+// INSIDE those places (#/work/close, #/hr/reviews), not pages of their own
+// any more.
 const NON_CLIENT_PAGES = new Set([
   "today",
   "inbox",
@@ -918,6 +919,7 @@ const NON_CLIENT_PAGES = new Set([
   "tasks",
   "clients",
   "team",
+  "hr",
   "help",
   "settings",
   "task-templates",
@@ -1017,7 +1019,7 @@ const INFRA_LINKS = [
   {
     name: "Supabase",
     url: "https://supabase.com/dashboard",
-    note: "Project “MGB Client Portal” · org “Mygoodbooks LLC” · Auth: new sign-ups stay OFF; staff sign-in accounts are made by the staff-auth edge function (Team › Members › Fix sign-in) · credentials: 1Password vault “MGB Infra”",
+    note: "Project “MGB Client Portal” · org “Mygoodbooks LLC” · Auth: new sign-ups stay OFF; staff sign-in accounts are made by the staff-auth edge function (HR › Members › Fix sign-in) · credentials: 1Password vault “MGB Infra”",
   },
   {
     name: "Supabase Storage (staff photos)",
@@ -1988,7 +1990,7 @@ function Sidebar({
                         />
                       )}
                       {p.key === "work" && <MyTasksDueCount due={myTasksDue} />}
-                      {p.key === "team" && typeof TR_NavBadge === "function" && <TR_NavBadge expanded />}
+                      {p.key === "hr" && typeof TP_HrNavBadge === "function" && <TP_HrNavBadge expanded />}
                       {p.key === "team" &&
                         showsAdminPages &&
                         staffUser.role === "admin" &&
@@ -2389,10 +2391,12 @@ function StaffRail({
       it.due = true;
       // The Tasks page (#/tasks) belongs to Work.
       it.active = page === "work" || page === "tasks";
+    } else if (p.key === "hr") {
+      // Reviews and Handbook counts combined (TeamPage.jsx).
+      it.extra = typeof TP_HrNavBadge === "function" ? <TP_HrNavBadge expanded={expanded} /> : null;
     } else if (p.key === "team") {
       it.extra = (
         <>
-          {typeof TR_NavBadge === "function" && <TR_NavBadge expanded={expanded} />}
           {showsAdminPages && staffUser.role === "admin" && typeof FB_NavBadge === "function" && (
             <FB_NavBadge expanded={expanded} />
           )}
@@ -2893,6 +2897,27 @@ function TeamIcon(props) {
       <path d="M2 20c0-3.5 2.7-6 6-6 1.2 0 2.3.3 3.2.8" />
       <circle cx="17" cy="16.5" r="4.5" />
       <path d="M17 14.3v2.2l1.5 1" />
+    </svg>
+  );
+}
+
+function HRIcon(props) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="9" cy="10.5" r="2" />
+      <path d="M5.8 16.5c.4-1.6 1.7-2.5 3.2-2.5s2.8.9 3.2 2.5" />
+      <path d="M15 9.5h3.5M15 13h3.5" />
     </svg>
   );
 }
@@ -26462,7 +26487,7 @@ const PAGE_META = {
     title: "Settings",
     subtitle: "",
   },
-  // The five staff places (components/staff/StaffNav.jsx). Titles match the
+  // The staff places (components/staff/StaffNav.jsx). Titles match the
   // rail labels so the page header, the rail and the browser tab all say
   // the same word.
   today: {
@@ -26487,7 +26512,11 @@ const PAGE_META = {
   },
   team: {
     title: "Team",
-    subtitle: "People, time off and task hand-off, reviews, onboarding and the handbook",
+    subtitle: "People, time off and task hand-off, performance, hours, reply times and inventory",
+  },
+  hr: {
+    title: "HR",
+    subtitle: "The staff handbook, quarterly reviews and onboarding",
   },
   // A client's SOP as its own tab (#/client/<id>/sop) — staff only; the
   // client-side tabs stay in ALL_TAB_KEYS.
@@ -26852,7 +26881,7 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
 
 // Hash routes, so a link can open a specific page (the weekly digest email's
 // section links, a URL pasted into chat):
-//   #/today  #/inbox  #/work/close  #/team/reviews  #/clients  #/help/<slug>
+//   #/today  #/inbox  #/work/close  #/hr/reviews  #/clients  #/help/<slug>
 //   #/audit-log  #/emails  #/templates ...
 //   #/client/<client id>/overview  #/client/<client id>/<tab key>
 //   #/client/<client id>/sop
@@ -26876,9 +26905,11 @@ function hashSlugOfPage(page) {
   return (place && place.slug) || HASH_PAGE_SLUGS[page] || page;
 }
 // Places whose page keeps a sub-route after the slug (#/work/close,
-// #/team/reviews/r/<id>, #/help/<slug>) — the page component owns what
+// #/hr/reviews/r/<id>, #/help/<slug>) — the page component owns what
 // comes after, via NAV_useHashSub / StaffGuide.jsx / TeamReviews.jsx.
-const HASH_SUB_ROUTE_PAGES = new Set(["work", "team", "help", "tasks"]);
+// (Old #/team/<moved tab> addresses never get this far: staffNavRoutes.js
+// rewrites them to #/hr/... first.)
+const HASH_SUB_ROUTE_PAGES = new Set(["work", "team", "hr", "help", "tasks"]);
 
 // Client-route tab slugs that open client Settings.
 const CLIENT_TAB_ALIASES = {
@@ -26959,7 +26990,7 @@ function parseHashRoute(hash) {
     const ic = STAFF_internalClient();
     return ic ? { clientId: ic.id, page: null, bare: true, settingsTab: null } : null;
   }
-  // A place's slug (#/work, #/team/reviews), an alias (#/templates) or a
+  // A place's slug (#/work, #/hr/reviews), an alias (#/templates) or a
   // bare page key (#/audit-log). Anything after the slug belongs to the page
   // (see HASH_SUB_ROUTE_PAGES); it isn't parsed here.
   const place = typeof NAV_PLACE_BY_SLUG === "object" && NAV_PLACE_BY_SLUG ? NAV_PLACE_BY_SLUG[parts[0]] : null;
@@ -26991,8 +27022,8 @@ function buildHashRoute(page, clientId, opts) {
   }
   if (NON_CLIENT_PAGES.has(page)) {
     const slug = hashSlugOfPage(page);
-    // Work, Team and Help keep whatever sub-route is already in the hash
-    // (#/work/close, #/team/reviews/r/<id>, #/help/<slug>): the page
+    // Work, Team, HR and Help keep whatever sub-route is already in the hash
+    // (#/work/close, #/hr/reviews/r/<id>, #/help/<slug>): the page
     // component put it there and reads it back; App only owns the first
     // segment.
     if (
@@ -28298,14 +28329,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     [client, access],
   );
 
-  // The staff places (today, inbox, work, clients, team), "help",
+  // The staff places (today, inbox, work, clients, team, hr), "help",
   // "enterprise-upgrade", "client-access"/"developer-tools"/... and the
   // staff-only "sop" tab are synthetic pages, not real client tabs — none
   // is in ALL_TAB_KEYS/access.tabs, so each needs its own bypass here or
   // the normal fallback would bounce it straight back to the dashboard.
   // The admin pages additionally require the role, matching the links that
   // are the only way to reach them — Postgres RLS is the real enforcement
-  // for Team > Members (see supabase/staff-admin-policies.sql) and
+  // for HR > Members (see supabase/staff-admin-policies.sql) and
   // developer-tools only ever touches this browser's own localStorage, but
   // the page-level gate still keeps a demoted admin's stale stored page
   // from rendering either. Inbox, Work, Team and Help are open to any staff
@@ -28353,7 +28384,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           ? impersonating
             ? "today"
             : page
-        : (page === "inbox" || page === "work" || page === "team" || page === "help") && staffUser && !impersonating
+        : (page === "inbox" || page === "work" || page === "team" || page === "hr" || page === "help") && staffUser && !impersonating
           ? page
         : (page === "today" || page === "clients") && staffUser
           ? page
@@ -29444,7 +29475,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         <div className="boot-splash-sub">
           {clientAccessError
             ? `${effectiveStaffUser.name}, we couldn't check which clients you're assigned to, so nothing is being shown. Reload to try again — if it keeps happening, tell an admin.`
-            : `${effectiveStaffUser.name}, you're signed in but no clients are assigned to you yet. Ask an admin to check off at least one client for you under Team → Members.`}
+            : `${effectiveStaffUser.name}, you're signed in but no clients are assigned to you yet. Ask an admin to check off at least one client for you under HR → Members.`}
         </div>
         {/* Temporary access is the other way in; an approval widens
             visibleClients and this screen gives way on its own. */}
@@ -29452,8 +29483,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           <CS_SplashRequestAccess staffUser={effectiveStaffUser} />
         )}
         {!impersonating && (
-          <button className="btn-secondary" style={{ marginTop: 16 }} onClick={() => setPage("team")}>
-            Go to Team (reviews, survey, onboarding)
+          <button className="btn-secondary" style={{ marginTop: 16 }} onClick={() => setPage("hr")}>
+            Go to HR (reviews, survey, onboarding)
           </button>
         )}
         {impersonating && (
@@ -30349,18 +30380,23 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               hasPendingAccessRequests={hasPendingAccessRequests}
             />
           )}
-          {/* The five staff places (components/staff/StaffNav.jsx). Each
+          {/* The staff places (components/staff/StaffNav.jsx). Each
               hub owns its own tab row and reads the tab from the hash
-              (#/work/close, #/team/reviews), so App only mounts the hub.
+              (#/work/close, #/hr/reviews), so App only mounts the hub.
               Today, Clients, Work and the client tab row are separate
               files (Today.jsx, ClientsPage.jsx, WorkPage.jsx) that may
               still be loading in a partial build — hence the typeof
               guards. Same gating as the pages they replaced. */}
-          {/* Team (components/staff/TeamPage.jsx, TP_TeamHub): People,
-              Reviews, Onboarding and, for admins, Hours, Reply times,
-              Feedback and Members (the old Staff Access page). */}
-          {effectivePage === "team" && typeof TP_TeamHub === "function" && (
+          {/* Team and HR (components/staff/TeamPage.jsx, TP_TeamHub with
+              place "team" or "hr"). Team: People, Performance, Inventory
+              and, for admins, Hours, Reply times, Feedback and Ledger
+              review. HR: Handbook, Reviews, Onboarding and, for admins,
+              Employee records (real admins) and Members (the old Staff
+              Access page). */}
+          {(effectivePage === "team" || effectivePage === "hr") && typeof TP_TeamHub === "function" && (
             <TP_TeamHub
+              key={effectivePage}
+              place={effectivePage}
               staffUser={effectiveStaffUser}
               isAdmin={staffIsAdmin}
               isRealAdmin={staffUser.role === "admin" && !impersonating}

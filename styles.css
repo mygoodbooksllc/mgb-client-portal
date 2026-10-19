@@ -294,7 +294,7 @@ body {
 }
 
 /* Baseline for every <select> and date/time input that no other rule styles
-   (Team › Members role and temp-access duration, the date filters and
+   (HR › Members role and temp-access duration, the date filters and
    pickers across staff pages), so none falls back to the browser's gray
    box. Matches .st-input, the themed date fields on Members.
    :where() keeps the specificity at zero, so any class or parent rule that

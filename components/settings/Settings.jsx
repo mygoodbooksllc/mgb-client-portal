@@ -788,7 +788,7 @@ function ST_DashboardsCard({ clients, readOnly }) {
 // ---------------------------------------------------------------------------
 // Date field that saves once a full date is picked or typed (date inputs
 // report "" while a typed date is incomplete) and saves a clear on blur.
-// Also used by Team › Members, so it never assumes it's your own row.
+// Also used by HR › Members, so it never assumes it's your own row.
 function ST_DateInput({ value, disabled, min, max, onSave, ariaLabel }) {
   const [v, setV] = React.useState(value || "");
   const timer = React.useRef(null);

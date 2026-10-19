@@ -518,25 +518,32 @@ const TP_roleLabel = (role) =>
   role ? role.charAt(0).toUpperCase() + role.slice(1).replace(/_/g, " ") : "";
 
 // ---------------------------------------------------------------------------
-// Team hub (staff navigation redesign, 2026-10-08): one page, one tab row.
+// Team and HR hubs (staff navigation redesign, 2026-10-08; HR split out
+// 2026-10-19): one page, one tab row. TP_TeamHub renders either place.
 //
-//   TP_TeamHub({ tab?, staffUser, isAdmin, isRealAdmin, clients, renderMembers })
+//   TP_TeamHub({ place?, tab?, staffUser, isAdmin, isRealAdmin, clients, renderMembers })
 //
-// The tabs come from NAV_PLACES ("team" in StaffNav.jsx): People, Reviews and
-// Onboarding for everyone; Hours, Reply times, Feedback and Members for
-// admins (isAdmin includes a temporary admin grant; isRealAdmin is the staff
-// row's role, which the database checks); Employee records for real admins
-// only (HR_RecordsTab, components/hr/). The open tab lives in the hash
-// (#/team/<tab>) through NAV_useHashSub, so a deep link opens the right tab,
-// a tab click is not a history entry, and a bookkeeper's link to an admin tab
-// falls back to People. `tab` is App's hint for a legacy route (an old
-// #/staff-access bookmark → "members"); a tab named in the hash wins. Each
-// tab renders only while open, so it loads exactly what it loaded as its own
-// page, with the same checks.
+// `place` is "team" (the default) or "hr". The tabs come from NAV_PLACES in
+// StaffNav.jsx. Team: People, Performance and Inventory for everyone; Hours,
+// Reply times, Feedback and Ledger review for admins. HR: Handbook, Reviews
+// and Onboarding for everyone; Employee records (real admins only,
+// HR_RecordsTab, components/hr/) and Members for admins (isAdmin includes a
+// temporary admin grant; isRealAdmin is the staff row's role, which the
+// database checks). The open tab lives in the hash (#/team/<tab> or
+// #/hr/<tab>) through NAV_useHashSub, so a deep link opens the right tab, a
+// tab click is not a history entry, and a link to a tab the viewer can't open
+// falls back to the place's first tab (People on Team, Handbook on HR).
+// `tab` is App's hint for a legacy route (an old #/staff-access bookmark →
+// "members"); a tab named in the hash wins. Each tab renders only while open,
+// so it loads exactly what it loaded as its own page, with the same checks.
+// Both places share the tab-row id prefix "tp" (#tp-tab-<key>, used by the
+// tours and tips), which is safe because only one place is mounted at a time.
 //
-// Reviews keeps its own sub-route after the tab (#/team/reviews/<sub>, read
-// by TeamReviews.jsx), and so does Handbook (#/team/handbook/<slug>, read by
-// HB_HandbookTab.jsx); App's buildHashRoute keeps the whole hash.
+// Reviews keeps its own sub-route after the tab (#/hr/reviews/<sub>, read
+// by TeamReviews.jsx), and so does Handbook (#/hr/handbook/<slug>, read by
+// HB_HandbookTab.jsx); App's buildHashRoute keeps the whole hash. The old
+// #/team/<moved tab> addresses are rewritten to #/hr/... before any of this
+// reads the hash (staffNavRoutes.js).
 // ---------------------------------------------------------------------------
 
 // Tab badge counts, from data the tabs' own pages already cache, so they cost
@@ -560,6 +567,26 @@ function TP_useFeedbackNew(enabled) {
   const n = can ? FB_useNewCount(enabled) : 0;
   return can && enabled ? n : 0;
 }
+// The HR rail item's badge: Reviews and Handbook counts added together, in the
+// same look as TR_NavBadge (TeamReviews.jsx). Hooks only call the shared stores
+// that exist, as above.
+function TP_HrNavBadge({ expanded }) {
+  const reviews = TP_useReviewsDue();
+  const handbook = TP_useHandbookDue();
+  const n = reviews + handbook;
+  if (!n) return null;
+  const parts = [];
+  if (reviews) parts.push(`${reviews} review item${reviews === 1 ? "" : "s"} due`);
+  if (handbook) parts.push(`${handbook} handbook item${handbook === 1 ? "" : "s"} to sign`);
+  const label = parts.join(", ");
+  if (!expanded) return <span className="nav-badge-dot staff-rail-dot" aria-label={label} />;
+  return (
+    <span className="nav-due-counts" role="img" aria-label={label} title={label}>
+      <span className="nav-due-count">{n}</span>
+    </span>
+  );
+}
+
 // A count with a spoken label, e.g. "2" read as "2 review items due".
 function TP_TabBadge({ n, label }) {
   return (
@@ -570,16 +597,17 @@ function TP_TabBadge({ n, label }) {
   );
 }
 
-function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembers }) {
+function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, renderMembers }) {
+  const placeKey = place === "hr" ? "hr" : "team";
   const admin = !!isAdmin;
   const realAdmin = isRealAdmin != null ? !!isRealAdmin : !!(staffUser && staffUser.role === "admin");
-  const tabs = NAV_visibleTabs("team", { isAdmin: admin, isRealAdmin: realAdmin });
+  const tabs = NAV_visibleTabs(placeKey, { isAdmin: admin, isRealAdmin: realAdmin });
   const keys = tabs.map((t) => t.key);
-  const [current, setTab] = NAV_useHashSub("team", keys, "people");
+  const [current, setTab] = NAV_useHashSub(placeKey, keys, placeKey === "hr" ? keys[0] || "handbook" : "people");
 
   // App's hint applies once, and only while the hash names no tab.
   useEffect(() => {
-    if (tab && keys.indexOf(tab) !== -1 && !NAV_subFromHash("team")) setTab(tab);
+    if (tab && keys.indexOf(tab) !== -1 && !NAV_subFromHash(placeKey)) setTab(tab);
     // eslint-disable-next-line
   }, [tab]);
 
@@ -597,7 +625,7 @@ function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembe
   const rowTabs = tabs.map((t) => ({
     key: t.key,
     label: t.label,
-    tour: "team-" + t.key,
+    tour: placeKey + "-" + t.key,
     badge: badgeFor(t.key),
   }));
 
@@ -621,11 +649,11 @@ function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembe
   else if (current === "employees")
     body = typeof HR_RecordsTab === "function" && realAdmin ? <HR_RecordsTab staffUser={staffUser} /> : missing("Employee records");
 
-  // App's page header already shows "Team" and its subtitle (PAGE_META), so
-  // the hub starts at the tab row.
+  // App's page header already shows "Team" or "HR" and its subtitle
+  // (PAGE_META), so the hub starts at the tab row.
   return (
     <div className="tp-hub">
-      <NAV_TabRow label="Team" tabs={rowTabs} current={current} onSelect={setTab} idPrefix="tp" />
+      <NAV_TabRow label={placeKey === "hr" ? "HR" : "Team"} tabs={rowTabs} current={current} onSelect={setTab} idPrefix="tp" />
       <div id="tp-panel" role="tabpanel" aria-labelledby={"tp-tab-" + current}>
         {body}
       </div>

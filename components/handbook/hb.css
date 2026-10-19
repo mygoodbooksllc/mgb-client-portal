@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
-   Staff Handbook (components/handbook/*, Team › Handbook). Reuses .card,
+   Staff Handbook (components/handbook/*, HR › Handbook). Reuses .card,
    .card-title, .pill, .btn-primary / .btn-secondary, .link-btn, .al-error and
    the staff guide's .hlp-md for the policy text. Theme tokens only, so light
    and dark both work; one column at phone width.

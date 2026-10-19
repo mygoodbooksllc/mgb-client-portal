@@ -90,7 +90,8 @@
 //   ov-coverage      the Overview's Edit dates and coverage details
 //   bank-sync        the Bank page's sync line (BankAccounts.jsx)
 //   #wk-tab-<key>    a Work tab, found by id (NAV_TabRow, idPrefix "wk")
-//   #tp-tab-<key>    a Team tab, found by id (NAV_TabRow, idPrefix "tp")
+//   #tp-tab-<key>    a Team or HR tab, found by id (NAV_TabRow, idPrefix "tp",
+//                    shared by both places)
 //   #st-tab-firm     Settings' Firm settings tab, found by id (Settings.jsx)
 //   Tasks tour (TOUR_StaffRoot too; on the portal's #/tasks/my page, never
 //   in the /tasks shell, where tours aren't mounted; components/tasks/)
@@ -871,13 +872,13 @@ function TOUR_fmtUntil(iso) {
 // admin (ctx.newToStaff). `drawer` marks a target that lives in the phone
 // drawer, so the overlay opens it before looking.
 function TOUR_placesStep(ctx) {
-  const list = ctx.places && ctx.places.length ? ctx.places : ["Today", "Inbox", "Work", "Clients", "Team"];
+  const list = ctx.places && ctx.places.length ? ctx.places : ["Today", "Inbox", "Work", "Clients", "Team", "HR"];
   const places = TOUR_joinList(list);
   return {
     id: "places",
     targets: ["staff-nav", "staff-nav-today"],
     drawer: true,
-    title: list.length === 5 ? "Your five places" : "Your places",
+    title: list.length === 5 ? "Your five places" : list.length === 6 ? "Your six places" : "Your places",
     body: (key) =>
       key === "staff-nav"
         ? `${places}. Everything you do lives in one of them. Settings and Sign out are under your picture at the top right.`
@@ -984,6 +985,7 @@ function TOUR_bookkeeperSteps(ctx) {
           ["inbox", "the Inbox"],
           ["work", "Work"],
           ["team", "Team"],
+          ["hr", "HR"],
         ]
           .filter(([key]) => !ctx.placeKeys || TOUR_hasPlace(key, ctx))
           .map(([, label]) => label);
@@ -1081,15 +1083,15 @@ function TOUR_bookkeeperSteps(ctx) {
       "Who's out and who's covering. Add your own time off here and pick a backup for your clients.",
     ),
     TOUR_tabStep(
-      "team",
+      "hr",
       "reviews",
-      "Team › Reviews",
+      "HR › Reviews",
       "Your quarterly review: fill in your self-review when a cycle opens, then meet your account manager and both sign. Your review total is out of 30. Performance, next to it, is a separate score out of 100 that counts your latest review as one part.",
     ),
     TOUR_tabStep(
-      "team",
+      "hr",
       "handbook",
-      "Team › Handbook",
+      "HR › Handbook",
       "The firm's staff policies. Read each one to the end, tick the agreement, type your name and Sign. A new version that needs re-signing shows here and on Today.",
     ),
     TOUR_searchStep(today),
@@ -1109,6 +1111,7 @@ function TOUR_bookkeeperSteps(ctx) {
 // places, ⌘K and the "?" menu.
 function TOUR_adminSteps(ctx) {
   const team = (tab, title, body) => TOUR_tabStep("team", tab, title, body);
+  const hr = (tab, title, body) => TOUR_tabStep("hr", tab, title, body);
   const basics = ctx.newToStaff ? [TOUR_placesStep(ctx), TOUR_searchStep(), TOUR_helpStep()] : [];
   return [
     {
@@ -1120,9 +1123,9 @@ function TOUR_adminSteps(ctx) {
           : "As an admin you see more than a bookkeeper: people, hours, money and the firm's settings. This tour opens each of those pages in turn. About two minutes.",
     },
     ...basics,
-    team(
+    hr(
       "members",
-      "Team › Members",
+      "HR › Members",
       "Add staff, set roles, assign clients, give temporary admin access, and use View as to see exactly what a bookkeeper sees. Every View as is in the Audit log.",
     ),
     team(
@@ -1132,14 +1135,14 @@ function TOUR_adminSteps(ctx) {
     ),
     team("reply-times", "Team › Reply times", "How fast clients hear back, by person, against the 24-hour goal."),
     team("performance", "Team › Performance", "Every bookkeeper's score out of 100. Admins see the full ranking; bookkeepers see only their own."),
-    team(
+    hr(
       "reviews",
-      "Team › Reviews",
+      "HR › Reviews",
       "Run the quarterly reviews: Team status › Open a review cycle, pick who's reviewed and their reviewer (Jesse by default).",
     ),
-    team(
+    hr(
       "handbook",
-      "Team › Handbook",
+      "HR › Handbook",
       "Staff policies that bookkeepers sign and the Account Manager countersigns. Admins see who countersigns, each bookkeeper's state and every signed copy.",
     ),
     team(
@@ -1206,7 +1209,7 @@ function TOUR_adminSteps(ctx) {
   ];
 }
 
-// Temporary admin tour: what a temporary admin grant (Team › Members, 1 hour
+// Temporary admin tour: what a temporary admin grant (HR › Members, 1 hour
 // to 1 week) opens for a bookkeeper, about a minute. Each stop is left out
 // when its tab isn't there for this person. Data scope doesn't change: Reply
 // times shows their own replies, Feedback (RLS) only what they sent, Hours
@@ -1214,6 +1217,7 @@ function TOUR_adminSteps(ctx) {
 function TOUR_tempAdminSteps(ctx) {
   const until = TOUR_fmtUntil(ctx.tempAdminUntil);
   const team = (tab, title, body) => TOUR_tabStep("team", tab, title, body);
+  const hr = (tab, title, body) => TOUR_tabStep("hr", tab, title, body);
   return [
     {
       id: "welcome",
@@ -1225,7 +1229,7 @@ function TOUR_tempAdminSteps(ctx) {
     team("hours", "Team › Hours", "Hours and tasks by person and by client, and each client's hours budget. Fees and margin stay with admins."),
     team("reply-times", "Team › Reply times", "How fast clients hear back, against the 24-hour goal. You see your own replies and your own clients."),
     team("feedback", "Team › Feedback", "Bug reports and ideas. You can read the ones you sent yourself; the full list stays with admins."),
-    team("members", "Team › Members", "The staff list, with roles and who works on which client. It's read-only for you."),
+    hr("members", "HR › Members", "The staff list, with roles and who works on which client. It's read-only for you."),
     {
       id: "firm",
       when: (c) => !!c.showsAdminPages,
@@ -1263,8 +1267,8 @@ function TOUR_amSteps(ctx) {
     },
     {
       id: "reviews",
-      when: (c) => TOUR_hasTab("team", "reviews", c),
-      go: TOUR_go("team", "reviews"),
+      when: (c) => TOUR_hasTab("hr", "reviews", c),
+      go: TOUR_go("hr", "reviews"),
       targets: ["#tp-tab-reviews"],
       title: "You do the bookkeeper reviews",
       body: () =>

@@ -16,11 +16,11 @@
 //            and in the tour key "ann:<id>". Never reuse or rename one.
 //   date     YYYY-MM-DD it shipped. People whose account was made after this
 //            day never see it, and it stops showing 60 days later.
-//   title    what is new, a few words ("Team > Reviews emails").
+//   title    what is new, a few words ("HR > Reviews emails").
 //   summary  one sentence for the notice and What's new.
 //   roles    who it is for: admin (real admins), tempAdmin, bookkeeper
 //            (includes temporary admins), accountManager. Not "client" yet.
-//   hash     where "Open" goes, such as "#/team/reviews".
+//   hash     where "Open" goes, such as "#/hr/reviews".
 //   steps    (ctx) => Tour.jsx steps, 3 to 6 stops, about a minute. The
 //            first is a centered welcome (no `targets`). Build the rest with
 //            TOUR_tabStep(place, tab, title, body) and TOUR_go; it is a
@@ -275,7 +275,7 @@ var ANN_REGISTRY = [
     title: "Final scores when a review locks",
     summary: "When a review is signed by both and locks, the team member and the reviewer each get one email with the final scores, the change from the last locked review and the agreed action steps. The same comparison shows on the locked review.",
     roles: ["admin", "bookkeeper"],
-    hash: "#/team/reviews",
+    hash: "#/hr/reviews",
     // Only for people who take part in reviews (the overview has loaded and has something for them).
     ready: () => ANN_inReviews(),
     steps: (ctx) => [
@@ -286,9 +286,9 @@ var ANN_REGISTRY = [
           "When both of you sign a quarterly review, you each get one email with the final scores (the reviewer's ratings), how each area changed from the last locked review (Up, Down or No change) and the agreed action steps. About half a minute.",
       },
       TOUR_tabStep(
-        "team",
+        "hr",
         "reviews",
-        "Team › Reviews",
+        "HR › Reviews",
         "Open a locked review here to see the same numbers under Compared with last quarter. If the last locked review wasn't the quarter right before, it says which quarter it compares with; a first review has nothing to compare yet.",
       ),
       {
@@ -704,21 +704,21 @@ var ANN_REGISTRY = [
   {
     id: "team-reviews-self-review-emails",
     date: "2026-10-15",
-    title: "Team › Reviews emails",
+    title: "HR › Reviews emails",
     summary: "Reviewers are now emailed when the person they review submits their self-review first (no scores, once per review).",
     roles: ["admin"],
-    hash: "#/team/reviews",
+    hash: "#/hr/reviews",
     steps: (ctx) => [
       {
         id: "ann-welcome",
         title: "Reviewers now hear when a self-review is in",
         body: () =>
-          "A quick look at what changed on Team › Reviews. When someone submits their self-review before you've done yours, you now get an email. About a minute.",
+          "A quick look at what changed on HR › Reviews. When someone submits their self-review before you've done yours, you now get an email. About a minute.",
       },
       TOUR_tabStep(
-        "team",
+        "hr",
         "reviews",
-        "Team › Reviews",
+        "HR › Reviews",
         "Quarterly reviews live here. The email links straight to your form for that person, so you can start without hunting for it.",
       ),
       {
@@ -737,7 +737,7 @@ var ANN_REGISTRY = [
         id: "ann-done",
         title: "That's it",
         body: () =>
-          "If you've already submitted your own review, you won't get the email (the comparison email covers that). To see this again, press ? and pick New: Team › Reviews emails tour.",
+          "If you've already submitted your own review, you won't get the email (the comparison email covers that). To see this again, press ? and pick New: HR › Reviews emails tour.",
       },
     ],
   },
@@ -1225,9 +1225,9 @@ var ANN_REGISTRY = [
         body: () => "Change photo opens the same picker any time. Your original is kept, and an admin will tidy the background.",
       },
       TOUR_tabStep(
-        "team",
+        "hr",
         "members",
-        "Team › Members",
+        "HR › Members",
         "The Photo column shows who still needs an edit. Click a photo to download it, replace it with your edited version or restore the original.",
         // A temporary admin sees Members but can't act on photos.
         (c) => !!(c && c.isAdmin),
@@ -1249,7 +1249,7 @@ var ANN_REGISTRY = [
     title: "New handbook policies and employee records",
     summary: "Admins can add reference handbook policies, and keep an employee record for each staff member.",
     roles: ["admin"],
-    hash: "#/team/handbook",
+    hash: "#/hr/handbook",
     steps: () => [
       {
         id: "ann-welcome",
@@ -1258,16 +1258,50 @@ var ANN_REGISTRY = [
           "Add your own reference handbook policies (read only, nobody signs), and keep job and emergency contact details for each staff member. About a minute.",
       },
       TOUR_tabStep(
-        "team",
+        "hr",
         "handbook",
-        "Team › Handbook › New policy",
+        "HR › Handbook › New policy",
         "New policy saves a reference draft only admins see. Nobody signs a new policy and nobody is emailed. To ask bookkeepers to sign one, open it and use Make this a signed policy.",
       ),
       TOUR_tabStep(
-        "team",
+        "hr",
         "employees",
-        "Team › Employee records",
+        "HR › Employee records",
         "One record per staff member: job details, personal contact details and an emergency contact. Only admins see it, and each record you open is logged. No pay or Social Security numbers here.",
+      ),
+    ],
+  },
+  {
+    id: "hr-place",
+    date: "2026-10-19",
+    title: "HR is now its own place",
+    summary: "Handbook, Reviews, Onboarding, Employee records and Members moved from Team to a new HR place in the left rail.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/hr/handbook",
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "HR has its own place",
+        body: () =>
+          "Handbook, Reviews and Onboarding (and, for admins, Employee records and Members) now live under HR in the left rail. Team keeps People, Performance, Inventory and the admin pages. Old links still work. About a minute.",
+      },
+      TOUR_tabStep(
+        "hr",
+        "handbook",
+        "HR › Handbook",
+        "The firm's staff policies, with anything that needs your signature. It moved here from Team; the Sign rows on Today open it as before.",
+      ),
+      TOUR_tabStep(
+        "hr",
+        "reviews",
+        "HR › Reviews",
+        "Your quarterly review, and the reviews you give. The same page as before, one place over.",
+      ),
+      TOUR_tabStep(
+        "hr",
+        "onboarding",
+        "HR › Onboarding",
+        "The new-hire checklist, now next to the Handbook.",
       ),
     ],
   },

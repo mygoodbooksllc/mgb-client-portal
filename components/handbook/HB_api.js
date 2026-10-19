@@ -22,7 +22,7 @@
 // Pure rules (kinds, grouping, search, slugs, dates, Today items, the badge)
 // live in HB_logic.js, which loads first.
 //
-// HB_useStatus() is one shared hb_status() request for the tab, the Team tab
+// HB_useStatus() is one shared hb_status() request for the tab, the HR tab
 // badge (TeamPage.jsx) and Today (TD_useHandbookItems). HB_changed() refreshes
 // all three after a sign or countersign.
 //
@@ -209,10 +209,10 @@ function HB_useStatus() {
 
 // Open a policy (and, from a link, its sign or countersign panel).
 function HB_policyHash(slug, versionNo) {
-  return "#/team/handbook/" + encodeURIComponent(slug) + (versionNo ? "/v" + versionNo : "");
+  return "#/hr/handbook/" + encodeURIComponent(slug) + (versionNo ? "/v" + versionNo : "");
 }
 function HB_goPolicy(slug, versionNo) {
-  const next = slug ? HB_policyHash(slug, versionNo) : "#/team/handbook";
+  const next = slug ? HB_policyHash(slug, versionNo) : "#/hr/handbook";
   if (window.location.hash !== next) window.location.hash = next;
 }
 

@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
-   Employee records (components/hr/*, Team › Employee records, admins only).
+   Employee records (components/hr/*, HR › Employee records, admins only).
    Reuses .card, .card-title, .pill, .btn-primary / .btn-secondary, .link-btn
    and .al-error. Theme tokens only, so light and dark both work; one column
    at phone width.

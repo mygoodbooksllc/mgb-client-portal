@@ -99,7 +99,7 @@
       }
       // Only a verified staff member gets the "install the app" links.
       if (window.mgbInstallApp) window.mgbInstallApp.set(true);
-      // MGB (internal): a per-admin grant the owner sets under Team › Members.
+      // MGB (internal): a per-admin grant the owner sets under HR › Members.
       // The database answers it (can_view_internal() = active admin AND a row
       // in internal_access; supabase/internal-company-profile.sql). Read on its
       // own so a database that hasn't had that migration yet can't lock anyone
