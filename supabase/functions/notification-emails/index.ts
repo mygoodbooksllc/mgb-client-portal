@@ -3,6 +3,7 @@ import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { emailConfigured, esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
 import { loadSignoffs, signoffHtml, signoffText, type Signoff } from "../_shared/signature.ts";
+import { approvalEmail, approvalSkipReason, isHeld } from "./handbookApproval.ts";
 
 // Notification emails behind Settings > Notifications
 // (supabase/notification-emails.sql has the outbox, triggers and schedules).
@@ -26,6 +27,14 @@ import { loadSignoffs, signoffHtml, signoffText, type Signoff } from "../_shared
 // and handbook_countersign_needed. Link only, never the policy text. Payload:
 // { policy_title, policy_slug, version_no, link, due_date? (sign),
 //   signer_name?, signature_id? (countersign) }. Settings key notify.email.handbook.
+//
+// handbook_approval_needed (supabase/staff-handbook-4-approvals.sql): one
+// batched "N handbook policies need your approval" email to the policy
+// approver. A row is left unsent until payload.not_before (at most one email
+// per 30 minutes); at send time the recipient must still be the approver and
+// an active admin, and the live count of drafts waiting is used (0: skipped).
+// Count and link only, never titles or text. Settings key
+// notify.email.handbook_approval. See ./handbookApproval.ts.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -40,7 +49,7 @@ type Kind =
   | "staff_feedback_status" | "staff_tech_request" | "client_message" | "client_reports_ready"
   | "handbook_sign_needed" | "handbook_countersign_needed"
   | "staff_task_review_ready" | "staff_task_sent_back" | "staff_task_mention" | "staff_task_client_answered"
-  | "staff_task_batch";
+  | "staff_task_batch" | "handbook_approval_needed";
 
 // Settings key and default for each kind (matches components/settings/Settings.jsx).
 const PREF: Record<Kind, { key: string; def: boolean }> = {
@@ -54,6 +63,7 @@ const PREF: Record<Kind, { key: string; def: boolean }> = {
   client_reports_ready: { key: "reports_ready", def: true },
   handbook_sign_needed: { key: "handbook", def: true },
   handbook_countersign_needed: { key: "handbook", def: true },
+  handbook_approval_needed: { key: "handbook_approval", def: true },
   // Tasks Phase 2 (supabase/tasks-p2-3-review.sql and later slices).
   staff_task_review_ready: { key: "task_review", def: true },
   staff_task_sent_back: { key: "task_sent_back", def: true },
@@ -413,7 +423,9 @@ Deno.serve(async (req) => {
   const stale = pending.filter((r: any) => now - Date.parse(r.created_at) > STALE_MS);
   await finish(stale.map((r: any) => r.id), "skipped", "Too old to send");
   summary.skipped += stale.length;
-  const fresh = pending.filter((r: any) => now - Date.parse(r.created_at) <= STALE_MS);
+  // Approver notices still inside their batching window stay queued
+  // (untouched) for a later run.
+  const fresh = pending.filter((r: any) => now - Date.parse(r.created_at) <= STALE_MS && !isHeld(r, now));
 
   const clientIds = [...new Set(fresh.map((r: any) => r.client_id).filter(Boolean))];
   const clients = new Map<string, any>();
@@ -627,6 +639,23 @@ Deno.serve(async (req) => {
           cta: one ? "Read and sign" : "Open the Handbook",
           href: one ? handbookLink(one.slug) : handbookLink(null),
         });
+      } else if (kind === "handbook_approval_needed") {
+        // Batched approver notice: re-check who approves and count live.
+        const { data: hs } = await db.from("handbook_settings").select("policy_approver_email").eq("id", 1).maybeSingle();
+        const { count, error: cErr } = await db.from("handbook_policies")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "draft").eq("active", true).eq("approval_status", "pending");
+        const why = approvalSkipReason({
+          to,
+          approverSetting: hs?.policy_approver_email ?? null,
+          isActiveAdmin: (staffRows || []).some((x: any) => x.active && x.role === "admin" && String(x.email).toLowerCase() === to),
+          pending: cErr ? null : (count ?? null),
+        });
+        if (why) {
+          await skip(why);
+          continue;
+        }
+        email = staffEmail(approvalEmail(count!, APP_URL));
       } else if (kind === "handbook_countersign_needed") {
         const items = list.slice(0, 15).map((r: any) => {
           const pl = r.payload || {};
