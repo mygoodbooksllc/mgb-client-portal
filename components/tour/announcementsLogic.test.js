@@ -293,7 +293,7 @@ t("registry: late-task-grace is a plain notice with the grace-period wording", (
   assert.ok(a.steps({}).some((x) => /Filing deadlines/.test(x.body())));
 });
 
-t("registry: desk-launch waits for the Desk and points at the resize edge", () => {
+t("registry: desk-launch waits for the Desk and points at the width grip", () => {
   const a = ANN_REGISTRY.find((x) => x.id === "desk-launch");
   assert.ok(a && typeof a.ready === "function");
   assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
@@ -309,6 +309,26 @@ t("registry: desk-launch waits for the Desk and points at the resize edge", () =
   // node has no window: not docked, so the handle step drops out
   assert.strictEqual(steps[2].when(), false);
   assert.ok(/\bD\b/.test(steps[1].body()) && !/press W/.test(steps[1].body()));
+});
+
+t("registry: desk-right-launch waits for the Desk and tours bar, rail and width grip", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "desk-right-launch");
+  assert.ok(a && typeof a.ready === "function");
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  assert.strictEqual(L.ANN_ready(a, admin), false);
+  const steps = a.steps({});
+  assert.deepStrictEqual(
+    steps.map((s) => s.id),
+    ["ann-welcome", "ann-bar", "ann-rail", "ann-handle", "ann-done"],
+  );
+  assert.deepStrictEqual(steps[1].targets, ["wb-bar"]);
+  assert.deepStrictEqual(steps[2].targets, ["wb-rail"]);
+  assert.deepStrictEqual(steps[3].targets, ["wb-desk-handle"]);
+  // node has no window: no rail or grip steps
+  assert.strictEqual(steps[2].when(), false);
+  assert.strictEqual(steps[3].when(), false);
+  const text = JSON.stringify(steps.map((x) => x.body()));
+  assert.ok(!/colour/i.test(text) && !/top edge/i.test(text));
 });
 
 t("registry: dup-smart is an admin and bookkeeper notice naming Smart and Strict", () => {

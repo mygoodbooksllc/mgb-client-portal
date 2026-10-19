@@ -41,8 +41,8 @@ function ANN_deskOn() {
   }
 }
 
-// True on a window wide enough for the docked Desk (the phone sheet below
-// 760px has no resize edge).
+// True on a window wide enough for the Desk's right column (the phone sheet
+// below 760px has no rail and no width grip).
 function ANN_deskDocked() {
   try {
     return typeof window !== "undefined" && !!window.matchMedia && !window.matchMedia("(max-width: 760px)").matches;
@@ -64,6 +64,65 @@ function ANN_inReviews() {
 }
 
 var ANN_REGISTRY = [
+  {
+    id: "desk-right-launch",
+    date: "2026-10-19",
+    title: "The Desk moves to the right",
+    summary:
+      "The Desk now lives on the right: a slim rail with your message, review, file and mention counts, a column that opens beside the page, and an info bar along the bottom.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/today",
+    // Only for people who have the Desk on.
+    ready: () => ANN_deskOn(),
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Your Desk, on the right",
+        body: () =>
+          "The Desk moved from the bottom of the page to the right side. Nothing inside it changed: Inbox, Slate and Client are still its tabs, and D still opens and closes it. About a minute.",
+      },
+      {
+        id: "ann-bar",
+        targets: ["wb-bar"],
+        title: "The info bar",
+        body: () =>
+          "This bar along the bottom shows how many tasks are late, how many of today's you have done, your next task and, on a client's pages, that client's open tasks and QuickBooks sync. Click it or press D to open the Desk.",
+      },
+      {
+        id: "ann-rail",
+        when: () => ANN_deskDocked(),
+        go: () => {
+          try {
+            if (typeof WB_store !== "undefined" && WB_store.getState().drawerOpen) WB_store.setDrawerOpen(false, "tour");
+          } catch (e) {}
+        },
+        targets: ["wb-rail"],
+        title: "The rail",
+        body: () =>
+          "While the Desk is closed, this slim rail shows four counts: messages, reviews, files and mentions. Point at one to see the latest few, or click it to open them. The chat bubble is gone while the Desk is on: the messages icon opens chat. The + at the foot adds a task or message.",
+      },
+      {
+        id: "ann-handle",
+        when: () => ANN_deskDocked(),
+        go: () => {
+          try {
+            if (typeof WB_store !== "undefined" && !WB_store.getState().drawerOpen) WB_store.setDrawerOpen(true, "tour");
+          } catch (e) {}
+        },
+        targets: ["wb-desk-handle"],
+        wait: true,
+        title: "Make it wider or narrower",
+        body: () =>
+          "The open Desk sits beside the page and pushes it over on a wide screen (on a smaller one it sits over the page). Drag its left edge to change the width; it remembers yours. Esc goes back to the rail.",
+      },
+      {
+        id: "ann-done",
+        title: "That's it",
+        body: () =>
+          "On a phone the Desk still opens full screen from the bar. To see this again, press ? and pick New: The Desk moves to the right, or read Use the Desk in the guide.",
+      },
+    ],
+  },
   {
     id: "one-avatar",
     date: "2026-10-19",
@@ -317,9 +376,9 @@ var ANN_REGISTRY = [
         },
         targets: ["wb-desk-handle"],
         wait: true,
-        title: "Drag the top edge to resize",
+        title: "Drag the left edge to change the width",
         body: () =>
-          "Drag the top edge of the Desk up or down. It settles at short (about one row), medium or tall, and remembers your choice next time. You can also drag up on the closed bar to open it, or focus the edge and use the arrow keys.",
+          "The Desk now opens as a column on the right. Drag its left edge to make it wider or narrower; it settles at narrow, standard or wide and remembers your width. You can also focus the edge and use the arrow keys.",
       },
       {
         id: "ann-page",
@@ -540,7 +599,7 @@ var ANN_REGISTRY = [
           wait: true,
           title: "The drawer, on every page",
           body: () =>
-            "This bar, the Desk, runs across the bottom of the page and shows your count and the next item. Click it or press D anywhere (not while typing) and the Desk slides up from it, with tabs for your Inbox, Slate and one Client's tasks; Esc closes it.",
+            "This bar runs across the bottom of the page and shows what is late, today's progress and your next task. Click it or press D anywhere (not while typing) and the Desk opens as a column on the right, with tabs for your Inbox, Slate and one Client's tasks; Esc closes it.",
         },
         {
           id: "ann-done",

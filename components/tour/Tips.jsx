@@ -137,9 +137,11 @@ const TIPS_DISMISS = { got: true, esc: true, click: true, more: true, off: true 
 // Something open that a tip mustn't sit on: modals (ModalShell and anything
 // aria-modal), top-bar panels and menus, popovers (notes, the client
 // portal's new-message popup, the onboarding checklist), the chat drawer,
-// the phone nav drawer.
+// the phone nav drawer, and the Desk while it covers the page (the right
+// column over the page under 1100px, the phone sheet); a column that pushes
+// the page over covers nothing.
 const TIPS_BUSY =
-  ".tour-root, .modal-overlay, [aria-modal='true'], .wb-panel, .tb-panel, [role='menu'], .notif-panel, .notif-popup, .inote-pop, .ob-pop, .si-drawer, .sidebar-scrim.visible, aside.sidebar.open";
+  ".tour-root, .modal-overlay, [aria-modal='true'], .wb-panel:not(.is-push), .tb-panel, [role='menu'], .notif-panel, .notif-popup, .inote-pop, .ob-pop, .si-drawer, .sidebar-scrim.visible, aside.sidebar.open";
 // What the card shouldn't sit on when another side fits.
 const TIPS_CONTROL =
   "a[href], button, input, select, textarea, summary, [role='tab'], [role='button'], [role='link'], [role='checkbox'], [role='switch'], [role='menuitem']";
@@ -211,15 +213,15 @@ const TIPS_CATALOG = [
     slug: "workbench",
   },
   {
-    // The Desk bar (WB_Drawer.jsx), on every staff page while the Desk is on.
-    // Tips never show with the Desk open (.wb-panel is in TIPS_BUSY), so this
-    // one points at the closed bar. Docked Desk only (wider than 760px): the
-    // phone sheet has no resize edge.
-    id: "desk-resize",
+    // The Desk's info bar (WB_Drawer.jsx), on every staff page while the Desk
+    // is on. Points at the bar (always there); wider than 760px only: the
+    // phone sheet has no width grip. A new id (was desk-resize, the old
+    // bottom panel's height tip), so people see the right-column version.
+    id: "desk-width",
     roles: "all",
     match: () => true,
     target: "wb-bar",
-    text: "Drag the top edge of your Desk to make it shorter or taller. You can also drag up on this bar to open it, and it remembers your height.",
+    text: "Press D or click this bar to open your Desk on the right. Drag its left edge to make it wider or narrower; it remembers your width.",
     slug: "workbench",
     ready: () => {
       try {
@@ -794,7 +796,7 @@ function TIPS_part(el, part) {
 // Targets in the bars themselves (the top bar, the phone bars, the rails)
 // aren't covered by them.
 function TIPS_pinned(el) {
-  return !!(el.closest && el.closest(".tb-bar, .mobile-topbar, .client-tabbar, .wb-bar, .wb-panel, .sidebar, .staff-rail"));
+  return !!(el.closest && el.closest(".tb-bar, .mobile-topbar, .client-tabbar, .wb-bar, .wb-rail, .wb-panel, .sidebar, .staff-rail"));
 }
 
 function TIPS_barTop(el) {
