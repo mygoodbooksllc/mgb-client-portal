@@ -1468,6 +1468,13 @@ li.tk-empty-inline {
   min-height: 34px;
 }
 
+/* Divider under "Find a client" so the scrolling list never looks cut off by the box. */
+.tk-nav-filter + .tk-nav-clients {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  margin-top: 8px;
+}
+
 .tk-app-rail .tk-nav-clients {
   max-height: 40vh;
   overflow-y: auto;
