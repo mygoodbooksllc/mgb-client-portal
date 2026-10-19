@@ -26,6 +26,7 @@ Base: main at 67e28ea. Builds on `docs/desk-spec.md` (D1 rename, D2 glass, D3 re
 14. **Widget edit mode** (dashboard widgets push 360px from the right). *Recommend:* entering edit mode closes the Desk and hides the handle; leaving it restores them.
 15. **Order with P4-4 (snooze, saved filters).** *Recommend:* land R0 (the TK_Drawer split) first; P4-4 rebases onto it. The two never run in parallel.
 16. **Task UX pass before the Desk build (owner request 2026-10-18: tasks are less obvious to use than Asana).** *Recommend:* yes, build slices T1 to T3 (section 15) first, so the Desk task view reuses the finished row and pane and the task UI is built once. What Asana does that ours does not: every field is visible even when empty (dashed assignee circle, faint date icon, priority always shown); every cell edits in place with a small picker; hover shows a "…" menu, subtask and comment counts; a "+ Add task" row under each group; people are initials avatars; the task pane is a labeled grid (Assignee, Due, Client, Project, Priority, Status) above the description. Board view by status (with drag between columns) and drag-to-reorder are separate follow-ups, T4 and T5, owner to decide later.
+17. **Closed Desk uses the whole edge (owner request 2026-10-19: show max info while closed).** *Recommend:* yes. Right dock closed: the handle is a full-height strip from under the top bar to the bottom of the page (`top: var(--desk-top)`, `bottom: 0`), about 280px wide, overlaying the page; the tuck tab still exists for people who want the room back. Bottom dock closed: the bar is the full width of the page area (edge to edge beside the rail), not the 640px centered bar. The open Desk sizes are unchanged. This replaces the Short/Medium/Tall closed-handle lengths (decision 7, section 4) with one full-height handle that fills with every enabled item that fits, so the length grips apply to the open panel only; `--desk-max-w` centering applies to the open bottom panel only.
 
 ---
 
@@ -88,7 +89,7 @@ Base: main at 67e28ea. Builds on `docs/desk-spec.md` (D1 rename, D2 glass, D3 re
 - Everything D3 ships stays: centered beside the rail (`--wb-bar-left`), `--desk-max-w` 640, the height snaps strip/medium/tall, `--desk-pad` page padding, the `--desk-lift` toast and chat lift (except at ≥1100px), the bar drag-up to open, and the top-edge grip.
 - **New in the bottom dock**: dragging below `strip` by 80px, or a downward fling over 0.6 px/ms, closes the panel (the same rule as dragging right in the right dock). Width is not resizable in the bottom dock (unchanged).
 - The task view forces `tall` while it is showing, transient.
-- Closed handle = the existing `.wb-bar`. Its one line shows counts, next-up and, at ≥900px, the waiting icons and `+` (section 8.4).
+- Closed handle = the existing `.wb-bar`, widened to the full width of the page area beside the rail (decision 17). Its one line shows counts, next-up and, at ≥900px, the waiting icons and `+` (section 8.4).
 
 ### 3.3 Switching docks (owner addition)
 
@@ -121,11 +122,11 @@ Dock, width and length are ignored. The bottom 44px bar and the full-height shee
 ## 4. Closed handle (right dock)
 
 - **Element**: `button.wb-handle.wb-glass` inside the existing `div.wb-desk-root` portal, with `data-tour="wb-bar"`. It reuses the frozen tour id so the existing tour steps and announcement steps still find it; the phone and bottom-dock bar keep it too. It is a grid of small zones; the zones that act (`+`, a waiting icon, a chip) are their own buttons inside a `div[role=group]` wrapper, not nested buttons.
-- **Position**: `top: calc(var(--desk-top) + 12px); right: 12px; width: 248px`. Height comes from `hlen`: Short is about 68px, Medium up to 220px, and Tall up to `vh − desk-top − 96px` so it never reaches the chat launcher.
+- **Position** (decision 17): full height, `top: var(--desk-top); right: 0; bottom: 0; width: 280px`, no gap, so it shows the most it can. The chat launcher and toasts shift left of it (section 9). There is no `hlen`; the fill rule uses the available height.
 - **It overlays the page** (no push). Drag it right more than 40px, or press "Tuck" in the gear, to tuck it into a 28px × 72px edge tab (`.wb-handle.is-tucked`). The tab shows the total count and a late dot. Clicking the tab opens the Desk; dragging it left untucks it.
 - It auto-tucks when the page area is under 900px wide. That is not saved, and it untucks when there is room again.
 - **Click** (not on an inner button) opens the Desk with `openedBy:"bar"`. **Drag left** more than 12px from the handle opens it too, like the D3 drag-up.
-- **Bottom-edge grip** (`.wb-handle-len`, role separator): Short, Medium or Tall. Saved to `right.hlen`.
+- No length grip on the closed handle (decision 17); the open panel keeps its length grip.
 - **Content** fills by length budget from the enabled items (section 8).
 
 ---
@@ -241,7 +242,7 @@ Open-Desk extras (a "glance" strip above the tabs):
 
 ```js
 WB_deskFill({ items, prefs, tier, ctx }) // -> [ids to render]
-// budget: short 2 lines, medium 6, tall 12 (handle); short 1, medium 3, tall 6 (glance strip)
+// budget: closed handle = every line that fits its full height (decision 17); short 1, medium 3, tall 6 (glance strip)
 // walk items in prefs order; skip off, skip minTier > tier, skip !shows(ctx);
 // add while lines fit; counts always first
 ```
@@ -437,7 +438,7 @@ Weekly-usage estimates assume the 85% weekly cap and about 12% a day.
 | T4 (later, owner call) | Board view by status with drag between columns | L | Opus builds and critiques | 8–10% |
 | T5 (later, owner call) | Drag to reorder within a group | S | Sonnet builds | 1–2% |
 | R0 | TK_Drawer split into `TK_DrawerContent` + chrome, no behavior change (section 10) | M | Opus builds (high), Opus reviews, Haiku runs tests and the DOM-snapshot diff | 5–7% |
-| R1 | Right-dock shell: `WB_deskLayout`, push/overlay/sheet, width grip + magnets + drag-to-close, v2 storage + migration, closed handle (Short tier: counts, next, `+`), tuck, z and toast/chat/Undo shifts, D/F6/Esc list level, focus return, widget edit mode | L | Opus builds, Opus critiques, Haiku screenshot sweep | 10–12% |
+| R1 | Right-dock shell: `WB_deskLayout`, push/overlay/sheet, width grip + magnets + drag-to-close, v2 storage + migration, closed handle (Short tier: counts, next, `+`), tuck, z and toast/chat/Undo shifts, D/F6/Esc list level, focus return, widget edit mode | L | Opus builds, Opus critiques, Haiku screenshot sweep | 11–13% |
 | R1b | Bottom dock kept as an option: `dock` prop, `.is-bottom` scoping, drag-down close, dock switch by head drag + preview, `WB_deskDockTarget` | M | Sonnet builds, Opus reviews, Haiku sweep (both docks) | 4–6% |
 | R2 | Drill-in: router `TK_openTaskRoute`, drill stack, embedded `TK_DrawerContent`, container queries, `deskTaskId`, nav rule, Esc ladder, arrivals, client drawer → Desk Client tab | L | Opus builds, Opus critiques, Haiku sweep incl. the modal fallback | 10–12% |
 | R3 | Length grips (handle + panel), `WB_deskFill`, full handle content (waiting, page client, pins, QBO, next3, hint), glance strip | M | Sonnet builds, Opus reviews, Haiku sweep | 6–8% |
