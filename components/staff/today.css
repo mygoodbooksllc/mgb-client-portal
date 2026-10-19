@@ -413,6 +413,11 @@ button.td-row-main:hover {
   min-width: 0;
   flex: 1;
 }
+.td-reminders-scroll {
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .td-reminder-done {
   text-decoration: line-through;
   color: var(--text-muted);

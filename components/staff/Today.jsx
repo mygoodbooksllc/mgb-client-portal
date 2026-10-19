@@ -971,7 +971,7 @@ function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }
       {items === null && !error && <p className="card-subtitle td-card-note">Loading…</p>}
       {items && sorted.length === 0 && !error && <p className="card-subtitle td-card-note">No reminders yet.</p>}
       {sorted.length > 0 && (
-        <ul className="staff-audit-list">
+        <ul className="staff-audit-list td-reminders-scroll">
           {sorted.map((r) => (
             <li className="staff-audit-row" key={r.id}>
               <label className="staff-active-toggle td-reminder">
