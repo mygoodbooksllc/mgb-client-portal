@@ -3022,3 +3022,8 @@ body:has(.ltip-ring.ltip-on) .tk-row .tk-sel {
     min-height: 32px;
   }
 }
+
+/* People in the Tasks sidebar: initials avatar before the name. */
+.tk-nav-item .tk-avatar {
+  flex: 0 0 auto;
+}

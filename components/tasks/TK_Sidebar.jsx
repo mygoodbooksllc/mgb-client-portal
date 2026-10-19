@@ -183,6 +183,7 @@ function TK_vNavItem(props) {
       >
         {props.icon ? <TK_vIcon name={props.icon} size={16} /> : null}
         {props.dot ? <TK_vProjectDot color={props.dot} /> : null}
+        {props.avatarName ? <TK_vAvatar name={props.avatarName} size="sm" decorative /> : null}
         <span className="tk-nav-label">{props.label}</span>
         {props.tag ? <span className="tk-nav-tag">{props.tag}</span> : null}
         {props.count ? (
@@ -415,7 +416,7 @@ function TK_Sidebar(props) {
             {staff == null ? <li className="tk-nav-empty">Loading…</li> : null}
             {people.map(function (s) {
               var r = { view: "person", staffId: s.id };
-              return <TK_vNavItem key={s.id} route={r} label={s.name || "Staff member"} active={TK_vSameRoute(route, r)} onNavigate={nav} />;
+              return <TK_vNavItem key={s.id} route={r} label={s.name || "Staff member"} avatarName={s.name || "Staff member"} active={TK_vSameRoute(route, r)} onNavigate={nav} />;
             })}
           </ul>
         </div>
