@@ -7,7 +7,8 @@
 //   #/hr/handbook/<slug>             one policy, latest version (HB_PolicyView)
 //   #/hr/handbook/<slug>/v<n>        an older version
 // Deep link #/hr/handbook?item=handbook:<slug> (Today rows, emails) opens
-// that policy; this tab claims it with LK_useArrival.
+// that policy; this tab claims it with LK_useArrival. handbook:approvals (the
+// approver's Today row and email) scrolls to "Needs your approval".
 //
 // List view: the countersigner line (admins), the countersign queue (the
 // countersigner), a search box and (admins) New policy, then the policies
@@ -17,6 +18,10 @@
 // the not-filed list (HB_Admin.jsx). The publish editor lives in the policy
 // view (HB_PolicyView, admins, latest version); New policy swaps the list for
 // HB_NewPolicy (HB_Admin.jsx).
+//
+// Draft approval (Part L): admins see the policy approver line (and can
+// change the approver), each draft's approval pill and a drafts filter; the
+// approver also sees "Needs your approval (N)" at the top.
 
 function HB_parseRoute() {
   const h = String(window.location.hash || "").split("?")[0];
@@ -183,10 +188,127 @@ function HB_CountersignerLine({ status }) {
   );
 }
 
-function HB_PolicyRow({ p, isSigner }) {
+// Admins: who approves drafts (Part L), or a warning when that person isn't
+// an active admin (publishing drafts is then blocked). The picker lists
+// active admins (hb_status.admins); hb_set_policy_approver checks and audits.
+function HB_ApproverLine({ status }) {
+  const toast = HB_useToastSafe();
+  const [editing, setEditing] = React.useState(false);
+  const [pick, setPick] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const admins = status.admins || [];
+  const ap = status.approver;
+  const missing = !!status.approver_missing;
+  const waiting = HB_pendingApprovalCount(status);
+
+  const save = async () => {
+    if (!pick || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await HB_api.setApprover(pick);
+      toast("Policy approver updated.");
+      setEditing(false);
+      setPick("");
+      HB_changed();
+    } catch (e) {
+      setError(HB_errText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={"hb-banner" + (missing ? " warm" : "")} role="status">
+      <div className="hb-cs-line">
+        <span>
+          {missing ? (
+            <>
+              <strong>Nobody can approve handbook drafts.</strong> The policy approver ({status.approver_setting || "not set"}) isn't an active admin,
+              so drafts can't be published until an admin picks a new one.
+            </>
+          ) : (
+            <>
+              Drafts are approved by <strong>{(ap && (ap.name || ap.email)) || "the approver"}</strong>
+            </>
+          )}
+          {!missing && waiting > 0 && (
+            <span className="hb-muted">
+              {" "}
+              · {waiting} {waiting === 1 ? "draft" : "drafts"} awaiting approval
+            </span>
+          )}
+        </span>
+        {!editing && (
+          <button type="button" className="link-btn" onClick={() => setEditing(true)}>
+            {missing ? "Choose an approver" : "Change"}
+          </button>
+        )}
+      </div>
+      {editing && (
+        <div className="hb-cs-pick">
+          <label className="hb-sr" htmlFor="hb-apv-select">
+            Policy approver
+          </label>
+          <select id="hb-apv-select" className="hb-sel" value={pick} onChange={(e) => setPick(e.target.value)}>
+            <option value="">{admins.length ? "Choose an admin" : "No active admins found"}</option>
+            {admins.map((s) => (
+              <option key={s.email} value={s.email}>
+                {s.name || s.email}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="btn-primary" disabled={!pick || busy} onClick={save}>
+            {busy ? "Saving…" : "Save"}
+          </button>
+          <button type="button" className="btn-secondary" disabled={busy} onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+        </div>
+      )}
+      <HB_Error text={error} />
+    </div>
+  );
+}
+
+// The approver: drafts waiting for them, at the top of the tab. Deep link
+// handbook:approvals lands here.
+function HB_ApprovalsPanel({ status }) {
+  const items = HB_pendingApprovals(status);
+  if (!items.length) return null;
+  return (
+    <section className="card hb-apv-panel" aria-labelledby="hb-apv-title" data-lk="handbook:approvals">
+      <h3 className="card-title" id="hb-apv-title">
+        Needs your approval ({items.length})
+      </h3>
+      <p className="hb-muted">Read each draft, then approve it or ask for changes. Nobody can publish a draft until you approve it.</p>
+      <ul className="hb-list">
+        {items.map((p) => (
+          <li key={p.id} className="hb-list-row">
+            <button type="button" className="hb-policy-btn" onClick={() => HB_goPolicy(p.slug)}>
+              <span className="hb-list-main">
+                <strong>{p.title}</strong>
+                <span className="hb-muted">
+                  {p.section ? p.section + " · " : ""}
+                  {HB_kindOf(p) === "signed" ? "To sign" : "Reference"} · Version {p.latest_version_no}
+                  {p.approval_note ? " · Edited after your note" : ""}
+                </span>
+              </span>
+              <HB_Pill tone="warm">Review</HB_Pill>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function HB_PolicyRow({ p, isSigner, status }) {
   const signing = HB_isSigning(p);
   const my = signing ? p.my : null;
-  const pill = HB_isDraft(p) ? ["Draft", "neutral"] : isSigner && signing ? HB_statePill(my) : null;
+  const apPill = HB_isDraft(p) ? HB_approvalPill(p, status) : null;
+  const pill = HB_isDraft(p) ? apPill || ["Draft", "neutral"] : isSigner && signing ? HB_statePill(my) : null;
   const due =
     isSigner && my && (my.state === "not_signed" || my.state === "overdue") && my.due_date
       ? my.overdue
@@ -216,6 +338,7 @@ function HB_HandbookTab({ staffUser, isAdmin }) {
   const route = HB_useRoute();
   const [query, setQuery] = React.useState("");
   const [creating, setCreating] = React.useState(false);
+  const [draftFilter, setDraftFilter] = React.useState("all");
 
   // Opening a policy, or clicking the Handbook tab again, closes the New
   // policy form (HB_useRoute hands back a new route object each time).
@@ -224,7 +347,19 @@ function HB_HandbookTab({ staffUser, isAdmin }) {
   // Deep link: #/hr/handbook?item=handbook:<slug>.
   LK_useArrival({ place: "hr", tab: "handbook", staff: true, kinds: ["handbook"] }, !!data, (a) => {
     const hit = ((data && data.policies) || []).find((p) => p.slug === a.id);
-    if (hit) {
+    if (a.id === "approvals") {
+      // The approver's Today row / email: the panel, else the drafts.
+      if (route.slug) HB_goPolicy(null);
+      setDraftFilter("all");
+      let tries = 0;
+      const look = () => {
+        const el = LK_find("handbook:approvals") || LK_find("handbook:drafts");
+        if (el) LK_reveal(el, { row: false, block: "start" });
+        else if (++tries < 10) window.setTimeout(look, 100);
+        else LK_toast("No handbook drafts need your approval right now.");
+      };
+      window.setTimeout(look, 0);
+    } else if (hit) {
       HB_goPolicy(hit.slug);
     } else {
       const el = LK_find("handbook:" + a.id);
@@ -257,12 +392,24 @@ function HB_HandbookTab({ staffUser, isAdmin }) {
       />
     );
 
-  const shown = HB_searchPolicies(policies, query);
+  const shown = HB_filterDrafts(HB_searchPolicies(policies, query), draftFilter);
   const groups = HB_groupPolicies(shown);
+  // Part L: approval fields come from a part-4 server; older ones get no filter.
+  const hasApproval = !!me.is_admin && policies.some((p) => HB_isDraft(p) && HB_approvalStatus(p) !== "unknown");
+  const draftCounts = {};
+  if (hasApproval) {
+    const searched = HB_searchPolicies(policies, query);
+    HB_APPROVAL_FILTERS.forEach((f) => {
+      draftCounts[f.key] = HB_filterDrafts(searched, f.key).filter(HB_isDraft).length;
+    });
+    if (draftFilter !== "all" && !groups.some((g) => g.key === "drafts")) groups.push({ key: "drafts", label: "Drafts", items: [] });
+  }
 
   return (
     <div className="hb-tab">
+      {me.is_approver && <HB_ApprovalsPanel status={data} />}
       {me.is_admin && <HB_CountersignerLine status={data} />}
+      {me.is_admin && (data.approver_setting !== undefined || data.approver_missing !== undefined) && <HB_ApproverLine status={data} />}
 
       {me.is_countersigner && queue.length > 0 && (
         <section className="card hb-queue" aria-labelledby="hb-queue-title">
@@ -325,16 +472,39 @@ function HB_HandbookTab({ staffUser, isAdmin }) {
           <p className="hb-muted">No policies match "{query.trim()}".</p>
         ) : (
           groups.map((g) => (
-            <div key={g.key} className={"hb-group" + (g.key === "sign" ? " is-sign" : g.key === "drafts" ? " is-drafts" : "")}>
+            <div
+              key={g.key}
+              className={"hb-group" + (g.key === "sign" ? " is-sign" : g.key === "drafts" ? " is-drafts" : "")}
+              data-lk={g.key === "drafts" ? "handbook:drafts" : undefined}
+            >
               <h4 className="hb-group-title">
                 {g.label}
                 {g.key === "drafts" && <span className="hb-muted"> · Only admins see drafts</span>}
               </h4>
-              <ul className="hb-list">
-                {g.items.map((p) => (
-                  <HB_PolicyRow key={p.id} p={p} isSigner={!!me.is_signer} />
-                ))}
-              </ul>
+              {g.key === "drafts" && hasApproval && (
+                <div className="hb-apv-filter" role="group" aria-label="Show drafts">
+                  {HB_APPROVAL_FILTERS.map((f) => (
+                    <button
+                      key={f.key}
+                      type="button"
+                      className={"hb-apv-chip" + (draftFilter === f.key ? " is-on" : "")}
+                      aria-pressed={draftFilter === f.key}
+                      onClick={() => setDraftFilter(f.key)}
+                    >
+                      {f.key === "pending" ? "Awaiting " + HB_approverFirst(data) : f.label} ({draftCounts[f.key] || 0})
+                    </button>
+                  ))}
+                </div>
+              )}
+              {g.items.length ? (
+                <ul className="hb-list">
+                  {g.items.map((p) => (
+                    <HB_PolicyRow key={p.id} p={p} isSigner={!!me.is_signer} status={data} />
+                  ))}
+                </ul>
+              ) : (
+                <p className="hb-muted">No drafts match this filter.</p>
+              )}
             </div>
           ))
         )}

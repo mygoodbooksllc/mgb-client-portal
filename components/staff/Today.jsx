@@ -331,8 +331,8 @@ function TD_useCoverageGaps(enabled) {
 // ---------------------------------------------------------------------------
 
 const TD_NONE = [];
-// Staff Handbook: "Sign" and "Countersign" items from the shared hb_status
-// store (HB_api.js). Quiet: no schema, no access or no module = no rows.
+// Staff Handbook: "Sign", "Countersign" and (the policy approver) one
+// "Review" row for drafts to approve, from the shared hb_status store (HB_api.js). Quiet: no schema, no access or no module = no rows.
 function TD_useHandbookItems() {
   const can = typeof HB_useStatus === "function" && typeof HB_todayItems === "function";
   const st = can ? HB_useStatus() : null;
@@ -592,7 +592,9 @@ function TD_buildRows(x) {
     });
   }
 
-  // Staff Handbook: sign (bookkeepers) and countersign (the countersigner).
+  // Staff Handbook: sign (bookkeepers), countersign (the countersigner) and
+  // one "N handbook policies need your approval" row (the policy approver;
+  // slug "approvals" opens the Needs your approval panel).
   (x.handbook || []).forEach((h) => {
     const open = lk({ place: "hr", tab: "handbook", item: "handbook:" + h.slug });
     now.push({
@@ -603,7 +605,7 @@ function TD_buildRows(x) {
       title: h.title,
       detail: h.detail,
       onClick: open,
-      actions: [{ label: h.kind === "countersign" ? "Countersign" : "Sign", primary: true, onClick: open }],
+      actions: [{ label: h.kind === "countersign" ? "Countersign" : h.kind === "approve" ? "Review" : "Sign", primary: true, onClick: open }],
     });
   });
 

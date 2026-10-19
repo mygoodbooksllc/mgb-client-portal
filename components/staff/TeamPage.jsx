@@ -556,11 +556,22 @@ function TP_useReviewsDue() {
   const ov = can ? TR_useOverview() : null;
   return can ? TR_dueCount(ov && ov.data) : 0;
 }
-// Handbook: my unsigned policies plus signatures I countersign (hb_status).
+// Handbook: my unsigned policies plus signatures I countersign, plus (the
+// policy approver) drafts waiting for approval (hb_status). One badge; the
+// spoken label names both parts.
 function TP_useHandbookDue() {
   const can = typeof HB_useStatus === "function" && typeof HB_badgeCount === "function";
   const st = can ? HB_useStatus() : null;
-  return can ? HB_badgeCount(st && st.data) : 0;
+  const data = st && st.data;
+  const n = can ? HB_badgeCount(data) : 0;
+  const parts = can && typeof HB_badgeParts === "function" ? HB_badgeParts(data) : { sign: n, approve: 0 };
+  return { n, sign: parts.sign, approve: parts.approve };
+}
+function TP_handbookLabel(h) {
+  const sign = h.sign > 0 ? `${h.sign} handbook item${h.sign === 1 ? "" : "s"} to sign` : "";
+  const approve = h.approve > 0 ? `${h.approve} handbook draft${h.approve === 1 ? "" : "s"} to approve` : "";
+  if (sign && approve) return `${sign}, ${approve}`;
+  return sign || approve || `${h.n} handbook item${h.n === 1 ? "" : "s"} to sign`;
 }
 function TP_useFeedbackNew(enabled) {
   const can = typeof FB_useNewCount === "function";
@@ -617,8 +628,7 @@ function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, rend
   const badgeFor = (key) => {
     if (key === "reviews" && reviewsDue > 0)
       return <TP_TabBadge n={reviewsDue} label={`${reviewsDue} review item${reviewsDue === 1 ? "" : "s"} due`} />;
-    if (key === "handbook" && handbookDue > 0)
-      return <TP_TabBadge n={handbookDue} label={`${handbookDue} handbook item${handbookDue === 1 ? "" : "s"} to sign`} />;
+    if (key === "handbook" && handbookDue.n > 0) return <TP_TabBadge n={handbookDue.n} label={TP_handbookLabel(handbookDue)} />;
     if (key === "feedback" && feedbackNew > 0) return <TP_TabBadge n={feedbackNew} label={`${feedbackNew} new`} />;
     return null;
   };

@@ -411,6 +411,76 @@
   min-width: 0;
 }
 
+/* Draft approval (Part L): the approval card in a draft, the approver's
+   "Needs your approval" panel, the drafts filter. Names avoid HoursBudget's
+   .hb-track / .hb-text / .hb-tag / .hb-ov-* classes. */
+.hb-approval,
+.hb-apv-panel {
+  margin-bottom: 16px;
+}
+.hb-apv-panel {
+  border-left: 3px solid var(--gold);
+}
+.hb-approval-line {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+.hb-approval-note {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--warm-border, var(--border));
+  background: var(--surface-2);
+  border-radius: 0 8px 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hb-approval-note-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.hb-approval .hb-actions {
+  margin-top: 12px;
+}
+.hb-approval-ask {
+  margin-top: 12px;
+}
+.hb-approval-text {
+  min-height: 96px;
+  resize: vertical;
+}
+.hb-draft-hint {
+  margin: 8px 0 0;
+}
+.hb-apv-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+.hb-apv-chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.hb-apv-chip:hover {
+  background: var(--surface-2);
+}
+.hb-apv-chip.is-on {
+  background: var(--ink-strong);
+  border-color: var(--ink-strong);
+  color: var(--surface);
+}
+.hb-apv-chip:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
 @media (max-width: 640px) {
   .hb-title {
     font-size: 18px;
@@ -444,7 +514,9 @@
   .hb-inp-short {
     max-width: none;
   }
-  .hb-draft-bar .btn-primary {
+  .hb-draft-bar .btn-primary,
+  .hb-approval .hb-actions .btn-primary,
+  .hb-approval .hb-actions .btn-secondary {
     width: 100%;
   }
 }

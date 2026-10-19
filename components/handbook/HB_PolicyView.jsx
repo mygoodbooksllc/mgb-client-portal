@@ -319,6 +319,12 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
   const canSign = !!(signing && me.is_signer && v && v.is_latest && !sigHere && owes);
   const queue = ((status && status.to_countersign) || []).filter((q) => q.policy_slug === p.slug);
   const canPublish = !!(me.is_admin && p.active !== false && latest && typeof HB_PublishEditor === "function");
+  // Draft approval (Part L). Null on a published policy or an older server.
+  const approval = draft && d.approval ? d.approval : null;
+  const approverFirst = HB_approverFirst(d);
+  const approvalPill = approval
+    ? HB_approvalPill({ status: "draft", approval_status: approval.status, approval_current: approval.current }, d)
+    : null;
   const gridRows = me.is_admin && status && status.grid ? status.grid.filter((g) => g.policy_slug === p.slug) : [];
 
   return (
@@ -329,6 +335,7 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
           <h2 className="hb-title">{p.title}</h2>
           <span className="hb-list-side">
             {draft && <HB_Pill tone="neutral">Draft</HB_Pill>}
+            {approvalPill && <HB_Pill tone={approvalPill[1]}>{approvalPill[0]}</HB_Pill>}
             {reference && !draft && <HB_Pill tone="neutral">Reference</HB_Pill>}
             {pill && <HB_Pill tone={pill[1]}>{pill[0]}</HB_Pill>}
             {canPublish && !editing && (
@@ -359,7 +366,13 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
           </div>
         )}
         {admin && draft && !editing && typeof HB_DraftBar === "function" && (
-          <HB_DraftBar policy={p} bookkeeperCount={bookkeeperCount} onDone={reload} />
+          <HB_DraftBar
+            policy={p}
+            bookkeeperCount={bookkeeperCount}
+            approval={approval}
+            approverMissing={!!d.approver_missing}
+            onDone={reload}
+          />
         )}
         {signing && me.is_signer && me.status && (me.status.state === "not_signed" || me.status.state === "overdue") && me.status.due_date && (
           <p className={"hb-due" + (me.status.overdue ? " is-overdue" : "")}>
@@ -376,11 +389,39 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
         )}
       </div>
 
+      {admin && draft && approval && !editing && typeof HB_ApprovalCard === "function" && (
+        <HB_ApprovalCard
+          policy={p}
+          approval={approval}
+          approverFirst={approverFirst}
+          approverMissing={!!d.approver_missing}
+          approverSetting={d.approver_setting || ""}
+          isApprover={!!me.is_approver}
+          latestVersionId={d.latest_version_id}
+          latestVersionNo={d.latest_version_no}
+          viewingLatest={latest}
+          onDone={() => setTick((n) => n + 1)}
+        />
+      )}
       {admin && !editing && panel === "details" && (
-        <HB_DetailsEditor policy={p} sections={HB_sections((status && status.policies) || [])} onCancel={() => setPanel("")} onDone={reload} />
+        <HB_DetailsEditor
+          policy={p}
+          sections={HB_sections((status && status.policies) || [])}
+          approval={approval}
+          approverFirst={approverFirst}
+          onCancel={() => setPanel("")}
+          onDone={reload}
+        />
       )}
       {admin && !editing && panel === "convert" && typeof HB_ConvertCard === "function" && (
-        <HB_ConvertCard policy={p} bookkeeperCount={bookkeeperCount} onCancel={() => setPanel("")} onDone={reload} />
+        <HB_ConvertCard
+          policy={p}
+          bookkeeperCount={bookkeeperCount}
+          approval={approval}
+          approverFirst={approverFirst}
+          onCancel={() => setPanel("")}
+          onDone={reload}
+        />
       )}
 
       {editing && canPublish ? (
@@ -388,6 +429,8 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
           policy={p}
           version={v}
           bookkeeperCount={bookkeeperCount}
+          approval={approval}
+          approverFirst={approverFirst}
           onCancel={() => setEditing(false)}
           onDone={() => {
             setEditing(false);

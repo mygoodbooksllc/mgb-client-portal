@@ -13,6 +13,15 @@
 // The server already leaves reference policies and drafts out of the badge,
 // Today, the grid and the countersign queue. These filters are a second lock
 // so an older server answer can never put them there.
+//
+// Draft approval (Part L; supabase/staff-handbook-4-approvals.sql): every
+// draft needs the policy approver (Bailley by default) to approve its exact
+// latest text before it can be published. approval_status on a draft:
+//   pending            waiting for the approver (new, or edited since)
+//   approved           approved; approval_current says it's the latest text
+//   changes_requested  sent back with a note; editing makes it pending again
+// The approver sees one Today row "N handbook policies need your approval"
+// and the count in the Team tab badge, next to anything they sign.
 
 var HB_SLUG_RE = /^[a-z0-9][a-z0-9-]{1,80}$/;
 var HB_GENERAL_SECTION = "General";
@@ -169,8 +178,10 @@ function HB_fmtDay(ymd) {
 // Today and the HR tab badge (hb_status)
 // ---------------------------------------------------------------------------
 // Plain items for Today (TD_useHandbookItems). Each: { key, kind, slug,
-// title, detail, overdue, due }. kind: "sign" | "countersign". Signing
-// policies only: never a reference policy or a draft.
+// title, detail, overdue, due }. kind: "sign" | "countersign" | "approve".
+// Sign and countersign: signing policies only, never a reference policy or
+// a draft. Approve: one row for the policy approver, "N handbook policies
+// need your approval", slug "approvals" (opens the approvals panel).
 function HB_todayItems(st) {
   if (!st) return [];
   var out = [];
@@ -208,15 +219,121 @@ function HB_todayItems(st) {
       signatureId: q.signature_id,
     });
   });
+  var me = st.me || {};
+  var n = me.is_approver ? HB_pendingApprovalCount(st) : 0;
+  if (n > 0) {
+    out.push({
+      key: "hb-approve",
+      kind: "approve",
+      slug: "approvals",
+      title: n === 1 ? "1 handbook policy needs your approval" : n + " handbook policies need your approval",
+      detail: "Drafts in Team › Handbook",
+      overdue: false,
+      due: "",
+      count: n,
+    });
+  }
   return out;
 }
 
 // HR tab badge: my unsigned signing policies, plus signatures I
-// countersign. Same count as Today's handbook rows.
+// countersign, plus (the approver) drafts waiting for approval. Today shows
+// the drafts as one row; the badge counts each draft, like hb_status.badge.
 function HB_badgeCount(st) {
   if (!st) return 0;
-  if (Array.isArray(st.policies)) return HB_todayItems(st).length;
+  if (Array.isArray(st.policies)) {
+    return HB_todayItems(st).reduce(function (sum, it) {
+      return sum + (it.kind === "approve" ? it.count : 1);
+    }, 0);
+  }
   return Number(st.badge) || 0;
+}
+// The badge's parts, for its label: { sign, approve }.
+function HB_badgeParts(st) {
+  var parts = { sign: 0, approve: 0 };
+  if (!st || !Array.isArray(st.policies)) return parts;
+  HB_todayItems(st).forEach(function (it) {
+    if (it.kind === "approve") parts.approve += it.count;
+    else parts.sign += 1;
+  });
+  return parts;
+}
+
+// ---------------------------------------------------------------------------
+// Draft approval
+// ---------------------------------------------------------------------------
+var HB_APPROVAL_FILTERS = [
+  { key: "all", label: "All drafts" },
+  { key: "pending", label: "Awaiting approval" },
+  { key: "changes", label: "Changes asked" },
+  { key: "approved", label: "Approved" },
+];
+
+// A draft's approval state: "pending" | "approved" | "changes_requested",
+// "" for a published policy, and "unknown" when the server is older than
+// part 4 (no approval fields: the UI then shows nothing extra).
+function HB_approvalStatus(p) {
+  if (!HB_isDraft(p)) return "";
+  var s = p && p.approval_status;
+  if (s === "pending" || s === "approved" || s === "changes_requested") return s;
+  return "unknown";
+}
+// Approved, and for the text that's there now.
+function HB_approvalCurrent(p) {
+  return HB_approvalStatus(p) === "approved" && p.approval_current !== false;
+}
+// Waiting for the approver: pending, or approved for text that has since
+// changed (the server resets that to pending; this covers a stale answer).
+function HB_awaitingApproval(p) {
+  var s = HB_approvalStatus(p);
+  return s === "pending" || (s === "approved" && p.approval_current === false);
+}
+// The approver's first name for labels ("Awaiting Bailley's approval").
+function HB_approverFirst(st) {
+  var a = st && st.approver;
+  var name = String((a && a.name) || "").trim();
+  if (name) return name.split(/\s+/)[0];
+  var email = String((a && a.email) || (st && st.approver_setting) || "").trim();
+  if (email) {
+    var local = email.split("@")[0].split(/[._+-]/)[0];
+    if (local) return local.charAt(0).toUpperCase() + local.slice(1);
+  }
+  return "the approver";
+}
+// Pill [label, tone] for a draft's approval, or null.
+function HB_approvalPill(p, st) {
+  var s = HB_approvalStatus(p);
+  if (!s || s === "unknown") return null;
+  var who = HB_approverFirst(st);
+  var poss = who === "the approver" ? "the approver's" : who + "'s";
+  if (HB_awaitingApproval(p)) return ["Awaiting " + poss + " approval", "warm"];
+  if (s === "changes_requested") return ["Changes asked", "bad"];
+  return ["Approved", "good"];
+}
+// Drafts waiting for the approver, in list order.
+function HB_pendingApprovals(st) {
+  return ((st && st.policies) || []).filter(HB_awaitingApproval);
+}
+// How many drafts wait: from the list when the server sent one, else the
+// server's count.
+function HB_pendingApprovalCount(st) {
+  if (!st) return 0;
+  if (Array.isArray(st.policies) && st.policies.some(function (p) { return HB_approvalStatus(p) !== "" && HB_approvalStatus(p) !== "unknown"; })) {
+    return HB_pendingApprovals(st).length;
+  }
+  return Number(st.approvals_pending) || 0;
+}
+// Drafts filter for the list ("all" keeps everything).
+function HB_filterDrafts(policies, key) {
+  var list = policies || [];
+  if (!key || key === "all") return list.slice();
+  return list.filter(function (p) {
+    if (!HB_isDraft(p)) return true;
+    if (key === "pending") return HB_awaitingApproval(p);
+    if (key === "changes") return HB_approvalStatus(p) === "changes_requested";
+    if (key === "approved") return HB_approvalCurrent(p);
+    return true;
+  });
 }
 
 // Admin grid rows: signing policies only.
@@ -244,5 +361,15 @@ if (typeof module !== "undefined" && module.exports) {
     HB_todayItems: HB_todayItems,
     HB_badgeCount: HB_badgeCount,
     HB_gridPolicies: HB_gridPolicies,
+    HB_APPROVAL_FILTERS: HB_APPROVAL_FILTERS,
+    HB_approvalStatus: HB_approvalStatus,
+    HB_approvalCurrent: HB_approvalCurrent,
+    HB_awaitingApproval: HB_awaitingApproval,
+    HB_approverFirst: HB_approverFirst,
+    HB_approvalPill: HB_approvalPill,
+    HB_pendingApprovals: HB_pendingApprovals,
+    HB_pendingApprovalCount: HB_pendingApprovalCount,
+    HB_filterDrafts: HB_filterDrafts,
+    HB_badgeParts: HB_badgeParts,
   };
 }

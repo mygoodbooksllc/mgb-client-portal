@@ -56,6 +56,10 @@ const AL_ACTIONS = {
   "handbook.policy_published": "Handbook policy published",
   "handbook.policy_updated": "Handbook policy details changed",
   "handbook.policy_converted": "Handbook policy made a signed policy",
+  "handbook.policy_approved": "Handbook draft approved",
+  "handbook.policy_changes_requested": "Handbook draft sent back for changes",
+  "handbook.approval_reset": "Handbook draft needs approval again",
+  "handbook.approver_changed": "Handbook policy approver changed",
   "hr.record_viewed": "Employee record opened",
   "hr.record_saved": "Employee record saved",
   "hr.list_viewed": "Employee records list opened",
@@ -130,7 +134,17 @@ function AL_summary(row) {
   }
   if (a.startsWith("qbo_firm.")) return [d.company, d.from && d.to ? `${d.from} → ${d.to}` : "", d.error].filter(Boolean).join(" · ");
   if (a.startsWith("view_as.") || a.startsWith("portal_preview.")) return d.name || d.target || "";
-  if (a === "handbook.countersigner_changed") return `${d.from || "none"} → ${d.to || "none"}`;
+  if (a === "handbook.countersigner_changed" || a === "handbook.approver_changed") return `${d.from || "none"} → ${d.to || "none"}`;
+  if (a === "handbook.policy_approved") return [d.policy, d.version_no ? "v" + d.version_no : ""].filter(Boolean).join(" · ");
+  if (a === "handbook.policy_changes_requested") return [d.policy, d.note].filter(Boolean).join(" · ");
+  if (a === "handbook.approval_reset")
+    return [
+      d.policy,
+      d.reason === "text_changed" ? "text edited" + (d.version_no ? " (v" + d.version_no + ")" : "") : d.reason === "kind_changed" ? "made a signed policy" : d.reason === "details_changed" ? "title or section changed" : "",
+      d.from === "approved" ? "was approved" : d.from === "changes_requested" ? "was sent back" : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
   if (a === "handbook.exported") return d.event === "download" ? "Downloaded" : d.event === "filed" ? "Filed to Drive" : "";
   if (a === "handbook.policy_created" || a === "handbook.policy_published")
     return [d.policy, d.kind === "reference" ? "reference" : d.kind === "signed" ? "signed" : "", d.notified ? d.notified + " asked to sign" : ""]

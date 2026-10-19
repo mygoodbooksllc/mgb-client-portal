@@ -1,8 +1,10 @@
 // Plain node, no framework: `node components/handbook/HB_logic.test.js`.
 // Guards the handbook rules the UI applies on its own: link names from
 // titles, the list groups and search, and that reference policies and drafts
-// never reach Today, the badge or the grid. The server enforces the same
-// (supabase/staff-handbook-3-kinds.sql); keep the two in step.
+// never reach Today, the badge or the grid, and the draft approval labels,
+// filter, Today row and badge. The server enforces the same
+// (supabase/staff-handbook-3-kinds.sql, staff-handbook-4-approvals.sql);
+// keep the two in step.
 
 const assert = require("assert");
 const L = require("./HB_logic.js");
@@ -143,6 +145,88 @@ t("gridPolicies", () => {
 t("fmtDay", () => {
   eq(L.HB_fmtDay("2026-10-26"), "Oct 26");
   eq(L.HB_fmtDay("nope"), "");
+});
+
+// Draft approval (Part L, staff-handbook-4-approvals.sql).
+const dPend = { ...draftRef, id: "d1", slug: "d-pend", approval_status: "pending" };
+const dAppr = { ...draftRef, id: "d2", slug: "d-appr", approval_status: "approved", approval_current: true };
+const dStale = { ...draftRef, id: "d3", slug: "d-stale", approval_status: "approved", approval_current: false };
+const dChg = { ...draftRef, id: "d4", slug: "d-chg", approval_status: "changes_requested", approval_note: "Fix it" };
+const apSt = (me, extra) => ({
+  me: { is_approver: true, ...me },
+  approver: { email: "bailley@mygoodbooks.org", name: "Bailley Gray" },
+  policies: [signed, dPend, dAppr, dStale, dChg],
+  to_countersign: [],
+  approvals_pending: 2,
+  ...extra,
+});
+
+t("approvalStatus", () => {
+  eq(L.HB_approvalStatus(dPend), "pending");
+  eq(L.HB_approvalStatus(dChg), "changes_requested");
+  eq(L.HB_approvalStatus(signed), "");
+  eq(L.HB_approvalStatus(draftRef), "unknown"); // older server: nothing extra shown
+  eq(L.HB_approvalCurrent(dAppr), true);
+  eq(L.HB_approvalCurrent(dStale), false);
+  eq(L.HB_awaitingApproval(dPend), true);
+  eq(L.HB_awaitingApproval(dStale), true);
+  eq(L.HB_awaitingApproval(dAppr), false);
+  eq(L.HB_awaitingApproval(dChg), false);
+  eq(L.HB_awaitingApproval(signed), false);
+});
+
+t("approvalPill", () => {
+  const st = apSt();
+  eq(L.HB_approverFirst(st), "Bailley");
+  eq(L.HB_approverFirst({ approver_setting: "bailley@mygoodbooks.org" }), "Bailley");
+  eq(L.HB_approverFirst(null), "the approver");
+  eq(L.HB_approverFirst({ approver: null, approver_setting: "bailley.approver@example.org" }), "Bailley");
+  eq(L.HB_approvalPill(dPend, st), ["Awaiting Bailley's approval", "warm"]);
+  eq(L.HB_approvalPill(dStale, st), ["Awaiting Bailley's approval", "warm"]);
+  eq(L.HB_approvalPill(dAppr, st), ["Approved", "good"]);
+  eq(L.HB_approvalPill(dChg, st), ["Changes asked", "bad"]);
+  eq(L.HB_approvalPill(signed, st), null);
+  eq(L.HB_approvalPill(draftRef, st), null);
+  eq(L.HB_approvalPill(dPend, {}), ["Awaiting the approver's approval", "warm"]);
+});
+
+t("pendingApprovals", () => {
+  eq(L.HB_pendingApprovals(apSt()).map((p) => p.slug), ["d-pend", "d-stale"]);
+  eq(L.HB_pendingApprovalCount(apSt()), 2);
+  // No draft rows (older shape): the server count.
+  eq(L.HB_pendingApprovalCount({ policies: [signed], approvals_pending: 4 }), 4);
+  eq(L.HB_pendingApprovalCount(null), 0);
+});
+
+t("filterDrafts", () => {
+  const all = [signed, dPend, dAppr, dStale, dChg];
+  eq(L.HB_filterDrafts(all, "all").length, 5);
+  eq(L.HB_filterDrafts(all, "pending").map((p) => p.slug), ["flexible-work-sla", "d-pend", "d-stale"]);
+  eq(L.HB_filterDrafts(all, "changes").map((p) => p.slug), ["flexible-work-sla", "d-chg"]);
+  eq(L.HB_filterDrafts(all, "approved").map((p) => p.slug), ["flexible-work-sla", "d-appr"]);
+  eq(L.HB_APPROVAL_FILTERS.map((f) => f.key), ["all", "pending", "changes", "approved"]);
+});
+
+t("approval on Today and the badge", () => {
+  const items = L.HB_todayItems(apSt());
+  const ap = items.filter((i) => i.kind === "approve");
+  eq(ap.length, 1);
+  eq(ap[0].title, "2 handbook policies need your approval");
+  eq(ap[0].slug, "approvals");
+  eq(ap[0].count, 2);
+  eq(L.HB_todayItems(apSt({}, { policies: [dPend] })).find((i) => i.kind === "approve").title, "1 handbook policy needs your approval");
+  // Not the approver (another admin): no row, no badge.
+  eq(L.HB_todayItems(apSt({ is_approver: false })).filter((i) => i.kind === "approve"), []);
+  eq(L.HB_badgeCount(apSt({ is_approver: false })), 0);
+  // Approver: badge counts each draft; with a policy to sign it adds up.
+  eq(L.HB_badgeCount(apSt()), 2);
+  const both = apSt({}, { policies: [{ ...signed, my: { state: "not_signed", due_date: "2026-10-26" } }, dPend, dStale] });
+  eq(L.HB_badgeCount(both), 3);
+  eq(L.HB_badgeParts(both), { sign: 1, approve: 2 });
+  // Nothing waiting: no row.
+  eq(L.HB_todayItems(apSt({}, { policies: [signed, dAppr, dChg], approvals_pending: 0 })).filter((i) => i.kind === "approve"), []);
+  // The approval row never names a draft.
+  eq(/New Reference/.test(JSON.stringify(ap)), false);
 });
 
 assert.ok(n >= 60, "need at least 60 checks, got " + n);

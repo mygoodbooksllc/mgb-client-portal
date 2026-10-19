@@ -1,7 +1,8 @@
 // Staff Handbook: data access (spec docs/staff-handbook-spec.md, Part E).
 //
 // Everything is enforced in the database (supabase/staff-handbook.sql,
-// staff-handbook-2-admin.sql, staff-handbook-3-kinds.sql): who
+// staff-handbook-2-admin.sql, staff-handbook-3-kinds.sql,
+// staff-handbook-4-approvals.sql): who approves drafts, who
 // signs (hb_is_signer: active bookkeepers), who countersigns (the setting),
 // the name match, the acknowledgment text, the immutable versions and the
 // one-time countersign / PDF columns. The UI only mirrors those rules.
@@ -17,6 +18,9 @@
 //   HB_api.publishPolicy(policyId)          hb_publish_policy() (admins; draft -> published)
 //   HB_api.updatePolicy(policyId, title, section, sort)  hb_update_policy() (admins)
 //   HB_api.convertToSigned(policyId, note)  hb_convert_to_signed() (admins; reference -> signed)
+//   HB_api.approve(policyId, versionId)     hb_approve_policy() (the policy approver; that exact text)
+//   HB_api.requestChanges(policyId, note)   hb_request_changes() (the policy approver)
+//   HB_api.setApprover(email)               hb_set_policy_approver() (admins)
 //   HB_downloadPdf(signatureId, filename)   team-reviews download_handbook_pdf
 //
 // Pure rules (kinds, grouping, search, slugs, dates, Today items, the badge)
@@ -100,6 +104,17 @@ const HB_api = {
       p_change_note: changeNote,
       p_confirm: true,
     });
+  },
+  // Draft approval (staff-handbook-4-approvals.sql). versionId is the
+  // version the approver read; if the draft changed since, nothing is approved.
+  approve(policyId, versionId) {
+    return HB_api.rpc("hb_approve_policy", { p_policy_id: policyId, p_version_id: versionId });
+  },
+  requestChanges(policyId, note) {
+    return HB_api.rpc("hb_request_changes", { p_policy_id: policyId, p_note: note });
+  },
+  setApprover(email) {
+    return HB_api.rpc("hb_set_policy_approver", { p_email: email || null });
   },
   // The team-reviews edge function (PDF download). Same call shape as TR_api.call.
   async call(body, wantBlob) {

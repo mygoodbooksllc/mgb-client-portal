@@ -73,6 +73,12 @@ const ST_STAFF_EMAIL_PREFS = [
   { key: "task_batch", label: "Task summaries", sub: "One email per run for task batches, like new recurring tasks or tasks handed over while someone is away.", def: true },
   { key: "feedback_status", label: "My feedback changes status", sub: "When an admin marks your feedback planned, done or declined.", def: true },
   { key: "handbook", label: "Staff Handbook signatures", sub: "When a policy needs your signature or countersignature.", def: true },
+  {
+    key: "handbook_approval",
+    label: "Handbook drafts to approve",
+    sub: "The policy approver only: when handbook drafts are waiting for your approval. At most one email every 30 minutes, with a count and a link.",
+    def: true,
+  },
 ];
 const ST_CLIENT_EMAIL_PREFS = [
   { key: "bookkeeper_message", label: "My bookkeeper sends me a message", sub: "A short email with a link to Messages. The message itself stays in the portal.", def: true },
