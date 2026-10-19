@@ -19,4 +19,4 @@ The first time you sign in, Today asks you to finish your profile. **Later** clo
 
 ### Admins: filling in dates for someone
 
-**Team › Members** has a **Birthday** and a **Start date** column. Type or pick a date and it saves on its own. Staff can change their own dates in Settings › Profile at any time.
+**HR › Members** has a **Birthday** and a **Start date** column. Type or pick a date and it saves on its own. Staff can change their own dates in Settings › Profile at any time.

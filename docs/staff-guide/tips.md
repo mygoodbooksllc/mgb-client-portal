@@ -67,7 +67,7 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | Work › Slate | Pick a client and tick Share with this client's team so other staff on it can see and tick off the task. Repeat needs a Due date. | [How do I use my Slate?](#/help/my-tasks) |
 | Work › Close | Click a cell to set the month's status and add a note, like waiting on a bank statement. The cell shows who changed it and when. | [How do I track month-end close?](#/help/month-end-close) |
 | Work › Deadlines | Weekend due dates move to Monday, but holidays don't, so verify each date before filing. Mark filed shows the team who filed it. | [How do I track filing deadlines?](#/help/deadlines) |
-| Team › Reviews | Your self-review saves as a draft as you go. You and your reviewer can't see each other's scores until both forms are in. Other admins can follow along. | [How do quarterly reviews work?](#/help/quarterly-reviews) |
+| HR › Reviews | Your self-review saves as a draft as you go. You and your reviewer can't see each other's scores until both forms are in. Other admins can follow along. | [How do quarterly reviews work?](#/help/quarterly-reviews) |
 | Today | On a computer you can install MyGoodBooks as an app. In Chrome or Edge, click the install icon at the right end of the address bar. | [How do I install MyGoodBooks as an app?](#/help/get-the-app) |
 | Settings | Choose where you land after signing in: Today, Work › Slate or the last client you opened. It's under Appearance & start page. | [How do I change my settings (profile, notifications, theme, signature)?](#/help/staff-settings) |
 | Any client page | Search (or Ctrl+K, ⌘K on a Mac) also looks inside the open client: transactions, budget lines, documents and messages, as well as clients, SOPs and help. | [What's on the bar at the top of the page?](#/help/top-bar) |
@@ -112,7 +112,7 @@ These show on **Work › Slate** (the Slate pages), after the tips above. The ne
 
 | Page | Tip | Learn more |
 |---|---|---|
-| Team › Members | Give a bookkeeper the admin pages for 1 hour, 1 day or 1 week, say while you're away. It ends by itself; Revoke ends it early. | [How do I add staff and manage their access?](#/help/staff-management) |
+| HR › Members | Give a bookkeeper the admin pages for 1 hour, 1 day or 1 week, say while you're away. It ends by itself; Revoke ends it early. | [How do I add staff and manage their access?](#/help/staff-management) |
 
 #### Admins and anyone with temporary admin access
 
@@ -125,7 +125,7 @@ These show on **Work › Slate** (the Slate pages), after the tips above. The ne
 | Page | Tip | Learn more |
 |---|---|---|
 | Today | A client asked to upgrade or add Payroll. Follow up, then mark it Contacted or Completed, or Dismiss it, so it leaves everyone's Today. | [Account manager guide](#/help/account-manager-guide) |
-| Team › Reviews | Reviews you give are here. Fill in each person's form; once both are in, meet, agree on action steps and both sign. | [Account manager guide](#/help/account-manager-guide) |
+| HR › Reviews | Reviews you give are here. Fill in each person's form; once both are in, meet, agree on action steps and both sign. | [Account manager guide](#/help/account-manager-guide) |
 
 On a touch screen the search tip leaves out the keyboard shortcut, and the Health tip (it needs a mouse to hover) doesn't show.
 

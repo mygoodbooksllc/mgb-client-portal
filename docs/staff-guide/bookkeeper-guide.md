@@ -11,7 +11,7 @@ As a bookkeeper you look after your own clients: you keep their books, answer th
 
 - It starts by itself once, the first time you open the portal. If you did the older staff tour, you still get this one, because it's new.
 - Run it again any time from **?** → **Bookkeeper tour**, from **Ctrl+K** (**⌘K** on a Mac) by typing "bookkeeper tour", or from **Settings › Help**.
-- It opens each part of your day in turn and points at it: **Today**, **Clients**, a client's **Overview** and **Close** tab, the **+** button, the **Inbox**, **Work › Slate** and **Close** (which points you to **Deadlines**), **Team › People**, **Reviews** and **Handbook**, search and the **?** menu. About three minutes.
+- It opens each part of your day in turn and points at it: **Today**, **Clients**, a client's **Overview** and **Close** tab, the **+** button, the **Inbox**, **Work › Slate** and **Close** (which points you to **Deadlines**), **Team › People**, **HR › Reviews** and **Handbook**, search and the **?** menu. About three minutes.
 - Admins can run it from the **?** menu too. During **View as**, it only visits the pages View as can open (Today, Clients and a client's pages); the Inbox, Work and Team stops are skipped.
 
 If you're also a client's account manager, the **Account manager tour** comes next. If you have temporary admin access, you'll get the **Temporary admin tour** first. See [Account manager guide](#/help/account-manager-guide) and [Temporary access](#/help/temporary-access).
@@ -83,7 +83,7 @@ See [How do I message a client or a teammate?](#/help/inbox).
 
 **Every quarter**
 
-1. Fill in your self-review on **Team › Reviews**, then meet your account manager and sign.
+1. Fill in your self-review on **HR › Reviews**, then meet your account manager and sign.
 
 **When you're away**
 
@@ -95,5 +95,5 @@ See [How do I message a client or a teammate?](#/help/inbox).
 - You only see the clients assigned to you. To cover someone else's, [request temporary access](#/help/temporary-access).
 - Hours aren't logged here. QuickBooks Time is where hours come from, and in-app time is automatic and not billed.
 - If a client can't see something, **Client view › View as client…** shows the portal exactly as they see it. See [How do I see the portal the way a client sees it?](#/help/preview-as).
-- New here? Your checklist is on **Team › Onboarding**. See [How does the new-hire onboarding checklist work?](#/help/new-hire-onboarding).
+- New here? Your checklist is on **HR › Onboarding**. See [How does the new-hire onboarding checklist work?](#/help/new-hire-onboarding).
 - Stuck? **?** → **Help for this page**, or search this guide.

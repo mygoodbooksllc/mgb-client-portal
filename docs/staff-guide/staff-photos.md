@@ -5,7 +5,7 @@ audience: admin
 keywords: [staff photos, profile photo, photo column, needs edit, remove background, headshot, replace photo, restore original, photo history, hide version, not required, download all, zip, avatar, transparent png, members photo, photo audit]
 sort: 515
 ---
-Every active staff member adds a profile photo. You tidy the background so the whole team matches. It all happens on **Team › Members** (`#/team/members`).
+Every active staff member adds a profile photo. You tidy the background so the whole team matches. It all happens on **HR › Members** (`#/hr/members`).
 
 ### The Photo column
 
@@ -16,7 +16,7 @@ Each person has a photo and a status:
 - **Done**: an admin's edited photo is the current one.
 - **Not required**: marked by an admin, so they never see the prompt.
 
-When people have photos waiting, **Today** shows **N profile photos to edit**. It comes back whenever someone uploads a new photo. Click it to open Team › Members at the first one.
+When people have photos waiting, **Today** shows **N profile photos to edit**. It comes back whenever someone uploads a new photo. Click it to open HR › Members at the first one.
 
 ### Edit one photo
 

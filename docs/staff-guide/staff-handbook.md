@@ -5,7 +5,7 @@ audience: staff
 keywords: [handbook, staff handbook, policy, policies, sign, signature, sign policy, countersign, countersigner, account manager, re-sign, resign, needs re-signing, overdue, flexible work, scheduling, sla, effective date, signed copy, pdf, download, version, version history, minor edit, staff reviews drive, publish, new version, publish new version, status grid, signatures by bookkeeper, not filed, retry filing, change note, reference, reference policy, signed policy, policy kind, new policy, add a policy, create policy, draft, drafts, publish draft, section, sections, search policies, policies to sign, edit details, make this a signed policy, link name]
 sort: 146
 ---
-The firm's staff policies live on the **Handbook** tab of **Team** (`#/team/handbook`). Anyone on the team can read them. The number on the tab shows what's waiting on you.
+The firm's staff policies live on the **Handbook** tab of **Team** (`#/hr/handbook`). Anyone on the team can read them. The number on the tab shows what's waiting on you.
 
 A policy is one of two kinds:
 
@@ -16,7 +16,7 @@ The list starts with **Policies to sign**, then the reference policies grouped b
 
 ### Sign a policy (bookkeepers)
 
-1. Open **Team › Handbook** and click the policy, or click its **Sign** row on **Today**.
+1. Open **HR › Handbook** and click the policy, or click its **Sign** row on **Today**.
 2. Read it to the end. The sign panel at the bottom unlocks once you've scrolled to the end of the text.
 3. Tick **I have read and agree to this policy, and I agree to sign it electronically.**
 4. Type your full name as it appears on your staff profile. Capitals and extra spaces don't matter.
@@ -68,7 +68,7 @@ Your older signed copies are kept. **Version history**, at the bottom of each po
 ### Add a new policy (admins)
 
 1. On the Handbook tab, click **New policy**.
-2. Type the **Title**. The **Link name** (the policy's address, like `#/team/handbook/paid-time-off`) fills in from the title. You can change it before saving: lower-case letters, numbers and hyphens, 2 to 81 characters. It can't change later.
+2. Type the **Title**. The **Link name** (the policy's address, like `#/hr/handbook/paid-time-off`) fills in from the title. You can change it before saving: lower-case letters, numbers and hyphens, 2 to 81 characters. It can't change later.
 3. Optionally type a **Section**, such as *Time off*. Sections you've used before are suggested.
 4. Write the **Policy text** in Markdown. The preview on the right shows it the way staff will see it.
 5. Click **Save draft**.
@@ -97,7 +97,7 @@ If you leave the editor before publishing, your unsaved text comes back the next
 
 ### Troubleshooting
 
-- **"Type your full name exactly as it appears on your staff profile."** Your typed name has to match your name on the staff list (**Team › Members**). Capitals and extra spaces don't matter. Ask an admin if it looks wrong.
+- **"Type your full name exactly as it appears on your staff profile."** Your typed name has to match your name on the staff list (**HR › Members**). Capitals and extra spaces don't matter. Ask an admin if it looks wrong.
 - **"A newer version of this policy has been published."** Reload and sign the latest version.
 - **"You have already signed this policy."** Only minor edits came after the version you signed, so there's nothing to sign.
 - **"Check the box to agree before signing."** Tick the agreement, then sign.

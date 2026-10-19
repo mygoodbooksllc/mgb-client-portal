@@ -23,7 +23,7 @@ The four tiles at the top are clickable: **Open requests** (open or ordered), **
 - **Requests**: everyone's requests. Change the status in the row; **Archive** files a request away. **New request** sends one of your own.
 - **Items**: every item. Search, filter by person, or **Log an item** for anyone.
 - **Roster**: one row per active staff member with their laptop, item count, open requests and which essentials they're missing. Click a name to see their items. A person's laptop counts for the laptop essential whatever the brand.
-- **Directory**: name and email from **Team › Members**, plus personal email, phones and home address. **Edit** a row to update it. Only admins can see this.
+- **Directory**: name and email from **HR › Members**, plus personal email, phones and home address. **Edit** a row to update it. Only admins can see this.
 - **Standard setup**: **Add item**, **Edit** and **Archive**.
 
 **Export to Google Sheet** saves a new sheet to the admin-only Shared Drive (folder "Inventory") with Requests, Items, Roster, Standard setup and Directory tabs, and gives you an **Open the sheet** link. Each export is a new dated file.
@@ -31,4 +31,4 @@ The four tiles at the top are clickable: **Open requests** (open or ordered), **
 ### Good to know
 
 - Nothing is ever deleted. **Archive** hides a row; **Show archived** lists archived rows, and **Restore** puts one back.
-- People come from **Team › Members**. To add someone to Inventory, add them there first (with their @mygoodbooks.org email).
+- People come from **HR › Members**. To add someone to Inventory, add them there first (with their @mygoodbooks.org email).

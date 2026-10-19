@@ -15,7 +15,7 @@ Across the top of every staff page there's a dark bar, joined to the rail, with 
 
 ### Search (middle)
 
-Click the search box, or press **Ctrl+K** (**⌘K** on a Mac) from anywhere. With nothing typed it lists every **page** and **action** you can jump to (Work › Close, Team › Reviews, **Send feedback**, **Settings** and so on). Type a few letters and the results are grouped:
+Click the search box, or press **Ctrl+K** (**⌘K** on a Mac) from anywhere. With nothing typed it lists every **page** and **action** you can jump to (Work › Close, HR › Reviews, **Send feedback**, **Settings** and so on). Type a few letters and the results are grouped:
 
 - **Pages** and **Actions**: anywhere in the portal, by name.
 - **Clients**: opens the client on the tab you last used for them, or on the Client overview if you haven't been there yet this session.

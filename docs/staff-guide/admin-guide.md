@@ -11,7 +11,7 @@ As an admin you see everything a bookkeeper sees, plus the pages that run the fi
 
 - It starts by itself once, the first time you sign in as an admin. If you're new to the portal, it opens with the basics first (the five places, search and the **?** menu), so you learn to get around before the admin pages.
 - Run it again any time from **?** → **Admin tour**, from **Ctrl+K** (**⌘K** on a Mac) by typing "admin tour", or from **Settings › Help**.
-- It opens each admin page in turn and points at it: **Team › Members**, **Hours**, **Reply times**, **Performance**, **Reviews**, **Handbook**, **Ledger review**, **Feedback** and **Inventory**, then **Slate › Review**, **Slate › Manage projects**, **Settings › Firm settings** and **Today**. About two minutes, a little longer with the basics.
+- It opens each admin page in turn and points at it: **HR › Members**, **Team › Hours**, **Reply times**, **Performance**, **HR › Reviews**, **Handbook**, **Team › Ledger review**, **Feedback** and **Inventory**, then **Slate › Review**, **Slate › Manage projects**, **Settings › Firm settings** and **Today**. About two minutes, a little longer with the basics.
 - To see what your bookkeepers see, run the **Bookkeeper tour** from **?**. It's the same walk they get. Inside **View as**, it only visits the pages View as can open (Today, Clients and a client's pages); other stops are skipped. See [Bookkeeper guide](#/help/bookkeeper-guide).
 
 If you're also a client's account manager, the **Account manager tour** comes next. See [Account manager guide](#/help/account-manager-guide).
@@ -20,18 +20,18 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 
 | Where | What it's for | More |
 |---|---|---|
-| **Team › Members** | Add staff, set roles, assign clients, give temporary admin access, and **View as** a bookkeeper to see exactly what they see | [Staff and access](#/help/staff-management), [Temporary access](#/help/temporary-access) |
+| **HR › Members** | Add staff, set roles, assign clients, give temporary admin access, and **View as** a bookkeeper to see exactly what they see | [Staff and access](#/help/staff-management), [Temporary access](#/help/temporary-access) |
 | **Team › Hours** | Hours and tasks by person and by client, monthly hours budgets, capacity, and fees, cost and margin | [Hours budget](#/help/hours-budget), [Capacity](#/help/capacity), [Profitability](#/help/profitability) |
 | **Team › Reply times** | How fast clients hear back, against the 24-hour goal | [Reply times](#/help/reply-times) |
 | **Team › Performance** | Every bookkeeper's score out of 100, as a ranking (bookkeepers see only their own) | [Performance](#/help/performance) |
 | **Manage projects** in the Slate sidebar | Rename, archive, trash or restore any project | [Manage projects](#/help/manage-projects) |
 | **Review** in the Slate sidebar | Approve or send back staff work that needs review, and each person's on-time rate for the last 30 days | [Task review](#/help/task-review) |
-| **Team › Reviews › Team status** | Open and run the quarterly review cycle | [Review cycles](#/help/review-cycles) |
-| **Team › Handbook** | Staff policies bookkeepers sign; who countersigns, each bookkeeper's state and their signed copies | [Staff Handbook](#/help/staff-handbook) |
+| **HR › Reviews › Team status** | Open and run the quarterly review cycle | [Review cycles](#/help/review-cycles) |
+| **HR › Handbook** | Staff policies bookkeepers sign; who countersigns, each bookkeeper's state and their signed copies | [Staff Handbook](#/help/staff-handbook) |
 | **Team › Feedback** | Bug reports and ideas from staff and clients | [Feedback](#/help/feedback-page) |
 | **Team › Ledger review** | Ledger review settings: warn or block when a month is marked done unapproved, how much ledger to pull, Smart or Strict duplicate checks, and the vendor watch list | [Ledger review](#/help/ledger-review) |
 | **Team › Inventory** | Equipment **Requests**, **Items**, the **Roster** of who's missing what, the staff **Directory** and **Export to Google Sheet** | [Inventory](#/help/tech-inventory) |
-| **MGB (internal)** in the left rail | MyGoodBooks' own books, set up like a client. Open to every admin by default; the owner can switch it off for a person in **Team › Members**. Never counted in client numbers | [MGB (internal)](#/help/mgb-internal) |
+| **MGB (internal)** in the left rail | MyGoodBooks' own books, set up like a client. Open to every admin by default; the owner can switch it off for a person in **HR › Members**. Never counted in client numbers | [MGB (internal)](#/help/mgb-internal) |
 | **Slate › Waiting on client** | Every open Ask client request for every client, longest wait first, with **Send reminder**, **Email again** and **Cancel** | [Ask client](#/help/ask-client) |
 | **Slate › No team yet** | Clients brought over from Asana with no bookkeeper; open one and click **Assign team** to give it one (they own its parked unassigned tasks, which stay claimable; no email) | [Task lists and projects](#/help/task-lists-and-projects) |
 | **Slate › Recurring** | Recurring task templates: drafts, **Turn on**, previews, **Make due tasks now**, **Missed periods** and the standard close set | [Recurring tasks](#/help/task-templates) |
@@ -47,7 +47,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 2. Glance at admin@mygoodbooks.org for any **"MyGoodBooks alert:"** email and deal with it first. See [What are the health-check alert emails?](#/help/health-alerts).
 3. **Review** in the Slate sidebar (`#/tasks/review`): approve or send back work waiting for you, oldest first. See [How does task review work?](#/help/task-review).
 4. **Waiting on client** in the Slate sidebar (`#/tasks/waiting`): anything marked **No reply** needs a call. See [How do I ask a client something from a task?](#/help/ask-client).
-5. **Today** may show **N profile photos to edit**: download each, remove the background and replace it on **Team › Members**. See [How do I manage staff profile photos?](#/help/staff-photos).
+5. **Today** may show **N profile photos to edit**: download each, remove the background and replace it on **HR › Members**. See [How do I manage staff profile photos?](#/help/staff-photos).
 6. **No team yet** in the Slate sidebar: clients that came over from Asana without a bookkeeper. Open each and use **Assign team** so its tasks have an owner. See [How do client task lists and projects work?](#/help/task-lists-and-projects).
 
 **Every week**
@@ -67,7 +67,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 
 **Every quarter**
 
-1. Open the review cycle on **Team › Reviews › Team status**. See [How do I run a review cycle?](#/help/review-cycles).
+1. Open the review cycle on **HR › Reviews › Team status**. See [How do I run a review cycle?](#/help/review-cycles).
 
 **When it comes up**
 

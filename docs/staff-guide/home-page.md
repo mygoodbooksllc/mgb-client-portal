@@ -39,7 +39,7 @@ At the bottom, **Also show** has a switch for each card: **Clients needing atten
 - The four number tiles and the long **Needs you** list are gone. Replies, tasks, reviews and files are in **Work › Slate**, the **Inbox**, and the Desk. Closes open: **Work › Close**.
 - Your client list, with health, backup and hours: the **Clients** page. See [How do I use the Clients page?](#/help/clients-page).
 - Month-end close progress and filing deadlines: **Work › Close** and **Work › Deadlines**. See [What's on the Work page?](#/help/work-page).
-- Shout-outs, your time off and who's out: **Team › People**. Your onboarding checklist: **Team › Onboarding**. See [What's on the Team page?](#/help/team-page).
+- Shout-outs, your time off and who's out: **Team › People**. Your onboarding checklist: **HR › Onboarding**. See [What's on the Team page?](#/help/team-page).
 - Custom cards and **Customize dashboard** are not on Today. A client's Dashboard still has **Customize dashboard**.
 
 ### Troubleshooting

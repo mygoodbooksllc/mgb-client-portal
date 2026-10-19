@@ -5,7 +5,7 @@ audience: staff
 keywords: [review, final scores, review final email, compared with last quarter, quarter over quarter, previous quarter, quarter just ended, admins see in progress, live view, shout-outs, reviews, quarterly review, self-review, performance, jesse, reviewer, compare, comparison, sign, signature, action steps, history, pdf, download, disagree, rating, score, camaraderie, ownership, healthy hustle, year-end]
 sort: 145
 ---
-Once a quarter you review the quarter that just ended (in October, that's Q3). You fill in a short self-review, your reviewer (usually Jesse) fills in the same form about you, and then you meet, agree on action steps and both sign. Everything lives on the **Reviews** tab of **Team** (`#/team/reviews`). The number on the tab shows how many things are waiting on you.
+Once a quarter you review the quarter that just ended (in October, that's Q3). You fill in a short self-review, your reviewer (usually Jesse) fills in the same form about you, and then you meet, agree on action steps and both sign. Everything lives on the **Reviews** tab of **Team** (`#/hr/reviews`). The number on the tab shows how many things are waiting on you.
 
 When someone submits their self-review before you've done yours, their reviewer gets an email saying so (no scores). When a review is due, you also get an email, a **Review due** row on **Today**, and a number on the **Reviews** tab of **Team**.
 

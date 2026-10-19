@@ -36,5 +36,5 @@ Click a row to open the client. You land on the tab you last used for that clien
 
 ### Troubleshooting
 
-- **"No clients are assigned to you yet."** An admin can assign you from the client's **Client setup** (**Client details**), or from **Team › Members**.
+- **"No clients are assigned to you yet."** An admin can assign you from the client's **Client setup** (**Client details**), or from **HR › Members**.
 - **Hours this month is blank.** QuickBooks Time isn't connected, the client's QuickBooks customer isn't mapped yet, or no budget is set. Admins fix mapping under **Team › Hours**.

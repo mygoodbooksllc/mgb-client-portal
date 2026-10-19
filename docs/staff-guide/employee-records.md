@@ -5,7 +5,7 @@ audience: admin
 keywords: [employee records, employee record, hr, hr record, personnel file, staff record, legal name, job title, employment type, w-2, w2, contractor, full time, part time, schedule, manager, hire date, start date, end date, work location, personal email, personal phone, home address, emergency contact, notes, complete, missing details, no record yet, former staff, handbook signatures]
 sort: 525
 ---
-**Team › Employee records** (`#/team/employees`) keeps one record per staff member: job details, personal contact details and an emergency contact. Only admins see it. A temporary admin grant doesn't open it, and neither does **View as**.
+**HR › Employee records** (`#/hr/employees`) keeps one record per staff member: job details, personal contact details and an emergency contact. Only admins see it. A temporary admin grant doesn't open it, and neither does **View as**.
 
 Pay, Social Security numbers and bank details don't go here. There's no field for them, so keep them in payroll.
 

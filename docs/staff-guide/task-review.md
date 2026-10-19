@@ -27,7 +27,7 @@ The details show **Reviewer: {name}** or **Reviewer: any admin**.
 - Otherwise any admin can approve it.
 - Nobody approves work they did or sent for review. If you try, you see *You can't approve your own work. Another admin will review it.*
 
-Admins can change the reviewer from the **Reviewer** menu in the review strip at the top of the task's details. The default reviewer for an admin's own work is the **Default reviewer** on **Team › Reviews**.
+Admins can change the reviewer from the **Reviewer** menu in the review strip at the top of the task's details. The default reviewer for an admin's own work is the **Default reviewer** on **HR › Reviews**.
 
 ### Approving and sending back (admins)
 

@@ -5,7 +5,7 @@ audience: admin
 keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, client roster, account manager, payroll, payroll add-on, payroll tab, portal logins, invite, resend invite, fix sign-in, can't sign in, sign-in account, signup disabled, signups not allowed, new sign-ups off]
 sort: 510
 ---
-The **Members** tab of **Team** (the left rail → **Team** → **Members**, or `#/team/members`) controls who can sign in and with what role.
+The **Members** tab of **Team** (the left rail → **Team** → **Members**, or `#/hr/members`) controls who can sign in and with what role.
 
 > This page writes directly to the real staff table. Nothing here is sample data.
 

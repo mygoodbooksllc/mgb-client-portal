@@ -13,15 +13,15 @@ Before anything else, a full-page **Add your profile photo** screen asks for a c
 
 ### Work through your checklist
 
-- **Team › Onboarding** (`#/team/onboarding`) lists your steps under **Your onboarding**, with a bar showing how many you've done.
+- **HR › Onboarding** (`#/hr/onboarding`) lists your steps under **Your onboarding**, with a bar showing how many you've done.
 - Tick a step when you've done it. Untick it if you ticked it by mistake.
 - Click **Read the guide** next to a step to open the article for it.
 - The card goes away by itself once every step is ticked.
 - Click **Hide this card** if you don't need it (for example, you've been here a while). Hiding can't be undone by you, so ask an admin if you want it back.
 
-### For admins: Team → Onboarding
+### For admins: HR → Onboarding
 
-Open **Team → Onboarding** (`#/team/onboarding`). Only admins see this tab.
+Open **HR → Onboarding** (`#/hr/onboarding`). Only admins see this tab.
 
 - **Progress** lists every staff member with their bar, **Done** or "N of M", and when they last ticked a step (or **Not started**). "Hid the card" means they clicked **Hide this card**.
 - Click a name to see their steps. You can tick or untick a step for them (say, after you shadowed a close together).

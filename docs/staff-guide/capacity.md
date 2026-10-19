@@ -25,9 +25,9 @@ Utilisation uses the 4-week average:
 
 The default is **35 h**. Click **Edit** next to their target, enter 0–100 hours and save.
 
-### Workload hint on Team → Members
+### Workload hint on HR → Members
 
-When assigning clients on **Team → Members** (formerly Staff Access), the Clients column and the "{name}'s clients" window show a small workload bar with **Has room** / **Overloaded**, so you can balance assignments.
+When assigning clients on **HR → Members** (formerly Staff Access), the Clients column and the "{name}'s clients" window show a small workload bar with **Has room** / **Overloaded**, so you can balance assignments.
 
 ### Troubleshooting
 

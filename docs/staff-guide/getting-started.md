@@ -13,7 +13,7 @@ Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonpro
 2. If you're a bookkeeper, the **Bookkeeper tour** starts by itself. It's about three minutes and walks through your day: Today, your clients, the Inbox, Work and Team. You can run it again any time from **?** → **Bookkeeper tour**. Admins get the **Admin tour** instead (the Bookkeeper tour is in their **?** menu), account managers also get an **Account manager tour**, and anyone given temporary admin access a **Temporary admin tour**, each once. When something new launches you also get a short **New** notice at the top of the page on your next visit, with a 1-minute tour (see [What's new](#/help/whats-new)). See [Bookkeeper guide](#/help/bookkeeper-guide), [Admin guide](#/help/admin-guide), [Account manager guide](#/help/account-manager-guide) and [Temporary access](#/help/temporary-access).
 3. You land on **Today**, one list of what needs you across all the clients you can see. See [What's on my Today page?](#/help/home-page).
 4. Open a client from **Clients**, or press **Ctrl+K** (**⌘K** on a Mac) and type their name. You'll see that client's **Client overview** first, or the tab you last used for that client if you've been there this session. See [How do I find and open a client?](#/help/finding-a-client).
-5. Your new-hire checklist is on **Team › Onboarding**. See [How does the new-hire onboarding checklist work?](#/help/new-hire-onboarding).
+5. Your new-hire checklist is on **HR › Onboarding**. See [How does the new-hire onboarding checklist work?](#/help/new-hire-onboarding).
 6. Stuck? Click **?** in the top bar, then **Help for this page**, or search this guide.
 7. For your first 30 days, a small **Tip** now and then points out something useful on the page you're on. Click **Got it** to dismiss it, or turn tips off any time. See [How do tips work?](#/help/tips).
 
@@ -25,7 +25,8 @@ The dark rail on the left has five places. Everything you do lives in one of the
 - **Inbox**: client conversations and team chat in one place. See [How do I message a client or a teammate?](#/help/inbox).
 - **Work**: your **Slate**, the month-end **Close** and filing **Deadlines**. See [What's on the Work page?](#/help/work-page).
 - **Clients**: every client you can see, and the way into a client's pages. See [How do I use the Clients page?](#/help/clients-page).
-- **Team**: **People** (who's out, your backups, time off, shout-outs), **Reviews**, **Onboarding** and **Handbook** (staff policies to read and sign). Admins also see **Hours**, **Reply times**, **Feedback** and **Members**. See [What's on the Team page?](#/help/team-page).
+- **Team**: **People** (who's out, your backups, time off, shout-outs), **Performance** and **Inventory**. Admins also see **Hours**, **Reply times**, **Feedback** and **Ledger review**. See [What's on the Team page?](#/help/team-page).
+- **HR**: **Handbook** (staff policies to read and sign), **Reviews** and **Onboarding**. Admins also see **Members**, and real admins see **Employee records**. See [What's on the Team page?](#/help/team-page).
 
 At the bottom of the rail is **Expand** (or **Collapse**), which switches the rail between icons and icons with names. The rail starts as icons with a small name under each; hover or tab to an icon for its full name. Click **Expand** to keep the names showing. The portal remembers your choice for you on this browser. Your picture or initials at the top right open the account menu, where **Settings** and **Sign out** are (see below).
 
@@ -45,8 +46,8 @@ The top bar keeps the client picker, search, the bell, **+** and **?**. Tap the 
 
 ### Who sees what
 
-- **Bookkeepers** see only the clients they're assigned to, and the Team tabs **People**, **Reviews**, **Onboarding**, **Handbook**, **Performance** and **Inventory**. See [Bookkeeper guide](#/help/bookkeeper-guide).
-- **Admins** see every client, every Team tab, and the firm-wide pages under **Settings**.
+- **Bookkeepers** see only the clients they're assigned to, and the Team tabs **People**, **Performance** and **Inventory**, and the HR tabs **Handbook**, **Reviews** and **Onboarding**. See [Bookkeeper guide](#/help/bookkeeper-guide).
+- **Admins** see every client, every Team and HR tab, and the firm-wide pages under **Settings**.
 - Clients never see staff notes, SOPs, internal notes or anything on the staff pages.
 
 ### Good to know

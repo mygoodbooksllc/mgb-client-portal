@@ -83,9 +83,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
 | `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
-| `components/staff/` (profile photos, 2026-10-16) | Staff profile photos; spec `docs/staff-photo-spec.md`, database `supabase/staff-photo.sql`. `staffPhotoLogic.js` (`SP_`, pure rules, the zip writer, node test `staffPhotoLogic.test.js`), `staffPhotoApi.js` (`SP_api` RPC and storage wrappers, the shared `SP_useMyStatus` / `SP_useAdminList` stores, `SP_changed()`), `staffPhotoImage.js` (`SPI_` canvas crop and re-encode, HEIC detection, download), `StaffPhotoGate.jsx` + `staff-photo.css` (`PG_`: the required-photo gate and the shared picker), `StaffPhotoAdmin.jsx` + `staff-photo-admin.css` (`SPA_`: the Team › Members Photo column, per-person drawer and Download all). |
-| `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_logic.js` (pure rules: kinds, list groups, search, slugs, Today items, badge; node test `HB_logic.test.js`; loads first), `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `HB_Admin.jsx` (admin status grid, not-filed list with Retry filing, publish editor, New policy, draft bar, Edit details, Make this a signed policy), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
-| `components/hr/` | Employee records (2026-10-19), Team › Employee records, real admins only. `HR_`/`hr-` prefixed. `HR_logic.js` (pure rules: fields, completeness, validation, changed fields; node test `HR_logic.test.js`), `HR_api.js` (`hr_*` RPC wrappers), `HR_RecordsTab.jsx` (list, record, edit form, read-only handbook signatures), `hr.css`. Loaded after the handbook files and before `app.jsx`. |
+| `components/staff/` (profile photos, 2026-10-16) | Staff profile photos; spec `docs/staff-photo-spec.md`, database `supabase/staff-photo.sql`. `staffPhotoLogic.js` (`SP_`, pure rules, the zip writer, node test `staffPhotoLogic.test.js`), `staffPhotoApi.js` (`SP_api` RPC and storage wrappers, the shared `SP_useMyStatus` / `SP_useAdminList` stores, `SP_changed()`), `staffPhotoImage.js` (`SPI_` canvas crop and re-encode, HEIC detection, download), `StaffPhotoGate.jsx` + `staff-photo.css` (`PG_`: the required-photo gate and the shared picker), `StaffPhotoAdmin.jsx` + `staff-photo-admin.css` (`SPA_`: the HR › Members Photo column, per-person drawer and Download all). |
+| `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), HR › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_logic.js` (pure rules: kinds, list groups, search, slugs, Today items, badge; node test `HB_logic.test.js`; loads first), `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `HB_Admin.jsx` (admin status grid, not-filed list with Retry filing, publish editor, New policy, draft bar, Edit details, Make this a signed policy), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
+| `components/hr/` | Employee records (2026-10-19), HR › Employee records, real admins only. `HR_`/`hr-` prefixed. `HR_logic.js` (pure rules: fields, completeness, validation, changed fields; node test `HR_logic.test.js`), `HR_api.js` (`hr_*` RPC wrappers), `HR_RecordsTab.jsx` (list, record, edit form, read-only handbook signatures), `hr.css`. Loaded after the handbook files and before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
 | `components/tasks/` | The Tasks module, shown to people as **Slate** (code name Tasks; renamed in Desk D1, 2026-10-17; `SLATE_NAME` in `TK_logic.js` is the one place the name lives; routes, `TK_`/`tk-` names, `tk_` tables and `mgb_tk_` keys are unchanged) (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_reviewLogic.js` (Phase 2 S3: review roles, the review queue groups and a JS copy of the on-time rule), `TK_store.js`, `TK_recurrenceLogic.js` (Phase 2: the business calendar, due rules and periods; fixtures in `TK_recurrence.fixtures.js`), `TK_templateLogic.js` (Phase 2 S4: template form checks, next due dates, period labels, preview rows and error text), `TK_requestLogic.js` (Phase 2 S5: Ask client form checks, request chips and actions, waiting groups and error text), `TK_rowLogic.js` (T1/T2 of the Desk plan: row avatar colors, due chip tone and quick picks, who may edit which cell, and where "+ Add task" files a new task; node test `TK_rowLogic.test.js`), `TK_coverageLogic.js` (Phase 2 S7: time-off hand-off preview groups, skip copy and Covering for labels). Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`, `TK_BulkBar.jsx` (Phase 4 P4-3: select many tasks and the bulk bar), `TK_ReviewQueue.jsx` (`#/tasks/review`), `TK_Templates.jsx` (`#/tasks/templates`, recurring templates), `TK_WaitingList.jsx` (`#/tasks/waiting`, open Ask client requests), `TK_ManageProjects.jsx` (`#/tasks/manage`, admin Manage projects). Task details: `TK_AskClientModal.jsx` (Client requests and the Ask client window), `TK_ClientContacts.jsx` (Phase 2 S6: the client drawer's Client contacts section), `TK_DrawerContent.jsx` (R0 of the Desk plan: the task pane body, its state, fetch and x/s/a/? keys, embeddable in the Desk later), `TK_Drawer.jsx` (the modal chrome around it: layer, scrim, dialog, Tab trap, Esc, scroll lock, focus return; plus `TK_openTask` and `TK_DrawerHost`), `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`, `tk-requests.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
 | `components/workbench/` | The **Desk** (on the right since Desk R1/R1c, 2026-10-19g, see "Desk R1 + R1c" under the change log: a 52px rail, a column that widens to `--desk-w` and pushes the page by `--desk-occupy`, and a 42px info bar; D3's bottom panel and its height code are gone; glass: Desk D2, 2026-10-17, now solid sidebar color; `--desk-*` tokens and `.wb-glass` in `WB.css`) (was the Workbench; renamed in Desk D1, 2026-10-17, spec `docs/desk-spec.md`; Tasks Phase 3, 2026-10-16; spec `docs/workbench-phase3-spec.md`), off until the owner sets `tk_settings.wb_enabled`. Every name is still `WB_`/`wb-` prefixed (file names, CSS classes, `mgb_wb_*` keys, `wb_*` database names and the `wb_enabled` flag did not change). `WORKBENCH_NAME` ("Desk") in `WB_logic.js` is the one place the name lives (`WB_NAME` is an alias; `WB_SLATE` mirrors `SLATE_NAME` for the hub tab and buttons). Today keeps its name; its list card is titled **Needs you**, and the hub header link is **Open Today**. `WB_logic.js` (pure: groups Overdue / Today / This week, ranking, tiles, chips, actions, snooze times, the Today-row adapter; node test `WB_logic.test.js`), `WB_store.js` (the one data path; also the hub state `hub` {tab, chip, clientId, scroll} saved per person in `localStorage` `mgb_wb_hub:<email>` (the old unscoped `mgb_wb_hub` is removed on join), throttled to 500 ms, reopened only within 5 minutes of the last save and only on the same route without an `?item=` arrival, plus `collapsed` groups for My tasks; node tests `WB_logic.test.js` and `WB_store.test.js`, cleared by Dev Tools Reset local state: `rpc("wb_inbox")`, Realtime on `client_messages` and `staff_reminders`, app events, a 2-minute poll, `BroadcastChannel("mgb-wb")`, optimistic writes with Undo, the switch), `WB_Row.jsx` (rows, menus, snooze picker, Undo bar, rail badge, shortcut sheet), `WB_Page.jsx` (Today's tiles and list), `WB_Hub.jsx` (the open panel, Workbench Hub spec H1, `docs/workbench-hub-spec.md`: tab shell (Inbox, My tasks and Client live), filter chips, and the stack protocol. `WB_useHubKeys` handles D / Esc / Tab in a window capture listener (D3: Esc only with focus inside the Desk, via `WB_deskEscStep`; Tab trapped only in the phone sheet) and does nothing while `WB_layerAbove` finds a layer above (task drawer `.tk-dw-layer`, client drawer, chat drawer, `.modal-overlay`, other `aria-modal`, `.tour-root`, `.wb-menu`); `WB_useHubLayers` sets `html.wb-hub-open` (lifts the chat drawer to z 1835) and `html.wb-stacked` (a drawer is over the hub) and returns focus to the row that launched the drawer when focus was inside the Desk (the hub has no scrim since D3). Task and review rows open in the existing task drawer via `WB_hubOpen` (`TK_openTask(id, {from:"wb-hub"})`), so the page never changes. H3: a client message's Reply asks the app for the chat drawer with the `mgb:open-chat` window event (`detail` {clientId, email, handled}; the `app.jsx` listener sets `siDrawer`, remounts `SI_ChatDrawer` per request with a `seq` key, passes `initialEmail`, and sets `detail.handled`, or declines on the Inbox page or without staff chat, in which case `WB_hubOpen` falls back to `WB_go`); a new file's Open file opens a blank tab inside the click, then points it at `DRV_link(fileId)` (https only; a non-inline type downloads instead of showing; toast on failure or when the tab is blocked, with no second `window.open`). The chat drawer picks the person with `SI_findInitialEntry` (`components/inbox/SI_logic.js`, node test `SI_logic.test.js`): the email on the named client only, and a toast if they aren't in the list. Mark checked and Open full page are in the row menu; `WB_hubAction` types are `task`, `chat`, `file`, `go`, `own`; tests in `WB_logic.test.js` and `WB_store.test.js`; composer drafts surviving a close (H3b) are not built, they wait for View as and P4-2 to land in `StaffInbox.jsx`), `WB_HubTasks.jsx` (the My tasks tab, H2: its own list key `wb:mine`, never the shared `mine`; `TK_groupMyTasks` + `TK_myGroupsView` + `TK_subNestGroups` + `TK_TaskRow`, Unassigned and Done dropped, capped at `WB_HUB_TASK_CAP` 200 rows; rows open `TK_vOpenTask(id,{from:"wb-hub"})`, tick done via `TK_vComplete`; keep those Tasks helpers backward compatible and run the hub tests), `WB_HubClient.jsx` (the Client tab, H4: a client picker (combobox; Pinned, Recent, All; only clients you can open) with the route's client preselected on a client page, pins per person in `localStorage` `mgb_wb_pins:<email>` capped at `WB_PINS_CAP` 8 (pure rules `WB_pins*`, `WB_hubPickClient`, `WB_hubClientOptions` in `WB_logic.js`), and the client tasks body shared with the client task panel (`TK_ClientTasksBody` in `TK_ClientDrawer.jsx`, so edit it once for both) under its own list key `wb:client:<id>` (`TK_stMatches` places task updates into it); **+ Task** and **Open client**), `WB_Drawer.jsx` (the info bar, the rail (`WB_DeskRail`) and the Desk column on every staff page, D toggles; R1 replaced the D3 notes that follow for layout: see the R1 change log entry; bar and hub are portaled into `.wb-desk-root`, a div at the end of `.app-shell` after `.main` (Tab order page, bar, Desk; inside the shell's stacking context, so modals, the Undo bar and everything portaled to `<body>` stay above it; docked z 680/690 sits under the sticky top bar (700) and its menus, the phone sheet keeps 1820/1830): `--wb-bar-left` measured from `.staff-rail` by `WB_barLeft`; `html.wb-drawer-on` pads `.main`, `--desk-pad` / `--desk-lift` add the open docked Desk's height to that padding, the toasts, Undo bar and chat buttons, and `TOUR_stickyBottom` keeps tips and tours clear of the bar and the docked Desk; D3 mode by `matchMedia("(max-width: 760px)")`: dock (non-modal `role="region"`, resize handle, drag, bar drag-to-open) or sheet (modal dialog, no resize); height helpers `WB_desk*` in `WB_logic.js`, snap name saved by `WB_store.setDeskSnap` in `mgb_wb_desk:<email>`), `WB.css`. Loaded right after `components/tasks/TK_App.jsx`. |
@@ -127,7 +127,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - The app then requires an active row in the `staff` table.
   - **Supabase Auth → "Allow new users to sign up" stays OFF** (deliberate). So a Google sign-in
     only works for an address that already has an `auth.users` row; without one Google comes back
-    with `signup_disabled`. Team › Members (`StaffAccessPage`) calls the `staff-auth` edge function
+    with `signup_disabled`. HR › Members (`StaffAccessPage`) calls the `staff-auth` edge function
     (`supabase/functions/staff-auth/`, `verify_jwt` on) after **+ Add**, after each **Bulk import**
     (one call, up to 50 addresses each) and after reactivating someone. It runs
     `auth.admin.createUser` (email confirmed, random 48-byte password never logged or returned,
@@ -357,6 +357,12 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     drawer on touch phones; `NAV_TabRow` is the shared tab row; `NAV_useHashSub` lets a hub own its
     tab in the URL (`replaceState`). App pushes real history entries (`pushState` with `{ mgbNav }`)
     so Back returns from a client to Clients, and sets `document.title` per place.
+  - **HR place (2026-10-19):** HR is a sixth place, right after Team. Handbook, Reviews, Onboarding,
+    Employee records and Members moved from Team to `#/hr/<tab>`; the same `TP_TeamHub` renders both
+    (`place` prop). Old `#/team/<moved tab>[/...]` addresses (review emails, announcements, bookmarks)
+    are rewritten with `replaceState` by `components/staff/staffNavRoutes.js`
+    (`NAV_legacyTeamRedirect`, tested in `staffNav.test.js`), which loads before `DeepLink.jsx`. The
+    `team-reviews` edge function still builds `#/team/reviews/...` links on purpose; the redirect covers them.
   - **Places:** **Today** (`Today.jsx`, below), **Inbox** (unchanged), **Work** (`WorkPage.jsx`:
     Tasks = `TK_MyTasks` embedded (falls back to the legacy `MyTasksPage` when the Tasks tables
     are missing), Notes & SOPs = `MyTasksPage mode="notes"`, Close = `CT_CloseTrackerPage`,
@@ -486,7 +492,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     attribute in the owning component and a catalog entry whose `slug` is an existing article, then
     list it in the "All tips" table in `docs/staff-guide/tips.md`.
   - **Routes:** `#/today`, `#/inbox`, `#/work/<tasks|close|deadlines>`, `#/clients`,
-    `#/team/<tab>`, `#/team/reviews/<sub>[/id]`, `#/help[/slug]`, `#/settings`, `#/templates`,
+    `#/team/<tab>`, `#/hr/reviews/<sub>[/id]`, `#/help[/slug]`, `#/settings`, `#/templates`,
     `#/client/<id>/<tab>[/<sub>]` (tabs: `overview messages documents bank close reports sop milestone
     settings`, plus the Client view pages; `setup` is an alias of `settings`). The old routes (`#/home`, `#/tasks`, `#/close-tracker`,
     `#/deadlines`, `#/reviews`, `#/feedback`, `#/team/coverage`, `#/team/health`) are gone with no
@@ -575,8 +581,8 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   - The same SQL lets staff read time entries and client page views for clients they can
     access.
 
-- **Staff rail** (`components/staff/StaffNav.jsx`, desktop and mouse windows): the five places
-  (Today, Inbox, Work, Clients, Team) with Collapse/Expand at the bottom (Settings, the name block and Sign out left the rail on 2026-10-19f; they are in the top bar's account menu). It opens as the 72px icon rail (with a caption and a hover/focus tooltip on each icon) until a person expands it to 220px; the choice is saved per person in `localStorage` `mgb_rail_expanded:<email>` (`"1"` expanded; no value = icon rail; the old shared `mygoodbooks_sidebar_collapsed_v1` is ignored for staff and still drives the client portal; cleared by Reset local state via the `mgb_` prefix). The places take the free height and Expand/Collapse sits at the bottom.
+- **Staff rail** (`components/staff/StaffNav.jsx`, desktop and mouse windows): the places
+  (Today, Inbox, Work, Clients, Team, HR) with Collapse/Expand at the bottom (Settings, the name block and Sign out left the rail on 2026-10-19f; they are in the top bar's account menu). It opens as the 72px icon rail (with a caption and a hover/focus tooltip on each icon) until a person expands it to 220px; the choice is saved per person in `localStorage` `mgb_rail_expanded:<email>` (`"1"` expanded; no value = icon rail; the old shared `mygoodbooks_sidebar_collapsed_v1` is ignored for staff and still drives the client portal; cleared by Reset local state via the `mgb_` prefix). The places take the free height and Expand/Collapse sits at the bottom.
   It stays beside a client's pages too (staff get the breadcrumb and tab row instead of the client
   sidebar). Hidden while you preview as one of the client's people or use View as client, so the
   preview shows only what they see. On touch phones the drawer has the same places.
@@ -981,8 +987,8 @@ Owner setup:
 
 ### Team Reviews and Team Survey (added 2026-10-07)
 
-Staff-only module on the **Reviews** tab of Team (`#/team/reviews/<tab>`, `#/team/reviews/r/<id>`,
-`#/team/reviews/survey`). Clients can't reach any of it: every table has RLS, and every read and write
+Staff-only module on the **Reviews** tab of Team (`#/hr/reviews/<tab>`, `#/hr/reviews/r/<id>`,
+`#/hr/reviews/survey`). Clients can't reach any of it: every table has RLS, and every read and write
 goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` first.
 
 - **Front end** (in-browser Babel, `TR_` globals, loaded from `index.html` in this order):
@@ -1115,7 +1121,7 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   checks into `staffUser.canViewInternal` / `isInternalOwner` (a failing RPC counts as "no", so the app still
   loads before the SQL is applied). Temp admins, bookkeepers, account managers and clients never see it, and
   View as hides it (`STAFF_canViewInternal(realUser, impersonating)` gates the nav item, route resolution and
-  `visibleClients`). The owner toggles it per admin in Team › Members (an owner-only "MGB (internal)" column).
+  `visibleClients`). The owner toggles it per admin in HR › Members (an owner-only "MGB (internal)" column).
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
   (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page
@@ -1192,11 +1198,11 @@ matches. Spec `docs/staff-photo-spec.md`; database `supabase/staff-photo.sql` (r
   that page load only, so it returns on every visit until a photo is saved. If the status can't load, it fails open. **Order:** photo gate, Today's
   first-sign-in profile prompt, role tour, announcements and tips; each waits while `#pg-gate`
   exists.
-- **Admin UI.** Team › Members has a **Photo** column (`data-tour="members-photo"` on the first
+- **Admin UI.** HR › Members has a **Photo** column (`data-tour="members-photo"` on the first
   row), a per-person drawer (download original or current, **Replace with edited photo**,
   **Restore original**, **Not required**, History with **Hide**) and **Download all (zip)**
   (`mgb-staff-photos-<date>.zip`, logged once). Temp admins see the column read-only. Admins also
-  get a Today row, **N profile photos to edit** (rank 3); it opens Team › Members at the first
+  get a Today row, **N profile photos to edit** (rank 3); it opens HR › Members at the first
   one through `sessionStorage` `mgb-photo-open` (the hash query is claimed by `DeepLink.jsx`).
 - **Staff side.** Settings › Profile now has **Change photo** only (no remove). New hires get the
   onboarding step `profile-photo` ("Add your profile photo", guide article `profile-photo`);
@@ -1206,7 +1212,7 @@ matches. Spec `docs/staff-photo-spec.md`; database `supabase/staff-photo.sql` (r
 
 ### Staff Handbook (added 2026-10-13)
 
-**Team › Handbook** (`#/team/handbook`): the firm's staff policies, each with versions. Spec:
+**HR › Handbook** (`#/hr/handbook`): the firm's staff policies, each with versions. Spec:
 `docs/staff-handbook-spec.md`. Only active staff with role `bookkeeper` sign (`hb_is_signer`);
 the countersigner is one setting (`handbook_settings`, set by an admin with `hb_set_countersigner`).
 
@@ -1216,9 +1222,9 @@ the countersigner is one setting (`handbook_settings`, set by an admin with `hb_
   `hb_publish_version`, `hb_set_countersigner`, `hb_retry_export`. Every write is audited
   (`handbook.*`). Re-signing is due 7 days after a "needs re-signing" version is published, then
   shows Overdue; nothing locks.
-- **Front end:** `components/handbook/` (see the repo map). Routes: `#/team/handbook`,
-  `#/team/handbook/<slug>`, `#/team/handbook/<slug>/v<n>`. Deep link
-  `#/team/handbook?item=handbook:<slug>` (kind `handbook` in `LK_KINDS`, claimed by the tab).
+- **Front end:** `components/handbook/` (see the repo map). Routes: `#/hr/handbook`,
+  `#/hr/handbook/<slug>`, `#/hr/handbook/<slug>/v<n>`. Deep link
+  `#/hr/handbook?item=handbook:<slug>` (kind `handbook` in `LK_KINDS`, claimed by the tab).
   Today rows (`TD_useHandbookItems`): "Sign: <policy> v<n>" (Due / Overdue) and "Countersign:
   <signer>, <policy> v<n>". The Team tab badge is `hb_status().badge`.
 - **Signed PDF:** after the countersignature, the `team-reviews` edge function (`export_handbook`)
@@ -1251,7 +1257,7 @@ the countersigner is one setting (`handbook_settings`, set by an admin with `hb_
 
 ### Employee records (added 2026-10-19)
 
-**Team › Employee records** (`#/team/employees`, `components/hr/`): one admin-only record per staff
+**HR › Employee records** (`#/hr/employees`, `components/hr/`): one admin-only record per staff
 member. Database `supabase/staff-hr-records.sql` (checks in `staff-hr-records-tests.sql`):
 
 - **Table** `staff_hr_records`, keyed by staff email: legal name, job title, employment type
@@ -1353,7 +1359,7 @@ Team Reviews files.
   checklist, `guide_slug` links a Staff guide article, retire with `active = false`, no deletes)
   and `staff_onboarding_progress` (one row per person per step; own or admin read/write; a guard
   trigger checks the step and person and stamps `done_at`/`done_by`; reserved step `__dismissed`
-  = "Hide this card"). UI: `components/staff/StaffOnboarding.jsx` (`SON_`): Team › Onboarding
+  = "Hide this card"). UI: `components/staff/StaffOnboarding.jsx` (`SON_`): HR › Onboarding
   (`SON_ProgressTab`: everyone's own checklist until done or hidden; admins also see each person's
   progress, tick for someone, add/edit/reorder/retire steps). Summary
   logic: `OPS_onboardingSummary`. Guide: `new-hire-onboarding.md`.
@@ -2469,7 +2475,7 @@ staff-facing changelog: add an entry with every change staff would notice.
   1. Append an object to `ANN_REGISTRY` in `components/tour/announcements.js`: `id` (short, lower-case,
      hyphens, never reused), `date` (`YYYY-MM-DD` it ships), `title`, `summary` (one sentence), `roles`
      (any of `admin`, `tempAdmin`, `bookkeeper`, `accountManager`), `hash` (where **Open** goes, such as
-     `#/team/reviews`) and `steps: (ctx) => [...]`.
+     `#/hr/reviews`) and `steps: (ctx) => [...]`.
   2. Write 3 to 6 steps (about a minute). The first is a centered welcome (no `targets`). Build the rest
      with `TOUR_tabStep(place, tab, title, body)` for a Work or Team tab, or a plain step with `go`
      (`TOUR_go(place, tab)` or a hash change), `targets` (`"#element-id"` or a `data-tour` key) and
