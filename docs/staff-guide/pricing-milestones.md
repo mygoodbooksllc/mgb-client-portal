@@ -26,7 +26,7 @@ A client's monthly fee follows their **confirmed pricing milestone**. The milest
 
 - For clients: the organization card on their **Home** shows the milestone and plan, with **See plans** (click the milestone to open the Milestone page). It's hidden for people with limited access. Staff open the client's **Milestone** tab instead. Admins find it in the client's tab row. Everyone else, temporary admins included, finds it under **Client setup › Milestone**.
 - On the client's **Milestone** tab, under **Staff: budget and milestone**, where you can **Set milestone** if it isn't confirmed yet.
-- **Today → Milestones to review** (turn it on under **Also show**): clients whose numbers point to a different milestone, aren't confirmed yet, or are close to the next one.
+- **Today → This week** (the Milestones to review part; the card can be switched under **Also show**): clients whose numbers point to a different milestone, aren't confirmed yet, or are close to the next one.
 - The Monday **weekly digest**, in **Fee changes to review**: the same suggestions, emailed to admins. They're never applied automatically; a fee only changes when someone sets the milestone below.
 
 ### Set or change a milestone

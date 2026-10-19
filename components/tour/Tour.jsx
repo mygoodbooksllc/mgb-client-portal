@@ -55,7 +55,7 @@
 //   staff-nav        the rail's list of places (app.jsx StaffRail)
 //   staff-nav-<key>  one place, in the rail and in the phone drawer (app.jsx
 //                    StaffRail / Sidebar): today, inbox, work, clients, team
-//   today-list       the ranked list on Today (components/staff/Today.jsx)
+//   today-list       the Do next card on Today (components/staff/Today.jsx)
 //   staff-rail-collapse  the rail's Expand / Collapse button (app.jsx StaffRail)
 //   tb-avatar        the top-right avatar menu (Settings, Sign out; TopBar.jsx)
 //   tb-search        the ⌘K search box (components/staff/TopBar.jsx)
@@ -149,11 +149,8 @@
 //                    compact widths or in the shell
 //   tk-strip         the client task strip under a client's tabs
 //                    (TK_ClientDrawer.jsx), staff only
-//   wb-tiles         the Workbench tiles on Today (WB_Page.jsx), only while
-//                    the Workbench is on
-//   wb-chips         its source filter chips
-//   wb-list          its grouped list (the full page, not the drawer)
-//   wb-row-action    the first row's main button and ⋯ menu (WB_Row.jsx)
+//   wb-row-action    the Do next card's main button (Today.jsx TD_DoNextCard)
+//   wb-list          the Desk's grouped list (drawer, not Today)
 //   wb-bar           the Desk's info bar at the bottom of every staff page
 //                    (WB_Drawer.jsx), while the Desk is on
 //   wb-rail          the Desk's slim rail on the right (messages, reviews,
@@ -997,7 +994,7 @@ function TOUR_bookkeeperSteps(ctx) {
       wait: true,
       spot: "top",
       title: "Start with Today",
-      body: () => "What needs you across your clients, most urgent first. Click a row to go straight to it.",
+      body: () => "Your top item across your clients, with what comes after it. The button opens it; the rest of your list is in Slate and the Desk.",
     },
     {
       id: "clients",
@@ -1193,7 +1190,7 @@ function TOUR_adminSteps(ctx) {
       spot: "top",
       title: "Your Today, admin edition",
       body: () =>
-        "Today covers every client you can open, and admins can open them all: access and upgrade requests, clients at risk, and birthdays and work anniversaries a week ahead. Also show › Milestones adds pricing milestones to review.",
+        "Today covers every client you can open, and admins can open them all: access and upgrade requests under Waiting on others, clients needing attention, and birthdays and work anniversaries a week ahead in This week, which also lists pricing milestones to review.",
     },
     {
       id: "done",
@@ -1302,7 +1299,7 @@ function TOUR_amSteps(ctx) {
       spot: "top",
       title: "Plans and upgrades",
       body: () =>
-        "Upgrade and Add Payroll requests from a client's Plan tab show on Today. Follow up, then mark each one Contacted, Completed or Dismiss. Also show › Milestones lists pricing milestones to confirm.",
+        "Upgrade and Add Payroll requests from a client's Plan tab show on Today under Waiting on others. Follow up, then mark each one Contacted, Completed or Dismiss (under Also needs you). The This week card lists pricing milestones to confirm.",
     },
     {
       id: "profit",

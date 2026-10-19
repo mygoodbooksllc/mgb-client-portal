@@ -32,7 +32,7 @@ Click a row to open the client. You land on the tab you last used for that clien
 
 - Press **Ctrl+K** (**⌘K** on a Mac) and type the client's name.
 - Click the client picker at the top left of the page.
-- On Today, click any row or the **Recently viewed** card.
+- On Today, click a card line or one of the **Recent clients** chips.
 
 ### Troubleshooting
 

@@ -185,10 +185,9 @@ const TIPS_CATALOG = [
     roles: "am",
     match: (r) => r.page === "today",
     target: "today-upgrade",
-    // Its Contacted / Completed / Dismiss buttons, not the whole row.
-    part: [".td-row-actions", ".td-row-main"],
+    // The line in the Waiting on others card.
     snug: true,
-    text: "A client asked to upgrade or add Payroll. Follow up, then mark it Contacted or Completed, or Dismiss it, so it leaves everyone's Today.",
+    text: "A client asked to upgrade or add Payroll. Click it to open their Plan tab and follow up, then mark it Contacted or Completed, or Dismiss it under Also needs you, so it leaves everyone's Today.",
     slug: "account-manager-guide",
   },
   {
@@ -196,10 +195,7 @@ const TIPS_CATALOG = [
     roles: "all",
     match: (r) => r.page === "today",
     target: "today-kpis",
-    // The last tile, not the whole row of them: its card then hangs at the
-    // right, clear of the first Needs you row's title.
-    part: ".td-kpi:last-child",
-    text: "The tiles in this row are shortcuts: Replies waiting opens Inbox, Closes open opens Work › Close, and Overdue jumps to the Now list.",
+    text: "This line counts what is due today and what is late. Open Slate takes you to the full list.",
     slug: "home-page",
   },
   {
@@ -209,7 +205,7 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "today",
     target: "wb-row-action",
     snug: true,
-    text: "The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press D on any page for your Desk; its Slate tab has your tasks, and its Client tab one client's tasks (☆ pins a client).",
+    text: "The button does the next thing: it starts or opens your top item. Press D on any page for your Desk, where the full list has Snooze, No reply needed and Mark checked (each with Undo); its Slate tab has your tasks, and its Client tab one client's tasks (☆ pins a client).",
     slug: "workbench",
   },
   {

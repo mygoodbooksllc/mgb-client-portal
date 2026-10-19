@@ -37,7 +37,7 @@ Under that line, a tag says **Last reviewed {n} days ago**. It counts from which
 
 Read it through. Fix anything that's changed. If it's all still right, click **Mark as still accurate**. The tag goes back to **Last reviewed today**. You can do this from **Client details → SOP** too, without opening the SOP tab.
 
-Stale SOPs also show on **Today** in **Needs you → This week** with an **SOP** tag, in the **Clients** page's **Needs attention** filter, and in Client health. An SOP with nothing written yet isn't counted as stale (Client health flags it as "No SOP written yet" instead).
+Stale SOPs also show on **Today** under **Also needs you** with an **SOP** tag, in the **Clients** page's **Needs attention** filter, and in Client health. An SOP with nothing written yet isn't counted as stale (Client health flags it as "No SOP written yet" instead).
 
 ### Edit a section
 

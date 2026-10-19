@@ -324,7 +324,17 @@ t("registry: desk-right-now waits for the Desk and tours the Right now card", ()
   assert.strictEqual(steps[1].when({ myClient: { id: "c1" } }), true);
   const text = JSON.stringify(steps.map((x) => x.body()));
   assert.ok(/Right now/.test(text) && /QuickBooks/.test(text) && !/colour/i.test(text));
-  assert.strictEqual(ANN_REGISTRY[0].id, "desk-right-now");
+  assert.strictEqual(ANN_REGISTRY[1].id, "desk-right-now");
+});
+
+t("registry: today-redesign is newest, for admins and bookkeepers, and points at Today targets", () => {
+  const a = ANN_REGISTRY[0];
+  assert.strictEqual(a.id, "today-redesign");
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((x) => x.id), ["ann-welcome", "ann-next", "ann-summary", "ann-cards"]);
+  assert.deepStrictEqual(steps[1].targets, ["today-list"]);
+  assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
 });
 
 t("registry: desk-task-view waits for the Desk and is three short steps", () => {

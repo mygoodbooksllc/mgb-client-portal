@@ -20,5 +20,5 @@ Bookkeepers see their own clients. Admins see everyone's.
 - Press **Ctrl+K** (**⌘K** on a Mac) and type "close" or "deadlines" to jump to a tab.
 - Press **q** on any staff page to add a task.
 - The number on the **Slate** button in the top bar is your open tasks, with overdue ones in red. Click it to open the Slate page.
-- Today's **Tasks due today**, **Overdue** and **Closes open** tiles open the matching tab.
+- Today's **Open Slate** link and its **Do next** card open Slate; closes that are late or blocked show under **Clients needing attention** and **Also needs you**.
 - If you'd rather land on your task list than on Today when you sign in, pick **Work › Slate** under **Appearance & start page** in [Settings](#/help/staff-settings).

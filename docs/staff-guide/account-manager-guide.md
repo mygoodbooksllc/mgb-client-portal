@@ -56,7 +56,7 @@ See [What does client health mean?](#/help/client-health) and [How do I use the 
 
 1. An **upgrade** or **Add Payroll** request from a client's Plan tab shows on **Today**. Follow up with them, then mark it **Contacted**, **Completed** or **Dismiss**.
 2. When a client signs up for payroll, tick **Payroll add-on** on their row in **Client roster**. Their Payroll tab appears straight away.
-3. Fees follow the confirmed **pricing milestone**. On Today, turn on **Also show › Milestones** to see clients whose numbers point to a different milestone.
+3. Fees follow the confirmed **pricing milestone**. On Today, use the **This week** card on Today to see clients whose numbers point to a different milestone.
 4. Admins: **Team › Hours** shows each client's hours against budget; click a client for fees, cost and margin.
 5. To see what a client would get on another plan, use **Preview plan**. See [Preview as a client](#/help/preview-as).
 6. Basic clients can take the **Pro tour** from their Plan page, a two-minute walkthrough of what Pro adds. Nothing changes until they click **Upgrade to Pro**, and then it arrives as the request in step 1. See [How does the Pro tour work?](#/help/pro-tour).

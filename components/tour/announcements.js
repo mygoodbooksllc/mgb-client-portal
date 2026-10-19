@@ -65,6 +65,46 @@ function ANN_inReviews() {
 
 var ANN_REGISTRY = [
   {
+    id: "today-redesign",
+    date: "2026-10-19",
+    title: "A calmer Today",
+    summary:
+      "Today now leads with one Do next card (your top item and what comes after it) and a row of small cards: clients needing attention, waiting on others, reminders and this week. The long list lives in Slate and the Desk.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/today",
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Today, simplified",
+        body: () =>
+          "Today no longer repeats your whole list. It shows the one thing to do next, and a few small cards around it. About a minute.",
+      },
+      {
+        id: "ann-next",
+        targets: ["today-list"],
+        wait: true,
+        title: "Do next",
+        body: () =>
+          "Your top item, with what comes after it. The button starts or opens it. The rest of your list is one click away in Slate, or press D for your Desk.",
+      },
+      {
+        id: "ann-summary",
+        targets: ["today-kpis"],
+        wait: true,
+        title: "The count line",
+        body: () => "How many things are due today and how many are late, with a link to Slate. The four number tiles are gone.",
+      },
+      {
+        id: "ann-cards",
+        targets: ["today-cards-grid", "today-cards"],
+        wait: true,
+        title: "Cards you can turn off",
+        body: () =>
+          "Clients needing attention, Waiting on others, Reminders and This week. Use Also show at the bottom to hide any of them. Approvals, handbook and the other less common items sit under Also needs you.",
+      },
+    ],
+  },
+  {
     id: "desk-right-now",
     date: "2026-10-19",
     title: "Right now, at the top of the Desk",
@@ -635,35 +675,13 @@ var ANN_REGISTRY = [
             "Today now pulls your tasks, reviews, client messages, Ledger flags and new client files into one list, most urgent first, and the same list sits in a drawer at the bottom of every page. About a minute.",
         },
         {
-          id: "ann-tiles",
-          // The tiles step aside while the Desk is on (Desk R3).
-          when: () => on() && !ANN_deskOn(),
-          go: goToday,
-          targets: ["wb-tiles"],
-          wait: true,
-          title: "Four numbers at the top",
-          body: () =>
-            "Needs reply, Due today, Overdue and Reviews. Click one to jump to those items.",
-        },
-        {
-          id: "ann-chips",
-          when: on,
-          targets: ["wb-chips"],
-          wait: true,
-          title: "Filter by where it came from",
-          body: () =>
-            ctx && ctx.isAdmin
-              ? "Tasks, Reviews, Messages, Ledger, Documents and Other, each with a count. As an admin you also get Mine or Everyone; items you're covering for someone show in Mine."
-              : "Tasks, Reviews, Messages, Ledger, Documents and Other, each with a count. Items you're covering for someone show here too.",
-        },
-        {
           id: "ann-row",
           when: on,
           targets: ["wb-row-action", "wb-list"],
           wait: true,
           title: "One button does the next thing",
           body: () =>
-            "Each row has one main button (Reply, Start, Open, Review or File). The ⋯ menu has Snooze, No reply needed for a message and Mark checked for a file, and each one has Undo for a few seconds.",
+            "Today shows your top item with one main button (Reply, Start, Open, Review or File). The full list, with Snooze, No reply needed and Mark checked (each with Undo), is in the Desk.",
         },
         {
           id: "ann-bar",

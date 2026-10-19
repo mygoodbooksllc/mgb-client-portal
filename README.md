@@ -687,13 +687,18 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     the drawer.
   - Bell, Tasks and the task/note search groups step aside during admin "View as".
 
-- **Today** (`components/staff/Today.jsx`, `TD_`, `#/today`): greeting, "N need you now", four
-  tiles (Replies waiting, Tasks due today, Overdue, Closes open) and the **Needs you** list in two
-  bands, Now and This week (row kinds: reply, task, bill, close, deadline, access, coverage,
-  upgrade, risk, sop, review; some with inline actions such as Done, Approve/Deny, Contacted).
-  "Also show" toggles the Reminders, Milestones to review and Recently viewed cards (`todayCards`
-  in user settings). No customizable board: `BookkeeperHomePage` and `useHomeMasonry` were deleted
-  2026-10-08.
+- **Today** (`components/staff/Today.jsx`, `TD_`, `#/today`): redesigned 2026-10-19j (desk-right-spec
+  decision 28, one job per surface). Greeting and date, one count line ("N due today · N late · Open
+  Slate"), a single **Do next** card (`TD_DoNextCard`: the top row of the existing ranking plus "then:",
+  button via `TK_openTask`/`TK_openTaskRoute`; "N more in Slate"), an **Also needs you (N)** fold for the
+  non-task, non-reply rows (access, upgrades, handbook, deadlines, bills, closes, reviews, celebrations
+  keep their inline buttons), then an auto-fit card grid (Clients needing attention, Waiting on others,
+  Your reminders, This week with celebrations and Milestones to review) and a one-line Recent clients
+  strip. "Also show" toggles the five cards (`todayCards` in user settings: `attention`, `waiting`,
+  `reminders`, `milestones`, `recent`; all default on). The same layout renders on the classic path and
+  in `WB_Page.jsx` (which now only supplies the Desk-ordered top row and reports its counts through
+  `onSummary`). No tiles, source chips or long list on Today. No customizable board: `BookkeeperHomePage`
+  and `useHomeMasonry` were deleted 2026-10-08.
 - **Tasks** (Tasks module Phase 1, 2026-10-11; `components/tasks/`, `TK_`; spec
   `docs/tasks-phase1-spec.md`). Tasks are still rows in `staff_reminders`, with new columns and
   tables from `supabase/tasks-module-v1.sql`.

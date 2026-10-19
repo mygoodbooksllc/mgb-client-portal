@@ -61,7 +61,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 **Every month**
 
 1. **Work › Close**: is every client's month closed? See [Month-end close](#/help/month-end-close).
-2. On **Today**, turn on **Also show › Milestones** and confirm pricing milestones. See [Pricing milestones](#/help/pricing-milestones).
+2. On **Today**, open the **This week** card and confirm pricing milestones. See [Pricing milestones](#/help/pricing-milestones).
 3. **Team › Hours**: check margin by client. See [Profitability](#/help/profitability).
 4. **Settings › Usage stats**: what's used and who's gone quiet.
 

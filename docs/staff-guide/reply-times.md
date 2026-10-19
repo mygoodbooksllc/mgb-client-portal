@@ -5,7 +5,7 @@ audience: admin
 keywords: [reply times, team, reply time, response time, median, p90, within 24 hours, waiting, client messages, inbox, slow replies, goal, kpi]
 sort: 550
 ---
-**Reply times** shows how fast we answer client messages. Find it at **Team** → **Reply times** (or `#/team/reply-times`), admins only. Everyone sees the conversations waiting on them as the **Replies waiting** tile on [Today](#/help/home-page).
+**Reply times** shows how fast we answer client messages. Find it at **Team** → **Reply times** (or `#/team/reply-times`), admins only. Everyone sees the conversations waiting on them as the **Clients needing attention** and **Waiting on others** cards on [Today](#/help/home-page).
 
 ### How a reply is timed
 
@@ -30,6 +30,6 @@ When there are no client messages yet, the tables say so.
 - A temporary admin who opens this tab sees only their own replies and their own clients.
 - Clients never see any of this.
 
-### Replies waiting (Today tile)
+### Replies waiting (Today cards)
 
-Counts the client conversations waiting on a reply from us (your clients; every client for admins). Click it to open the Inbox. The median and over-24-hour numbers are on this tab, for admins.
+Today counts the client conversations waiting on a reply from us (your clients; every client for admins) in **Waiting on others**, and lists the clients in **Clients needing attention**. Click the count to open the Inbox. The median and over-24-hour numbers are on this tab, for admins.

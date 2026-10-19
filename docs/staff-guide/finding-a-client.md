@@ -31,7 +31,7 @@ Press **Ctrl+K** (**⌘K** on a Mac) or click the search box at the top of the p
 
 ### Getting back
 
-- **Recently viewed** on Today (turn it on under **Also show**) and the **Last viewed** column on the **Clients** page take you back to clients you had open.
+- **Recent clients** on Today (one line of chips; switch it under **Also show**) and the **Last viewed** column on the **Clients** page take you back to clients you had open.
 - **Overview**, the first tab in the client's tab row, takes you back to the client's Client overview.
 - The address bar keeps the client and page, so you can bookmark a client or paste the link to a teammate.
 

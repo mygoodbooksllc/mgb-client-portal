@@ -26530,7 +26530,7 @@ const PAGE_META = {
   // the same word.
   today: {
     title: "Today",
-    subtitle: "What needs you, in order (the Needs you list when it's on)",
+    subtitle: "What to do next, and what is waiting around it",
   },
   inbox: {
     title: "Inbox",

@@ -34,7 +34,8 @@
 // "My clients" (deadlines, close) = clients I'm the assigned bookkeeper on;
 // an admin with none assigned sees every client, like the old Home cards.
 //
-// Optional cards (Reminders, Milestones, Recently viewed) each have a
+// Optional cards (Clients needing attention, Waiting on others, Reminders,
+// This week, Recent clients) each have a
 // show/hide toggle saved to user_settings.settings.todayCards through
 // ST_store (components/settings/Settings.jsx). While settings are paused
 // ("View as") the toggle still works for this visit, it just isn't saved.
@@ -54,11 +55,15 @@ const TD_ROW_LIMIT = 6;
 // Coverage gaps: time off starting within this many days.
 const TD_COVERAGE_DAYS = 14;
 const TD_CARDS = [
+  { key: "attention", label: "Clients needing attention" },
+  { key: "waiting", label: "Waiting on others" },
   { key: "reminders", label: "Reminders" },
-  { key: "milestones", label: "Milestones" },
-  { key: "recent", label: "Recently viewed" },
+  { key: "milestones", label: "This week" },
+  { key: "recent", label: "Recent clients" },
 ];
-const TD_CARD_DEFAULTS = { reminders: true, milestones: true, recent: true };
+const TD_CARD_DEFAULTS = { attention: true, waiting: true, reminders: true, milestones: true, recent: true };
+// Clients shown per "needing attention" / "waiting" card.
+const TD_CARD_ROWS = 4;
 // The word shown beside each row's icon. Color never carries the meaning
 // on its own: the band heading and this label say it in words.
 const TD_KIND_LABEL = {
@@ -473,6 +478,7 @@ function TD_buildRows(x) {
       band.push({
         key: "task-" + t.id,
         kind: "task",
+        taskId: t.id,
         rank: diff < 0 ? 1 : diff === 0 ? 2 : 1,
         sort: diff,
         title: t.text,
@@ -492,6 +498,7 @@ function TD_buildRows(x) {
       (diff <= 0 ? now : week).push({
         key: "task-" + t.id,
         kind: "task",
+        taskId: t.id,
         rank: diff < 0 ? 1 : diff === 0 ? 2 : 1,
         sort: diff,
         title: t.text,
@@ -994,14 +1001,29 @@ function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }
   );
 }
 
-function TD_MilestonesCard({ clients, onOpenClientMilestone }) {
+// "This week": birthdays and anniversaries coming up (the celebration rows
+// Today already builds, admins) above the milestones to review.
+function TD_MilestonesCard({ clients, onOpenClientMilestone, celebrations }) {
   const [count, setCount] = React.useState(0);
+  const cel = celebrations || TD_NONE;
   return (
-    <section className={"card td-card" + (count > 0 ? " td-card-week" : "")} aria-labelledby="td-milestones-title">
+    <section className={"card td-card" + (count > 0 || cel.length > 0 ? " td-card-week" : "")} aria-labelledby="td-milestones-title" data-tour="today-week">
       <h3 className="card-title" id="td-milestones-title">
-        Milestones to review
+        This week
       </h3>
-      <p className="card-subtitle">Numbers pointing to a different milestone, not confirmed yet, or close to the next one.</p>
+      <p className="card-subtitle">Birthdays and anniversaries, and milestones to review: numbers pointing to a different milestone, not confirmed yet, or close to the next one.</p>
+      {cel.length > 0 && (
+        <ul className="td-mini-list">
+          {cel.slice(0, TD_CARD_ROWS).map((r) => (
+            <li key={r.key}>
+              <button type="button" className="td-mini-row" onClick={r.onClick}>
+                <span className="td-mini-title">{r.title}</span>
+                <span className="td-mini-sub">{r.detail}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {typeof MilestonesReviewList === "function" ? (
         <MilestonesReviewList clients={clients} onCount={setCount} onOpenClient={(id) => onOpenClientMilestone && onOpenClientMilestone(id)} />
       ) : (
@@ -1012,8 +1034,8 @@ function TD_MilestonesCard({ clients, onOpenClientMilestone }) {
 }
 
 // Per-browser visit history (recordClientVisit in app.jsx): whatever this
-// browser last recorded, read once on mount.
-function TD_RecentCard({ clients, onNavigateToClient }) {
+// browser last recorded, read once on mount. One line of chips.
+function TD_RecentCard({ clients }) {
   const visits = React.useMemo(() => (typeof loadClientVisits === "function" ? loadClientVisits() : {}), []);
   const recent = React.useMemo(
     () =>
@@ -1023,28 +1045,145 @@ function TD_RecentCard({ clients, onNavigateToClient }) {
         .slice(0, 5),
     [clients, visits],
   );
+  if (recent.length === 0) return null;
   return (
-    <section className="card td-card" aria-labelledby="td-recent-title">
-      <h3 className="card-title" id="td-recent-title">
-        Recently viewed
+    <section className="td-recent" aria-labelledby="td-recent-title">
+      <h3 className="td-recent-label" id="td-recent-title">
+        Recent clients
       </h3>
-      <p className="card-subtitle">The clients you've had open most recently, on this device.</p>
-      {recent.length === 0 && <p className="card-subtitle td-card-note">Nothing viewed yet on this device.</p>}
-      {recent.length > 0 && (
-        <div className="staff-audit-list">
-          {recent.map((c) => (
-            <button
-              type="button"
-              className="staff-due-row"
-              key={c.id}
-              onClick={() => LK_go({ clientId: c.id })}
-            >
-              <span className="staff-flag-label">{c.name}</span>
-              <span className="staff-flag-desc">{fmtDateTime(new Date(visits[c.id]).toISOString())}</span>
+      <div className="td-recent-chips">
+        {recent.map((c) => (
+          <button type="button" className="td-recent-chip" key={c.id} title={"Opened " + fmtDateTime(new Date(visits[c.id]).toISOString())} onClick={() => LK_go({ clientId: c.id })}>
+            {c.name}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// "Do next": the single top item from the ranked list (Today's own order, or
+// the Desk's when it's on), the one after it, and the button that opens it.
+// Slate and the Desk own the full lists (desk-right-spec decision 28).
+function TD_DoNextCard({ loading, top, next, more, onOpen, onHelp, error, onRetry, offline, updated }) {
+  return (
+    <section className="card td-next" id="td-list" data-tour="today-list" aria-labelledby="td-next-title">
+      <div className="td-next-head">
+        <h2 className="td-next-label" id="td-next-title">
+          Do next
+        </h2>
+        <span className="td-next-tools">
+          {offline && <span className="wb-offline">Offline</span>}
+          {updated ? <span className="wb-updated">{updated}</span> : null}
+          {onHelp && (
+            <button type="button" className="wb-icon-btn" aria-label="Today help and shortcuts" title="Help and shortcuts" onClick={onHelp}>
+              ?
             </button>
-          ))}
+          )}
+        </span>
+      </div>
+      {error && (
+        <div className="wb-error" role="alert">
+          <span>{error}</span>
+          {onRetry && (
+            <button type="button" className="btn-secondary" onClick={onRetry}>
+              Retry
+            </button>
+          )}
         </div>
       )}
+      {loading ? (
+        <p className="card-subtitle td-loading" role="status">
+          Looking for what's next…
+        </p>
+      ) : top ? (
+        <>
+          <div className="td-next-body">
+            <div className="td-next-main">
+              <p className="td-next-title">{top.title}</p>
+              {top.meta && <p className="td-next-meta">{top.meta}</p>}
+              {next && <p className="td-next-then">then: {next}</p>}
+            </div>
+            <button type="button" className="btn-primary td-next-btn" onClick={onOpen} {...{ "data-tour": "wb-row-action" }}>
+              {top.label || "Open"}
+            </button>
+          </div>
+          <p className="td-next-more">
+            {more > 0 ? (
+              <>
+                {more} more in <a href="#/tasks">Slate</a>
+              </>
+            ) : (
+              <>
+                That's all. <a href="#/tasks">Slate</a>
+              </>
+            )}
+          </p>
+        </>
+      ) : (
+        <div className="td-empty" role="status">
+          <span className="td-empty-mark" aria-hidden="true">
+            ✓
+          </span>
+          <span className="td-empty-text">
+            <strong>Clean slate. Nothing needs you right now.</strong>
+            <span>
+              New messages, tasks and deadlines show up here as they come in. <a href="#/tasks">Slate</a> · <a href="#/inbox">Messages</a>
+            </span>
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// "N due today · N late · Open Slate": the compact line under the greeting.
+function TD_SummaryLine({ due, late, ready }) {
+  return (
+    <p className="td-summary" data-tour="today-kpis">
+      <span>{ready ? due : "…"} due today</span>
+      <span className="td-sep" aria-hidden="true">
+        ·
+      </span>
+      <span className={ready && late > 0 ? "td-summary-late" : ""}>{ready ? late : "…"} late</span>
+      <span className="td-sep" aria-hidden="true">
+        ·
+      </span>
+      <a href="#/tasks">Open Slate</a>
+    </p>
+  );
+}
+
+// A card of up to four lines: { key, title, chips: [{tone, text}], onClick }.
+function TD_ListCard({ id, title, subtitle, lines, extra, emptyText, loaded, tour }) {
+  return (
+    <section className="card td-card" aria-labelledby={id} {...(tour ? { "data-tour": tour } : {})}>
+      <h3 className="card-title" id={id}>
+        {title}
+      </h3>
+      <p className="card-subtitle">{subtitle}</p>
+      {!loaded && lines.length === 0 && <p className="card-subtitle td-card-note">Loading…</p>}
+      {loaded && lines.length === 0 && <p className="card-subtitle td-card-note td-card-ok">{emptyText}</p>}
+      {lines.length > 0 && (
+        <ul className="td-mini-list">
+          {lines.slice(0, TD_CARD_ROWS).map((l) => (
+            <li key={l.key}>
+              <button type="button" className="td-mini-row" onClick={l.onClick} {...(l.tour ? { "data-tour": l.tour } : {})}>
+                <span className="td-mini-title">{l.title}</span>
+                <span className="td-mini-chips">
+                  {l.chips.map((c) => (
+                    <span key={c.text} className={"td-reason td-reason-" + c.tone}>
+                      {c.text}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {lines.length > TD_CARD_ROWS && <p className="card-subtitle td-card-note">+{lines.length - TD_CARD_ROWS} more</p>}
+      {extra}
     </section>
   );
 }
@@ -1189,12 +1328,11 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
     } catch (e) {}
   };
 
-  const [expanded, setExpanded] = React.useState(false);
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  // Late/due counts from the Desk's own list when it's on (WB_Page reports).
+  const [wbSummary, setWbSummary] = React.useState(null);
   const [grantBusy, setGrantBusy] = React.useState(null);
   const [grantError, setGrantError] = React.useState("");
-  const [flash, setFlash] = React.useState(false);
-  const flashTimer = React.useRef(null);
-  React.useEffect(() => () => clearTimeout(flashTimer.current), []);
 
   // Item actions share Work › Tasks' write path, so a tick here rolls a
   // recurring item forward and every view refreshes through
@@ -1380,59 +1518,73 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
     ],
   );
 
-  // Tiles. Overdue = everything late that's mine: tasks, filing deadlines and
-  // bills. Its only home is the "Now" band right below, so it scrolls there.
+  // Header line. Late = everything late that's mine: tasks, filing deadlines
+  // and bills (the old Overdue tile).
   const openItems = (mine.items || []).filter(notHidden).filter((t) => !t.done && t.kind !== "note" && t.due_date);
   const dueToday = openItems.filter((t) => t.due_date === today).length;
   const overdue =
     openItems.filter((t) => t.due_date < today).length +
     deadlines.filter((it) => it.state === "overdue").length +
     rows.now.filter((r) => r.kind === "bill").length;
-  const closePeriod = TD_prevMonthStart();
-  const jumpToNow = () => {
-    const el = document.getElementById("td-band-now") || document.getElementById("td-list");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    clearTimeout(flashTimer.current);
-    setFlash(true);
-    flashTimer.current = setTimeout(() => setFlash(false), CARD_FLASH_HOLD_MS);
-  };
-  const tiles = [
-    {
-      key: "replies",
-      label: "Replies waiting",
-      value: waiting.loaded ? waiting.rows.length : "…",
-      tone: waiting.rows.length > 0 ? "now" : "calm",
-      sub: waiting.rows.length > 0 ? "clients waiting on an answer" : "every client has an answer",
-      go: () => NAV_go("inbox"),
-    },
-    {
-      key: "due",
-      label: "Tasks due today",
-      value: mine.items ? dueToday : "…",
-      tone: dueToday > 0 ? "week" : "calm",
-      sub: dueToday > 0 ? "open Work › Slate" : "nothing due today",
-      go: () => NAV_go("work", "tasks"),
-    },
-    {
-      key: "overdue",
-      label: "Overdue",
-      value: mine.items ? overdue : "…",
-      tone: overdue > 0 ? "now" : "calm",
-      sub: overdue > 0 ? "tasks, deadlines and bills past due" : "nothing past due",
-      go: jumpToNow,
-    },
-    {
-      key: "closes",
-      label: "Closes open",
-      value: closes.loaded ? closes.open.length : "…",
-      tone: closes.open.length > 0 ? "week" : "calm",
-      sub:
-        closes.open.length > 0
-          ? `${TD_monthName(closePeriod)} not finished` + (closes.blocked.length ? ` · ${closes.blocked.length} blocked` : "")
-          : `${TD_monthName(closePeriod)} is wrapped up`,
-      go: () => NAV_go("work", "close"),
-    },
-  ];
+
+  // Clients needing attention: one line per client, with why. Reuses the
+  // waiting threads, blocked closes and coverage gaps already loaded above.
+  const attentionLines = React.useMemo(() => {
+    const by = {};
+    const nameOf = {};
+    allClients.forEach((c) => (nameOf[c.id] = c.name));
+    const add = (id, tone, text) => {
+      if (!id || !nameOf[id]) return;
+      const e = by[id] || (by[id] = { id, name: nameOf[id], chips: [], score: 0 });
+      if (e.chips.some((c) => c.text === text)) return;
+      e.chips.push({ tone, text });
+      e.score += tone === "now" ? 2 : 1;
+    };
+    const replies = {};
+    waiting.rows.forEach((r) => (replies[r.client_id] = (replies[r.client_id] || 0) + 1));
+    Object.keys(replies).forEach((id) => add(id, "now", replies[id] === 1 ? "Reply waiting" : replies[id] + " replies waiting"));
+    (closes.blocked || []).forEach((r) => add(r.client_id, "now", "Close blocked"));
+    (coverage.gaps || []).forEach((g) => add(g.client && g.client.client_id, "week", "No backup while out"));
+    return Object.values(by)
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+      .map((e) => ({ key: e.id, title: e.name, chips: e.chips, onClick: () => onNavigateToClient(e.id) }));
+  }, [allClients, waiting.rows, closes.blocked, coverage.gaps, onNavigateToClient]);
+  // Waiting on others: access and upgrade requests, and replies to chase.
+  const waitingLines = React.useMemo(() => {
+    const nameOf = {};
+    allClients.forEach((c) => (nameOf[c.id] = c.name));
+    const out = [];
+    (access.rows || []).filter(notHidden).forEach((r) =>
+      out.push({
+        key: "acc-" + r.id,
+        title: nameOf[r.client_id] || r.client_id,
+        chips: [{ tone: "week", text: "Access request" }],
+        onClick: () => LK_go({ clientId: r.client_id, tab: "settings", sub: "client", item: "setup:access.requests" }),
+      }),
+    );
+    (upgrades.rows || []).filter(notHidden).forEach((r) =>
+      out.push({
+        key: "upg-" + r.id,
+        title: nameOf[r.client_id] || r.client_id,
+        chips: [{ tone: "week", text: r.requested_plan === "payroll" ? "Wants Payroll" : "Wants an upgrade" }],
+        tour: "today-upgrade",
+        onClick: () => LK_go({ clientId: r.client_id, tab: "settings", sub: "plan" }),
+      }),
+    );
+    if (waiting.rows.length > 0)
+      out.push({
+        key: "replies",
+        title: waiting.rows.length === 1 ? "1 client reply" : waiting.rows.length + " client replies",
+        chips: [{ tone: "now", text: "Waiting on us" }],
+        onClick: () => NAV_go("inbox"),
+      });
+    return out;
+  }, [allClients, access.rows, upgrades.rows, waiting.rows, hiddenIds]);
+  const celebrationRows = rows.now.concat(rows.week).filter((r) => r.kind === "celebrate");
+  // Everything the old list also carried that Slate and the Desk don't:
+  // approvals, handbook, deadlines, reviews... kept behind one fold.
+  const moreNow = rows.now.filter((r) => r.kind !== "task" && r.kind !== "reply");
+  const moreWeek = rows.week.filter((r) => r.kind !== "task" && r.kind !== "reply");
 
   // Optional cards: saved per person; a toggle still works for this visit
   // when settings can't save (e.g. "View as").
@@ -1446,70 +1598,28 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   };
 
   const settled = waiting.loaded && mine.items !== null && access.loaded && upgrades.loaded && closes.loaded;
-  const empty = settled && rows.now.length === 0 && rows.week.length === 0;
-  const hasMore = rows.now.length > TD_ROW_LIMIT || rows.week.length > TD_ROW_LIMIT;
   const errors = [waiting.error, mine.error, access.error, upgrades.error, grantError, dl && dl.error ? dl.error : ""].filter(Boolean);
-  const tone = rows.now.length ? "now" : rows.week.length ? "week" : "clear";
-  const chip = (t, text, onClick) => {
-    const Tag = onClick ? "button" : "span";
-    return (
-      <Tag className={"td-chip td-chip-" + t} {...(onClick ? { type: "button", onClick } : {})}>
-        <span className="td-band-dot" aria-hidden="true" />
-        {text}
-      </Tag>
-    );
+  // Do next from Today's own order (classic, and the Desk's fallback while
+  // wb_inbox isn't live): first row of Now, then This week.
+  const ranked = rows.now.concat(rows.week);
+  const openRow = (r) => {
+    if (r.taskId != null && typeof TK_openTask === "function") TK_openTask(r.taskId, { from: "today" });
+    else if (r.onClick) r.onClick();
+    else if (r.actions && r.actions[0] && r.actions[0].onClick) r.actions[0].onClick();
   };
-
-  // Today's own tiles and "Needs you" list (the classic view, and Workbench's
-  // fallback while its server side isn't live).
+  const topRow = ranked[0] || null;
   const classicBody = () => (
-    <>
-      <div className="kpi-grid td-kpis" data-tour="today-kpis">
-        {tiles.map((t) => (
-          <button type="button" key={t.key} className={"card kpi-card kpi-card-clickable td-kpi td-kpi-" + t.tone} onClick={t.go}>
-            <span className="kpi-label">{t.label}</span>
-            <span className="kpi-value">{t.value}</span>
-            <span className="kpi-sub">{t.sub}</span>
-          </button>
-        ))}
-      </div>
-
-      <section className={"card td-list td-tone-" + tone + (flash ? " card-flash" : "")} id="td-list" data-tour="today-list" aria-labelledby="td-list-title">
-        <h2 className="card-title" id="td-list-title">
-          Needs you
-        </h2>
-        <p className="card-subtitle">Everything waiting on you across every client you can see, most urgent first.</p>
-        {!settled && !empty && rows.now.length === 0 && rows.week.length === 0 && (
-          <p className="card-subtitle td-loading" role="status">
-            Looking for anything that needs you…
-          </p>
-        )}
-        {empty && (
-          <div className="td-empty" role="status">
-            <span className="td-empty-mark" aria-hidden="true">
-              ✓
-            </span>
-            <span className="td-empty-text">
-              <strong>Nothing needs you right now.</strong>
-              <span>Enjoy the quiet. New messages, tasks and deadlines show up here as they come in.</span>
-            </span>
-          </div>
-        )}
-        <TD_Band tone="now" title="Now" rows={rows.now} expanded={expanded} />
-        <TD_Band tone="week" title="This week" rows={rows.week} expanded={expanded} />
-        {hasMore && (
-          <button type="button" className="td-more" onClick={() => setExpanded((v) => !v)} aria-expanded={expanded}>
-            {expanded ? "Show less" : "Show everything"}
-          </button>
-        )}
-        {errors.map((e) => (
-          <p className="card-subtitle negative td-error" key={e}>
-            {e}
-          </p>
-        ))}
-      </section>
-    </>
+    <TD_DoNextCard
+      loading={!settled && !topRow}
+      top={topRow ? { title: topRow.title, meta: topRow.detail, label: topRow.kind === "task" ? "Open" : (topRow.actions && topRow.actions.find((a) => a.primary) && topRow.actions.find((a) => a.primary).label) || "Open" } : null}
+      next={ranked[1] ? ranked[1].title : ""}
+      more={Math.max(0, ranked.length - 1)}
+      onOpen={() => topRow && openRow(topRow)}
+    />
   );
+  const sumDue = wbOn && wbSummary ? wbSummary.due : dueToday;
+  const sumLate = wbOn && wbSummary ? wbSummary.late : overdue;
+  const sumReady = wbOn && wbSummary ? true : !!mine.items;
 
   return (
     <div className="td-page">
@@ -1549,13 +1659,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
           <p className="td-greeting">{TD_greeting(staffUser && staffUser.name)}</p>
           <p className="td-date">{TD_dateLine()}</p>
         </div>
-        {!wbOn && (
-          <div className="td-chips">
-            {rows.now.length > 0 && chip("now", `${rows.now.length} need${rows.now.length === 1 ? "s" : ""} you now`, jumpToNow)}
-            {rows.week.length > 0 && chip("week", `${rows.week.length} this week`)}
-            {empty && chip("clear", "Clean slate")}
-          </div>
-        )}
+        <TD_SummaryLine due={sumDue} late={sumLate} ready={sumReady} />
       </div>
 
       {!wbOn && wbClassic && (
@@ -1575,7 +1679,47 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
           </button>
         </p>
       )}
-      {wbOn ? <WB_Page me={me} isAdmin={!!(staffUser && staffUser.role === "admin")} td={rows} fallback={classicBody()} deskOn={!!deskOn} /> : classicBody()}
+      {wbOn ? <WB_Page me={me} isAdmin={!!(staffUser && staffUser.role === "admin")} td={rows} fallback={classicBody()} deskOn={!!deskOn} onSummary={setWbSummary} /> : classicBody()}
+      {errors.map((e) => (
+        <p className="card-subtitle negative td-error" key={e}>
+          {e}
+        </p>
+      ))}
+      {moreNow.length + moreWeek.length > 0 && (
+        <div className="td-more-wrap">
+          <button type="button" className="td-more" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen} aria-controls="td-more-list">
+            {moreOpen ? "Hide" : "Also needs you"} ({moreNow.length + moreWeek.length})
+          </button>
+          {moreOpen && (
+            <div className="card td-list" id="td-more-list">
+              <TD_Band tone="now" title="Now" rows={moreNow} expanded={true} />
+              <TD_Band tone="week" title="This week" rows={moreWeek} expanded={true} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {(cards.attention || cards.waiting || cards.reminders || cards.milestones) && (
+        <div className="td-cards" data-tour="today-cards-grid">
+          {cards.attention && (
+            <TD_ListCard
+              id="td-attention-title"
+              title="Clients needing attention"
+              subtitle="Replies waiting, blocked closes and coverage gaps."
+              lines={attentionLines}
+              loaded={settled}
+              emptyText="No client needs a nudge."
+              tour="today-attention"
+            />
+          )}
+          {cards.waiting && (
+            <TD_ListCard id="td-waiting-title" title="Waiting on others" subtitle="Requests and replies that are not yours to finish." lines={waitingLines} loaded={settled} emptyText="Nothing is waiting." />
+          )}
+          {cards.reminders && <TD_RemindersCard me={me} items={mine.items} error={mine.error} today={today} onAdd={addItem} onToggle={toggleItem} onRemove={removeItem} />}
+          {cards.milestones && <TD_MilestonesCard clients={allClients} onOpenClientMilestone={onOpenClientMilestone} celebrations={celebrationRows} />}
+        </div>
+      )}
+      {cards.recent && <TD_RecentCard clients={openableClients} />}
 
       <div className="td-cards-bar">
         <span className="td-cards-label" id="td-cards-label">
@@ -1589,13 +1733,6 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
           ))}
         </div>
       </div>
-      {(cards.reminders || cards.milestones || cards.recent) && (
-        <div className="td-cards">
-          {cards.reminders && <TD_RemindersCard me={me} items={mine.items} error={mine.error} today={today} onAdd={addItem} onToggle={toggleItem} onRemove={removeItem} />}
-          {cards.milestones && <TD_MilestonesCard clients={allClients} onOpenClientMilestone={onOpenClientMilestone} />}
-          {cards.recent && <TD_RecentCard clients={openableClients} onNavigateToClient={onNavigateToClient} />}
-        </div>
-      )}
     </div>
   );
 }

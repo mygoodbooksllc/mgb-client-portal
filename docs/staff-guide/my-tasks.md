@@ -142,7 +142,7 @@ See [How do recurring tasks from templates work?](#/help/task-templates).
 
 ### Elsewhere in the portal
 
-- **Today**'s **Tasks due today** and **Overdue** tiles (not shown while the Desk is on) count your tasks, and due ones show in **Needs you**, where **Done** checks them off.
+- **Today**'s count line (**due today** and **late**) counts your tasks, and the most urgent one shows as **Do next**. The full list is here in Slate.
 - The **Slate** button in the top bar shows how many open tasks you have, with overdue ones in a red number. With a client open, it opens that client's task panel instead. With the Desk on it is a plain link to Slate with no numbers: the Desk's bar shows your late tasks and today's progress.
 - Search (**Ctrl+K** / **⌘K**) finds tasks by their name, description and comments. A match inside a comment says *In a comment:*. Click a result to open the task.
 - A client's Overview has a **Tasks for this client** card. See [What's on a client's Overview?](#/help/client-overview).

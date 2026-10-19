@@ -5,13 +5,13 @@ audience: staff
 keywords: [workbench, desk, tasks open in the desk, task in the desk, back to desk, back button, f6, move between desk and page, esc goes back, drill in, slate, the desk, slate tab, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, right column, right side, rail, desk rail, info bar, bottom bar, right now, right now card, glance, waiting counts, page client, oldest wait, clean slate, late, done today, next up, qbo sync, chat bubble, messages icon, mentions, press d, d key, w key, resize, resize the desk, desk width, wider, narrower, drag the left edge, page stays usable, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
 sort: 41
 ---
-The **Desk** (it was called the Workbench) sits on the right of every staff page, with an info bar along the bottom. Press **D** anywhere to open it (**W** no longer does): one list of everything that needs you, in order, with tabs for your **Inbox**, your **Slate** (it was called Tasks) and one **Client**. The same ordered list is on **Today** (the first place in the left rail; the address stays `#/today`) in a card called **Needs you**, and Today keeps its name.
+The **Desk** (it was called the Workbench) sits on the right of every staff page, with an info bar along the bottom. Press **D** anywhere to open it (**W** no longer does): one list of everything that needs you, in order, with tabs for your **Inbox**, your **Slate** (it was called Tasks) and one **Client**. **Today** (the first place in the left rail; the address stays `#/today`) keeps its name and shows only the top of that list as a **Do next** card; the full list stays here and in **Slate**.
 
 The owner turns the Desk and the new Today on for the whole team. Until then Today looks as it always has. See [What's on my Today page?](#/help/home-page).
 
-### The four tiles
+### The four counts
 
-With the Desk on, Today drops these four tiles: the Desk's bar and rail already carry the counts, and the filter buttons above the list keep theirs. With the Desk off they work like this:
+Today no longer has number tiles: the Desk's bar and rail carry the counts, and the filter buttons above the list keep theirs. They count like this:
 
 - **Needs reply**: client messages where the client wrote last and nobody on our side has answered. Click it to show only messages.
 - **Due today**: items due today. Click it to jump to the Today group.
@@ -131,7 +131,7 @@ The **Client** tab shows one client's open tasks without leaving the page you're
 
 ### Keyboard shortcuts
 
-Click **?** at the top of Today's Needs you card and pick **Keyboard shortcuts**. They work when you're not typing in a box:
+Click **?** on Today's Do next card and pick **Keyboard shortcuts**. They work when you're not typing in a box:
 
 - **D** opens or closes the Desk (not while you're typing, with Ctrl, Cmd, Alt or Shift held, or while a task drawer, dialog, menu or tour is open on top of it). **W** no longer does anything.
 - With the Desk's left edge selected, the left arrow makes it wider and the right arrow narrower; **Home** and **End** go to the narrowest and widest.
@@ -149,6 +149,6 @@ Admins get **Mine** and **Everyone** next to the chips. **Everyone** shows every
 
 ### Troubleshooting
 
-- **Something I expected isn't there.** The Desk and the Needs you list only show clients you can open, and tasks waiting on the client stay on Slate. Check **Snoozed** too.
+- **Something I expected isn't there.** The Desk and Today's Do next card only show clients you can open, and tasks waiting on the client stay on Slate. Check **Snoozed** too.
 - **It says Couldn't refresh.** Click **Retry**. The last list stays on screen meanwhile. **Offline** means your connection dropped; it refreshes when you're back.
-- **I'd rather have the old Today.** Click **?** at the top of Today's Needs you card and pick **Use classic Today in this browser**. Today then has **Switch back to the new Today** at the top. It only changes this browser. (Admins: it's also **Classic Today** under Dev Tools › Feature flags.)
+- **I'd rather have the old Today.** Click **?** on Today's Do next card and pick **Use classic Today in this browser**. Today then has **Switch back to the new Today** at the top. It only changes this browser. (Admins: it's also **Classic Today** under Dev Tools › Feature flags.)

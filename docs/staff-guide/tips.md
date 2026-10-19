@@ -49,8 +49,8 @@ Here is every tip, in the order they're considered when two fit the same page (t
 
 | Page | Tip | Learn more |
 |---|---|---|
-| Today | The tiles in this row are shortcuts: Replies waiting opens Inbox, Closes open opens Work › Close, and Overdue jumps to the Now list. | [What's on my Today page?](#/help/home-page) |
-| Today (only while the Desk is on) | The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press D on any page for your Desk; its Slate tab has your tasks, and its Client tab one client's tasks (☆ pins a client). | [How do I use the Desk?](#/help/workbench) |
+| Today | This line counts what is due today and what is late. Open Slate takes you to the full list. | [What's on my Today page?](#/help/home-page) |
+| Today (only while the Desk is on) | The button does the next thing: it starts or opens your top item. Press D on any page for your Desk, where the full list has Snooze, No reply needed and Mark checked (each with Undo); its Slate tab has your tasks, and its Client tab one client's tasks (☆ pins a client). | [How do I use the Desk?](#/help/workbench) |
 | Any page (only while the Desk is on, on a computer) | Press D or click this bar to open your Desk on the right. Drag its left edge to make it wider or narrower; it remembers your width. | [How do I use the Desk?](#/help/workbench) |
 | Clients | Mine also includes clients you're the backup for and ones an admin gave you access to, not only those assigned to you. | [How do I use the Clients page?](#/help/clients-page) |
 | Clients | Hover a Health score to see what's costing it points. The same reasons are listed on the client's Overview. | [What does client health mean?](#/help/client-health) |
