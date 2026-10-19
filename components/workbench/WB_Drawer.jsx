@@ -270,6 +270,19 @@ function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, []);
+  // After a mouse click the Desk returns focus to the icon from script, which
+  // matches :focus-visible and would pin the flyout open. Mouse use marks the
+  // rail (is-pointer); a key press clears it, so keyboard focus still shows it.
+  React.useEffect(() => {
+    const down = () => { if (ref.current) ref.current.classList.add("is-pointer"); };
+    const key = (e) => { if (ref.current && ["Shift", "Control", "Alt", "Meta"].indexOf(e.key) < 0) ref.current.classList.remove("is-pointer"); };
+    window.addEventListener("pointerdown", down, true);
+    window.addEventListener("keydown", key, true);
+    return () => {
+      window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("keydown", key, true);
+    };
+  }, []);
   const items = () => Array.prototype.slice.call((ref.current && ref.current.querySelectorAll("[data-wb-rail]")) || []);
   const onKeyDown = (e) => {
     if (e.defaultPrevented) return; // the open + menu already moved focus

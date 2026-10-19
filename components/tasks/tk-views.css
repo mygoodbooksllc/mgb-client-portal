@@ -2213,8 +2213,15 @@ li.tk-empty-inline {
 
 .tk-groupby {
   display: inline-flex;
+  flex-direction: row; /* .tk-select-wrap stacks; the label sits beside the select */
   align-items: center;
   gap: 6px;
+}
+
+.tk-groupby-label {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
 }
 
 .tk-group-flag {
