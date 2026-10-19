@@ -30151,7 +30151,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   access={access}
                   messages={liveMessages}
                   live={siLiveThread}
-                  canUpload={!!clientPortalUser && access.tabs.has("documents")}
+                  canUpload={access.tabs.has("documents")}
                   onGo={setPage}
                   onSeePlans={() => setPage("enterprise-upgrade")}
                 />

@@ -388,7 +388,7 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
             <p className="card-subtitle" style={{ margin: "4px 0 0" }}>
               {canUpload
                 ? "Drop files anywhere on this page, then tell us where they go. Or choose them from your device."
-                : "Your client signs in to upload files here."}
+                : "Uploads aren't available on this plan."}
             </p>
           </div>
           <button ref={chooseRef} type="button" className="btn-primary bh-choose" disabled={!canUpload} onClick={() => inputRef.current && inputRef.current.click()}>
