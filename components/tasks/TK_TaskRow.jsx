@@ -684,11 +684,11 @@ function TK_vIcon(props) {
 
 // ---- Avatar ---------------------------------------------------------------------------
 
-// A person's uploaded profile photo (admins can see everyone's, from the same
-// list the Members photo column uses; everyone else falls back to initials).
-// Matches by email, then by name. Safe where the photo files are not loaded.
+// A person's uploaded profile photo (every active staff member can see
+// everyone's current photo; initials when there is none). Matches by email,
+// then by name. Safe where the photo files are not loaded.
 function TK_vPhotoUrl(email, name) {
-  var list = typeof SP_useAdminList === "function" ? SP_useAdminList(true) : { rows: null };
+  var list = { rows: typeof SP_useStaffPhotos === "function" ? SP_useStaffPhotos(true) : [] };
   var em = String(email || "").trim().toLowerCase();
   var nm = String(name || "").trim().toLowerCase();
   var path = null;

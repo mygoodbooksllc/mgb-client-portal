@@ -198,6 +198,47 @@ function SP_loadAdmin(force) {
   return SP_adminStore.pending;
 }
 
+// ---------------------------------------------------------------------------
+// Teammates' current photos for avatars (any active staff). One shared list,
+// refreshed every minute; rows are { email, name, current_path }. Quiet on any
+// failure (rows stay empty and avatars show initials).
+// ---------------------------------------------------------------------------
+const SP_peopleStore = { rows: [], at: 0, pending: null, subs: new Set() };
+
+function SP_loadPeople(force) {
+  if (SP_peopleStore.pending) return SP_peopleStore.pending;
+  if (!force && SP_peopleStore.at && Date.now() - SP_peopleStore.at < 60000) return Promise.resolve(SP_peopleStore.rows);
+  SP_peopleStore.pending = SP_api
+    .rpc("sp_staff_photo_paths")
+    .then((rows) => {
+      SP_peopleStore.rows = Array.isArray(rows) ? rows : [];
+      return SP_peopleStore.rows;
+    })
+    .catch(() => SP_peopleStore.rows)
+    .finally(() => {
+      SP_peopleStore.at = Date.now();
+      SP_peopleStore.pending = null;
+      SP_peopleStore.subs.forEach((f) => f());
+    });
+  return SP_peopleStore.pending;
+}
+
+function SP_useStaffPhotos(enabled) {
+  const [, bump] = React.useReducer((x) => x + 1, 0);
+  React.useEffect(() => {
+    if (enabled === false) return undefined;
+    SP_peopleStore.subs.add(bump);
+    SP_loadPeople(false);
+    const onChange = () => SP_loadPeople(true);
+    window.addEventListener(SP_CHANGED_EVENT, onChange);
+    return () => {
+      SP_peopleStore.subs.delete(bump);
+      window.removeEventListener(SP_CHANGED_EVENT, onChange);
+    };
+  }, [enabled !== false]);
+  return enabled === false ? [] : SP_peopleStore.rows;
+}
+
 function SP_useAdminList(enabled) {
   const [, bump] = React.useReducer((x) => x + 1, 0);
   React.useEffect(() => {
