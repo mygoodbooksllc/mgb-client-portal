@@ -387,12 +387,16 @@ button.td-row-main:hover {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+  grid-auto-rows: 300px;
   margin-bottom: 16px;
 }
 .td-card {
   margin: 0;
   min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .td-card-week {
   --td-edge: var(--td-week);
@@ -412,11 +416,6 @@ button.td-row-main:hover {
 .td-reminder {
   min-width: 0;
   flex: 1;
-}
-.td-reminders-scroll {
-  max-height: 220px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 .td-reminder-done {
   text-decoration: line-through;
