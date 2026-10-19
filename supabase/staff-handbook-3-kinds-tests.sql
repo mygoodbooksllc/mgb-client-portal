@@ -10,6 +10,7 @@
 --   adm  an active admin
 --   bk   an active bookkeeper
 -- Fixtures: two throwaway policies, slugs hbt-ref and hbt-signed.
+-- Works before and after staff-handbook-4-approvals.sql (see approve4).
 
 begin;
 
@@ -67,6 +68,22 @@ end $$;
 
 insert into _who select 'adm', min(email) from staff where role = 'admin' and active;
 insert into _who select 'bk', min(email) from staff where role = 'bookkeeper' and active;
+
+-- Once staff-handbook-4-approvals.sql is applied, a draft only publishes (or
+-- converts) after the policy approver approves its latest text. For these
+-- checks adm is made the approver (rolled back) and approves first. Without
+-- part 4 this does nothing.
+create or replace function pg_temp.approve4(p_slug text)
+returns text language plpgsql as $$
+declare v_adm text := (select email from _who where k = 'adm');
+begin
+  if to_regprocedure('public.hb_approve_policy(uuid,uuid)') is null then return 'no part 4'; end if;
+  execute 'update handbook_settings set policy_approver_email = $1 where id = 1' using lower(v_adm);
+  return pg_temp.probe(v_adm, format(
+    $q$select hb_approve_policy(p.id, (select v.id from handbook_versions v where v.policy_id = p.id
+                                         order by v.version_no desc limit 1)) ->> 'approval_status'
+       from handbook_policies p where p.slug = %L$q$, p_slug));
+end $$;
 
 do $$
 declare
@@ -140,6 +157,8 @@ begin
   -- Publish the reference policy: nobody is emailed, nothing to sign.
   v := pg_temp.probe(bk, format($q$select hb_publish_policy(%L)$q$, v_ref));
   perform pg_temp.chk('non-admin cannot publish', v like 'ERR:42501%', v);
+  v := pg_temp.approve4('hbt-ref');
+  perform pg_temp.chk('(part 4) approver approves the draft', v in ('approved', 'no part 4'), v);
   v := pg_temp.probe(adm, format($q$select hb_publish_policy(%L) ->> 'notified'$q$, v_ref));
   perform pg_temp.chk('publishing a reference policy notifies nobody', v = '0', v);
   perform pg_temp.chk('publishing is audited',
@@ -204,6 +223,8 @@ begin
   -- A draft converted to signed: hidden and quiet until published, then emails.
   v := pg_temp.probe(adm, $q$select hb_create_policy('Test signed', 'hbt-signed', null, null, 'Sign me') ->> 'kind'$q$);
   perform pg_temp.chk('admin creates a reference draft (kind omitted)', v = 'reference', v);
+  v := pg_temp.approve4('hbt-signed');
+  perform pg_temp.chk('(part 4) approver approves the draft before converting', v in ('approved', 'no part 4'), v);
   v := pg_temp.probe(adm, $q$select hb_convert_to_signed((select id from handbook_policies where slug = 'hbt-signed'), null, 'Needs signing', true) ->> 'notified'$q$);
   perform pg_temp.chk('converting a draft emails nobody yet', v = '0', v);
   perform pg_temp.chk('converted draft is signed',
@@ -220,6 +241,8 @@ begin
   select v1.id into v_ver from handbook_versions v1 join handbook_policies p on p.id = v1.policy_id where p.slug = 'hbt-signed' and v1.version_no = 2;
   v := pg_temp.probe(bk, format($q$select hb_sign(%L, 'x', true)$q$, v_ver));
   perform pg_temp.chk('staff cannot sign a draft', v like 'ERR:%', v);
+  v := pg_temp.approve4('hbt-signed');
+  perform pg_temp.chk('(part 4) approver approves the converted draft', v in ('approved', 'no part 4'), v);
   v := pg_temp.probe(adm, $q$select hb_publish_policy((select id from handbook_policies where slug = 'hbt-signed')) ->> 'notified'$q$);
   perform pg_temp.chk('publishing a signed policy asks every active bookkeeper', v = n_bk::text, v);
 end $$;
