@@ -60,7 +60,7 @@ No. It only records that you sent it. Send the report yourself first.
 
 ### Does the app send staff invitations?
 
-No. On Team → Members, **Email invite** opens a draft in Gmail or your mail app for an admin to send.
+No. Add the person on Team → Members and tell them they're set up; they sign in with Google at the staff sign-in page.
 
 ### Is "Manage access" / Client details access enforced?
 

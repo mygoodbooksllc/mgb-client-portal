@@ -13755,40 +13755,6 @@ function staffAuthFailures(res, emails) {
   return out;
 }
 
-// Shared invite copy for both send paths below. There's no backend to send
-// real email from yet (Phase 3), so both are the honest version of "real"
-// available right now: an actual email the admin reviews and hits send on,
-// rather than a simulated toast that claims to have sent something it didn't.
-function inviteCopyFor(row) {
-  const firstName = firstNameOf(row.name);
-  const subject = "You're set up on the MyGoodBooks client portal";
-  const body =
-    `Hi ${firstName},\n\n` +
-    `You've been added to the MyGoodBooks client portal as a ${row.role}. ` +
-    `Sign in at https://app.mygoodbooks.org with your Google Workspace account (${row.email}) — ` +
-    `click "Sign in with Google" and you're in, nothing else to set up.\n\n` +
-    `Questions, just reply here.`;
-  // The staffer's Settings > Email signature (components/settings/Settings.jsx).
-  const signature = typeof ST_signatureForDrafts === "function" ? ST_signatureForDrafts() : "";
-  return { subject, body: signature ? `${body}\n\n${signature}` : body };
-}
-
-// Gmail's own compose-in-browser URL — opens gmail.com's compose window
-// (in whichever Google account is signed in) directly, sidestepping the OS
-// mail-handler question entirely. Works for anyone signed into Gmail in
-// their browser, which every mygoodbooks.org staffer already is.
-function buildInviteGmailUrl(row) {
-  const { subject, body } = inviteCopyFor(row);
-  const params = new URLSearchParams({
-    view: "cm",
-    fs: "1",
-    to: row.email,
-    su: subject,
-    body,
-  });
-  return `https://mail.google.com/mail/?${params.toString()}`;
-}
-
 // Parses pasted CSV for bulk staff import: email,name,role per line, with an
 // optional header row (detected by its first field not being an email) and
 // blank lines skipped. Deliberately tiny — no quoted-field/embedded-comma
@@ -14538,7 +14504,6 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                   {isInternalOwner && <th>MGB (internal)</th>}
                   <th></th>
                   <th></th>
-                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -14751,20 +14716,6 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                           <OFF_OffboardButton row={row} staffRows={rows} onDone={load} disabled={busy} />
                         )}
                         </div>
-                      </td>
-                      <td data-label="">
-                        {!isSelf && !readOnly && (
-                          <div className="staff-invite-links">
-                            <a
-                              className="btn-secondary staff-invite-btn"
-                              href={buildInviteGmailUrl(row)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              Email invite
-                            </a>
-                          </div>
-                        )}
                       </td>
                       <td className="row-remove-cell">
                         {isSelf ? (

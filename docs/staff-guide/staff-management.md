@@ -2,7 +2,7 @@
 title: How do I add staff and manage their access?
 section: Admin
 audience: admin
-keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster, account manager, payroll, payroll add-on, payroll tab, portal logins, invite, resend invite, fix sign-in, can't sign in, sign-in account, signup disabled, signups not allowed, new sign-ups off]
+keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, client roster, account manager, payroll, payroll add-on, payroll tab, portal logins, invite, resend invite, fix sign-in, can't sign in, sign-in account, signup disabled, signups not allowed, new sign-ups off]
 sort: 510
 ---
 The **Members** tab of **Team** (the left rail → **Team** → **Members**, or `#/team/members`) controls who can sign in and with what role.
@@ -31,7 +31,7 @@ Each fix shows in **Developer tools → Recent activity** as "set up Google sign
 
 Why there's no automatic fix in the database: sign-in accounts can only be made safely by Supabase's own sign-in service, not by a database rule. So the page checks for anyone missing one and gives you the button instead.
 
-The app doesn't send invitations. **Email invite** opens a pre-filled draft in Gmail for you to send yourself.
+The app doesn't send invitations, and there's no invite button. Once someone is on the roster and active, they just sign in with their Google account at the staff sign-in page. Tell them they're set up.
 
 ### The Staff roster
 
