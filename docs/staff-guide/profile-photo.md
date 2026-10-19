@@ -17,7 +17,7 @@ The first time you sign in (or the first time after this launched), a full-page 
 
 A good photo is a clear, recent shot of your face and shoulders, looking at the camera in good light. No sunglasses, hats, filters or group photos. **Any background is fine**: an admin removes it later so every photo matches.
 
-You can click **Settings** or **Sign out** on that screen at any time. If you're busy, click **Later** to keep working. The screen comes back every time you open the portal (or sign in again) until your photo is saved, so it can't be forgotten. If the upload fails, click **Try again**, or **Later**.
+It appears as a popup. If you're busy, click **Later**, press **Esc**, or click anywhere beside the popup to close it and keep working. It pops up again every time you open the portal (or sign in again) until your photo is saved, so it can't be forgotten. If the upload fails, click **Try again**, or **Later**.
 
 ### What the photo needs
 

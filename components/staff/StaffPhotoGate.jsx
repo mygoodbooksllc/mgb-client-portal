@@ -505,11 +505,17 @@ function PG_Gate({ staffUser, impersonating, isPreviewingUser, page, onOpenSetti
 
   if (!show) return null;
 
-  // Esc does nothing. Tab stays inside the gate.
+  // Esc and a click beside the card both act like "Later" (not mid-save).
+  // Tab stays inside the popup.
+  const closeLater = () => {
+    if (rootRef.current && rootRef.current.querySelector(".pg-saving")) return;
+    later();
+  };
   const onKeyDown = (e) => {
     if (e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
+      closeLater();
       return;
     }
     if (e.key !== "Tab" || !rootRef.current) return;
@@ -530,20 +536,7 @@ function PG_Gate({ staffUser, impersonating, isPreviewingUser, page, onOpenSetti
 
   const newHire = !!data.is_new_hire;
   return (
-    <div id="pg-gate" className="pg-gate" role="dialog" aria-modal="true" aria-labelledby="pg-gate-title" ref={rootRef} onKeyDown={onKeyDown}>
-      <header className="pg-head">
-        <span className="pg-wordmark">
-          My<span className="pg-wordmark-good">Good</span>Books
-        </span>
-        <div className="pg-head-actions">
-          <button type="button" className="btn-secondary pg-head-btn" onClick={onOpenSettings}>
-            Settings
-          </button>
-          <button type="button" className="btn-secondary pg-head-btn" onClick={onSignOut}>
-            Sign out
-          </button>
-        </div>
-      </header>
+    <div id="pg-gate" className="pg-gate" role="dialog" aria-modal="true" aria-labelledby="pg-gate-title" ref={rootRef} onKeyDown={onKeyDown} onMouseDown={(e) => { if (e.target === e.currentTarget || e.target.classList.contains("pg-main")) closeLater(); }}>
       <main className="pg-main">
         <div className="pg-card">
           <h1 id="pg-gate-title" className="pg-title" tabIndex={-1} ref={titleRef}>
@@ -569,7 +562,7 @@ function PG_Gate({ staffUser, impersonating, isPreviewingUser, page, onOpenSetti
             <button type="button" className="btn-secondary pg-btn" onClick={later}>
               Later
             </button>
-            <span className="pg-later-note">This screen comes back every time you open the portal until your photo is saved.</span>
+            <span className="pg-later-note">This pops up each time you open the portal until your photo is saved.</span>
           </p>
         </div>
       </main>
