@@ -2,7 +2,7 @@
 title: How do I use the Desk?
 section: Getting started
 audience: staff
-keywords: [workbench, desk, tasks open in the desk, task in the desk, back to desk, back button, f6, move between desk and page, esc goes back, drill in, slate, the desk, slate tab, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, right column, right side, rail, desk rail, info bar, bottom bar, clean slate, late, done today, next up, qbo sync, chat bubble, messages icon, mentions, press d, d key, w key, resize, resize the desk, desk width, wider, narrower, drag the left edge, page stays usable, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
+keywords: [workbench, desk, tasks open in the desk, task in the desk, back to desk, back button, f6, move between desk and page, esc goes back, drill in, slate, the desk, slate tab, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, right column, right side, rail, desk rail, info bar, bottom bar, right now, right now card, glance, waiting counts, page client, oldest wait, clean slate, late, done today, next up, qbo sync, chat bubble, messages icon, mentions, press d, d key, w key, resize, resize the desk, desk width, wider, narrower, drag the left edge, page stays usable, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
 sort: 41
 ---
 The **Desk** (it was called the Workbench) sits on the right of every staff page, with an info bar along the bottom. Press **D** anywhere to open it (**W** no longer does): one list of everything that needs you, in order, with tabs for your **Inbox**, your **Slate** (it was called Tasks) and one **Client**. The same ordered list is on **Today** (the first place in the left rail; the address stays `#/today`) in a card called **Needs you**, and Today keeps its name.
@@ -10,6 +10,8 @@ The **Desk** (it was called the Workbench) sits on the right of every staff page
 The owner turns the Desk and the new Today on for the whole team. Until then Today looks as it always has. See [What's on my Today page?](#/help/home-page).
 
 ### The four tiles
+
+With the Desk on, Today drops these four tiles: the Desk's bar and rail already carry the counts, and the filter buttons above the list keep theirs. With the Desk off they work like this:
 
 - **Needs reply**: client messages where the client wrote last and nobody on our side has answered. Click it to show only messages.
 - **Due today**: items due today. Click it to jump to the Today group.
@@ -48,8 +50,19 @@ Items also leave by themselves when the work is done: you reply, finish or appro
 The Desk has three parts:
 
 - **The info bar** along the bottom of every staff page. It shows how many of your tasks are **late** (in red), how many of today's you've done (**5 of 8 today**), your next task and its client, and **D to open/close**. On a client's pages it also shows that client's open tasks, how many are waiting on the client, and when QuickBooks last synced (with a red dot when the sync is old or failed). When you have nothing late or due today it says **Clean slate**. The bar is for reading: a click anywhere on it opens or closes the Desk.
-- **The rail**, a slim strip on the right while the Desk is closed. It shows four counts only: **messages**, **reviews**, **files** and **mentions**. Point at one (or Tab to it) to see the latest few. Click it to open them: **messages** opens the chat drawer (on a client's page, already on that client), **mentions** opens the bell menu, and **reviews** and **files** open the Desk's Inbox on that filter. Up and down arrows move between the icons and **Enter** opens one. The **+** at the foot is the same quick add as the **+** in the top bar.
+- **The rail**, a slim strip on the right while the Desk is closed. It shows four counts only: **messages**, **reviews**, **files** and **mentions**. Point at one (or Tab to it) to see the latest few. Click it to open them: **messages** opens the chat drawer (on a client's page, already on that client), **mentions** opens the bell menu, and **reviews** and **files** open the Desk's Inbox on that filter. Each line in the flyout says who, what and how long it has waited (**Acme: Question · 3h**), with **+2 more** when there are more than three. Up and down arrows move between the icons, **Enter** opens one and **Esc** hides the flyout. The **+** at the foot is the quick add (task, note, document request, message); on a computer it replaces the **+** in the top bar while the Desk is on.
 - **The column**: click the bar, click the rail or press **D**, and the rail widens into the Desk, in the same color as the left menu. Its **Inbox** tab has filters (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the Needs you list on Today. **Open Today** goes to Today. **D** closes it, and so does **Esc** while you're working inside it; it goes back to the rail and you're back where you were.
+
+### Right now, at the top of the open Desk
+
+The open Desk starts with two things above its tabs (they hide while a task shows):
+
+- **Waiting counts**: the same messages, reviews, files and mentions the rail shows while it's closed, only the ones with something waiting. Click **messages**, **reviews** or **files** to filter the Inbox tab to them; **mentions** opens the bell menu.
+- **Right now**: a card about the page you're on. On a client's page it shows your open tasks for that client (and how many are late, with a red dot), messages to answer and how long the oldest has waited, questions waiting on the client, a month close problem if there is one, and when QuickBooks last synced. Click the tasks line to open the Desk's **Client** tab, or the messages line to answer in the chat drawer. On **Inbox** it shows how many items wait on you and the oldest message. On other pages there is no card.
+
+The card uses what the page has already loaded, so it adds no wait. On a short window (under about 640 pixels tall) only the counts show, to leave room for the list.
+
+**With the Desk on, the top bar has less on it.** The **Slate** button is a plain link to Slate (your late and today counts are in the Desk bar), and on a computer the top bar's **+** steps aside for the rail's **+**. On a phone the top bar keeps its **+**. Turn the Desk off and the top bar, Today's tiles and the rest come back as they were.
 
 **The chat bubble steps aside while the Desk is on** (on a computer). The rail's messages icon opens the same chat drawer. On a phone the bubble stays, just above the bar.
 

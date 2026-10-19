@@ -299,11 +299,64 @@ function WB_HubTabs({ tab, onPick, counts }) {
 // (dock only): { show, w, min, max, valueText, onPointerDown, onPointerMove,
 // onPointerUp, onPointerCancel, onLostPointerCapture, onKeyDown } from
 // WB_Drawer's width drag.
+// R3 (decision 28): the open Desk's glance strip, the counts the rail shows
+// while closed (the rail goes away while open). Only items with a count.
+var WB_GLANCE_ITEMS = [
+  { id: "message", one: "message", many: "messages" },
+  { id: "review", one: "review", many: "reviews" },
+  { id: "doc", one: "file", many: "files" },
+  { id: "mention", one: "mention", many: "mentions" },
+];
+function WB_HubGlance({ counts, onPick }) {
+  const c = counts || {};
+  return (
+    <div className="wb-glance" role="group" aria-label="Waiting on you" data-tour="wb-glance">
+      {WB_GLANCE_ITEMS.filter((g) => c[g.id] > 0).map((g) => {
+        const n = c[g.id];
+        const word = n === 1 ? g.one : g.many;
+        return (
+          <button key={g.id} type="button" className="wb-glance-btn" aria-label={n + " " + word + " waiting"} onClick={() => onPick && onPick(g.id)}>
+            {typeof WB__RailIcon === "function" && <WB__RailIcon id={g.id} />}
+            <span className="wb-glance-n">{n > 99 ? "99+" : n}</span>
+            <span className="wb-glance-word">{word}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// R3 (decision 18): the "Right now" card, from WB_deskContext. Parts with a
+// go are links (go: "client" opens the Client tab, "messages" the chat).
+function WB_RightNow({ ctx, onGo }) {
+  if (!ctx) return null;
+  return (
+    <section className={"wb-rightnow is-" + ctx.kind} aria-label={"Right now: " + ctx.title} data-tour="wb-rightnow">
+      <h3 className="wb-rightnow-head">
+        <span className="wb-rightnow-label">Right now</span> <span className="wb-rightnow-title">{ctx.title}</span>
+      </h3>
+      <ul className="wb-rightnow-parts">
+        {ctx.parts.map((p) => (
+          <li key={p.key} className={"wb-rightnow-part" + (p.bad ? " is-bad" : "")}>
+            {p.go ? (
+              <button type="button" className="wb-rightnow-go" onClick={() => onGo && onGo(p.go)}>
+                {p.text}
+              </button>
+            ) : (
+              p.text
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 // R2 (spec 5.3): drill (the stack; its last item is the task showing),
 // deskRef, onDrillStep(step), onCloseTask(), and staffUser plus the template
 // props for TK_DrawerContent. While a task shows, the head, tabs, chips and
 // list panes are hidden (the panes stay mounted; their scroll comes back).
-function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle, drill, deskRef, onDrillStep, onCloseTask, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates }) {
+function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle, drill, deskRef, onDrillStep, onCloseTask, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates, glance, onGlancePick, rightNow, onRightNowGo }) {
   const dock = mode !== "sheet";
   const hub = s.hub;
   const tab = hub.tab;
@@ -374,6 +427,18 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
     const el = bodyRef.current;
     if (el) el.scrollTop = hub.scroll[tab] || 0;
   }, [tab, paneReady, taskView]);
+  // R3: the glance strip and the "Right now" card fill by the column's
+  // length (WB_deskFill; the window height, the column is full height).
+  const [winH, setWinH] = React.useState(() => (typeof window !== "undefined" ? window.innerHeight : 0));
+  React.useEffect(() => {
+    const onResize = () => setWinH(window.innerHeight);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const glanceN = glance || {};
+  const glanceAny = WB_GLANCE_ITEMS.some((g) => glanceN[g.id] > 0);
+  const extras = WB_deskFill({ tier: WB_deskTier(winH), ctx: { glance: glanceAny, rightNow: !!rightNow } });
+
   const onScroll = (e) => {
     if (restored.current !== tab) return;
     const patch = { scroll: { [tab]: e.currentTarget.scrollTop } };
@@ -429,6 +494,17 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
             ×
           </button>
         </div>
+        {!taskView && extras.length > 0 && (
+          <div className="wb-desk-extras">
+            {extras.map((id) =>
+              id === "glance" ? (
+                <WB_HubGlance key="glance" counts={glanceN} onPick={onGlancePick} />
+              ) : id === "rightNow" ? (
+                <WB_RightNow key="rightNow" ctx={rightNow} onGo={onRightNowGo} />
+              ) : null,
+            )}
+          </div>
+        )}
         {!taskView && <WB_HubTabs tab={tab} onPick={setTab} counts={{ inbox: count, tasks: tasksCount }} />}
         {taskView && (
           <div

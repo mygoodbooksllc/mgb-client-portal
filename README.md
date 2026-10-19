@@ -2073,6 +2073,35 @@ Team Reviews files.
     `TK_store` deskTask. Upkeep: announcement `desk-task-view`, tour targets `wb-taskview`, `wb-back`,
     Usage Stats `wb-drill`, Settings shortcut text for `t` and F6, guide `workbench`, `task-details`,
     `my-tasks`, `task-lists-and-projects`, `client-tasks-drawer`, `tips`, `whats-new`, MGB_VERSION `2026-10-19h`.
+- **Desk R3: the open Desk follows the page, 2026-10-19i** (spec `docs/desk-right-spec.md` decisions 18,
+  19, 28 and section 8; client only, no SQL, no edge functions; still off until `wb_enabled`).
+  - **Glance strip and Right now:** `WB_Hub.jsx` shows `div.wb-desk-extras` between the head and the tabs
+    (hidden in the task view): `WB_HubGlance` (`data-tour="wb-glance"`, the rail's four counts as buttons,
+    count > 0 only; messages, reviews and files set the Inbox chip, mentions open the bell) and
+    `WB_RightNow` (`data-tour="wb-rightnow"`). The card comes from pure `WB_deskContext(route, ctx)`
+    (`WB_logic.js`): on a client page my open tasks (late marked), messages to answer with the oldest
+    wait, questions waiting on the client, the month close label, the QuickBooks sync; on `inbox` the
+    items waiting and the oldest message; elsewhere null. `WB_Drawer.jsx` builds it from
+    `clientCounts` (`useClientTabCounts`) and `pageClient`, no new fetch. The tasks line opens the Client
+    tab, the messages line the chat.
+  - **Fill rule:** `WB_DESK_ITEMS` + `WB_deskFill({items, prefs, tier, ctx})` (budgets short 1, medium 3,
+    tall 6; first items ahead, off and too-tall items skipped) with `WB_deskTier(window height)`. The
+    length grip of decision 7 is dropped: the column is full height (decision 26). `prefs` is the R4
+    gear's shape; nothing writes it yet.
+  - **Closed layout (logic only):** `WB_deskClosedShow(choice, mode)` for the R4 gear's When closed
+    (both, rail only, bar only, neither; phones always keep the bar). No UI until R4.
+  - **Rail:** flyout lines are `WB_railLine` (who, subject, wait) plus a `+N more` line.
+  - **Replaced shortcuts (decision 28, each guarded so the Desk off is the classic app):** `TB_StaffTopBar`
+    takes `deskOn` (`wbDeskOn`) and `deskDocked` (`wbDeskLive`). Desk on: the Slate pill is
+    `TB_SlateLink` (an `<a>` to `#/tasks/my`, no counts). Docked: no top-bar `TB_QuickAdd` (the rail's +
+    has the same menu; phones keep the top-bar +). `TD_TodayPage` passes `deskOn` to `WB_Page`, which
+    drops its four `wb-tiles`. `TD_RecentCard` stays until L1 recents ship.
+  - Tests: `WB_logic.test.js` (`WB_railLine`, `WB_deskContext`, `WB_deskTier`, `WB_deskFill`,
+    `WB_deskClosedShow`), `announcementsLogic.test.js`. Upkeep: announcement `desk-right-now`, tour
+    targets `wb-glance`, `wb-rightnow`, `tb-quick` steps and the `tk-quick-plain` tip fall back to
+    `wb-rail-add`, the `workbench-launch` tiles step skips while the Desk is on, Usage Stats `wb-glance`,
+    `wb-rightnow`, guide `workbench`, `home-page`, `quick-actions`, `my-tasks`, `whats-new`, MGB_VERSION
+    `2026-10-19i`.
 - **Task pane split + field grid (R0/T3), 2026-10-19c** (spec `docs/desk-right-spec.md` §10): client
   only, no SQL, no edge functions. R0: `TK_DrawerContent.jsx` is the task pane body (state, fetch,
   x/s/a/? keys, the delete/send back/keys modals) with `mode` `"drawer"` or `"embedded"`, `scopeRef`

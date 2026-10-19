@@ -7,7 +7,7 @@ sort: 40
 ---
 **Today** is your starting point: one list of everything waiting on you across every client you can see, most urgent first. It's the first of the five places in the left rail (**Today**, **Inbox**, **Work**, **Clients**, **Team**), and it opens when you sign in unless you picked another start page in [Settings](#/help/staff-settings).
 
-**New Today and the Desk:** once the owner turns them on, the tiles and the **Needs you** list below are replaced by one list of your tasks, reviews, client messages, Ledger flags and new client files, with **Snooze**, **No reply needed** and **Mark checked**, and the Desk on the right of every page, with an info bar along the bottom (press **D**). The greeting and **Also show** stay. See [How do I use the Desk?](#/help/workbench).
+**New Today and the Desk:** once the owner turns them on, the tiles and the **Needs you** list below are replaced by one list of your tasks, reviews, client messages, Ledger flags and new client files, with **Snooze**, **No reply needed** and **Mark checked**, and the Desk on the right of every page, with an info bar along the bottom (press **D**). The greeting and **Also show** stay. While the Desk is on, Today has no number tiles at the top: the Desk's bar and rail carry those counts, and the filter buttons above the list keep theirs. See [How do I use the Desk?](#/help/workbench).
 
 ### The top of the page
 

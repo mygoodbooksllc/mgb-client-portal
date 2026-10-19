@@ -60,6 +60,8 @@
 //   tb-avatar        the top-right avatar menu (Settings, Sign out; TopBar.jsx)
 //   tb-search        the ⌘K search box (components/staff/TopBar.jsx)
 //   tb-quick         the "+" menu (TopBar.jsx), on every staff page
+//                    (hidden while the Desk rail shows; wb-rail-add is its + then)
+//   wb-glance, wb-rightnow  the open Desk's counts and "Right now" card (WB_Hub.jsx, Desk R3)
 //   tb-help          the "?" menu (components/staff/TopBar.jsx)
 //   clients-filters  Mine / All / Needs attention (components/staff/ClientsPage.jsx)
 //   inbox-list       Inbox's list of conversations (components/inbox/StaffInbox.jsx)
@@ -1038,7 +1040,8 @@ function TOUR_bookkeeperSteps(ctx) {
       id: "quick",
       when: (c) => !!c.myClient,
       go: openClient,
-      targets: ["tb-quick"],
+      // The Desk rail's + while the Desk is docked (the top-bar + steps aside, Desk R3).
+      targets: ["tb-quick", "wb-rail-add"],
       title: "Add something for this client",
       body: () => "With a client open, the + button adds a New task, a New note or a Request document for them, or starts a Message. In a new task, plain words work: for Sierra, re Example Church, by Friday.",
     },

@@ -1083,7 +1083,7 @@ function TD_useCelebrations(admin, today) {
   return { rows: admin ? rows : [], act };
 }
 
-function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMilestone, isAdmin, impersonating }) {
+function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMilestone, isAdmin, impersonating, deskOn }) {
   const showToast = useToast();
   // Workbench (components/workbench/): when it's on, its list and tiles take
   // the place of "Needs you" and the old tiles. Off, or while viewing as
@@ -1575,7 +1575,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
           </button>
         </p>
       )}
-      {wbOn ? <WB_Page me={me} isAdmin={!!(staffUser && staffUser.role === "admin")} td={rows} fallback={classicBody()} /> : classicBody()}
+      {wbOn ? <WB_Page me={me} isAdmin={!!(staffUser && staffUser.role === "admin")} td={rows} fallback={classicBody()} deskOn={!!deskOn} /> : classicBody()}
 
       <div className="td-cards-bar">
         <span className="td-cards-label" id="td-cards-label">

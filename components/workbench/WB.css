@@ -871,6 +871,9 @@ html.wb-drawer-on .chat-fab-wrap {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.wb-rail-tip-more {
+  color: var(--sidebar-text-muted);
+}
 .wb-rail-gap {
   flex: 1 1 auto;
   width: 100%;
@@ -967,6 +970,7 @@ html.wb-desk-dragging .wb-panel {
   overscroll-behavior: contain;
 }
 .wb-panel-head,
+.wb-desk-extras,
 .wb-panel-tools,
 .wb-panel-body,
 .wb-panel-foot {
@@ -1321,6 +1325,7 @@ html.wb-hub-open .si-drawer-layer {
     background: var(--surface);
   }
   .wb-panel-head,
+  .wb-desk-extras,
   .wb-panel-tools,
   .wb-panel-body,
   .wb-panel-foot {
@@ -1608,4 +1613,122 @@ html.wb-hub-open .si-drawer-layer {
 /* Keyboard hints under the task view mean nothing on a phone. */
 @media (max-width: 760px) {
   .wb-panel-foot.wb-taskview-keys { display: none; }
+}
+
+/* ---- R3: the open Desk's glance strip and "Right now" card ----
+   Between the head and the tabs, hidden while a task shows. Panel tokens
+   (inside .wb-glass they map to the sidebar colors). No motion. */
+.wb-desk-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+.wb-glance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wb-glance-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 2px 10px 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.wb-glance-btn svg {
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
+}
+.wb-glance-btn:hover {
+  background: var(--desk-row-bg-hover, var(--surface-2));
+}
+.wb-glance-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+.wb-glance-n {
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.wb-glance-word {
+  color: var(--text-muted);
+}
+.wb-rightnow {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: 8px;
+  background: var(--desk-row-bg, var(--surface-2));
+}
+.wb-rightnow-head {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-rightnow-label {
+  margin-right: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.wb-rightnow-parts {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.wb-rightnow-part + .wb-rightnow-part::before {
+  content: "·";
+  margin: 0 6px;
+  color: var(--text-muted);
+}
+/* Late or stale: a red dot paired with the words (never color alone). */
+.wb-rightnow-part.is-bad::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--bad);
+  vertical-align: 1px;
+}
+.wb-rightnow-go {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--text-muted);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.wb-rightnow-go:hover {
+  color: var(--ink-strong);
+  text-decoration-color: var(--gold);
+}
+.wb-rightnow-go:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+  border-radius: 2px;
 }

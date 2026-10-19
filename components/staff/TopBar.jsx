@@ -1158,7 +1158,18 @@ function TB_Bell({ clients, items, me, isAdmin, page }) {
 // 5. Tasks badge (opens the open client's tasks panel when a client is open,
 // else My Tasks: #/tasks/my, or Work › Tasks before the Tasks tables exist).
 // The counts stay "mine" either way.
+// With the Desk on (deskOn, Desk R3, decision 28) the counts live in the Desk
+// (its bar and rail), so the pill is a plain link to Slate, no counts.
 // ---------------------------------------------------------------------------
+function TB_SlateLink() {
+  const href = typeof TK_App === "function" && TB_tkSchemaOk() ? "#/tasks/my" : "#/work/tasks";
+  return (
+    <a className="tb-item tb-pill-btn tb-tasks is-link" href={href} title="Open Slate">
+      <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
+      <span className="tb-tasks-label">Slate</span>
+    </a>
+  );
+}
 function TB_TasksBadge({ items, me, client }) {
   const today = todayLocal();
   // TK_ClientDrawerHost may mount after this renders: follow its state event.
@@ -1650,6 +1661,8 @@ function TB_StaffTopBar({
   previewPlan, // Preview plan (staff, this browser); undefined when not offered
   actualPlan,
   onPreviewPlan, // null on staff pages and during "View as"
+  deskOn, // Desk R3: the Desk is on in any mode (the Slate pill drops its counts)
+  deskDocked, // Desk R3: the Desk's rail is showing (its + replaces the top-bar +)
 }) {
   const me = realStaffUser ? realStaffUser.email : "";
   // Work, the Inbox and the bell are the signed-in person's own and aren't
@@ -1700,8 +1713,8 @@ function TB_StaffTopBar({
       <div className="tb-right">
         {isRealAdmin && own && <TB_ThrottleBadge />}
         {own && <TB_Bell clients={typeof window.mgbRealClients === "function" ? window.mgbRealClients(clients) : clients} items={items} me={me} isAdmin={isAdmin} page={page} />}
-        {own && <TB_TasksBadge items={items} me={me} client={client} />}
-        <TB_QuickAdd client={client} />
+        {own && (deskOn ? <TB_SlateLink /> : <TB_TasksBadge items={items} me={me} client={client} />)}
+        {!deskDocked && <TB_QuickAdd client={client} />}
         <TB_HelpButton page={page} isAdmin={isAdmin} />
         {typeof FB_FeedbackHost === "function" && <FB_FeedbackHost clientId={client ? client.id : null} />}
         <TB_AvatarMenu

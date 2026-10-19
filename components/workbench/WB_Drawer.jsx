@@ -343,6 +343,7 @@ function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
                   {l}
                 </span>
               ))}
+              {ls.length > 3 && <span className="wb-rail-tip-more">{"+" + (ls.length - 3) + " more"}</span>}
             </div>
           </div>
         );
@@ -885,10 +886,10 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   // files, mentions; nothing else).
   const unseenMentions = mentions.filter((m) => m && m.unseen);
   const railCounts = WB_railCounts({ counts: allView.counts, mentions: unseenMentions.length });
-  const lineOf = (r) => (r.client_name ? r.client_name + ": " : "") + (r.title || "");
+  // Who, subject and the wait (decision 19), e.g. "Acme: Question · 3h".
   const rowsOf = (c) => {
     const out = [];
-    allView.groups.forEach((g) => g.rows.forEach((r) => WB_chipOf(r) === c && out.push(lineOf(r))));
+    allView.groups.forEach((g) => g.rows.forEach((r) => WB_chipOf(r) === c && out.push(WB_railLine(r, now))));
     return out;
   };
   const railLines = {
@@ -954,6 +955,48 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
         ago,
       })
     : null;
+  // ---- The open Desk's "Right now" card (R3, decision 18): the page's
+  // context from what the page already loaded (no new fetch).
+  let inboxOldest = null;
+  allView.groups.forEach((g) =>
+    g.rows.forEach((r) => {
+      if (WB_chipOf(r) !== "message" || !r.waiting_since) return;
+      if (!inboxOldest || String(r.waiting_since) < inboxOldest) inboxOldest = String(r.waiting_since);
+    }),
+  );
+  const rightNow = WB_deskContext(
+    { page, clientName: pageClient ? pageClient.name : "" },
+    {
+      counts: cc,
+      qbo: !!(pageClient && pageClient.qbo),
+      syncedAt: pageClient ? pageClient.lastSyncedAt || null : null,
+      staleHours: pageClient ? pageClient.staleHours : null,
+      ago,
+      now,
+      inbox: { count: allView.counts.all, messages: allView.counts.message, oldestAt: inboxOldest },
+    },
+  );
+  const onRightNowGo = (go) => {
+    WB_track("wb-rightnow", go);
+    if (go === "client") {
+      WB_store.setHub({ tab: "client" });
+      return;
+    }
+    if (go === "messages") {
+      if (WB__openChat(chatClientId || null)) return;
+      WB_store.setHub({ tab: "inbox", chip: "message" });
+    }
+  };
+  const onGlancePick = (id) => {
+    WB_track("wb-glance", id);
+    if (id === "mention") {
+      onRailPick(id);
+      return;
+    }
+    // Messages, reviews and files filter the Desk's own inbox (it is open).
+    WB_store.setHub({ tab: "inbox", chip: id });
+  };
+
   const empty = !loading && progress.empty && !next;
   const barSummary = [
     loading ? "Loading" : "",
@@ -1054,6 +1097,10 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
           canManageTemplates={canManageTemplates}
           canCreateTemplates={canCreateTemplates}
           onOpenTemplates={onOpenTemplates}
+          glance={railCounts}
+          onGlancePick={onGlancePick}
+          rightNow={rightNow}
+          onRightNowGo={onRightNowGo}
         />
       )}
     </>

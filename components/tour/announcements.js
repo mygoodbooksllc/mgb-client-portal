@@ -65,6 +65,46 @@ function ANN_inReviews() {
 
 var ANN_REGISTRY = [
   {
+    id: "desk-right-now",
+    date: "2026-10-19",
+    title: "Right now, at the top of the Desk",
+    summary:
+      "The open Desk now starts with your waiting counts and, on a client's page, a Right now card: open tasks, messages to answer, QuickBooks sync. With the Desk on, the top bar's + and Slate counts step aside.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/today",
+    // Only for people who have the Desk on.
+    ready: () => ANN_deskOn(),
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "The Desk follows the page",
+        body: () =>
+          "When you open the Desk, its top now shows what is waiting on you and what matters on the page you are on. About a minute.",
+      },
+      {
+        id: "ann-rightnow",
+        when: (c) => !!(c && c.myClient),
+        go: () => {
+          try {
+            if (typeof TOUR_openClient === "function" && ctx && ctx.myClient) TOUR_openClient(ctx.myClient.id, "overview")();
+            if (typeof WB_store !== "undefined" && !WB_store.getState().drawerOpen) WB_store.setDrawerOpen(true, "tour");
+          } catch (e) {}
+        },
+        targets: ["wb-rightnow", "wb-glance"],
+        wait: true,
+        title: "Right now",
+        body: () =>
+          "On a client's page the Desk shows a Right now card: your open tasks (late ones marked), messages to answer and the oldest wait, questions waiting on the client, a month close problem and the QuickBooks sync. Click the tasks line for the Client tab, or the messages line to answer. On Inbox it shows what waits on you. Above it, the counts the rail shows while closed; click one to filter.",
+      },
+      {
+        id: "ann-topbar",
+        title: "Fewer duplicates at the top",
+        body: () =>
+          "With the Desk on, the top bar's Slate button is a plain link to Slate (your counts are in the Desk bar), the top bar's + moves to the foot of the rail on a computer, and Today drops its four number tiles (the filter buttons keep their counts). Turn the Desk off and they all come back.",
+      },
+    ],
+  },
+  {
     id: "desk-task-view",
     date: "2026-10-19",
     title: "Tasks open in the Desk",
@@ -557,7 +597,7 @@ var ANN_REGISTRY = [
       },
       {
         id: "ann-quick",
-        targets: ["tb-quick"],
+        targets: ["tb-quick", "wb-rail-add"],
         wait: true,
         title: "Try it from the + button",
         body: () =>
@@ -596,7 +636,8 @@ var ANN_REGISTRY = [
         },
         {
           id: "ann-tiles",
-          when: on,
+          // The tiles step aside while the Desk is on (Desk R3).
+          when: () => on() && !ANN_deskOn(),
           go: goToday,
           targets: ["wb-tiles"],
           wait: true,

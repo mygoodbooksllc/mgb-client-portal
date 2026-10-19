@@ -18,6 +18,8 @@ On a staff page with no client open (Today, Work, Team and so on), **+** says **
 
 The **+** button is on phones too, next to the bell at the top of the screen.
 
+With the Desk on, on a computer, the **+** sits at the foot of the Desk's rail on the right instead of in the top bar. It's the same menu, for the client you have open. See [How do I use the Desk?](#/help/workbench).
+
 ### New task
 
 The **Add a task** box opens. Type the task in one line, the way you would say it, for example *Send the payroll summary for Sierra re Example Church by Friday*. The portal picks out who, which client and when, and shows it on a **Will add** line under the box before you save anything.
@@ -54,5 +56,5 @@ The small **Staff** bar that used to sit at the top of every client page (Overvi
 ### Troubleshooting
 
 - **"Couldn't save that. Please try again."** Check your connection and try again. If it keeps happening, tell an admin.
-- **I don't see the + button.** The whole top bar is hidden while you use **Preview as** to look at the portal as a client user, and **+** hides in a very narrow window. Press **q** to add a task.
+- **I don't see the + button.** The whole top bar is hidden while you use **Preview as** to look at the portal as a client user, and **+** hides in a very narrow window. With the Desk on, look for **+** at the bottom of the Desk's rail on the right. Press **q** to add a task.
 - **q doesn't do anything.** Click somewhere outside the text box first, and close any open menu or tour.

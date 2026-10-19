@@ -1082,4 +1082,123 @@ t("Info bar client line: tasks, waiting, QuickBooks sync, nothing off a client p
   assert.deepStrictEqual(C({ name: "Acme", loaded: true, tasks: 0, qbo: false }).parts.map((p) => p.key), ["tasks"]);
 });
 
+t("WB_railLine: who, subject and the wait", () => {
+  const now = Date.parse("2026-10-14T17:00:00Z");
+  assert.strictEqual(L.WB_railLine({ client_name: "Acme", title: "Question", waiting_since: "2026-10-14T14:00:00Z" }, now), "Acme: Question · 3h");
+  assert.strictEqual(L.WB_railLine({ client_name: "Acme", title: "Question", waiting_since: "2026-10-11T17:00:00Z" }, now), "Acme: Question · 3 days");
+  assert.strictEqual(L.WB_railLine({ title: "Review" }, now), "Review");
+  assert.strictEqual(L.WB_railLine({ title: "Bad", waiting_since: "nope" }, now), "Bad");
+  assert.strictEqual(L.WB_railLine(null, now), "");
+});
+
+t("WB_deskContext: client page card", () => {
+  const C = L.WB_deskContext;
+  const now = Date.parse("2026-10-14T17:00:00Z");
+  const counts = {
+    loaded: true,
+    error: false,
+    tasks: { mine: 3, overdue: 1 },
+    messages: { count: 2, overdue: 0, oldestWaitAt: "2026-10-12T17:00:00Z" },
+    bank: { waiting: 1 },
+    close: { label: "September close is late", tone: "bad", qbo: "ok" },
+  };
+  const ctx = C({ page: "overview", clientName: " Acme " }, { counts, qbo: true, syncedAt: "2026-10-14T14:00:00Z", staleHours: 26, ago: "3 hours ago", now });
+  assert.deepStrictEqual(ctx, {
+    kind: "client",
+    title: "Acme",
+    parts: [
+      { key: "tasks", text: "3 open tasks, 1 late", bad: true, go: "client" },
+      { key: "messages", text: "2 messages to answer, oldest 2 days", bad: false, go: "messages" },
+      { key: "waiting", text: "1 waiting on the client", bad: false, go: null },
+      { key: "close", text: "September close is late", bad: true, go: null },
+      { key: "qbo", text: "QuickBooks synced 3 hours ago", bad: false, go: null },
+    ],
+  });
+  // Quiet client: no tasks, no messages, nothing waiting, no QuickBooks.
+  const quiet = C({ page: "overview", clientName: "Acme" }, { counts: { loaded: true, tasks: { mine: 0 }, messages: { count: 0 } }, now });
+  assert.deepStrictEqual(quiet.parts.map((p) => p.text), ["No open tasks", "No messages waiting"]);
+  // One task, one late; a message past its SLA is bad.
+  const one = C({ clientName: "Acme" }, { counts: { loaded: true, tasks: { mine: 1, overdue: 1 }, messages: { count: 1, overdue: 1 } }, now });
+  assert.strictEqual(one.parts[0].text, "1 open task, 1 late");
+  assert.strictEqual(one.parts[1].text, "1 message to answer");
+  assert.strictEqual(one.parts[1].bad, true);
+  // Not loaded (or errored): only QuickBooks.
+  assert.deepStrictEqual(C({ clientName: "Acme" }, { counts: { loaded: false }, qbo: true, now }).parts, [{ key: "qbo", text: "QuickBooks hasn't synced yet", bad: false, go: null }]);
+  assert.deepStrictEqual(C({ clientName: "Acme" }, { counts: { loaded: true, error: true }, now }).parts, []);
+  // A broken connection says so once (the close line carries the same words).
+  const broken = C(
+    { clientName: "Acme" },
+    { counts: { loaded: true, tasks: {}, messages: {}, close: { label: "QuickBooks needs reconnecting", tone: "bad", qbo: "error" } }, qbo: true, syncedAt: "2026-10-14T14:00:00Z", now },
+  );
+  assert.deepStrictEqual(broken.parts.filter((p) => /reconnect/.test(p.text)).map((p) => p.key), ["qbo"]);
+  // Stale past the plan's hours.
+  assert.strictEqual(C({ clientName: "Acme" }, { qbo: true, syncedAt: "2026-10-12T09:00:00Z", staleHours: 26, ago: "2 days ago", now }).parts[0].bad, true);
+});
+
+t("WB_deskContext: inbox and elsewhere", () => {
+  const C = L.WB_deskContext;
+  const now = Date.parse("2026-10-14T17:00:00Z");
+  assert.deepStrictEqual(C({ page: "inbox" }, { inbox: { count: 4, messages: 2, oldestAt: "2026-10-14T15:00:00Z" }, now }), {
+    kind: "inbox",
+    title: "Inbox",
+    parts: [
+      { key: "all", text: "4 items waiting on you", bad: false, go: null },
+      { key: "messages", text: "2 messages, oldest 2h", bad: false, go: null },
+    ],
+  });
+  assert.deepStrictEqual(C({ page: "inbox" }, { now }).parts, [{ key: "all", text: "Nothing waiting on you", bad: false, go: null }]);
+  // A client name wins over the page (a client tab is a client page).
+  assert.strictEqual(C({ page: "inbox", clientName: "Acme" }, { now }).kind, "client");
+  assert.strictEqual(C({ page: "today" }, { now }), null);
+  assert.strictEqual(C(null, null), null);
+});
+
+t("WB_deskTier and WB_deskFill: budgets, order, off items, min length", () => {
+  assert.strictEqual(L.WB_deskTier(500), "short");
+  assert.strictEqual(L.WB_deskTier(700), "medium");
+  assert.strictEqual(L.WB_deskTier(900), "tall");
+  assert.strictEqual(L.WB_deskTier(0), "tall");
+  assert.strictEqual(L.WB_deskTier("x"), "tall");
+  const F = L.WB_deskFill;
+  const both = { glance: true, rightNow: true };
+  assert.deepStrictEqual(F({ tier: "tall", ctx: both }), ["glance", "rightNow"]);
+  assert.deepStrictEqual(F({ tier: "medium", ctx: both }), ["glance", "rightNow"]);
+  // Short: one line, the counts only (Right now needs Medium).
+  assert.deepStrictEqual(F({ tier: "short", ctx: both }), ["glance"]);
+  assert.deepStrictEqual(F({ tier: "short", ctx: { rightNow: true } }), []);
+  // Not showing (nothing to count, no context): skipped.
+  assert.deepStrictEqual(F({ tier: "tall", ctx: { rightNow: true } }), ["rightNow"]);
+  assert.deepStrictEqual(F({ tier: "tall", ctx: {} }), []);
+  // Off in prefs; an unknown tier is Tall.
+  assert.deepStrictEqual(F({ tier: "tall", ctx: both, prefs: { on: { rightNow: false } } }), ["glance"]);
+  assert.deepStrictEqual(F({ tier: "huge", ctx: both }), ["glance", "rightNow"]);
+  // Order is honored, but the counts stay first; lines must fit the budget.
+  const items = [
+    { id: "glance", lines: 1, minTier: "short", on: true, first: true },
+    { id: "a", lines: 2, minTier: "short", on: true },
+    { id: "b", lines: 2, minTier: "short", on: true },
+    { id: "c", lines: 1, minTier: "short", on: false },
+  ];
+  const all = { glance: true, a: true, b: true, c: true };
+  assert.deepStrictEqual(F({ items, tier: "medium", ctx: all }), ["glance", "a"]);
+  assert.deepStrictEqual(F({ items, tier: "medium", ctx: all, prefs: { order: ["b", "a", "glance"] } }), ["glance", "b"]);
+  assert.deepStrictEqual(F({ items, tier: "tall", ctx: all, prefs: { on: { c: true } } }), ["glance", "a", "b", "c"]);
+  // Turning one off lets the next one move up.
+  assert.deepStrictEqual(F({ items, tier: "medium", ctx: all, prefs: { on: { a: false } } }), ["glance", "b"]);
+});
+
+t("WB_deskClosedShow: the When closed choices", () => {
+  const S = L.WB_deskClosedShow;
+  assert.deepStrictEqual(S("both", "dock"), { rail: true, bar: true });
+  assert.deepStrictEqual(S(undefined, "dock"), { rail: true, bar: true });
+  assert.deepStrictEqual(S("junk", "dock"), { rail: true, bar: true });
+  assert.deepStrictEqual(S("rail", "dock"), { rail: true, bar: false });
+  assert.deepStrictEqual(S("bar", "dock"), { rail: false, bar: true });
+  assert.deepStrictEqual(S("neither", "dock"), { rail: false, bar: false });
+  // Phones: no rail, and the bar is the only way in.
+  assert.deepStrictEqual(S("neither", "sheet"), { rail: false, bar: true });
+  assert.deepStrictEqual(S("rail", "sheet"), { rail: false, bar: true });
+  assert.deepStrictEqual(L.WB_DESK_CLOSED, ["both", "rail", "bar", "neither"]);
+});
+
 console.log("WB_logic: " + n + " checks passed");

@@ -9,9 +9,11 @@
 //
 // fallback: Today's old tiles and list, shown while wb_inbox isn't live
 // (the rollout safety net).
+// deskOn (Desk R3, decision 28): the Desk's bar and rail carry the counts,
+// so the four count tiles step aside; the chips keep their counts.
 // ----------------------------------------------------------------------------
 
-function WB_Page({ me, isAdmin, td, fallback }) {
+function WB_Page({ me, isAdmin, td, fallback, deskOn }) {
   const s = WB_useStore(me, isAdmin, true);
   const [chip, setChipState] = React.useState("all");
   const [help, setHelp] = React.useState(false);
@@ -53,15 +55,17 @@ function WB_Page({ me, isAdmin, td, fallback }) {
 
   return (
     <>
-      <div className="kpi-grid td-kpis wb-tiles" data-tour="wb-tiles">
-        {tiles.map((x) => (
-          <button type="button" key={x.key} className={"card kpi-card kpi-card-clickable td-kpi td-kpi-" + x.tone} onClick={x.go}>
-            <span className="kpi-label">{x.label}</span>
-            <span className="kpi-value">{loading ? "…" : x.value}</span>
-            <span className="kpi-sub">{x.sub}</span>
-          </button>
-        ))}
-      </div>
+      {!deskOn && (
+        <div className="kpi-grid td-kpis wb-tiles" data-tour="wb-tiles">
+          {tiles.map((x) => (
+            <button type="button" key={x.key} className={"card kpi-card kpi-card-clickable td-kpi td-kpi-" + x.tone} onClick={x.go}>
+              <span className="kpi-label">{x.label}</span>
+              <span className="kpi-value">{loading ? "…" : x.value}</span>
+              <span className="kpi-sub">{x.sub}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       <section className="card wb-card" id="wb-page" aria-labelledby="wb-page-title">
         <div className="wb-card-head">

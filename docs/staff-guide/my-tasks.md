@@ -58,7 +58,7 @@ The quickest way is the **Add task** row at the bottom of **Today**, **This week
 
 Or:
 
-Press **q** on any staff page (not while you're typing in a box), click **Add task**, or use **+** → **New task** in the top bar. The **+** button works with or without a client open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
+Press **q** on any staff page (not while you're typing in a box), click **Add task**, or use **+** → **New task** in the top bar (with the Desk on, the **+** at the foot of its rail). The **+** button works with or without a client open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
 
 Type the task in one line. The portal picks out the details and shows them as chips under the box:
 
@@ -142,8 +142,8 @@ See [How do recurring tasks from templates work?](#/help/task-templates).
 
 ### Elsewhere in the portal
 
-- **Today**'s **Tasks due today** and **Overdue** tiles count your tasks, and due ones show in **Needs you**, where **Done** checks them off.
-- The **Slate** button in the top bar shows how many open tasks you have, with overdue ones in a red number. With a client open, it opens that client's task panel instead.
+- **Today**'s **Tasks due today** and **Overdue** tiles (not shown while the Desk is on) count your tasks, and due ones show in **Needs you**, where **Done** checks them off.
+- The **Slate** button in the top bar shows how many open tasks you have, with overdue ones in a red number. With a client open, it opens that client's task panel instead. With the Desk on it is a plain link to Slate with no numbers: the Desk's bar shows your late tasks and today's progress.
 - Search (**Ctrl+K** / **⌘K**) finds tasks by their name, description and comments. A match inside a comment says *In a comment:*. Click a result to open the task.
 - A client's Overview has a **Tasks for this client** card. See [What's on a client's Overview?](#/help/client-overview).
 

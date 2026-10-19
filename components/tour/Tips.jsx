@@ -447,7 +447,8 @@ const TIPS_CATALOG = [
     id: "tk-quick-plain",
     roles: "all",
     match: (r) => r.page === "tasks",
-    target: "tb-quick",
+    // The top-bar + steps aside while the Desk's rail shows (Desk R3): the rail's + then.
+    target: ["tb-quick", "wb-rail-add"],
     snug: true,
     text: "Add a task in plain words: Send the payroll summary for Sierra re Example Church by Friday. Quick add shows what it understood before you save.",
     slug: "quick-actions",

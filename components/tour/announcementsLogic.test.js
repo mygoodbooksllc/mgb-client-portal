@@ -311,6 +311,22 @@ t("registry: desk-launch waits for the Desk and points at the width grip", () =>
   assert.ok(/\bD\b/.test(steps[1].body()) && !/press W/.test(steps[1].body()));
 });
 
+t("registry: desk-right-now waits for the Desk and tours the Right now card", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "desk-right-now");
+  assert.ok(a && typeof a.ready === "function");
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  assert.strictEqual(L.ANN_ready(a, admin), false);
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-rightnow", "ann-topbar"]);
+  assert.deepStrictEqual(steps[1].targets, ["wb-rightnow", "wb-glance"]);
+  // No client of mine: the card step drops out.
+  assert.strictEqual(steps[1].when({}), false);
+  assert.strictEqual(steps[1].when({ myClient: { id: "c1" } }), true);
+  const text = JSON.stringify(steps.map((x) => x.body()));
+  assert.ok(/Right now/.test(text) && /QuickBooks/.test(text) && !/colour/i.test(text));
+  assert.strictEqual(ANN_REGISTRY[0].id, "desk-right-now");
+});
+
 t("registry: desk-task-view waits for the Desk and is three short steps", () => {
   const a = ANN_REGISTRY.find((x) => x.id === "desk-task-view");
   assert.ok(a && typeof a.ready === "function");

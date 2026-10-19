@@ -1485,6 +1485,172 @@ function WB_railCounts(o) {
   };
 }
 
+// ---- R3: the open Desk's extras --------------------------------------------
+var WB__pos = function (v) {
+  var k = Number(v);
+  return isFinite(k) && k > 0 ? Math.round(k) : 0;
+};
+var WB__s = function (k) {
+  return k === 1 ? "" : "s";
+};
+
+// One rail flyout line (decision 19: who, subject, wait): "Acme: Subject · 3h".
+function WB_railLine(row, now) {
+  var r = row || {};
+  var n = now == null ? Date.now() : Number(now);
+  var head = (r.client_name ? r.client_name + ": " : "") + (r.title || "");
+  var ms = r.waiting_since ? Date.parse(r.waiting_since) : NaN;
+  return isFinite(ms) ? head + " · " + WB__ago(ms, n) : head;
+}
+
+// "Right now" (decision 18): one card at the top of the open Desk whose
+// content follows the page. No new fetch: the client page's tab counts
+// (useClientTabCounts) and the Desk's own rows.
+// route = { page, clientName }. ctx = { counts (the client tab counts), qbo,
+// syncedAt, staleHours, ago ("3 hours ago" for syncedAt), now, inbox:
+// { count, messages, oldestAt } }.
+// Client page: my open tasks (late ones marked), messages to answer with the
+// oldest wait, questions waiting on the client, a month close problem, and
+// the QuickBooks sync. Inbox page: what waits on me and the oldest message.
+// Anywhere else null (no card). Ledger, close-page and task contexts are a
+// later pass.
+function WB_deskContext(route, ctx) {
+  var r = route || {};
+  var x = ctx || {};
+  var now = Number(x.now) || Date.now();
+  var name = String(r.clientName || "").trim();
+  if (name) {
+    var c = x.counts || {};
+    var parts = [];
+    if (c.loaded && !c.error) {
+      var tk = c.tasks || {};
+      var t = WB__pos(tk.mine);
+      var late = Math.min(t, WB__pos(tk.overdue));
+      parts.push({
+        key: "tasks",
+        text: t ? t + " open task" + WB__s(t) + (late ? ", " + late + " late" : "") : "No open tasks",
+        bad: late > 0,
+        go: "client",
+      });
+      var m = c.messages || {};
+      var mc = WB__pos(m.count);
+      var waitMs = m.oldestWaitAt ? Date.parse(m.oldestWaitAt) : NaN;
+      if (mc)
+        parts.push({
+          key: "messages",
+          text: mc + " message" + WB__s(mc) + " to answer" + (isFinite(waitMs) ? ", oldest " + WB__ago(waitMs, now) : ""),
+          bad: WB__pos(m.overdue) > 0,
+          go: "messages",
+        });
+      else parts.push({ key: "messages", text: "No messages waiting", bad: false, go: null });
+      var w = WB__pos(c.bank && c.bank.waiting);
+      if (w) parts.push({ key: "waiting", text: w + " waiting on the client", bad: false, go: null });
+      var cl = c.close || {};
+      if (cl.label && cl.qbo !== "error") parts.push({ key: "close", text: String(cl.label), bad: cl.tone === "bad", go: null });
+    }
+    if (x.qbo) {
+      var qboError = !!(c.close && c.close.qbo === "error");
+      if (qboError) parts.push({ key: "qbo", text: "QuickBooks needs reconnecting", bad: true, go: null });
+      else if (x.syncedAt) {
+        var ms = Date.parse(x.syncedAt);
+        var hrs = isFinite(ms) ? (now - ms) / 36e5 : null;
+        var stale = hrs != null && Number(x.staleHours) > 0 && hrs > Number(x.staleHours);
+        parts.push({ key: "qbo", text: "QuickBooks synced " + (x.ago || "recently"), bad: stale, go: null });
+      } else parts.push({ key: "qbo", text: "QuickBooks hasn't synced yet", bad: false, go: null });
+    }
+    return { kind: "client", title: name, parts: parts };
+  }
+  if (r.page === "inbox") {
+    var ib = x.inbox || {};
+    var all = WB__pos(ib.count);
+    var msgs = WB__pos(ib.messages);
+    var oldMs = ib.oldestAt ? Date.parse(ib.oldestAt) : NaN;
+    var ip = [{ key: "all", text: all ? all + " item" + WB__s(all) + " waiting on you" : "Nothing waiting on you", bad: false, go: null }];
+    if (msgs)
+      ip.push({
+        key: "messages",
+        text: msgs + " message" + WB__s(msgs) + (isFinite(oldMs) ? ", oldest " + WB__ago(oldMs, now) : ""),
+        bad: false,
+        go: null,
+      });
+    return { kind: "inbox", title: "Inbox", parts: ip };
+  }
+  return null;
+}
+
+// The open Desk's glance items (spec 8.1, the open-Desk extras). lines is how
+// much of the length budget an item takes; minTier the shortest length it
+// shows at. first: always placed first (the counts). The key-hint footer is
+// not budgeted (it stays fixed until the R4 gear can turn it off).
+var WB_DESK_TIERS = ["short", "medium", "tall"];
+var WB_DESK_BUDGET = { short: 1, medium: 3, tall: 6 };
+var WB_DESK_ITEMS = [
+  { id: "glance", lines: 1, minTier: "short", on: true, first: true },
+  { id: "rightNow", lines: 2, minTier: "medium", on: true },
+];
+
+// The open column's length tier from its height in px. The column is full
+// height (decision 26), so the length grip is gone; the window decides.
+function WB_deskTier(h) {
+  var v = Number(h);
+  if (!isFinite(v) || v <= 0) return "tall";
+  if (v < 640) return "short";
+  if (v < 820) return "medium";
+  return "tall";
+}
+
+// The fill rule (spec 8.2). prefs = { on: { id: bool }, order: [ids] } (the
+// R4 gear writes it; missing means the defaults). ctx = { id: shows? }.
+// Walk in order (first items ahead), skip off, too-tall-for-the-tier and not
+// showing; add while the lines fit. Returns the ids to render.
+function WB_deskFill(o) {
+  var x = o || {};
+  var items = Array.isArray(x.items) ? x.items : WB_DESK_ITEMS;
+  var prefs = x.prefs || {};
+  var on = prefs.on || {};
+  var order = Array.isArray(prefs.order) ? prefs.order.map(String) : [];
+  var ctx = x.ctx || {};
+  var tier = WB_DESK_TIERS.indexOf(x.tier) >= 0 ? x.tier : "tall";
+  var budget = WB_DESK_BUDGET[tier];
+  var rank = function (it) {
+    var i = order.indexOf(String(it.id));
+    return i < 0 ? order.length + items.indexOf(it) : i;
+  };
+  var list = items
+    .filter(function (it) {
+      return it && it.id;
+    })
+    .slice()
+    .sort(function (a, b) {
+      if (!!a.first !== !!b.first) return a.first ? -1 : 1;
+      return rank(a) - rank(b);
+    });
+  var out = [];
+  var used = 0;
+  list.forEach(function (it) {
+    var isOn = on[it.id] == null ? it.on !== false : !!on[it.id];
+    if (!isOn) return;
+    if (WB_DESK_TIERS.indexOf(it.minTier || "short") > WB_DESK_TIERS.indexOf(tier)) return;
+    if (!ctx[it.id]) return;
+    var lines = Math.max(0, Number(it.lines) || 0);
+    if (used + lines > budget) return;
+    used += lines;
+    out.push(it.id);
+  });
+  return out;
+}
+
+// What shows while the Desk is closed (decision 27; the R4 gear's "When
+// closed": both, rail only, bar only, neither). mode = WB_deskMode's
+// "dock" | "sheet". Phones have no rail, and the bar is their only way in, so
+// it always shows there.
+var WB_DESK_CLOSED = ["both", "rail", "bar", "neither"];
+function WB_deskClosedShow(choice, mode) {
+  var c = WB_DESK_CLOSED.indexOf(choice) >= 0 ? choice : "both";
+  if (mode === "sheet") return { rail: false, bar: true };
+  return { rail: c === "both" || c === "rail", bar: c === "both" || c === "bar" };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     WORKBENCH_NAME: WORKBENCH_NAME,
@@ -1595,6 +1761,15 @@ if (typeof module !== "undefined" && module.exports) {
     WB_railCounts: WB_railCounts,
     WB_doneToday: WB_doneToday,
     WB_barClientLine: WB_barClientLine,
+    WB_railLine: WB_railLine,
+    WB_deskContext: WB_deskContext,
+    WB_DESK_TIERS: WB_DESK_TIERS,
+    WB_DESK_BUDGET: WB_DESK_BUDGET,
+    WB_DESK_ITEMS: WB_DESK_ITEMS,
+    WB_deskTier: WB_deskTier,
+    WB_deskFill: WB_deskFill,
+    WB_DESK_CLOSED: WB_DESK_CLOSED,
+    WB_deskClosedShow: WB_deskClosedShow,
     WB_fromToday: WB_fromToday,
     WB_primaryAction: WB_primaryAction,
     WB_menuActions: WB_menuActions,

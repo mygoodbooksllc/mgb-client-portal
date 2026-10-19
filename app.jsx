@@ -17053,6 +17053,8 @@ const USAGE_ACTION_LABELS = {
   "wb-resize": "Desk width changed (drag or keys)",
   "wb-rail": "Desk rail icons used (messages, reviews, files, mentions)",
   "wb-drill": "Task opened in the Desk (by where it was opened from)",
+  "wb-glance": "Open Desk glance counts used (messages, reviews, files, mentions)",
+  "wb-rightnow": "Open Desk Right now card links used",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -29712,6 +29714,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     }
                   : null
               }
+              deskOn={wbDeskOn}
+              deskDocked={wbDeskLive}
               hasTempAdminAccess={hasTempAdminAccess}
               tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
               clientSearch={
@@ -30563,6 +30567,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               }}
               statusOverrides={statusOverrides}
               onStatusOverridesChanged={loadStatusOverrides}
+              deskOn={wbDeskOn}
             />
           )}
           {effectivePage === "documents" && (
