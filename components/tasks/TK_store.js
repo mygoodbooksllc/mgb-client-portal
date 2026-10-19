@@ -10,6 +10,8 @@
 //   online   navigator online flag           (TK_sync sets it)
 //   me       the signed-in staff email, lowercased ({type:"me"})
 //   drawerId the task open in TK_DrawerHost, or null ({type:"drawer"})
+//   deskTaskId the task showing in the Desk's task view (R2), or null
+//            ({type:"deskTask"}); drawerId stays the modal's only
 //   tasks    { [id]: Task }  every task this window has seen
 //   lists    { [listKey]: { ids, loading, error, at } }
 //   pending  { [opId]: { id, patch, prev, seq } }  optimistic edits in flight
@@ -27,6 +29,7 @@ function TK_initialState() {
     online: true,
     me: null,
     drawerId: null,
+    deskTaskId: null,
     tasks: {},
     lists: {},
     pending: {},
@@ -297,6 +300,11 @@ function TK_reduce(state, action) {
     case "drawer": {
       var d = a.id == null || a.id === "" ? null : a.id;
       return state.drawerId === d ? state : TK_stAssign(state, { drawerId: d });
+    }
+
+    case "deskTask": {
+      var dk = a.id == null || a.id === "" ? null : String(a.id);
+      return state.deskTaskId === dk ? state : TK_stAssign(state, { deskTaskId: dk });
     }
 
     case "staff":

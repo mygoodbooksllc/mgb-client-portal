@@ -65,6 +65,38 @@ function ANN_inReviews() {
 
 var ANN_REGISTRY = [
   {
+    id: "desk-task-view",
+    date: "2026-10-19",
+    title: "Tasks open in the Desk",
+    summary:
+      "With the Desk on, a task you open shows in the Desk column beside the page instead of a pop-up. Back and Esc step back, F6 moves between the Desk and the page.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    // Only for people who have the Desk on.
+    ready: () => ANN_deskOn(),
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Tasks open beside the page",
+        body: () =>
+          "Open a task from Slate, My Tasks, a client's page, the bell or a link and it now shows in the Desk column, so the list stays in view. On a phone it fills the Desk sheet.",
+      },
+      {
+        id: "ann-row",
+        targets: ["tk-status"],
+        title: "Try it on any task",
+        body: () =>
+          "Click a task's name and its details open in the Desk on the right, with the row marked here. Status, assignee, comments and the rest work the same as in the pop-up.",
+      },
+      {
+        id: "ann-keys",
+        title: "Getting back",
+        body: () =>
+          "Back at the top of the task (or Esc) steps back: from a subtask to its parent, then to the list. D closes the Desk and the task waits 5 minutes for you. F6 moves between the Desk and the page. On a client's page, t opens the Desk's Client tab.",
+      },
+    ],
+  },
+  {
     id: "desk-right-launch",
     date: "2026-10-19",
     title: "The Desk moves to the right",

@@ -311,6 +311,17 @@ t("registry: desk-launch waits for the Desk and points at the width grip", () =>
   assert.ok(/\bD\b/.test(steps[1].body()) && !/press W/.test(steps[1].body()));
 });
 
+t("registry: desk-task-view waits for the Desk and is three short steps", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "desk-task-view");
+  assert.ok(a && typeof a.ready === "function");
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  assert.strictEqual(L.ANN_ready(a, admin), false);
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-row", "ann-keys"]);
+  const text = JSON.stringify(steps.map((x) => x.body()));
+  assert.ok(/F6/.test(text) && /Back/.test(text) && !/colour/i.test(text));
+});
+
 t("registry: desk-right-launch waits for the Desk and tours bar, rail and width grip", () => {
   const a = ANN_REGISTRY.find((x) => x.id === "desk-right-launch");
   assert.ok(a && typeof a.ready === "function");

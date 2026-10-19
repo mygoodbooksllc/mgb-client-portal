@@ -988,7 +988,7 @@ const FEATURE_FLAGS = [
     key: "mgb_wb_preview",
     label: "Desk preview",
     description:
-      "Turns the Desk on for you only, in this browser, while the firm-wide wb_enabled switch is off: Today gets the Needs you list and the Desk (press D) shows on the right of every staff page, with its info bar along the bottom. Classic Today below wins if both are on. The page reloads when you toggle it.",
+      "Turns the Desk on for you only, in this browser, while the firm-wide wb_enabled switch is off: Today gets the Needs you list and the Desk (press D) shows on the right of every staff page, with its info bar along the bottom, and tasks open inside the Desk instead of a pop-up. Classic Today below wins if both are on. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -17052,6 +17052,7 @@ const USAGE_ACTION_LABELS = {
   "wb-pin": "Desk Client tab: clients pinned or unpinned",
   "wb-resize": "Desk width changed (drag or keys)",
   "wb-rail": "Desk rail icons used (messages, reviews, files, mentions)",
+  "wb-drill": "Task opened in the Desk (by where it was opened from)",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -29418,6 +29419,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     WB_deskMounts({ showStaffRail, tkShell, previewing: isPreviewingUser, impersonating, email: staffUser.email })
   );
   const wbDeskLive = typeof WB_useDeskLive === "function" ? WB_useDeskLive(wbDeskMounts) : false;
+  // R2: live in any mode (phones too). While it is, a client's tasks open in
+  // the Desk's Client tab (t, the Tasks pill), so the strip under the client
+  // header steps aside; it stays the fallback with the Desk off.
+  const wbDeskOn = typeof WB_useDeskLive === "function" ? WB_useDeskLive(wbDeskMounts, true) : false;
   // Search finds what the row opens: the plan's pages plus the staff
   // always-tabs (D2, D17). Previews keep the plan's pages.
   const staffVisibleKeys = staffClientTabs ? new Set([...access.tabs, ...STAFF_ALWAYS_TABS]) : access.tabs;
@@ -29992,7 +29997,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           </div>
           {/* Up-next strip for the open client (staff only). Client view pages
               copy what the client sees, so they don't get it. */}
-          {tkHosts && !tkShell && staffClientTabs && client &&
+          {tkHosts && !tkShell && staffClientTabs && client && !wbDeskOn &&
             STAFF_CLIENT_VIEW_PAGES.indexOf(effectivePage) < 0 &&
             typeof TK_ClientStrip === "function" && (
               <TK_ClientStrip client={client} isAdmin={staffIsAdmin} page={effectivePage} />
@@ -30102,6 +30107,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     }
                   : null
               }
+              staffUser={staffUser}
+              canManageTemplates={staffIsAdmin}
+              canCreateTemplates={staffUser.role === "admin"}
+              onOpenTemplates={() => { window.location.hash = "#/tasks/templates"; }}
             />
           )}
           {/* The page body. A tab panel of the in-client tab row when a row

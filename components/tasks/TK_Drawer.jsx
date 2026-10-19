@@ -452,9 +452,21 @@ function TK_dwUseRows(kind, taskId, loader, opts) {
 
 // ---- Opening ----------------------------------------------------------------
 
+// One router for every caller (Desk spec 5.1): while the Desk is live it
+// registers window.TK_openTaskRoute (WB_Drawer.jsx), which opens the task in
+// the Desk's task view and returns true. Otherwise (Desk off, View as, the
+// own-window Slate, opts.modal) the modal drawer or the Tasks page opens it,
+// exactly as before.
 function TK_openTask(id, opts) {
   if (id == null || id === "") return;
   var o = opts || {};
+  var routed = false;
+  try {
+    routed = typeof window.TK_openTaskRoute === "function" && window.TK_openTaskRoute(String(id), o) === true;
+  } catch (e) {
+    routed = false;
+  }
+  if (routed) return;
   var st = TK_dwState();
   var ready = false;
   try {
@@ -545,7 +557,9 @@ function TK_DrawerHost(props) {
   var onArrive = function (a) {
     if (!a) return;
     if (a.kind === "task" && a.id) {
-      open(a.id, null);
+      // Through the router, so a deep link opens in the Desk while it is live
+      // (and in this drawer otherwise).
+      TK_openTask(a.id, { from: "arrival" });
       return;
     }
     if (a.kind === "view" && a.client) {

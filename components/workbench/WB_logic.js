@@ -740,6 +740,8 @@ var WB_LAYERS = [
   { id: "menu", sel: ".wb-menu", z: 3000, stacked: false },
   // A My tasks row's status menu (TK_TaskRow) lives inside the panel; Esc must close it before the hub.
   { id: "tk-menu", sel: ".wb-panel .tk-menu[role='menu']", z: 3000, stacked: false },
+  // R2: the task view's More menu (TK_dwMenu) closes before the task view.
+  { id: "tk-dw-menu", sel: ".wb-panel .tk-dw-menu[role='menu']", z: 3000, stacked: false },
   // The Client tab's client picker list (H4): Esc closes the list before the hub.
   { id: "picker", sel: ".wb-panel .wb-pick-list", z: 3000, stacked: false },
   { id: "tour", sel: ".tour-root", z: 2900, stacked: false },
@@ -1241,16 +1243,130 @@ function WB_deskNavStep(o) {
   return "close";
 }
 
-// Esc with focus inside the Desk, one step at a time (spec 6). R1 has no
-// drill-in, so drillInner/drillDepth are always empty here; R2 fills them.
+// Esc with focus inside the Desk, one step at a time (spec 6):
+//   layer    a drawer, dialog, menu or tour above the Desk takes it
+//   picker   the open client picker list closes
+//   field    a field that keeps Esc (a self-clearing box with text) clears
+//   inner    the task view's inner panel (the SOP panel) closes
+//   pop      task view, more than one task deep: back to the previous task
+//   list     task view, one deep, opened with the Desk already open: back to
+//            the Desk list
+//   close    one deep and the Desk was closed when the task opened (it closes
+//            again, focus back to the page row), or the Desk list itself
 function WB_deskEscStep(o) {
   var x = o || {};
   if (x.layerAbove) return "layer";
   if (x.pickerOpen) return "picker";
   if (x.fieldKeeps) return "field";
   if (x.drillInner) return "inner";
-  if (Number(x.drillDepth) > 0) return "back";
+  var depth = Number(x.drillDepth) || 0;
+  if (depth > 1) return "pop";
+  if (depth === 1 && !x.closeOnEmpty) return "list";
   return "close";
+}
+
+// ---- R2: the task view (drill-in) inside the Desk column (spec 5) ----------
+
+// Where TK_openTask sends a task (spec 5.1): "desk" while the Desk is live and
+// the Tasks schema is ok, unless the caller asks for the modal (opts.modal).
+// "modal" = today's path (the modal task drawer, or the Tasks page).
+function WB_deskRoute(o) {
+  var x = o || {};
+  var opts = x.opts || {};
+  if (!x.live || !x.schemaOk || opts.modal === true) return "modal";
+  return "desk";
+}
+
+// The drill stack: [{ id, from, focus }], oldest first, the shown task last.
+var WB_DRILL_CAP = 5;
+// A stack closed by D (or a page change) comes back on reopen for 5 minutes.
+var WB_DRILL_KEEP_MS = 5 * 60 * 1000;
+// The task view widens the column to at least Wide (transient, never saved).
+var WB_DESK_TASK_W = 460;
+
+function WB__drillItem(item) {
+  var x = item || {};
+  if (x.id == null || x.id === "") return null;
+  return { id: String(x.id), from: x.from ? String(x.from) : "", focus: x.focus ? String(x.focus) : null };
+}
+function WB__drillClean(stack) {
+  var out = [];
+  (Array.isArray(stack) ? stack : []).forEach(function (s) {
+    var it = WB__drillItem(s);
+    if (it) out.push(it);
+  });
+  return out;
+}
+// Push a task. The same id already on top only updates its focus field (a
+// second click on the open task is not a new level); past the cap the oldest
+// level drops. A junk item leaves the stack as it was.
+function WB_drillPush(stack, item, cap) {
+  var list = WB__drillClean(stack);
+  var it = WB__drillItem(item);
+  if (!it) return list;
+  var top = list[list.length - 1];
+  if (top && top.id === it.id) {
+    list[list.length - 1] = { id: top.id, from: top.from, focus: it.focus };
+    return list;
+  }
+  list.push(it);
+  var c = Number(cap);
+  if (!isFinite(c) || c < 1) c = WB_DRILL_CAP;
+  while (list.length > c) list.shift();
+  return list;
+}
+function WB_drillPop(stack) {
+  var list = WB__drillClean(stack);
+  list.pop();
+  return list;
+}
+function WB_drillTop(stack) {
+  var list = WB__drillClean(stack);
+  return list.length ? list[list.length - 1] : null;
+}
+// Does a kept stack still come back when the Desk reopens? closedAt = when
+// the Desk closed with a task showing (0 = it did not).
+function WB_drillKept(closedAt, now) {
+  var c = Number(closedAt);
+  var n = Number(now);
+  if (!isFinite(c) || c <= 0) return true;
+  if (!isFinite(n)) return false;
+  return n - c <= WB_DRILL_KEEP_MS;
+}
+// The back button's words: "Back to Desk" one level deep, else "Back to
+// <the task underneath>". titleOf(id) gives a task's title ("" when unknown).
+function WB_drillBackLabel(stack, titleOf, deskName) {
+  var list = WB__drillClean(stack);
+  var desk = String(deskName || "Desk");
+  if (list.length < 2) return "Back to " + desk;
+  var under = list[list.length - 2];
+  var t = "";
+  try {
+    t = typeof titleOf === "function" ? String(titleOf(under.id) || "").trim() : "";
+  } catch (e) {
+    t = "";
+  }
+  if (!t) return "Back to the previous task";
+  if (t.length > 40) t = t.slice(0, 39).replace(/\s+$/, "") + "…";
+  return "Back to " + t;
+}
+// The column width while a task shows: at least Wide, re-clamped by
+// WB_deskLayout like any width. taskW = a width dragged during this task view.
+function WB_deskTaskWidth(savedW, taskW) {
+  var t = Number(taskW);
+  if (taskW != null && isFinite(t) && t > 0) return t;
+  var s = Number(savedW);
+  if (!isFinite(s)) s = WB_DESK_W.standard;
+  return Math.max(s, WB_DESK_TASK_W);
+}
+// F6 (spec 6): from the page (or the bar) to the open Desk; from the Desk to
+// the page's main. null = F6 is not the Desk's (closed Desk, focus in a layer).
+function WB_deskF6Target(o) {
+  var x = o || {};
+  if (!x.open) return null;
+  if (x.zone === "desk") return "page";
+  if (x.zone === "page" || x.zone === "bar") return "desk";
+  return null;
 }
 
 // The Desk shows only the signed-in person's own items, so it never mounts
@@ -1459,6 +1575,17 @@ if (typeof module !== "undefined" && module.exports) {
     WB_deskSerialize: WB_deskSerialize,
     WB_deskNavStep: WB_deskNavStep,
     WB_deskEscStep: WB_deskEscStep,
+    WB_deskRoute: WB_deskRoute,
+    WB_DRILL_CAP: WB_DRILL_CAP,
+    WB_DRILL_KEEP_MS: WB_DRILL_KEEP_MS,
+    WB_DESK_TASK_W: WB_DESK_TASK_W,
+    WB_drillPush: WB_drillPush,
+    WB_drillPop: WB_drillPop,
+    WB_drillTop: WB_drillTop,
+    WB_drillKept: WB_drillKept,
+    WB_drillBackLabel: WB_drillBackLabel,
+    WB_deskTaskWidth: WB_deskTaskWidth,
+    WB_deskF6Target: WB_deskF6Target,
     WB_deskMounts: WB_deskMounts,
     WB_deskLive: WB_deskLive,
     WB_deskToggleKey: WB_deskToggleKey,

@@ -2,7 +2,7 @@
 title: How do I use the Desk?
 section: Getting started
 audience: staff
-keywords: [workbench, desk, slate, the desk, slate tab, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, right column, right side, rail, desk rail, info bar, bottom bar, clean slate, late, done today, next up, qbo sync, chat bubble, messages icon, mentions, press d, d key, w key, resize, resize the desk, desk width, wider, narrower, drag the left edge, page stays usable, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
+keywords: [workbench, desk, tasks open in the desk, task in the desk, back to desk, back button, f6, move between desk and page, esc goes back, drill in, slate, the desk, slate tab, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, right column, right side, rail, desk rail, info bar, bottom bar, clean slate, late, done today, next up, qbo sync, chat bubble, messages icon, mentions, press d, d key, w key, resize, resize the desk, desk width, wider, narrower, drag the left edge, page stays usable, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
 sort: 41
 ---
 The **Desk** (it was called the Workbench) sits on the right of every staff page, with an info bar along the bottom. Press **D** anywhere to open it (**W** no longer does): one list of everything that needs you, in order, with tabs for your **Inbox**, your **Slate** (it was called Tasks) and one **Client**. The same ordered list is on **Today** (the first place in the left rail; the address stays `#/today`) in a card called **Needs you**, and Today keeps its name.
@@ -71,11 +71,14 @@ The **Today** item in the left rail shows how many items are overdue or due toda
 
 ### Open a task without leaving the page
 
-In the drawer, **Open** (or **Review**) on a task opens its details in the task drawer on top of the Desk. The page behind it does not change. Edit it, comment, tick it done, reassign it or approve it there.
+With the Desk on, a task opens inside the Desk, wherever you open it from: **Open** (or **Review**) in the Inbox tab, a row on the Slate or Client tab, a task on the Slate or My Tasks page or a client's page, the bell, or a link to a task. The page beside it does not change, and the row you opened is marked. The column widens a little while a task shows (to at least 460px); it goes back to your width afterwards. On a phone the task fills the Desk sheet. Edit it, comment, tick it done, reassign it or approve it there.
 
-- **Esc** closes one layer at a time: a row's **⋯** menu first, then the task drawer, then the Desk (the Desk itself only closes on **Esc** while you're working inside it). Clicking the dimmed page behind a task drawer closes only the task drawer.
-- Closing the task drawer puts you back on the row you opened it from.
-- **D** does nothing while a task drawer or dialog is open on top, so it can't close the Desk from under it.
+- **← Back** at the top of the task goes back one step. Open a subtask or a parent from inside a task and Back names the task you came from; at the first task it says **Back to Desk**.
+- **Esc** goes back one step too: it closes a menu or the SOP panel first, then goes from a subtask to its parent, then to the list (with your row selected again). If the Desk opened just for this task, that last step closes it and puts you back on the page where you were. In a box you're typing in, the first **Esc** only undoes the typing.
+- **D** closes the Desk. The task waits there: press **D** within 5 minutes and it's still open.
+- **F6** moves between the Desk and the page.
+- **x** done, **s** status and **a** assignee work on the task showing, as they do in the task pop-up.
+- With the Desk off, a task opens in the task pop-up as before.
 - **q** (quick add) works while the Desk is open, as long as you're not typing in a box. **Add to your Slate** on the Slate tab and **+ Task** on the Client tab work too.
 - On a task you haven't started, **Start** moves into the **⋯** menu, next to **Snooze** and **Open full page** (which goes to the task's page, as before).
 - Ledger items still take you to where they live. Client messages and new files stay on the page too; see the next section.
@@ -95,7 +98,7 @@ In the Desk, a client message has **Reply** and a new client file has **Open fil
 
 The Desk has three tabs: **Inbox**, **Slate** and **Client** (see the next section). With a tab selected, the left and right arrow keys move between them. **Slate** lists every open task assigned to you, grouped **Overdue**, **Today**, **This week**, **Later** and **Waiting on client**, the same way the Slate page does. Tasks that are done or unassigned don't show here.
 
-- Click a row to open the task drawer on top; closing it puts you back on the row. Tick the circle to mark it done from the list. The count on the tab is your open tasks.
+- Click a row to open the task in the Desk; **← Back** or **Esc** puts you back on the row. Tick the circle to mark it done from the list. The count on the tab is your open tasks.
 - Click a group's name to fold it; the panel remembers which groups you folded.
 - **Add to your Slate** opens quick add. **Slate page** goes to the full page.
 - It shows up to 200 tasks. If you have more, a line says how many more there are and links to **Slate**.
@@ -108,7 +111,7 @@ The **Client** tab shows one client's open tasks without leaving the page you're
 
 - **Picking a client.** On a client's page, the tab starts on that client. Anywhere else it shows the client you looked at last. To pick another, click the box at the top and type part of the name, or use the up and down arrows and press **Enter**. The list shows your **Pinned** clients first, then **Recent** ones, then all of them. It only lists clients you can open, and leaves out MGB's own record and test clients (unless **Show test clients** is on). If there are more than 50, the last row says **Showing 50 of** the total; type to narrow it.
 - **Pins.** The **☆** next to the client's name pins it to the top of the list (it turns into **★**); click it again to unpin. You can pin up to 8. Pinning a ninth unpins the oldest, and a message says which one. Pins are yours alone and only on this browser.
-- **The tasks.** These are the same tasks, groups and contacts as the client's tasks panel (**t**). Add a task in the row at the top, tick a circle to mark it done, or click a row to open the task drawer on top; closing it puts you back in the tab. Private tasks show only to the people who can already see them.
+- **The tasks.** These are the same tasks, groups and contacts as the client's tasks panel (**t**). Add a task in the row at the top, tick a circle to mark it done, or click a row to open the task in the Desk; **← Back** or **Esc** puts you back in the tab. On a client's page, **t** opens this tab for that client (press it again to close the Desk). Private tasks show only to the people who can already see them.
 - **+ Task** opens quick add for this client. **Open client** goes to the client's page and closes the Desk.
 - **Esc** closes the client list first, then clears what you typed, then closes the Desk.
 - If a client you looked at before is no longer yours, the tab says **You don't have access to this client** and hides it from your pins. The pin comes back if you get access again.
@@ -124,7 +127,8 @@ Click **?** at the top of Today's Needs you card and pick **Keyboard shortcuts**
 - **s** snoozes; **e** is **No reply needed** on a message or **Mark checked** on a file.
 - **1** to **6** pick a filter on the full page, **0** goes back to All.
 - The left and right arrows move between the Desk's tabs (**Inbox**, **Slate**, **Client**) while a tab is selected.
-- **Esc** closes the top layer: a menu or the client list, then a drawer or dialog on top, then the Desk (back to the rail). With focus on the page instead of the Desk, **Esc** belongs to the page and leaves the Desk open.
+- **Esc** closes the top layer: a menu or the client list, then a drawer or dialog on top, then a task (back one step at a time), then the Desk (back to the rail). With focus on the page instead of the Desk, **Esc** belongs to the page and leaves the Desk open. On the rail, **Esc** hides the flyout.
+- **F6** moves between the Desk and the page while the Desk is open.
 
 ### Admins: Mine or Everyone
 

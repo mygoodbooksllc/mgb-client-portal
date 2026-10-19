@@ -2,10 +2,14 @@
 title: How do I see a client's tasks without leaving the page?
 section: Daily work
 audience: staff
-keywords: [add task row in the client panel, task row pickers, client tasks, tasks panel, client task panel, up next, next task, strip, all tasks, t, shortcut, for this page, tasks pill, follow my client, follow, side panel]
+keywords: [desk client tab, with the desk on, strip hidden, add task row in the client panel, task row pickers, client tasks, tasks panel, client task panel, up next, next task, strip, all tasks, t, shortcut, for this page, tasks pill, follow my client, follow, side panel]
 sort: 117
 ---
 When you have a client open, their tasks are one glance or one key away. A line under the client's tabs shows the next task, and a side panel lists all of them. Neither one takes you off the page you're on.
+
+### With the Desk on
+
+When the Desk is on, the Desk's **Client** tab takes over this job: **t**, or **Slate** in the top bar while a client is open, opens the Desk on its **Client** tab for that client, and pressing **t** again closes the Desk. The strip under the client's tabs doesn't show, since the Desk's info bar already shows the client's open and waiting tasks. A task you click opens inside the Desk; **← Back** or **Esc** brings you back to the list. See [How do I use the Desk?](#/help/workbench). Everything below is how it works with the Desk off.
 
 ### The strip
 

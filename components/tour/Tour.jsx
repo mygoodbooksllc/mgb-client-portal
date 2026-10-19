@@ -159,6 +159,9 @@
 //   wb-rail-add      the rail's + (quick add) at its foot
 //   wb-desk-handle   the open Desk column's width grip on its left edge
 //                    (WB_Hub.jsx), only while the Desk is open, wider than 760px
+//   wb-taskview      the task showing in the Desk (WB_Hub.jsx), only while a
+//                    task is open there (Desk on)
+//   wb-back          its Back button at the top left of the task
 //   si-noreply       No reply needed in Inbox's thread header (StaffInbox.jsx),
 //                    while the Workbench is on and the client wrote last
 // A role-tour step can `go` somewhere first (NAV_go to a place and tab, or

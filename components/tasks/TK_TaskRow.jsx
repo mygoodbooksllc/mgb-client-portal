@@ -1552,6 +1552,11 @@ function TK_TaskRow(props) {
   );
   if (!task) return null;
   var id = task.id;
+  // R2: the task showing in the Desk's task view (TK_store.deskTaskId) or the
+  // modal drawer is marked on every list it appears in.
+  var deskOpen = TK_vUseStore(function (s) {
+    return !!s && id != null && (String(s.deskTaskId) === String(id) || String(s.drawerId) === String(id));
+  });
   var unassigned = !TK_vAssigneeOf(task);
   // T1: the dashed assignee circle already says "Unassigned", so the label is read aloud only.
   var claimBits = unassigned ? <TK_vUnassignedClaim task={task} onClaim={props.onClaim} compact tour={props.tourClaim ? "tk-claim" : undefined} /> : null;
@@ -1699,7 +1704,8 @@ function TK_TaskRow(props) {
         (hasKids ? " has-subs" + (subOpen ? " is-subs-open" : "") : "") +
         (selectable ? " is-selectable" : "") +
         (selected ? " is-selected" : "") +
-        (selectable && props.selecting ? " is-selecting" : "")
+        (selectable && props.selecting ? " is-selecting" : "") +
+        (deskOpen ? " is-open-in-desk" : "")
       }
       data-lk={"task:" + id}
       data-tk-id={id}

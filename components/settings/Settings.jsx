@@ -1346,11 +1346,13 @@ function ST_StaffSettingsPage({
                 <dd>Close a menu, search or dialog</dd>
                 <dt><kbd>Tab</kbd></dt>
                 <dd>Move between controls</dd>
+                <dt><kbd>F6</kbd></dt>
+                <dd>With your Desk open, move between the Desk and the page</dd>
               </dl>
             </ST_Card>
           )}
           {key === "shortcuts" && typeof TK_KEYMAP !== "undefined" && Array.isArray(TK_KEYMAP) && TK_KEYMAP.length > 0 && (
-            <ST_Card title="Slate shortcuts" sub="Single keys for task lists and a task's details, plus q to add a task and t to open a client's tasks from the portal (not the Slate window). They don't fire while you're typing.">
+            <ST_Card title="Slate shortcuts" sub="Single keys for task lists and a task's details, plus q to add a task and t to open a client's tasks from the portal (not the Slate window). With the Desk on, t opens the Desk's Client tab. They don't fire while you're typing.">
               <dl className="st-shortcuts">
                 {TK_KEYMAP.map((k) => (
                   <React.Fragment key={k.key + ":" + k.label}>

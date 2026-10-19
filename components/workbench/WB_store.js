@@ -119,6 +119,13 @@ var WB_store = (function () {
     openedBy: "", // who opened the Desk last: "restore" (page load reopen) keeps focus where it is (spec 4.2)
     desk: WB_deskParse(null), // R1 column width, saved per person in mgb_wb_desk:<email> v2 (no TTL)
     hub: WB_hubDefault(), // tab, chip, client, scroll per tab (spec 2.2); saved per person in mgb_wb_hub:<email>
+    // R2 task view (spec 5.2): the drill stack [{ id, from, focus }] (the shown
+    // task last), how it started (closeOnEmpty: the Desk was closed, so leaving
+    // the last task closes it again; tab: the Desk tab underneath) and when the
+    // Desk closed with a task showing (kept 5 minutes, WB_drillKept). Never saved.
+    drill: [],
+    drillOrigin: { closeOnEmpty: false, tab: "" },
+    drillClosedAt: 0,
   };
   var users = 0;
   var timer = null;
@@ -592,9 +599,50 @@ var WB_store = (function () {
   // rule reads it). Closing clears it.
   function setDrawerOpen(open, by) {
     if (!!open === state.drawerOpen) return;
-    set({ drawerOpen: !!open, openedBy: open ? String(by || "") : "" });
+    var patch = { drawerOpen: !!open, openedBy: open ? String(by || "") : "" };
+    // Closing with a task showing keeps the stack (D in the task view, a page
+    // change); reopening within 5 minutes shows that task again, later the list.
+    if (!open && state.drill.length) patch.drillClosedAt = Date.now();
+    if (open && state.drill.length && !WB_drillKept(state.drillClosedAt, Date.now())) {
+      patch.drill = [];
+      patch.drillOrigin = { closeOnEmpty: false, tab: "" };
+    }
+    if (open) patch.drillClosedAt = 0;
+    set(patch);
     if (!open) flushHub();
     else saveHub();
+  }
+  // R2: open a task in the Desk's task view (TK_openTaskRoute). opts: { from,
+  // focus }. A Desk that was closed opens (openedBy "drill") and remembers to
+  // close again when the last task is left; one that was open goes back to its
+  // list. A closed Desk always starts a new stack (a kept one is dropped).
+  function drill(id, opts) {
+    if (id == null || id === "") return false;
+    var o = opts || {};
+    var wasOpen = state.drawerOpen;
+    var base = wasOpen ? state.drill : [];
+    var origin = base.length ? state.drillOrigin : { closeOnEmpty: !wasOpen, tab: state.hub.tab };
+    var next = WB_drillPush(base, { id: id, from: o.from || "", focus: o.focus || null });
+    var patch = { drill: next, drillOrigin: origin, drillClosedAt: 0 };
+    if (!wasOpen) {
+      patch.drawerOpen = true;
+      patch.openedBy = "drill";
+    }
+    set(patch);
+    if (!wasOpen) saveHub();
+    return true;
+  }
+  // Back one level (Esc, the back button). Returns the depth left.
+  function drillBack() {
+    if (!state.drill.length) return 0;
+    var next = WB_drillPop(state.drill);
+    set({ drill: next });
+    return next.length;
+  }
+  // Leave the task view for the list (Close details, the Desk closing for good).
+  function drillClear() {
+    if (!state.drill.length && !state.drillClosedAt) return;
+    set({ drill: [], drillOrigin: { closeOnEmpty: false, tab: "" }, drillClosedAt: 0 });
   }
   // The first read of a person's saved hub, when they join (and again if
   // someone else signs in without a reload). The old unscoped key is never
@@ -614,7 +662,7 @@ var WB_store = (function () {
     var d = WB_deskParse(raw);
     // Migration: a v1 (D3 bottom height) or junk value is rewritten as v2 once.
     if (raw != null && raw !== WB_deskSerialize(d)) WB__lsSet(WB_deskKey(email), WB_deskSerialize(d));
-    set({ hub: h, drawerOpen: h.open, openedBy: h.open ? "restore" : "", desk: d });
+    set({ hub: h, drawerOpen: h.open, openedBy: h.open ? "restore" : "", desk: d, drill: [], drillOrigin: { closeOnEmpty: false, tab: "" }, drillClosedAt: 0 });
   }
   // R1: the column width the person wants (re-clamped to each window when
   // applied). Saved at once, no throttle: it changes only when a drag ends or
@@ -658,6 +706,9 @@ var WB_store = (function () {
     flushHub: flushHub,
     adoptHub: adoptHub,
     setDeskWidth: setDeskWidth,
+    drill: drill,
+    drillBack: drillBack,
+    drillClear: drillClear,
   };
 })();
 
@@ -688,9 +739,18 @@ function WB_go(row, action) {
   var link = WB_linkTarget(row, action);
   if (!link) return;
   WB_track("wb-action", (row.kind || "other") + ":" + (action === "request" ? "request" : row.kind === "message" ? "reply" : "open"));
+  // Decision 11 (R2): in push layout the Desk is part of the page and stays
+  // open across the move; an overlay or the phone sheet covers the page, so it
+  // closes. WB_Drawer sets html.wb-desk-push.
+  var push = false;
   try {
-    WB_store.setDrawerOpen(false);
+    push = document.documentElement.classList.contains("wb-desk-push");
   } catch (e) {}
+  if (!push) {
+    try {
+      WB_store.setDrawerOpen(false);
+    } catch (e) {}
+  }
   if (typeof LK_go === "function") LK_go(link.t, link.hint || null);
   else if (typeof LK_href === "function") window.location.hash = LK_href(link.t);
 }

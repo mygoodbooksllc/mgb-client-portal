@@ -23,6 +23,8 @@
 //                 when the content ate it (the SOP panel closes first).
 //   onBack, onOpenTask
 //                 reserved for the Desk task view (R2); unused in drawer mode.
+//   headStart     embedded only (R2): the host's own control at the start of
+//                 the header row (the Desk's Back button).
 //
 // Loads right before TK_Drawer.jsx. Helpers with the TK_dw prefix that stay in
 // TK_Drawer.jsx (store, api, toast, copy, links) are used at render or call
@@ -1692,6 +1694,7 @@ function TK_DrawerContent(props) {
     <React.Fragment>
         <header className="tk-dw-head">
           <div className="tk-dw-head-row">
+            {embedded && p.headStart ? p.headStart : null}
             <span className="tk-dw-context">
               {containerName}
               {task && task.section ? " · " + task.section : ""}

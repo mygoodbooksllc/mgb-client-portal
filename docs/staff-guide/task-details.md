@@ -2,10 +2,12 @@
 title: What's in a task's details?
 section: Daily work
 audience: staff
-keywords: [task details, details panel, drawer, open task, fields at the top, field grid, placeholder, unassigned, no due date, no client, no project, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted, client requests, ask client, record answer, accept answer]
+keywords: [task details, details panel, drawer, task in the desk, back to desk, open task, fields at the top, field grid, placeholder, unassigned, no due date, no client, no project, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted, client requests, ask client, record answer, accept answer]
 sort: 112
 ---
 Click a task anywhere (Slate, a client or project list, Today, a client's Overview, the bell or search) and its details slide in from the right. On a phone they fill the screen. Press **Esc** or click **Close** to put them away. Changes save as you make them.
+
+With the Desk on, the details open inside the Desk column instead, beside the page, with **← Back** at the top. **Esc** or Back goes from a subtask to its parent, then to the list; **D** closes the Desk and the task waits there for 5 minutes. See [How do I use the Desk?](#/help/workbench).
 
 ### The header
 

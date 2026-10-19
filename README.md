@@ -2047,6 +2047,32 @@ Team Reviews files.
     tests. Upkeep: launch announcement `desk-right-launch` (bar, rail, grip), tip `desk-width`
     (replaces `desk-resize`), tour targets `wb-rail`, `wb-rail-add`, Usage Stats `wb-rail` and
     relabeled `wb-resize`, guide `workbench`, `home-page`, `tips`, `whats-new`, MGB_VERSION `2026-10-19g`.
+- **Desk R2: tasks open in the Desk, 2026-10-19h** (spec `docs/desk-right-spec.md`; client only, no SQL,
+  no edge functions; still off until `wb_enabled`).
+  - **Router:** `TK_openTask` (`TK_Drawer.jsx`) asks `window.TK_openTaskRoute(id, opts)` first. `WB_Drawer.jsx`
+    registers it only while `WB_useDeskLive(mounts, true)` (any mode, sheet included) and the task schema is
+    `ok` (pure `WB_deskRoute`); it returns true after `WB_store.drill(id, {from, focus})`, otherwise the
+    modal drawer opens as before. `?item=task:` arrivals, Slate, My Tasks, the Desk's tabs, client pages,
+    the bell and links all go through it. `TK_store.deskTaskId` (reducer case `deskTask`) marks the row
+    (`.tk-row.is-open-in-desk`).
+  - **Drill stack:** `WB_store` `drill` `[{id, from, focus}]`, `drillOrigin {closeOnEmpty, tab}`,
+    `drill()` / `drillBack()` / `drillClear()`; a closed Desk keeps the stack 5 minutes (`drillClosedAt`).
+    `WB_Hub.jsx` shows `div.wb-taskview` (`data-tour="wb-taskview"`, `data-tk-keyscope="drawer"`) with
+    `TK_DrawerContent mode="embedded"` in a `.tk-dwc` container (`container: tkdw`; phone rules under
+    `@container tkdw (max-width: 480px)` in `tk-drawer.css`) and a Back button (`.wb-back`,
+    `data-tour="wb-back"`, label from `WB_drillBackLabel`). The column widens to at least 460px while a task
+    shows (`WB_deskTaskWidth`; a drag then is not saved).
+  - **Keys:** Esc ladder from `WB_deskEscStep` (layer, picker, field, the content's own Esc via
+    `registerEsc`, pop, list, close); a field's own Esc keeps focus in the task view. F6 moves between the
+    Desk and `.main` (`WB_deskF6Target`). Rail flyouts hide on Esc (`.wb-rail.is-tips-off`). `WB_go` keeps
+    the Desk open in push layout.
+  - **Client:** `TK_ClientDrawerHost` asks `window.TK_openClientRoute(clientId, action)` first, so `t` opens
+    the Desk's Client tab (and closes it when that tab is already showing). `TK_ClientStrip` is not rendered
+    while the Desk is on (`app.jsx` `wbDeskOn`); both come back with the Desk off.
+  - Tests: `WB_logic.test.js` (route, Esc ladder, back label, width, F6), `WB_store.test.js` (drill stack),
+    `TK_store` deskTask. Upkeep: announcement `desk-task-view`, tour targets `wb-taskview`, `wb-back`,
+    Usage Stats `wb-drill`, Settings shortcut text for `t` and F6, guide `workbench`, `task-details`,
+    `my-tasks`, `task-lists-and-projects`, `client-tasks-drawer`, `tips`, `whats-new`, MGB_VERSION `2026-10-19h`.
 - **Task pane split + field grid (R0/T3), 2026-10-19c** (spec `docs/desk-right-spec.md` §10): client
   only, no SQL, no edge functions. R0: `TK_DrawerContent.jsx` is the task pane body (state, fetch,
   x/s/a/? keys, the delete/send back/keys modals) with `mode` `"drawer"` or `"embedded"`, `scopeRef`

@@ -1048,7 +1048,7 @@ var TK_KEYMAP = [
   { key: "a", display: "a", label: "Assign", scope: "any", scopes: ["list", "drawer"] },
   { key: "v", display: "v", label: "Select a task (Shift+V selects a range)", scope: "list", scopes: ["list"] },
   { key: "q", display: "q", label: "Add a task", scope: "any", scopes: ["global"] },
-  { key: "t", display: "t", label: "Open or close this client's tasks", scope: "any", scopes: ["global"] },
+  { key: "t", display: "t", label: "Open or close this client's tasks (the Desk's Client tab while the Desk is on)", scope: "any", scopes: ["global"] },
   { key: "Escape", display: "Esc", label: "Close details", scope: "drawer", scopes: ["drawer"] },
   { key: "?", display: "?", label: "Show these shortcuts", scope: "any", scopes: ["list", "drawer"] },
 ];

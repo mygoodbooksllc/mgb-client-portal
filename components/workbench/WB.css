@@ -1529,3 +1529,83 @@ html.wb-hub-open .si-drawer-layer {
     height: 44px;
   }
 }
+
+/* ---- R2: the task view inside the column (spec 5.3, decision 26) ----
+   The head, tabs, chips and list panes hide (the panes stay mounted); the
+   task's own head carries Back, the context line, Copy link, More and ×. */
+.wb-panel-head[hidden],
+.wb-panel-body[hidden] {
+  display: none !important;
+}
+.wb-taskview {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+.wb-taskview:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.wb-taskview .tk-dwc {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.wb-panel.wb-glass .wb-taskview .tk-dw-head,
+.wb-panel.wb-glass .wb-taskview .tk-dw-foot {
+  background: transparent;
+}
+.wb-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 4px 10px 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--desk-row-bg, var(--surface-2));
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.wb-back:hover {
+  background: var(--desk-row-bg-hover, var(--hover-bg));
+}
+.wb-back:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.wb-taskview .tk-dw-head-row:has(.wb-back) {
+  flex-wrap: wrap;
+}
+@media (max-width: 760px) {
+  .wb-back {
+    min-height: 40px;
+  }
+}
+
+/* R2: the row whose task is showing in the Desk (or the modal drawer). */
+.tk-row.is-open-in-desk {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* R2 (R1 leftover): Esc hides the rail flyouts until the pointer or focus
+   moves to another icon. */
+.wb-rail.is-tips-off .wb-rail-tip {
+  display: none !important;
+}
+/* Keyboard hints under the task view mean nothing on a phone. */
+@media (max-width: 760px) {
+  .wb-panel-foot.wb-taskview-keys { display: none; }
+}

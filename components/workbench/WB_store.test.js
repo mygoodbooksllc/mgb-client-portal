@@ -561,6 +561,76 @@ t("D3 openedBy: a page-load reopen says restore; a click or key says who", () =>
   assert.strictEqual(closed.S.getState().openedBy, "");
 });
 
+// ---- R2: the drill stack -------------------------------------------------------
+t("R2 drill: a closed Desk opens on the task and closes again when it is left", () => {
+  const c = load();
+  c.S.join("pat@example.com", false);
+  assert.strictEqual(c.S.getState().drawerOpen, false);
+  assert.strictEqual(c.S.drill("t1", { from: "slate" }), true);
+  let st = c.S.getState();
+  assert.strictEqual(st.drawerOpen, true);
+  assert.strictEqual(st.openedBy, "drill");
+  assert.deepStrictEqual(plain(st.drill), [{ id: "t1", from: "slate", focus: null }]);
+  assert.strictEqual(st.drillOrigin.closeOnEmpty, true);
+  // Subtask: pushes; the origin is kept.
+  c.S.drill("t2", { from: "subtask" });
+  st = c.S.getState();
+  assert.strictEqual(st.drill.length, 2);
+  assert.strictEqual(st.drillOrigin.closeOnEmpty, true);
+  // Same id on top: focus only, no new level.
+  c.S.drill("t2", { focus: "assignee" });
+  assert.strictEqual(c.S.getState().drill.length, 2);
+  assert.strictEqual(c.S.getState().drill[1].focus, "assignee");
+  assert.strictEqual(c.S.drillBack(), 1);
+  assert.strictEqual(c.S.drillBack(), 0);
+  assert.strictEqual(c.S.drillBack(), 0);
+  assert.strictEqual(c.S.drill("", {}), false);
+});
+
+t("R2 drill: an open Desk goes back to its list (closeOnEmpty false), cap 5", () => {
+  const c = load();
+  c.S.join("pat@example.com", false);
+  c.S.setHub({ tab: "tasks" });
+  c.S.setDrawerOpen(true, "key");
+  c.S.drill("a", { from: "wb-hub" });
+  const st = c.S.getState();
+  assert.strictEqual(st.openedBy, "key");
+  assert.strictEqual(st.drillOrigin.closeOnEmpty, false);
+  assert.strictEqual(st.drillOrigin.tab, "tasks");
+  ["b", "c", "d", "e", "f", "g"].forEach((id) => c.S.drill(id, { from: "subtask" }));
+  assert.deepStrictEqual(plain(c.S.getState().drill.map((x) => x.id)), ["c", "d", "e", "f", "g"]);
+  c.S.drillClear();
+  assert.strictEqual(c.S.getState().drill.length, 0);
+  assert.strictEqual(c.S.getState().drawerOpen, true);
+});
+
+t("R2 drill: closing keeps the stack for 5 minutes; a page drill on a closed Desk starts over", () => {
+  const c = load();
+  c.S.join("pat@example.com", false);
+  c.S.drill("a");
+  c.S.drill("b", { from: "subtask" });
+  c.S.setDrawerOpen(false); // D in the task view
+  assert.strictEqual(c.S.getState().drill.length, 2);
+  assert.ok(c.S.getState().drillClosedAt > 0);
+  c.advance(60000);
+  c.S.setDrawerOpen(true, "key");
+  assert.strictEqual(c.S.getState().drill.length, 2);
+  assert.strictEqual(c.S.getState().drillClosedAt, 0);
+  c.S.setDrawerOpen(false);
+  c.advance(5 * 60 * 1000 + 1);
+  c.S.setDrawerOpen(true, "key");
+  assert.strictEqual(c.S.getState().drill.length, 0);
+  // Closed with a kept stack, then a task opened from the page: a new stack.
+  c.S.drill("x");
+  c.S.setDrawerOpen(false);
+  c.S.drill("y", { from: "slate" });
+  assert.deepStrictEqual(plain(c.S.getState().drill.map((x) => x.id)), ["y"]);
+  assert.strictEqual(c.S.getState().drillOrigin.closeOnEmpty, true);
+  // A new person: no stack carried over.
+  c.S.join("sam@example.com", false);
+  assert.strictEqual(c.S.getState().drill.length, 0);
+});
+
 Promise.all(later).then(
   () => console.log("WB_store: " + n + " checks passed"),
   (e) => {

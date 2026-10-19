@@ -90,6 +90,14 @@ t("me lowercases; drawer stores id or null; same value keeps state", () => {
   assert.strictEqual(s.drawerId, uuid(9));
   assert.strictEqual(S.TK_reduce(s, { type: "drawer", id: uuid(9) }), s);
   assert.strictEqual(S.TK_reduce(s, { type: "drawer", id: null }).drawerId, null);
+  // R2: the Desk's task view has its own field; drawerId stays the modal's.
+  assert.strictEqual(S.TK_initialState().deskTaskId, null);
+  let d = S.TK_reduce(s, { type: "deskTask", id: uuid(8) });
+  assert.strictEqual(d.deskTaskId, uuid(8));
+  assert.strictEqual(d.drawerId, uuid(9));
+  assert.strictEqual(S.TK_reduce(d, { type: "deskTask", id: uuid(8) }), d);
+  assert.strictEqual(S.TK_reduce(d, { type: "deskTask", id: "" }).deskTaskId, null);
+  assert.strictEqual(S.TK_reduce(d, { type: "deskTask", id: null }).deskTaskId, null);
   assert.strictEqual(S.TK_reduce(s, { type: "schema", value: "bogus" }), s);
   assert.strictEqual(S.TK_reduce(s, { type: "schema", value: "ok" }).schema, "ok");
   done();

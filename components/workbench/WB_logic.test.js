@@ -380,7 +380,10 @@ t("hub: layer selectors and order", () => {
   assert.strictEqual(L.WB_isStacked(["menu", "task-drawer"]), true);
   assert.strictEqual(L.WB_isStacked([]), false);
   // The hub's own panel is never a layer above it (only a menu or list inside it is).
-  assert.ok(L.WB_LAYER_SELECTORS.every((x) => !/^\.wb-panel/.test(x) || /\.tk-menu|\.wb-pick-list/.test(x)));
+  assert.ok(L.WB_LAYER_SELECTORS.every((x) => !/^\.wb-panel/.test(x) || /\.tk-menu|\.tk-dw-menu|\.wb-pick-list/.test(x)));
+  // R2: the task view's More menu takes Esc before the task view.
+  assert.deepStrictEqual(L.WB_layersPresent(has(".wb-panel .tk-dw-menu[role='menu']")), ["tk-dw-menu"]);
+  assert.strictEqual(L.WB_isStacked(["tk-dw-menu"]), false);
   // A My tasks row's status menu inside the panel is a layer above the hub: Esc closes it first.
   const tkMenu = ".wb-panel .tk-menu[role='menu']";
   assert.ok(sels.indexOf(tkMenu) >= 0);
@@ -857,17 +860,114 @@ t("Desk route change: push keeps, overlay and sheet close after the grace", () =
   assert.strictEqual(N(null), "close");
 });
 
-t("Desk Esc ladder: layer > picker > field > inner > back > close", () => {
+t("Desk Esc ladder: layer > picker > field > inner > pop > list > close", () => {
   const E = L.WB_deskEscStep;
   const all = { layerAbove: true, pickerOpen: true, fieldKeeps: true, drillInner: true, drillDepth: 2 };
   assert.strictEqual(E(all), "layer");
   assert.strictEqual(E(Object.assign({}, all, { layerAbove: false })), "picker");
   assert.strictEqual(E(Object.assign({}, all, { layerAbove: false, pickerOpen: false })), "field");
   assert.strictEqual(E({ drillInner: true, drillDepth: 1 }), "inner");
-  assert.strictEqual(E({ drillDepth: 1 }), "back");
+  // Spec 6 rows 5-8.
+  assert.strictEqual(E({ drillDepth: 2 }), "pop");
+  assert.strictEqual(E({ drillDepth: 5, closeOnEmpty: true }), "pop");
+  assert.strictEqual(E({ drillDepth: 1 }), "list");
+  assert.strictEqual(E({ drillDepth: 1, closeOnEmpty: false }), "list");
+  assert.strictEqual(E({ drillDepth: 1, closeOnEmpty: true }), "close");
   assert.strictEqual(E({ drillDepth: 0 }), "close");
+  assert.strictEqual(E({ drillDepth: 0, closeOnEmpty: false }), "close");
+  assert.strictEqual(E({ drillDepth: "junk" }), "close");
   assert.strictEqual(E({}), "close");
   assert.strictEqual(E(null), "close");
+});
+
+t("Desk route: live + schema ok goes to the Desk, else the modal", () => {
+  const R = L.WB_deskRoute;
+  assert.strictEqual(R({ live: true, schemaOk: true }), "desk");
+  assert.strictEqual(R({ live: true, schemaOk: true, opts: { from: "arrival" } }), "desk");
+  assert.strictEqual(R({ live: true, schemaOk: true, opts: { modal: true } }), "modal");
+  assert.strictEqual(R({ live: true, schemaOk: true, opts: { modal: "yes" } }), "desk");
+  assert.strictEqual(R({ live: false, schemaOk: true }), "modal");
+  assert.strictEqual(R({ live: true, schemaOk: false }), "modal");
+  assert.strictEqual(R({}), "modal");
+  assert.strictEqual(R(null), "modal");
+});
+
+t("Drill stack: push, same id on top, cap, pop, top", () => {
+  const P = L.WB_drillPush;
+  let s = P([], { id: "a", from: "slate" });
+  assert.deepStrictEqual(s, [{ id: "a", from: "slate", focus: null }]);
+  s = P(s, { id: "b", from: "subtask" });
+  assert.strictEqual(s.length, 2);
+  assert.strictEqual(L.WB_drillTop(s).id, "b");
+  // Same id on top: only the focus field changes, no new level.
+  const same = P(s, { id: "b", from: "keys", focus: "assignee" });
+  assert.strictEqual(same.length, 2);
+  assert.deepStrictEqual(same[1], { id: "b", from: "subtask", focus: "assignee" });
+  // The same id lower down is a new level (a -> b -> a).
+  assert.strictEqual(P(s, { id: "a" }).length, 3);
+  // Cap 5: the oldest drops.
+  let c = [];
+  ["1", "2", "3", "4", "5", "6", "7"].forEach((id) => (c = P(c, { id })));
+  assert.deepStrictEqual(c.map((x) => x.id), ["3", "4", "5", "6", "7"]);
+  assert.strictEqual(L.WB_DRILL_CAP, 5);
+  assert.strictEqual(P(c, { id: "8" }, 2).length, 2);
+  // Junk items and stacks.
+  assert.deepStrictEqual(P(s, null), s);
+  assert.deepStrictEqual(P(s, { id: "" }), s);
+  assert.deepStrictEqual(P(null, { id: 7 }), [{ id: "7", from: "", focus: null }]);
+  assert.deepStrictEqual(P([null, { id: "" }, { id: "x" }], { id: "y" }).map((x) => x.id), ["x", "y"]);
+  // Pop and top; the input is never changed.
+  const before = JSON.stringify(s);
+  assert.deepStrictEqual(L.WB_drillPop(s).map((x) => x.id), ["a"]);
+  assert.strictEqual(JSON.stringify(s), before);
+  assert.deepStrictEqual(L.WB_drillPop([]), []);
+  assert.deepStrictEqual(L.WB_drillPop(null), []);
+  assert.strictEqual(L.WB_drillTop([]), null);
+});
+
+t("Drill stack kept for 5 minutes after the Desk closes", () => {
+  const K = L.WB_drillKept;
+  const t0 = 1000000;
+  assert.strictEqual(K(0, t0), true); // never closed with a task
+  assert.strictEqual(K(t0, t0 + 1000), true);
+  assert.strictEqual(K(t0, t0 + L.WB_DRILL_KEEP_MS), true);
+  assert.strictEqual(K(t0, t0 + L.WB_DRILL_KEEP_MS + 1), false);
+  assert.strictEqual(K(t0, NaN), false);
+});
+
+t("Drill back label: Desk one deep, else the task underneath", () => {
+  const B = L.WB_drillBackLabel;
+  const titles = { a: "Reconcile March", b: "Call the bank" };
+  const of = (id) => titles[id] || "";
+  assert.strictEqual(B([{ id: "a" }], of), "Back to Desk");
+  assert.strictEqual(B([], of), "Back to Desk");
+  assert.strictEqual(B([{ id: "a" }], of, "Slate"), "Back to Slate");
+  assert.strictEqual(B([{ id: "a" }, { id: "b" }], of), "Back to Reconcile March");
+  assert.strictEqual(B([{ id: "z" }, { id: "b" }], of), "Back to the previous task");
+  assert.strictEqual(B([{ id: "a" }, { id: "b" }], () => { throw new Error("x"); }), "Back to the previous task");
+  const long = B([{ id: "a" }, { id: "b" }], () => "x".repeat(80));
+  assert.ok(long.length <= "Back to ".length + 40 && /…$/.test(long));
+});
+
+t("Task view width: at least Wide, a dragged width wins", () => {
+  const W = L.WB_deskTaskWidth;
+  assert.strictEqual(W(380), 460);
+  assert.strictEqual(W(500), 500);
+  assert.strictEqual(W(undefined), 460);
+  assert.strictEqual(W(380, 340), 340);
+  assert.strictEqual(W(380, null), 460);
+  // WB_deskLayout still clamps it to the window.
+  assert.strictEqual(L.WB_deskLayout({ vw: 1100, railW: 220, w: W(380), open: true }).w, 400);
+});
+
+t("F6 moves between the page and the open Desk", () => {
+  const F = L.WB_deskF6Target;
+  assert.strictEqual(F({ open: true, zone: "page" }), "desk");
+  assert.strictEqual(F({ open: true, zone: "bar" }), "desk");
+  assert.strictEqual(F({ open: true, zone: "desk" }), "page");
+  assert.strictEqual(F({ open: false, zone: "page" }), null);
+  assert.strictEqual(F({ open: true, zone: null }), null);
+  assert.strictEqual(F(null), null);
 });
 
 t("Desk mounts only for the signed-in person's own view", () => {

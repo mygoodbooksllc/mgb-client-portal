@@ -735,8 +735,20 @@ function TK_ClientDrawerHost(props) {
     }, 0);
   }, []);
 
+  // R2 (2026-10-19h): while the Desk is live it owns this panel. The client
+  // tasks become the Desk's Client tab, and t toggles that tab instead.
+  var routeDesk = function (action) {
+    try {
+      if (!clientIdRef.current || typeof window.TK_openClientRoute !== "function") return false;
+      return window.TK_openClientRoute(String(clientIdRef.current), action) === true;
+    } catch (e) {
+      return false;
+    }
+  };
+
   var openIt = React.useCallback(function () {
     if (!readyRef.current || openRef.current) return;
+    if (routeDesk("open")) return;
     try {
       openerRef.current = document.activeElement;
     } catch (e) {
@@ -754,6 +766,7 @@ function TK_ClientDrawerHost(props) {
   var toggle = React.useCallback(
     function () {
       if (openRef.current) close();
+      else if (readyRef.current && routeDesk("toggle")) return;
       else openIt();
     },
     [close, openIt],

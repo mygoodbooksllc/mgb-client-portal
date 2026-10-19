@@ -75,7 +75,9 @@ function WB_useDeskMode() {
 // Phones (the sheet, 760px and under) have no rail and so no messages icon,
 // so the bubble stays there, lifted above the info bar (WB.css). Re-renders
 // only when the answer changes.
-function WB_useDeskLive(mounts) {
+// anyMode (R2): live on phones too (the sheet). app.jsx hides the client
+// tasks strip with it, because tasks and the client tab open in the Desk there.
+function WB_useDeskLive(mounts, anyMode) {
   const mode = WB_useDeskMode();
   const read = () => {
     if (!mounts || typeof WB_store === "undefined") return false;
@@ -98,7 +100,7 @@ function WB_useDeskLive(mounts) {
     on();
     return WB_store.subscribe(on);
   }, [mounts]);
-  return live && mode === "dock";
+  return live && (anyMode === true || mode === "dock");
 }
 
 // The bell's mentions (TB_Bell publishes them on window, TopBar.jsx).
@@ -249,7 +251,25 @@ var WB_RAIL_ITEMS = [
 // The slim rail (closed column, dock only).
 function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
   const [idx, setIdx] = React.useState(0);
+  // R2 (R1 leftover): Esc hides the flyouts (WCAG 1.4.13, dismissible
+  // without moving the pointer or focus). They come back when the pointer
+  // enters an icon again or focus moves to another one.
+  const [tipsOff, setTipsOff] = React.useState(false);
   const ref = React.useRef(null);
+  React.useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      const el = ref.current;
+      if (!el) return;
+      let shown = false;
+      try {
+        shown = el.matches(":hover") || el.contains(document.activeElement);
+      } catch (err) {}
+      if (shown) setTipsOff(true);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
   const items = () => Array.prototype.slice.call((ref.current && ref.current.querySelectorAll("[data-wb-rail]")) || []);
   const onKeyDown = (e) => {
     if (e.defaultPrevented) return; // the open + menu already moved focus
@@ -269,18 +289,23 @@ function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
   const onFocus = (e) => {
     const i = items().indexOf(e.target);
     if (i >= 0 && i !== idx) setIdx(i);
+    if (i >= 0 && i !== idx) setTipsOff(false);
   };
   const hasAdd = typeof TB_QuickAdd === "function";
   return (
     <div
       ref={ref}
-      className="wb-rail"
+      className={"wb-rail" + (tipsOff ? " is-tips-off" : "")}
       role="toolbar"
       aria-orientation="vertical"
       aria-label={WB_NAME + ": waiting on you"}
       data-tour="wb-rail"
       onKeyDown={onKeyDown}
       onFocus={onFocus}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget)) setTipsOff(false);
+      }}
+      onMouseLeave={() => setTipsOff(false)}
       onClick={(e) => {
         // A click on the rail itself (not an icon or the + menu) opens the Desk.
         if (e.target === e.currentTarget || (e.target.classList && e.target.classList.contains("wb-rail-gap"))) onOpen();
@@ -293,7 +318,7 @@ function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
         const tipId = "wb-rail-tip-" + it.id;
         const dot = it.id === "message" && unread;
         return (
-          <div key={it.id} className={"wb-rail-item" + (n ? " has-count" : "")}>
+          <div key={it.id} className={"wb-rail-item" + (n ? " has-count" : "")} onMouseEnter={() => tipsOff && setTipsOff(false)}>
             <button
               type="button"
               className="wb-rail-btn"
@@ -328,7 +353,10 @@ function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
   );
 }
 
-function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread, chatClientId, clientCounts, pageClient }) {
+// R2 adds staffUser and the template props (canManageTemplates,
+// canCreateTemplates, onOpenTemplates), passed through to the task view's
+// TK_DrawerContent exactly as app.jsx passes them to TK_DrawerHost.
+function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread, chatClientId, clientCounts, pageClient, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates }) {
   const on = WB_useSwitch();
   const s = WB_useStore(me, isAdmin, on);
   const open = s.drawerOpen;
@@ -426,9 +454,25 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
     };
   }, [live]);
 
+  // ---- R2: the task view (spec 5). The drill stack lives in WB_store; the
+  // column shows the top task while the Desk is open and the stack has one.
+  const drillStack = open && Array.isArray(s.drill) ? s.drill : [];
+  const drillTop = drillStack.length ? drillStack[drillStack.length - 1] : null;
+  const taskView = !!drillTop;
+  const taskViewRef = React.useRef(taskView);
+  taskViewRef.current = taskView;
+  // The task view widens the column to at least Wide (decision 26). A width
+  // dragged or keyed while a task shows is kept for this task view only; the
+  // saved list width never changes from here.
+  const [taskW, setTaskW] = React.useState(null);
+  React.useEffect(() => {
+    if (!taskView) setTaskW(null);
+  }, [taskView]);
+
   // ---- Width and layout (WB_deskLayout, node-tested) ----
   const savedW = s.desk && s.desk.right ? s.desk.right.w : WB_DESK_W.standard;
-  const layout = WB_deskLayout({ vw, railW: leftW, w: savedW, open });
+  const wantW = taskView ? WB_deskTaskWidth(savedW, taskW) : savedW;
+  const layout = WB_deskLayout({ vw, railW: leftW, w: wantW, open });
   const layoutRef = React.useRef(layout);
   layoutRef.current = layout;
   // What covers the page's right edge: the open column, else the rail.
@@ -525,7 +569,8 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
       WB_track("wb-resize", "drag:close");
       return;
     }
-    WB_store.setDeskWidth(to.w);
+    if (taskViewRef.current) setTaskW(to.w);
+    else WB_store.setDeskWidth(to.w);
     setCommits((n) => n + 1);
     WB_track("wb-resize", "drag:" + WB_deskWidthName(to.w));
   };
@@ -583,7 +628,8 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
       e.preventDefault();
       e.stopPropagation();
       if (to === layoutRef.current.w) return;
-      WB_store.setDeskWidth(to);
+      if (taskViewRef.current) setTaskW(to);
+      else WB_store.setDeskWidth(to);
       WB_track("wb-resize", "key:" + WB_deskWidthName(to));
     },
   };
@@ -637,7 +683,9 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
       const panel = panelRef.current;
       opener.current = ae && ae !== document.body && !(panel && panel.contains(ae)) ? ae : null;
       const by = WB_store.getState().openedBy;
-      if (by !== "restore" && by !== "tour") {
+      // A drill-in (or a reopen onto a kept task) focuses the task view
+      // itself (the effect below).
+      if (by !== "restore" && by !== "tour" && by !== "drill" && !WB_store.getState().drill.length) {
         setTimeout(() => {
           const first = panelRef.current && WB_hubFocusTarget(panelRef.current, null);
           if (first) first.focus();
@@ -669,6 +717,145 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
     }
     wasOpen.current = open;
   }, [open]);
+
+  // ---- R2: the router (spec 5.1). While the Desk is live, every TK_openTask
+  // call lands here first; true = the Desk's task view took it. The modal
+  // drawer (or the Tasks page) takes it otherwise: schema not ready, or
+  // opts.modal. drillReturn = where focus goes back when the first level
+  // closes (the row it was opened from, on the page or in the Desk list).
+  const drillReturn = React.useRef(null);
+  const [drillSeq, setDrillSeq] = React.useState(0);
+  React.useEffect(() => {
+    if (!live) return undefined;
+    const route = (id, opts) => {
+      const o = opts || {};
+      let schemaOk = false;
+      try {
+        const ts = typeof TK_dwState === "function" ? TK_dwState() : null;
+        schemaOk = !!ts && ts.schema === "ok";
+      } catch (err) {}
+      if (WB_deskRoute({ live: true, schemaOk, opts: o }) !== "desk") return false;
+      const st = WB_store.getState();
+      const panel = panelRef.current;
+      const ae = document.activeElement;
+      const real = ae && ae !== document.body && ae !== document.documentElement ? ae : null;
+      const outside = !!real && !(panel && panel.contains(real));
+      if (!st.drawerOpen || !st.drill.length) drillReturn.current = real;
+      // Spec 7: the opener is saved on every drill from outside the panel.
+      if (outside && st.drawerOpen) opener.current = real;
+      if (!WB_store.drill(String(id), { from: o.from || "", focus: o.focus || null })) return false;
+      openedAt.current = Date.now();
+      setDrillSeq((n) => n + 1);
+      // The chat and widget drawers close for a task, as before; embedded
+      // tells them it is the Desk's task view.
+      try {
+        window.dispatchEvent(new CustomEvent("tk:drawer-open", { detail: { id: String(id), embedded: true } }));
+      } catch (err) {}
+      WB_track("tasks-drawer");
+      WB_track("wb-drill", o.from || "other");
+      return true;
+    };
+    // The client tasks panel (t, the top bar's Tasks pill) becomes the Desk's
+    // Client tab (decision 13). toggle on the client already showing closes.
+    const clientRoute = (clientId, action) => {
+      if (clientId == null || clientId === "") return false;
+      const st = WB_store.getState();
+      const showing = st.drawerOpen && !st.drill.length && st.hub.tab === "client" && String(st.hub.clientId || "") === String(clientId);
+      if (action === "toggle" && showing) {
+        WB_store.setDrawerOpen(false);
+        return true;
+      }
+      WB_store.drillClear();
+      WB_store.setHub({ tab: "client", clientId: String(clientId), lastFocus: null });
+      WB_track("wb-hub", "client");
+      if (!st.drawerOpen) {
+        WB_store.setDrawerOpen(true, "client");
+        WB_track("wb-drawer", "client");
+      } else {
+        setTimeout(() => {
+          const el = panelRef.current && WB_hubFocusTarget(panelRef.current, null);
+          if (el && typeof el.focus === "function") el.focus();
+        }, 30);
+      }
+      return true;
+    };
+    window.TK_openTaskRoute = route;
+    window.TK_openClientRoute = clientRoute;
+    return () => {
+      try {
+        if (window.TK_openTaskRoute === route) delete window.TK_openTaskRoute;
+        if (window.TK_openClientRoute === clientRoute) delete window.TK_openClientRoute;
+      } catch (err) {}
+    };
+  }, [live]);
+
+  // TK_store.deskTaskId: the task the view shows (rows mark it). drawerId
+  // stays the modal's only.
+  const deskTaskId = live && taskView ? drillTop.id : null;
+  React.useEffect(() => {
+    if (typeof TK_dwDispatch === "function") TK_dwDispatch({ type: "deskTask", id: deskTaskId });
+  }, [deskTaskId]);
+  React.useEffect(
+    () => () => {
+      if (typeof TK_dwDispatch === "function") TK_dwDispatch({ type: "deskTask", id: null });
+    },
+    [],
+  );
+
+  // Focus the task view on every drill (spec 7). The region, not the title
+  // field, so x / s / a and the Esc ladder work at once (as in the modal).
+  // focus "assignee" (the a key on a row): TK_DrawerContent focuses it.
+  const taskViewKey = taskView ? drillTop.id + ":" + drillStack.length : "";
+  React.useEffect(() => {
+    if (!taskView || (drillTop && drillTop.focus === "assignee")) return undefined;
+    if (WB_store.getState().openedBy === "restore") return undefined;
+    let n = 0;
+    let t = 0;
+    const go = () => {
+      const el = panelRef.current && panelRef.current.querySelector(".wb-taskview");
+      if (el) {
+        if (!el.contains(document.activeElement)) el.focus({ preventScroll: true });
+        return;
+      }
+      if (n++ < 10) t = setTimeout(go, 30);
+    };
+    t = setTimeout(go, 30);
+    return () => clearTimeout(t);
+  }, [taskViewKey, drillSeq]);
+
+  // The ladder's task-view steps (WB_useHubKeys, the Back button, the
+  // content's own close): pop to the previous task, back to the list, or
+  // close the Desk.
+  const drillStep = (step) => {
+    if (step === "pop") {
+      WB_store.drillBack();
+      return;
+    }
+    if (step === "list") {
+      while (WB_store.drillBack() > 0) {}
+      const back = drillReturn.current;
+      drillReturn.current = null;
+      setTimeout(() => {
+        if (WB__canFocus(back)) back.focus();
+        else {
+          const el = panelRef.current && WB_hubFocusTarget(panelRef.current, WB_store.getState().hub.lastFocus);
+          if (el && typeof el.focus === "function") el.focus();
+        }
+      }, 30);
+      return;
+    }
+    // close: the Desk was closed when the task opened; focus goes back to the
+    // page row (the opener, through the close effect above).
+    const back = drillReturn.current;
+    drillReturn.current = null;
+    if (WB__canFocus(back) && !(panelRef.current && panelRef.current.contains(back))) opener.current = back;
+    WB_store.drillClear();
+    WB_store.setDrawerOpen(false);
+  };
+  deskRef.current.drillStep = drillStep;
+  // The task's own close (× in its head, a deleted or missing task): leave the
+  // task view the way Esc at depth 1 would.
+  const closeTask = () => drillStep(WB_store.getState().drillOrigin.closeOnEmpty ? "close" : "list");
 
   // Leaving the page (a deep link): the pushed column stays (it is part of
   // the layout); an overlay or the phone sheet closes, unless it opened
@@ -852,6 +1039,14 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
           mode={mode}
           layout={layout.mode}
           handle={handle}
+          drill={drillStack}
+          deskRef={deskRef}
+          onDrillStep={drillStep}
+          onCloseTask={closeTask}
+          staffUser={staffUser}
+          canManageTemplates={canManageTemplates}
+          canCreateTemplates={canCreateTemplates}
+          onOpenTemplates={onOpenTemplates}
         />
       )}
     </>

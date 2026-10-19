@@ -2,7 +2,7 @@
 title: How do I use my Slate?
 section: Daily work
 audience: staff
-keywords: [task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, select many, bulk, multi-select, undo, ctrl z, v, select a task, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import, slate, my slate]
+keywords: [task in the desk, desk client tab, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, select many, bulk, multi-select, undo, ctrl z, v, select a task, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import, slate, my slate]
 sort: 110
 ---
 **Slate** is where your tasks live (it was called Tasks). Its home page is one list of everything assigned to you, across every client and project. Open it from the **Slate** button in the top bar (`#/tasks/my`), or from **Work › Slate** (`#/work/tasks`), which shows the same list inside Work. The Slate page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
@@ -125,8 +125,8 @@ A task with subtasks has a small arrow and a count, such as **2/5** (2 of its 5 
 | **v** | Select the task (**Shift+V** selects a range); **Esc** clears |
 | **Ctrl+Z** / **⌘Z** | Undo your last change while its Undo message shows |
 | **q** | Add a task (works on every staff page) |
-| **t** | Open or close the client's task panel (works on every staff page) |
-| **Esc** | Close the details |
+| **t** | Open or close the client's task panel (works on every staff page; with the Desk on, the Desk's Client tab) |
+| **Esc** | Close the details (in the Desk: back one step) |
 | **?** | Show these shortcuts |
 
 The shortcuts pause while you type in a box or have a menu open. Click the keyboard button in the toolbar, or see **Settings › Shortcuts › Slate shortcuts**, for the list.
@@ -147,7 +147,7 @@ See [How do recurring tasks from templates work?](#/help/task-templates).
 - Search (**Ctrl+K** / **⌘K**) finds tasks by their name, description and comments. A match inside a comment says *In a comment:*. Click a result to open the task.
 - A client's Overview has a **Tasks for this client** card. See [What's on a client's Overview?](#/help/client-overview).
 
-On a client's pages, a line under the tabs shows the next task, and **t** opens all of the client's tasks in a side panel. See [How do I see a client's tasks without leaving the page?](#/help/client-tasks-drawer).
+On a client's pages, a line under the tabs shows the next task, and **t** opens all of the client's tasks in a side panel. With the Desk on, the line is gone and **t** opens the Desk's **Client** tab, and a task you open shows in the Desk instead of the pop-up. See [How do I see a client's tasks without leaving the page?](#/help/client-tasks-drawer).
 
 ### Troubleshooting
 

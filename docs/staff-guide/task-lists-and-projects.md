@@ -2,7 +2,7 @@
 title: How do client task lists and projects work?
 section: Daily work
 audience: staff
-keywords: [task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients, slate]
+keywords: [task in the desk, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients, slate]
 sort: 114
 ---
 The **Slate** page (the **Slate** button in the top bar, or `#/tasks/my`) has a sidebar of lists down the left. Below about 900 pixels wide, the sidebar sits behind the **Lists** button at the top of the page.
@@ -19,7 +19,7 @@ The **Slate** page (the **Slate** button in the top bar, or `#/tasks/my`) has a 
 
 ### A list
 
-A task with subtasks has an arrow and a count (for example **2/5**). Click the row to open its subtasks right under it; click the task's name to open its details. See [How do I use my Slate?](#/help/my-tasks).
+A task with subtasks has an arrow and a count (for example **2/5**). Click the row to open its subtasks right under it; click the task's name to open its details (in the Desk, when the Desk is on; **← Back** or **Esc** returns to the list). See [How do I use my Slate?](#/help/my-tasks).
 
 Each list shows its tasks with **Task**, **Assignee**, **Due**, **Status** and **Priority** columns, grouped into sections. Click a column heading to sort by it. Each section ends with an **Add task** row: click it, type a name and press **Enter** (**Esc** cancels), and the new task lands in that section. Each row's assignee, due date and priority change in place with a click; see [How do I use my Slate?](#/help/my-tasks).
 

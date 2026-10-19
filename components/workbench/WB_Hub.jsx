@@ -35,14 +35,18 @@ function WB__has(sel) {
 }
 
 // deskRef.current (owned by WB_Drawer): { mode: "dock"|"sheet", zone:
-// "desk"|"bar"|"page", dragging, cancel() }.
+// "desk"|"bar"|"page", dragging, cancel(), drillStep(step) (R2: "pop" |
+// "list" | "close"), innerEsc() (R2: the task view's own Esc, the SOP panel;
+// true when it ate the key) }.
 function WB_useHubKeys(live, panelRef, deskRef) {
   React.useEffect(() => {
     if (!live) return undefined;
     const onKey = (e) => {
       const isD = WB_deskToggleKey(e);
-      if (e.key !== "Escape" && e.key !== "Tab" && !isD) return;
-      const open = WB_store.getState().drawerOpen;
+      const isF6 = e.key === "F6" && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey;
+      if (e.key !== "Escape" && e.key !== "Tab" && !isD && !isF6) return;
+      const st = WB_store.getState();
+      const open = st.drawerOpen;
       if (!isD && !open) return;
       const dk = (deskRef && deskRef.current) || {};
       const sheet = dk.mode === "sheet";
@@ -59,6 +63,28 @@ function WB_useHubKeys(live, panelRef, deskRef) {
       // A layer above the hub (task drawer, client drawer, chat drawer, a
       // dialog, a tour, a row's menu, the client picker list) gets the key first.
       const present = WB_layersPresent(WB__has);
+      // F6 (spec 6, R1 leftover): between the page and the open Desk. A
+      // layer above (a dialog, a drawer, the tour) keeps it.
+      if (isF6) {
+        // The phone sheet covers the page, so the page is not a place to go.
+        if (sheet || WB_layerAbove(present)) return;
+        const where = WB_deskF6Target({ open, zone: inPanel ? "desk" : "page" });
+        if (!where) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if (where === "desk") {
+          const tv = panel && panel.querySelector(".wb-taskview");
+          const el = tv || (panel && WB_hubFocusTarget(panel, st.hub.lastFocus));
+          if (el && typeof el.focus === "function") el.focus();
+        } else {
+          const main = document.querySelector("main, .main");
+          if (main) {
+            if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
+            main.focus();
+          }
+        }
+        return;
+      }
       if (e.key === "Tab") {
         // Only the phone sheet is modal and keeps Tab inside; the docked Desk
         // is part of the page's Tab order (page, bar, Desk, browser).
@@ -98,20 +124,41 @@ function WB_useHubKeys(live, panelRef, deskRef) {
         try {
           clears = !!(tgt && tgt.matches && tgt.matches(WB_ESC_CLEARS_SEL));
         } catch (err) {}
+        // R2: in the task view a text field keeps Esc (the modal drawer's rule:
+        // TK_dwIsTyping, a select excepted), so a draft is never lost to it.
+        let inTask = false;
+        try {
+          inTask = !!(tgt && tgt.nodeType === 1 && tgt.closest && tgt.closest(".wb-taskview"));
+        } catch (err) {}
+        const taskField = inTask && typeof TK_dwIsTyping === "function" && TK_dwIsTyping(tgt) && String(tgt.tagName || "").toUpperCase() !== "SELECT";
+        const depth = Array.isArray(st.drill) ? st.drill.length : 0;
         const step = WB_deskEscStep({
           layerAbove: present.some((id) => id !== "picker"),
           pickerOpen: present.indexOf("picker") >= 0,
           // A self-clearing field with text (the add row, the client picker)
           // clears itself first; any other field lets Esc close the Desk.
-          fieldKeeps: WB_escKeepsField({ tag: tgt && tgt.tagName, type: tgt && tgt.type, value: tgt && tgt.value, inPanel, clears }),
-          drillInner: false, // D4
-          drillDepth: 0, // D4
+          fieldKeeps: taskField || WB_escKeepsField({ tag: tgt && tgt.tagName, type: tgt && tgt.type, value: tgt && tgt.value, inPanel, clears }),
+          // The SOP side panel is asked at keydown time (below): it is the
+          // content's own state, not something WB_logic can see.
+          drillInner: false,
+          drillDepth: depth,
+          closeOnEmpty: !!(st.drillOrigin && st.drillOrigin.closeOnEmpty),
         });
         // layer / picker / field: the element's own handler acts (this runs
         // in the capture phase, so leaving the event alone lets it through).
-        if (step !== "close") return;
+        if (step !== "close" && step !== "pop" && step !== "list") return;
         e.preventDefault();
         e.stopPropagation();
+        if (depth > 0) {
+          // Step 4 of the ladder: an open SOP panel closes first.
+          try {
+            if (typeof dk.innerEsc === "function" && dk.innerEsc() === true) return;
+          } catch (err) {}
+          if (typeof dk.drillStep === "function") {
+            dk.drillStep(step);
+            return;
+          }
+        }
         WB_store.setDrawerOpen(false);
         return;
       }
@@ -252,10 +299,38 @@ function WB_HubTabs({ tab, onPick, counts }) {
 // (dock only): { show, w, min, max, valueText, onPointerDown, onPointerMove,
 // onPointerUp, onPointerCancel, onLostPointerCapture, onKeyDown } from
 // WB_Drawer's width drag.
-function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle }) {
+// R2 (spec 5.3): drill (the stack; its last item is the task showing),
+// deskRef, onDrillStep(step), onCloseTask(), and staffUser plus the template
+// props for TK_DrawerContent. While a task shows, the head, tabs, chips and
+// list panes are hidden (the panes stay mounted; their scroll comes back).
+function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle, drill, deskRef, onDrillStep, onCloseTask, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates }) {
   const dock = mode !== "sheet";
   const hub = s.hub;
   const tab = hub.tab;
+  const stack = Array.isArray(drill) ? drill : [];
+  const top = stack.length ? stack[stack.length - 1] : null;
+  const taskView = !!top;
+  const taskRef = React.useRef(null);
+  const topTitle =
+    typeof TK_dwUseStore === "function"
+      ? TK_dwUseStore((st) => (top && st.tasks && st.tasks[top.id] ? st.tasks[top.id].text || "" : ""))
+      : "";
+  const titleOf = (id) => {
+    try {
+      const ts = typeof TK_dwState === "function" ? TK_dwState() : null;
+      const t = ts && ts.tasks ? ts.tasks[id] : null;
+      return t ? t.text || "" : "";
+    } catch (e) {
+      return "";
+    }
+  };
+  // The content's own Esc (the SOP panel) is asked first by WB_useHubKeys.
+  const registerEsc = React.useCallback(
+    (fn) => {
+      if (deskRef && deskRef.current) deskRef.current.innerEsc = typeof fn === "function" ? fn : null;
+    },
+    [deskRef],
+  );
   const bodyRef = React.useRef(null);
   const restored = React.useRef(null);
   const tabbed = WB_HUB_TABS.filter((t) => t.live).length > 1;
@@ -288,12 +363,17 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
   // Restore the pane's scroll once its rows are on screen, then save it as
   // it moves (silent: no re-render; the store throttles the write).
   React.useEffect(() => {
+    if (taskView) {
+      // Hidden under the task view: put the saved scroll back on return.
+      restored.current = null;
+      return;
+    }
     if (!paneReady) return;
     if (restored.current === tab) return;
     restored.current = tab;
     const el = bodyRef.current;
     if (el) el.scrollTop = hub.scroll[tab] || 0;
-  }, [tab, paneReady]);
+  }, [tab, paneReady, taskView]);
   const onScroll = (e) => {
     if (restored.current !== tab) return;
     const patch = { scroll: { [tab]: e.currentTarget.scrollTop } };
@@ -337,7 +417,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
             <span className="wb-desk-grip" aria-hidden="true" />
           </div>
         )}
-        <div className="wb-panel-head">
+        <div className="wb-panel-head" hidden={taskView}>
           <h2 className="wb-panel-title" id="wb-panel-title">
             {WB_NAME} <span className="wb-chip-n">{count}</span>
           </h2>
@@ -349,8 +429,60 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
             ×
           </button>
         </div>
-        <WB_HubTabs tab={tab} onPick={setTab} counts={{ inbox: count, tasks: tasksCount }} />
-        {tab === "inbox" && <div className="wb-panel-tools">
+        {!taskView && <WB_HubTabs tab={tab} onPick={setTab} counts={{ inbox: count, tasks: tasksCount }} />}
+        {taskView && (
+          <div
+            ref={taskRef}
+            className="wb-taskview"
+            role="region"
+            tabIndex={-1}
+            aria-label={"Task: " + (topTitle || "details")}
+            data-tk-keyscope="drawer"
+            data-tour="wb-taskview"
+            onKeyDownCapture={(e) => {
+              if (e.key === "Escape") taskRef.escAt = Date.now();
+            }}
+            onBlurCapture={() => {
+              // A field's own Esc (revert + blur) would drop focus to <body>; keep it in the task view.
+              if (!taskRef.escAt || Date.now() - taskRef.escAt > 300) return;
+              setTimeout(() => {
+                const tv = taskRef.current;
+                if (tv && (document.activeElement === document.body || !document.activeElement)) tv.focus({ preventScroll: true });
+              }, 20);
+            }}
+          >
+            <div className="tk-dwc">
+              {typeof TK_DrawerContent === "function" && (
+                <TK_DrawerContent
+                  key={top.id}
+                  taskId={top.id}
+                  mode="embedded"
+                  scopeRef={taskRef}
+                  registerEsc={registerEsc}
+                  onClose={() => onCloseTask && onCloseTask()}
+                  focusField={top.focus}
+                  headStart={
+                    <button
+                      type="button"
+                      className="wb-back"
+                      data-tour="wb-back"
+                      onClick={() => onDrillStep && onDrillStep(stack.length > 1 ? "pop" : "list")}
+                    >
+                      <span aria-hidden="true">←</span> {WB_drillBackLabel(stack, titleOf, WB_NAME)}
+                    </button>
+                  }
+                  staffUser={staffUser}
+                  clients={clients}
+                  isAdmin={isAdmin}
+                  canManageTemplates={canManageTemplates}
+                  canCreateTemplates={canCreateTemplates}
+                  onOpenTemplates={onOpenTemplates}
+                />
+              )}
+            </div>
+          </div>
+        )}
+        {tab === "inbox" && !taskView && <div className="wb-panel-tools">
           <div className="wb-tabs wb-hub-chips" role="group" aria-label="Filter">
             {WB_DRAWER_TABS.map((t) => (
               <button key={t.id} type="button" aria-pressed={chip === t.id} className={"wb-tab" + (chip === t.id ? " is-on" : "")} onClick={() => setChip(t.id)}>
@@ -369,7 +501,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
             </div>
           )}
         </div>}
-        <div ref={bodyRef} className="wb-panel-body" onScroll={onScroll}>
+        <div ref={bodyRef} className="wb-panel-body" onScroll={onScroll} hidden={taskView}>
           <div className="wb-hub-pane" hidden={tab !== "inbox"} {...(tabbed ? { role: "tabpanel", id: "wb-hub-pane-inbox", "aria-labelledby": "wb-hub-tab-inbox" } : {})}>
             {s.error && (
               <div className="wb-error" role="alert">
@@ -435,12 +567,18 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
             )}
           </div>
         </div>
+        {taskView ? (
+          <p className="wb-panel-foot wb-taskview-keys">
+            <kbd>Esc</kbd> back · <kbd>D</kbd> close · <kbd>F6</kbd> page · <kbd>x</kbd> done · <kbd>s</kbd> status · <kbd>a</kbd> assignee
+          </p>
+        ) : (
         <p className="wb-panel-foot">
           <kbd>D</kbd> opens and closes · <kbd>Esc</kbd> goes back one step
           {dock && handle && handle.show && <> · drag the left edge to change the width</>}
           {tab === "tasks" && <> · <kbd>↑</kbd> <kbd>↓</kbd> move between tasks · use <b>Add to your {WB_SLATE}</b> to add one</>}
           {tab === "client" && <> · type in the box to find a client · the <b>☆</b> pins one to the top</>}
         </p>
+        )}
       </section>
     </>
   );
