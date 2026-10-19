@@ -388,7 +388,7 @@ button.td-row-main:hover {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
   gap: 16px;
   align-items: stretch;
-  grid-auto-rows: 300px;
+  grid-auto-rows: 360px;
   margin-bottom: 16px;
 }
 .td-card {
@@ -687,10 +687,25 @@ button.td-row-main:hover {
 }
 .td-cards .staff-add-row {
   flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.td-cards .staff-add-row input {
+  min-width: 0;
+  padding: 5px 9px;
+  font-size: 12.5px;
 }
 .td-cards .staff-add-row input[type="text"] {
   flex: 1 1 100%;
-  min-width: 0;
+}
+.td-cards .staff-add-row input[type="date"] {
+  flex: 1 1 auto;
+}
+.td-cards .staff-add-row button {
+  padding: 5px 12px;
+  font-size: 12.5px;
 }
 
 /* Recent clients: one line of chips. */

@@ -945,7 +945,7 @@ function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }
         Your reminders
       </h3>
       <p className="card-subtitle">
-        Private to you and admins unless you share one with a client's team. For times, repeats and sharing, open{" "}
+        Private to you and admins. For times, repeats and sharing, open{" "}
         <button type="button" className="td-link" onClick={() => NAV_go("work", "tasks")}>
           Work › Slate
         </button>
