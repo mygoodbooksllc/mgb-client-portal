@@ -63,6 +63,22 @@ t("duePatch", () => {
   assert.strictEqual(L.TK_rwDuePatch("date", "2026-10-19", "11/02/2026"), null);
   assert.strictEqual(L.TK_rwDuePatch("date", "2026-10-19", ""), null);
   assert.strictEqual(L.TK_rwDuePatch("bogus", "2026-10-19"), null);
+  // a year still being typed in the date box never saves
+  ["0002-11-02", "0020-11-02", "0202-11-02", "2100-01-01"].forEach((v) => assert.strictEqual(L.TK_rwDuePatch("date", "2026-10-19", v), null, v));
+  assert.deepStrictEqual(L.TK_rwDuePatch("date", "2026-10-19", "2027-01-05"), { due_date: "2027-01-05" });
+});
+
+t("dueSavePatch moves due_at with the day, keeps the time, and ends a repeat on clear", () => {
+  const h = { timeOf: (iso) => (iso && iso.indexOf("T15:30") > 0 ? "10:30" : ""), dueAt: (ymd, hhmm) => ymd + (hhmm ? "@" + hhmm : "T00:00:00.000Z") };
+  const timed = { due_date: "2026-10-19", due_at: "2026-10-19T15:30:00.000Z", recurrence: "monthly" };
+  assert.deepStrictEqual(L.TK_rwDueSavePatch(timed, { due_date: "2026-10-22" }, h), { due_date: "2026-10-22", due_at: "2026-10-22@10:30" });
+  assert.deepStrictEqual(L.TK_rwDueSavePatch({ due_date: null }, { due_date: "2026-10-22" }, h), { due_date: "2026-10-22", due_at: "2026-10-22T00:00:00.000Z" });
+  assert.deepStrictEqual(L.TK_rwDueSavePatch(timed, { due_date: null }, h), { due_date: null, due_at: null, recurrence: "none" });
+  assert.deepStrictEqual(L.TK_rwDueSavePatch({ recurrence: "none" }, { due_date: null }, h), { due_date: null, due_at: null });
+  // no helpers: the date-only stamp
+  assert.deepStrictEqual(L.TK_rwDueSavePatch({}, { due_date: "2026-10-22" }), { due_date: "2026-10-22", due_at: "2026-10-22T00:00:00.000Z" });
+  // not a due change: untouched
+  assert.deepStrictEqual(L.TK_rwDueSavePatch({}, { priority: "high" }, h), { priority: "high" });
 });
 
 t("dueError mirrors the drawer rule", () => {
@@ -89,7 +105,8 @@ t("groupAdd: due buckets", () => {
   assert.deepStrictEqual(L.TK_rwGroupAdd("today", ctx), { show: true, due_date: "2026-10-19", client_id: null });
   assert.deepStrictEqual(L.TK_rwGroupAdd("week", ctx), { show: true, due_date: "2026-10-20", client_id: null });
   assert.deepStrictEqual(L.TK_rwGroupAdd("later", ctx), { show: true, due_date: null, client_id: null });
-  assert.deepStrictEqual(L.TK_rwGroupAdd("page", ctx), { show: true, due_date: null, client_id: null });
+  // "For this page" (client panel): a new task would not match the page, so no row
+  assert.strictEqual(L.TK_rwGroupAdd("page", ctx).show, false);
 });
 
 t("groupAdd: groups that cannot hold a new task, and no-create roles", () => {

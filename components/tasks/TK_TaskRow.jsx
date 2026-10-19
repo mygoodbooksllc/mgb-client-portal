@@ -1045,6 +1045,14 @@ function TK_vRowSave(task, patch) {
       return Promise.resolve(null);
     }
   }
+  // As the drawer saves it: due_at follows the day (keeping a time of day) and
+  // clearing the date ends a repeat.
+  if ("due_date" in patch && typeof TK_rwDueSavePatch === "function") {
+    patch = TK_rwDueSavePatch(task, patch, {
+      dueAt: typeof TK_dlDueAt === "function" ? TK_dlDueAt : null,
+      timeOf: typeof TK_dlTimeOf === "function" ? TK_dlTimeOf : null,
+    });
+  }
   return TK_api.update(task.id, patch, { optimistic: true }).catch(function (e) {
     TK_vToast(TK_vErrText(e));
     return null;
@@ -1326,11 +1334,13 @@ function TK_vRowDue(props) {
               className="tk-menu-date"
               aria-label="Pick a due date"
               autoFocus
-              defaultValue={task.due_date ? String(task.due_date).slice(0, 10) : ""}
               onClick={function (e) {
                 e.stopPropagation();
               }}
               onChange={function (e) {
+                // Starts empty, so the box only reports a value once the day,
+                // month and year are all in; TK_rwDuePatch also skips a year
+                // still being typed. A pick from the calendar saves at once.
                 var patch = TK_rwDuePatch("date", today, e.target.value);
                 if (patch) apply(patch);
               }}

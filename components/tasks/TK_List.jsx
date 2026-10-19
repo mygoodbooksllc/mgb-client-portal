@@ -89,6 +89,7 @@ function TK_vAddRow(props) {
   var active = aPair[0];
   var setActive = aPair[1];
   var inputRef = React.useRef(null);
+  var sendingRef = React.useRef(false); // a second Enter before the first save lands adds nothing
   var tPair = React.useState("");
   var text = tPair[0];
   var setText = tPair[1];
@@ -115,7 +116,7 @@ function TK_vAddRow(props) {
 
   var save = function () {
     var raw = text.trim();
-    if (!raw || busy) return;
+    if (!raw || busy || sendingRef.current) return;
     var ctx = props.ctx || {};
     var today = TK_vToday();
     var parsed =
@@ -158,16 +159,19 @@ function TK_vAddRow(props) {
       setMsg(TK_vCopy("saveError"));
       return;
     }
+    sendingRef.current = true;
     setBusy(true);
     setMsg("");
     TK_api.create(fields).then(
       function () {
+        sendingRef.current = false;
         setBusy(false);
         setText("");
         setMsg(TK_vCopy("taskAdded", "Task added."));
         TK_vTrack("tasks-quick-add");
       },
       function (e) {
+        sendingRef.current = false;
         setBusy(false);
         setMsg(TK_vErrText(e, "saveError"));
       },

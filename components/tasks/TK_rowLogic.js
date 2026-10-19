@@ -7,7 +7,7 @@
 //   node components/tasks/TK_rowLogic.test.js
 //
 //   avatar color                 TK_rwAvatarTone
-//   due chip tone and choices    TK_rwDueTone, TK_rwDueChoices, TK_rwDuePatch, TK_rwDueError
+//   due chip tone and choices    TK_rwDueTone, TK_rwDueChoices, TK_rwDuePatch, TK_rwDueSavePatch, TK_rwDueError
 //   who may edit which cell      TK_rwAccess
 //   priority cell                TK_RW_PRIORITIES, TK_rwPriorityOf
 //   "+ Add task" per group       TK_rwGroupAdd
@@ -95,12 +95,33 @@ function TK_rwDuePatch(choice, today, value) {
   if (choice === "clear") return { due_date: null };
   if (choice === "date") {
     var v = value == null ? "" : String(value);
-    return /^\d{4}-\d{2}-\d{2}$/.test(v) && TK_rwParts(v) ? { due_date: v } : null;
+    // A date box reports a value while the year is still being typed (0002,
+    // 0020, 0202, 2026): only a real year counts, so a half-typed one never saves.
+    var p = /^\d{4}-\d{2}-\d{2}$/.test(v) ? TK_rwParts(v) : null;
+    return p && p[0] >= 2000 && p[0] <= 2099 ? { due_date: v } : null;
   }
   var hit = TK_rwDueChoices(today).filter(function (c) {
     return c.key === choice;
   })[0];
   return hit ? { due_date: hit.date } : null;
+}
+
+// The full save for a new due date, as the drawer sends it: due_at moves with
+// the day and keeps any time of day; clearing the date on a repeating task
+// turns the repeat off (a repeat needs a due date). helpers: { dueAt(ymd, hhmm),
+// timeOf(iso) } (TK_dlDueAt / TK_dlTimeOf); without them due_at is the
+// date-only stamp. patch: { due_date } from TK_rwDuePatch.
+function TK_rwDueSavePatch(task, patch, helpers) {
+  if (!patch || !("due_date" in patch)) return patch;
+  var h = helpers || {};
+  var v = patch.due_date || null;
+  var out = { due_date: v };
+  var time = typeof h.timeOf === "function" && task ? h.timeOf(task.due_at) : "";
+  if (!v) out.due_at = null;
+  else if (typeof h.dueAt === "function") out.due_at = h.dueAt(v, time);
+  else out.due_at = v + "T00:00:00.000Z";
+  if (!v && task && task.recurrence && task.recurrence !== "none") out.recurrence = "none";
+  return out;
 }
 
 // Same rule as the drawer: the start date can't come after the due date.
@@ -131,8 +152,9 @@ function TK_rwAccess(task, ctx) {
 // Where a new task starts for a given group. scope "my" = Slate / My Tasks by
 // due date, "client" = the client drawer's groups. Returns
 //   { show, due_date, client_id }   (due_date / client_id null when the group says nothing)
-// Overdue, waiting, review, unassigned and done groups get no add row: a
-// task made there would not stay in the group it was typed into.
+// Overdue, waiting, review, unassigned, done and the client panel's "For this
+// page" groups get no add row: a task made there would not stay in the group
+// it was typed into.
 function TK_rwGroupAdd(groupKey, ctx) {
   var c = ctx || {};
   var key = String(groupKey == null ? "" : groupKey);
@@ -151,7 +173,7 @@ function TK_rwGroupAdd(groupKey, ctx) {
   } else if (key === "week") {
     out.show = !!TK_rwParts(c.today);
     out.due_date = out.show ? TK_rwAddDays(c.today, 1) : null;
-  } else if (key === "later" || key === "page") {
+  } else if (key === "later") {
     out.show = true;
   }
   return out;
@@ -166,6 +188,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_rwDueTone: TK_rwDueTone,
     TK_rwDueChoices: TK_rwDueChoices,
     TK_rwDuePatch: TK_rwDuePatch,
+    TK_rwDueSavePatch: TK_rwDueSavePatch,
     TK_rwDueError: TK_rwDueError,
     TK_rwAccess: TK_rwAccess,
     TK_rwGroupAdd: TK_rwGroupAdd,
