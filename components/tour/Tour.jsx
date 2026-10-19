@@ -1361,7 +1361,7 @@ function TOUR_tasksSteps() {
       spot: "top",
       title: "Grouped by when it's due",
       body: () =>
-        "Overdue, Today, This week and Later, then Waiting on client, Unassigned (tasks on your clients nobody has claimed yet) and Done, which starts folded. Click a group's heading to fold or open it.",
+        "Overdue, Today, This week and Later, then Waiting on client, Unassigned (tasks on your clients nobody has claimed yet) and Done, which starts folded. Click a group's heading to fold or open it. Each group that can take a new task ends with an Add task row: click it, type a name and press Enter.",
     },
     {
       id: "tk-subtasks",
@@ -1377,7 +1377,7 @@ function TOUR_tasksSteps() {
       wait: true,
       title: "Status",
       body: () =>
-        "Each task has a status: To do, In progress, Waiting on client, Ready for review or Done. On a task that needs review, Done becomes Send for review, and an admin who didn't do the work approves it or sends it back.",
+        "Click a row's person badge, due date or priority to change it in place. Each task has a status: To do, In progress, Waiting on client, Ready for review or Done. On a task that needs review, Done becomes Send for review, and an admin who didn't do the work approves it or sends it back.",
     },
     {
       id: "tk-sidebar",

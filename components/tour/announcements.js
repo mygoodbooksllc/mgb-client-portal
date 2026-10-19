@@ -53,6 +53,36 @@ function ANN_deskDocked() {
 
 var ANN_REGISTRY = [
   {
+    id: "tasks-inline-edit",
+    date: "2026-10-19",
+    title: "Task rows you can change in place",
+    summary: "Click a task's person badge, due date or priority to change it right on the row, and use the Add task row at the bottom of each group to add one fast. Red means overdue, amber means due today.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Change a task without opening it",
+        body: () =>
+          "Each task row now has a person badge, a due date and a priority you can click to change in place, and an Add task row at the bottom of every group. About a minute.",
+      },
+      {
+        id: "ann-row",
+        title: "Click what you want to change",
+        body: () =>
+          "The round badge is the person (a dashed circle means nobody yet), the chip is the due date (red is overdue, amber is today) and the dot is the priority. Click one and pick. Hover a row for the ... menu: Open, Mark done, Claim and Copy link. The status pill works as before.",
+        targets: ["tk-status"],
+      },
+      {
+        id: "ann-add",
+        title: "Add task at the bottom of a group",
+        body: () =>
+          "Click Add task at the bottom of Today, This week or Later, type a name and press Enter. It's made with that group's day, and the box stays open for the next one. Esc closes it. To see this again, press ? and pick New: Task rows you can change in place tour.",
+        targets: ["tk-groups"],
+      },
+    ],
+  },
+  {
     id: "rail-default",
     date: "2026-10-17",
     title: "The sidebar starts as icons",

@@ -227,7 +227,7 @@ function TK_vUnassignedClaim(props) {
   var canClaim = !!props.onClaim && TK_vCanClaim(task);
   return (
     <span className="tk-unassigned">
-      <span className="tk-muted">Unassigned</span>
+      <span className={props.compact ? "tk-sr" : "tk-muted"}>Unassigned</span>
       {canClaim ? (
         <button
           type="button"
@@ -606,6 +606,8 @@ function TK_vIcon(props) {
   if (name === "people") return <svg {...common}><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" /><circle cx="17" cy="9.5" r="2.4" /><path d="M15.8 14.2c2.2.2 3.8 1.8 4.4 4.3" /></svg>;
   if (name === "hourglass") return <svg {...common}><path d="M7 4h10M7 20h10" /><path d="M8 4c0 4 8 4.5 8 8s-8 4-8 8" /><path d="M16 4c0 4-8 4.5-8 8s8 4 8 8" /></svg>;
   if (name === "repeat") return <svg {...common}><path d="M4 11V9a3 3 0 0 1 3-3h12" /><polyline points="16 3 19 6 16 9" /><path d="M20 13v2a3 3 0 0 1-3 3H5" /><polyline points="8 21 5 18 8 15" /></svg>;
+  if (name === "calendar") return <svg {...common}><rect x="3.5" y="5" width="17" height="15" rx="2" /><line x1="3.5" y1="10" x2="20.5" y2="10" /><line x1="8" y1="3" x2="8" y2="7" /><line x1="16" y1="3" x2="16" y2="7" /></svg>;
+  if (name === "user") return <svg {...common}><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20c.7-3.6 3.4-5.5 7-5.5s6.3 1.9 7 5.5" /></svg>;
   if (name === "folder") return <svg {...common}><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" /></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="8" /></svg>;
 }
@@ -1029,6 +1031,465 @@ function TK_StatusPill(props) {
   );
 }
 
+// ---- In-place cells (T1) ----------------------------------------------------------------
+// Assignee, due date and priority each open a small menu on the row itself.
+// They save through TK_api.update (reassign has its own call, with Undo) and
+// show only what TK_rwAccess allows; the server still decides.
+
+function TK_vRowSave(task, patch) {
+  if (!task || typeof TK_api === "undefined" || !TK_api || typeof TK_api.update !== "function") return Promise.resolve(null);
+  if ("due_date" in patch && typeof TK_rwDueError === "function") {
+    var err = TK_rwDueError(task, patch.due_date);
+    if (err) {
+      TK_vToast(err);
+      return Promise.resolve(null);
+    }
+  }
+  return TK_api.update(task.id, patch, { optimistic: true }).catch(function (e) {
+    TK_vToast(TK_vErrText(e));
+    return null;
+  });
+}
+
+// Open state, focus handling and keys for one small menu (Esc closes and
+// returns focus to the button; arrows move; Tab leaves; a press outside closes).
+function TK_vUseMenu() {
+  var pair = React.useState(false);
+  var open = pair[0];
+  var setOpen = pair[1];
+  var btnRef = React.useRef(null);
+  var menuRef = React.useRef(null);
+  var close = React.useCallback(function (refocus) {
+    setOpen(false);
+    if (refocus && btnRef.current) {
+      try {
+        btnRef.current.focus({ preventScroll: true });
+      } catch (e) {}
+    }
+  }, []);
+  React.useEffect(
+    function () {
+      if (!open) return undefined;
+      var first = menuRef.current ? menuRef.current.querySelector('[role^="menuitem"]:not([disabled])') : null;
+      if (first) {
+        try {
+          first.focus({ preventScroll: true });
+        } catch (e) {}
+      }
+      var onDoc = function (e) {
+        if (menuRef.current && menuRef.current.contains(e.target)) return;
+        if (btnRef.current && btnRef.current.contains(e.target)) return;
+        close(false);
+      };
+      document.addEventListener("mousedown", onDoc, true);
+      document.addEventListener("touchstart", onDoc, true);
+      return function () {
+        document.removeEventListener("mousedown", onDoc, true);
+        document.removeEventListener("touchstart", onDoc, true);
+      };
+    },
+    [open, close],
+  );
+  var onKeyDown = function (e) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      close(true);
+      return;
+    }
+    if (e.key === "Tab") {
+      close(false);
+      return;
+    }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+    if (e.target && e.target.tagName === "INPUT") return;
+    e.preventDefault();
+    var list = menuRef.current ? Array.prototype.slice.call(menuRef.current.querySelectorAll('[role^="menuitem"]:not([disabled])')) : [];
+    if (!list.length) return;
+    var i = list.indexOf(document.activeElement);
+    var j = e.key === "Home" ? 0 : e.key === "End" ? list.length - 1 : e.key === "ArrowDown" ? (i + 1) % list.length : (i - 1 + list.length) % list.length;
+    try {
+      list[j].focus();
+    } catch (err) {}
+  };
+  return { open: open, setOpen: setOpen, btnRef: btnRef, menuRef: menuRef, close: close, onKeyDown: onKeyDown };
+}
+
+// A staff name from the store's staff list (already loaded by the list; no query).
+function TK_vRowNameOf(staff, email, given) {
+  if (given) return given;
+  var em = String(email || "").toLowerCase();
+  var hit = (staff || []).filter(function (s) {
+    return s && String(s.email || "").toLowerCase() === em;
+  })[0];
+  return (hit && hit.name) || em;
+}
+
+function TK_vRowToneClass(key) {
+  return " tk-av-" + (typeof TK_rwAvatarTone === "function" ? TK_rwAvatarTone(key) : 0);
+}
+
+// props: { task, name, editable, showName, claimable, onClaim }
+function TK_vRowAssignee(props) {
+  var task = props.task;
+  var email = TK_vAssigneeOf(task);
+  var menu = TK_vUseMenu();
+  var staff = TK_vUseStore(function (s) {
+    return s ? s.staff : null;
+  });
+  var peoplePair = React.useState(null);
+  var people = peoplePair[0];
+  var setPeople = peoplePair[1];
+  var name = email ? TK_vRowNameOf(staff, email, props.name) : "";
+
+  // The pick list loads when the menu first opens (the drawer's own call).
+  React.useEffect(
+    function () {
+      if (!menu.open || people !== null) return undefined;
+      var live = true;
+      var fallback = function () {
+        if (live) setPeople((staff || []).map(function (s) { return { email: String(s.email || "").toLowerCase(), name: s.name, can_see: true }; }));
+      };
+      if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.assignable !== "function") {
+        fallback();
+        return undefined;
+      }
+      Promise.resolve(TK_api.assignable({ clientId: task.client_id, projectId: task.project_id })).then(function (rows) {
+        if (live) setPeople(rows || []);
+      }, fallback);
+      return function () {
+        live = false;
+      };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [menu.open],
+  );
+
+  var face = email ? (
+    <span className={"tk-avatar tk-avatar-sm" + TK_vRowToneClass(email)} aria-hidden="true">
+      {typeof TK_initials === "function" ? TK_initials(name || email) : String(name || email).slice(0, 2).toUpperCase()}
+    </span>
+  ) : (
+    <span className="tk-avatar tk-avatar-sm tk-avatar-empty" aria-hidden="true">
+      <TK_vIcon name="user" size={13} />
+    </span>
+  );
+  var shownName = props.showName && email ? <span className="tk-who-name">{name}</span> : null;
+  var hint = email ? null : <span className="tk-ph-label">Assign</span>;
+  if (!props.editable) {
+    return (
+      <span className="tk-asg" title={email ? name : "Unassigned"}>
+        {face}
+        {shownName}
+        <span className="tk-sr">{email ? "Assignee: " + name : "Unassigned"}</span>
+      </span>
+    );
+  }
+  var list = (people || []).slice();
+  if (email && !list.some(function (p) { return String(p.email).toLowerCase() === email; })) list.unshift({ email: email, name: name, can_see: true });
+  var pick = function (p) {
+    menu.close(true);
+    if (String(p.email).toLowerCase() === email) return;
+    var api = typeof TK_api !== "undefined" ? TK_api : null;
+    if (api && typeof api.bulkReady === "function" && api.bulkReady() && typeof api.reassign === "function") {
+      api.reassign(task.id, p.email, { toast: "Reassigned to " + (p.name || p.email) + "." }).catch(function (e) {
+        TK_vToast(TK_vErrText(e));
+      });
+      return;
+    }
+    TK_vRowSave(task, { assignee_email: p.email });
+  };
+  return (
+    <span className="tk-pop-wrap tk-asg-wrap">
+      <button
+        type="button"
+        ref={menu.btnRef}
+        className={"tk-cellbtn tk-asg" + (email ? "" : " is-empty")}
+        aria-haspopup="menu"
+        aria-expanded={menu.open ? "true" : "false"}
+        aria-label={email ? "Assignee: " + name + ". Change assignee" : "No assignee. Assign someone"}
+        title={email ? name : "Assign someone"}
+        onClick={function (e) {
+          e.stopPropagation();
+          menu.setOpen(!menu.open);
+        }}
+      >
+        {face}
+        {shownName}
+        {hint}
+      </button>
+      {menu.open ? (
+        <div className="tk-menu" role="menu" aria-label="Assign to" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
+          {people === null ? <span className="tk-menu-note">Loading…</span> : null}
+          {list.map(function (p) {
+            var em = String(p.email).toLowerCase();
+            var on = em === email;
+            return (
+              <button
+                key={em}
+                type="button"
+                role="menuitemradio"
+                aria-checked={on ? "true" : "false"}
+                className="tk-menu-item"
+                disabled={p.can_see === false}
+                title={p.can_see === false ? "No access to this task's client" : undefined}
+                onClick={function (e) {
+                  e.stopPropagation();
+                  pick(p);
+                }}
+              >
+                <span className={"tk-avatar tk-avatar-sm" + TK_vRowToneClass(em)} aria-hidden="true">
+                  {typeof TK_initials === "function" ? TK_initials(p.name || em) : "?"}
+                </span>
+                <span className="tk-menu-label">{p.name || em}</span>
+                {on ? <TK_vIcon name="check" size={14} /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
+// props: { task, today, editable }
+function TK_vRowDue(props) {
+  var task = props.task;
+  var today = props.today || TK_vToday();
+  var menu = TK_vUseMenu();
+  var datePair = React.useState(false);
+  var showDate = datePair[0];
+  var setShowDate = datePair[1];
+  var label = typeof TK_dueLabel === "function" ? TK_dueLabel(task, today) : task.due_date ? String(task.due_date) : "";
+  var has = !!label;
+  var tone = has && typeof TK_rwDueTone === "function" ? TK_rwDueTone(task, today) : "";
+  var cls = "tk-due" + (has ? " tk-due-chip" : " tk-due-empty") + (tone === "late" ? " tk-due-late is-late" : tone === "today" ? " is-today" : "");
+  var title = has ? (tone === "late" ? "Overdue, due " : "Due ") + String(task.due_date).slice(0, 10) : "No due date";
+  var content = has ? (
+    <span>{label}</span>
+  ) : (
+    <React.Fragment>
+      <TK_vIcon name="calendar" size={14} />
+      <span className="tk-ph-label">Add date</span>
+    </React.Fragment>
+  );
+  if (!props.editable) {
+    if (!has) return <span className={cls} title={title}>{content}<span className="tk-sr">No due date</span></span>;
+    return <span className={cls} title={title}>{content}</span>;
+  }
+  var apply = function (patch) {
+    menu.close(true);
+    setShowDate(false);
+    if (patch) TK_vRowSave(task, patch);
+  };
+  var choices = typeof TK_rwDueChoices === "function" ? TK_rwDueChoices(today) : [];
+  return (
+    <span className="tk-pop-wrap tk-due-wrap">
+      <button
+        type="button"
+        ref={menu.btnRef}
+        className={cls + " tk-cellbtn"}
+        aria-haspopup="menu"
+        aria-expanded={menu.open ? "true" : "false"}
+        aria-label={has ? "Due " + label + ". Change due date" : "No due date. Add one"}
+        title={title}
+        onClick={function (e) {
+          e.stopPropagation();
+          setShowDate(false);
+          menu.setOpen(!menu.open);
+        }}
+      >
+        {content}
+      </button>
+      {menu.open ? (
+        <div className="tk-menu" role="menu" aria-label="Due date" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
+          {choices.map(function (c) {
+            return (
+              <button
+                key={c.key}
+                type="button"
+                role="menuitem"
+                className="tk-menu-item"
+                onClick={function (e) {
+                  e.stopPropagation();
+                  apply(TK_rwDuePatch(c.key, today));
+                }}
+              >
+                <span className="tk-menu-label">{c.label}</span>
+                <span className="tk-menu-hint">{typeof TK_dueLabel === "function" && c.key !== "today" ? TK_dueLabel({ due_date: c.date }, today) : ""}</span>
+              </button>
+            );
+          })}
+          {showDate ? (
+            <input
+              type="date"
+              className="tk-menu-date"
+              aria-label="Pick a due date"
+              autoFocus
+              defaultValue={task.due_date ? String(task.due_date).slice(0, 10) : ""}
+              onClick={function (e) {
+                e.stopPropagation();
+              }}
+              onChange={function (e) {
+                var patch = TK_rwDuePatch("date", today, e.target.value);
+                if (patch) apply(patch);
+              }}
+            />
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              className="tk-menu-item"
+              onClick={function (e) {
+                e.stopPropagation();
+                setShowDate(true);
+              }}
+            >
+              <span className="tk-menu-label">Pick a date…</span>
+            </button>
+          )}
+          {has ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="tk-menu-item tk-menu-danger"
+              onClick={function (e) {
+                e.stopPropagation();
+                apply(TK_rwDuePatch("clear", today));
+              }}
+            >
+              <span className="tk-menu-label">Clear date</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
+// props: { task, editable }
+function TK_vRowPrio(props) {
+  var task = props.task;
+  var menu = TK_vUseMenu();
+  var priority = typeof TK_rwPriorityOf === "function" ? TK_rwPriorityOf(task) : task.priority === "high" || task.priority === "low" ? task.priority : "normal";
+  var label = typeof TK_PRIORITY_LABELS !== "undefined" && TK_PRIORITY_LABELS[priority] ? TK_PRIORITY_LABELS[priority] : priority;
+  var content = (
+    <React.Fragment>
+      <span className={"tk-prio-dot tk-prio-dot-" + priority} aria-hidden="true" />
+      <span>{label}</span>
+    </React.Fragment>
+  );
+  var cls = "tk-prio tk-prio-" + priority;
+  if (!props.editable) return <span className={cls} title={"Priority: " + label}>{content}</span>;
+  var options = typeof TK_RW_PRIORITIES !== "undefined" ? TK_RW_PRIORITIES : [{ key: "high", label: "High" }, { key: "normal", label: "Normal" }, { key: "low", label: "Low" }];
+  return (
+    <span className="tk-pop-wrap tk-prio-wrap">
+      <button
+        type="button"
+        ref={menu.btnRef}
+        className={cls + " tk-cellbtn"}
+        aria-haspopup="menu"
+        aria-expanded={menu.open ? "true" : "false"}
+        aria-label={"Priority: " + label + ". Change priority"}
+        title={"Priority: " + label}
+        onClick={function (e) {
+          e.stopPropagation();
+          menu.setOpen(!menu.open);
+        }}
+      >
+        {content}
+      </button>
+      {menu.open ? (
+        <div className="tk-menu tk-menu-right" role="menu" aria-label="Priority" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
+          {options.map(function (o) {
+            var on = o.key === priority;
+            return (
+              <button
+                key={o.key}
+                type="button"
+                role="menuitemradio"
+                aria-checked={on ? "true" : "false"}
+                className="tk-menu-item"
+                onClick={function (e) {
+                  e.stopPropagation();
+                  menu.close(true);
+                  if (!on) TK_vRowSave(task, { priority: o.key });
+                }}
+              >
+                <span className={"tk-prio-dot tk-prio-dot-" + o.key} aria-hidden="true" />
+                <span className="tk-menu-label">{o.label}</span>
+                {on ? <TK_vIcon name="check" size={14} /> : null}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
+// The "..." menu: only things the row or the drawer already does elsewhere.
+// props: { task, href, onOpen(), onToggleDone(task), done, onClaim, canClaim, allowDone }
+function TK_vRowMore(props) {
+  var task = props.task;
+  var menu = TK_vUseMenu();
+  var copy = function () {
+    var url = window.location.origin + "/" + props.href;
+    var ok = function () { TK_vToast(TK_vCopy("linkCopied", "Link copied.")); };
+    var fail = function () { TK_vToast("Couldn't copy the link."); };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, fail);
+      else fail();
+    } catch (e) {
+      fail();
+    }
+  };
+  var items = [{ key: "open", label: "Open", run: props.onOpen }];
+  if (props.allowDone) items.push({ key: "done", label: props.done ? "Mark not done" : "Mark done", run: function () { props.onToggleDone(task); } });
+  if (props.canClaim) items.push({ key: "claim", label: "Claim", run: function () { props.onClaim(task); } });
+  items.push({ key: "link", label: "Copy link", run: copy });
+  return (
+    <span className="tk-pop-wrap tk-more-wrap">
+      <button
+        type="button"
+        ref={menu.btnRef}
+        className="tk-rowmore"
+        aria-haspopup="menu"
+        aria-expanded={menu.open ? "true" : "false"}
+        aria-label={"More actions for " + (task.text || "this task")}
+        title="More actions"
+        onClick={function (e) {
+          e.stopPropagation();
+          menu.setOpen(!menu.open);
+        }}
+      >
+        <TK_vIcon name="more" size={16} />
+      </button>
+      {menu.open ? (
+        <div className="tk-menu tk-menu-right" role="menu" aria-label="More actions" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
+          {items.map(function (it) {
+            return (
+              <button
+                key={it.key}
+                type="button"
+                role="menuitem"
+                className="tk-menu-item"
+                onClick={function (e) {
+                  e.stopPropagation();
+                  menu.close(it.key !== "open");
+                  it.run();
+                }}
+              >
+                <span className="tk-menu-label">{it.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
 // ---- Task row -----------------------------------------------------------------------------
 // props (C6): { task, today, clientName, projectName, showClient=true, showAssignee=false,
 //   assigneeName, focused, checklist:{done,total}|null, isAdmin, canEdit, onOpen(id),
@@ -1040,6 +1501,11 @@ function TK_StatusPill(props) {
 //   me (the signed-in email; else the store's),
 //   onClaim(task) (S8b: an open Unassigned row shows "Unassigned" and Claim),
 //   showUnassigned (false hides that label off the columns layout), tourClaim.
+// T1 (Desk plan): the assignee, due date and priority cells open a small menu on the
+//   row and save through TK_api.update; editFields={false} makes them plain labels
+//   (the review queue and the drawer's subtask list). Who may edit is TK_rwAccess
+//   (TK_rowLogic.js); canEdit={false} (view-only, offline) turns all of it off. The
+//   "..." menu (Open, Mark done, Claim, Copy link) shows on hover and focus.
 // Tasks p3: subs (from TK_vUseSubtasks; a task with subtasks shows a chevron and a
 //   done count and opens them beneath it; no subs = no nesting, as in the drawer's
 //   own subtask list), projectColor (a palette key; a dot before the project name).
@@ -1077,7 +1543,8 @@ function TK_TaskRow(props) {
   if (!task) return null;
   var id = task.id;
   var unassigned = !TK_vAssigneeOf(task);
-  var claimBits = unassigned ? <TK_vUnassignedClaim task={task} onClaim={props.onClaim} tour={props.tourClaim ? "tk-claim" : undefined} /> : null;
+  // T1: the dashed assignee circle already says "Unassigned", so the label is read aloud only.
+  var claimBits = unassigned ? <TK_vUnassignedClaim task={task} onClaim={props.onClaim} compact tour={props.tourClaim ? "tk-claim" : undefined} /> : null;
   var today = props.today || TK_vToday();
   var status = TK_vStatusOf(task);
   var done = status === "done";
@@ -1116,8 +1583,30 @@ function TK_TaskRow(props) {
     subs.toggle(id);
   };
   var cl = props.checklist && props.checklist.total ? props.checklist : null;
-  var priority = task.priority === "high" || task.priority === "low" ? task.priority : "normal";
-  var priorityLabel = typeof TK_PRIORITY_LABELS !== "undefined" && TK_PRIORITY_LABELS[priority] ? TK_PRIORITY_LABELS[priority] : priority;
+  // T1: the three cells that edit in place. editFields={false} turns them into plain labels.
+  var access =
+    typeof TK_rwAccess === "function"
+      ? TK_rwAccess(task, { me: props.me || TK_vMe(), isAdmin: !!props.isAdmin, canEdit: props.canEdit !== false && props.editFields !== false })
+      : { edit: false, assign: false };
+  var assigneeCell = <TK_vRowAssignee task={task} name={props.assigneeName} editable={access.assign} showName={!!props.columns} />;
+  var dueCell = <TK_vRowDue task={task} today={today} editable={access.edit} />;
+  var prioCell = <TK_vRowPrio task={task} editable={access.edit} />;
+  var moreBtn = (
+    <TK_vRowMore
+      task={task}
+      href={href}
+      done={done}
+      allowDone={!!props.onToggleDone && props.canEdit !== false}
+      onToggleDone={props.onToggleDone}
+      canClaim={!!props.onClaim && TK_vCanClaim(task)}
+      onClaim={props.onClaim}
+      onOpen={function () {
+        if (props.onFocusRow) props.onFocusRow(id);
+        if (props.onOpen) props.onOpen(id);
+        else TK_vOpenTask(id, { from: "list" });
+      }}
+    />
+  );
   var statusPill = (
     <TK_StatusPill
       task={task}
@@ -1236,47 +1725,44 @@ function TK_TaskRow(props) {
             {task.text || "Untitled task"}
           </a>
           {toggleBtn}
+          {moreBtn}
         </div>
         <div className="tk-row-meta">
           {meta}
-          {props.columns ? null : <TK_DuePill task={task} today={today} />}
+          {props.columns ? null : (
+            <span className="tk-row-chips">
+              {assigneeCell}
+              {dueCell}
+              {prioCell}
+            </span>
+          )}
           {props.columns ? (
             <span className="tk-row-phone">
-              <TK_DuePill task={task} today={today} />
-              {props.assigneeName ? <span>{props.assigneeName}</span> : unassigned ? <span className="tk-muted">Unassigned</span> : null}
-              {priority !== "normal" ? <span className={"tk-prio tk-prio-" + priority}>{priorityLabel}</span> : null}
+              {assigneeCell}
+              {dueCell}
+              {prioCell}
             </span>
           ) : null}
-          {!props.columns && props.showAssignee && props.assigneeName ? <span className="tk-meta-who">{props.assigneeName}</span> : null}
         </div>
       </div>
       {props.columns ? (
         <React.Fragment>
           <div className="tk-cell tk-cell-who" role="gridcell">
-            {props.assigneeName ? (
-              <span className="tk-who" title={props.assigneeName}>
-                <TK_vAvatar name={props.assigneeName} size="sm" decorative />
-                <span className="tk-who-name">{props.assigneeName}</span>
-              </span>
-            ) : unassigned ? (
-              claimBits
-            ) : (
-              <span className="tk-muted">No one</span>
-            )}
+            {assigneeCell}
+            {claimBits}
           </div>
           <div className="tk-cell tk-cell-due" role="gridcell">
-            <TK_DuePill task={task} today={today} />
+            {dueCell}
           </div>
           <div className="tk-cell tk-cell-status" role="gridcell">
             {statusPill}
           </div>
           <div className="tk-cell tk-cell-prio" role="gridcell">
-            <span className={"tk-prio tk-prio-" + priority}>{priorityLabel}</span>
+            {prioCell}
           </div>
         </React.Fragment>
       ) : (
         <div className="tk-cell tk-cell-status" role="gridcell">
-          {priority === "high" ? <span className="tk-prio tk-prio-high">High</span> : null}
           {props.showUnassigned !== false ? claimBits : null}
           {props.trailing || null}
           {statusPill}

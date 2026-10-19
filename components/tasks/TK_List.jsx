@@ -77,9 +77,18 @@ function TK_vConfirm(props) {
   );
 }
 
-// ---- The inline "Add task" row (one per section) --------------------------------
+// ---- The inline "+ Add task" row (one per section or group) -----------------------
+// props: { ctx, section, sectionName, disabled, group }. A click opens a title
+// box; Enter adds the task and keeps the box open for the next one; Esc (or
+// leaving the box empty) closes it. group is what the group implies
+// ({ due_date, client_id } from TK_rwGroupAdd); typed words (by Friday, for a
+// client) still win over it.
 
 function TK_vAddRow(props) {
+  var aPair = React.useState(false);
+  var active = aPair[0];
+  var setActive = aPair[1];
+  var inputRef = React.useRef(null);
   var tPair = React.useState("");
   var text = tPair[0];
   var setText = tPair[1];
@@ -90,6 +99,19 @@ function TK_vAddRow(props) {
   var msg = ePair[0];
   var setMsg = ePair[1];
   var label = props.sectionName ? "Add a task to " + props.sectionName : "Add a task";
+  var group = props.group || null;
+
+  // Open: land in the box. After a save the box is enabled again: land back in it.
+  React.useEffect(
+    function () {
+      if (active && !busy && inputRef.current) {
+        try {
+          inputRef.current.focus({ preventScroll: true });
+        } catch (e) {}
+      }
+    },
+    [active, busy],
+  );
 
   var save = function () {
     var raw = text.trim();
@@ -107,6 +129,7 @@ function TK_vAddRow(props) {
     var detail = { section: props.section || null };
     if (ctx.projectId) detail.project_id = ctx.projectId;
     if (parsed.client_id != null) detail.client_id = parsed.client_id;
+    else if (group && group.client_id != null) detail.client_id = group.client_id;
     else if (ctx.clientId != null) detail.client_id = ctx.clientId;
     else detail.client_id = null;
     var base =
@@ -127,7 +150,7 @@ function TK_vAddRow(props) {
       project_id: base.project_id,
       section: base.section,
       visibility: base.visibility,
-      due_date: parsed.due_date || null,
+      due_date: parsed.due_date || (group && group.due_date) || null,
       assignee_email: parsed.assignee_email || ctx.assigneeEmail || base.assignee_email || null,
     };
     if (parsed.priority) fields.priority = parsed.priority;
@@ -152,31 +175,59 @@ function TK_vAddRow(props) {
   };
 
   if (props.disabled) return null;
+  if (!active) {
+    return (
+      <li className="tk-add-row is-closed">
+        <button
+          type="button"
+          className="tk-add-open"
+          aria-label={label}
+          onClick={function () {
+            setMsg("");
+            setActive(true);
+          }}
+        >
+          <span className="tk-add-icon" aria-hidden="true">
+            <TK_vIcon name="plus" size={14} />
+          </span>
+          <span>Add task</span>
+        </button>
+        <span className="tk-add-msg" role="status" aria-live="polite">
+          {msg}
+        </span>
+      </li>
+    );
+  }
   return (
     <li className="tk-add-row">
       <span className="tk-add-icon" aria-hidden="true">
         <TK_vIcon name="plus" size={14} />
       </span>
       <input
+        ref={inputRef}
         className="tk-add-input"
         type="text"
         value={text}
         maxLength={500}
         disabled={busy}
-        placeholder="Add task"
+        placeholder="Task name, then Enter"
         aria-label={label}
         onChange={function (e) {
           setText(e.target.value);
           if (msg) setMsg("");
         }}
+        onBlur={function () {
+          if (!busy && !text.trim()) setActive(false);
+        }}
         onKeyDown={function (e) {
           if (e.key === "Enter" && !e.isComposing) {
             e.preventDefault();
             save();
-          } else if (e.key === "Escape" && text) {
+          } else if (e.key === "Escape") {
             e.preventDefault();
             e.stopPropagation();
             setText("");
+            setActive(false);
           }
         }}
       />
@@ -1389,7 +1440,13 @@ function TK_vListBody(props) {
                   {nothing && !activeFilters && !g.tasks.length && groups.length === 1 ? (
                     <li className="tk-empty tk-empty-inline">{TK_vCopy("emptyList", "Nothing here yet.")}</li>
                   ) : null}
-                  {byClient ? null : <TK_vAddRow section={g.key || null} sectionName={g.key ? g.name : ""} ctx={addCtx} disabled={readOnly} />}
+                  {byClient ? (
+                    typeof TK_rwGroupAdd === "function" && TK_rwGroupAdd(g.key, { canCreate: !readOnly }).show ? (
+                      <TK_vAddRow sectionName={g.name} ctx={addCtx} group={TK_rwGroupAdd(g.key, { canCreate: !readOnly })} disabled={readOnly} />
+                    ) : null
+                  ) : (
+                    <TK_vAddRow section={g.key || null} sectionName={g.key ? g.name : ""} ctx={addCtx} disabled={readOnly} />
+                  )}
                 </ul>
               )}
             </section>

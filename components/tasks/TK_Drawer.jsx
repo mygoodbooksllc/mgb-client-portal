@@ -1071,6 +1071,7 @@ function TK_dwSubtasks(props) {
                   showClient={false}
                   isAdmin={p.isAdmin}
                   canEdit={!p.readOnly}
+                  editFields={false}
                   onOpen={function (id) { TK_openTask(id, { from: "subtask" }); }}
                   onToggleDone={function (row) {
                     var api = TK_dwApi();

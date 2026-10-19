@@ -380,6 +380,19 @@ function TK_ClientTasksBody(props) {
                   />
                 );
               })}
+              {(function () {
+                // T2: "+ Add task" at the bottom of a group; the group says the due date.
+                var ga = typeof TK_rwGroupAdd === "function" ? TK_rwGroupAdd(g.id, { today: today, canCreate: online }) : { show: false };
+                if (!ga.show) return null;
+                return (
+                  <TK_vAddRow
+                    sectionName={g.label}
+                    ctx={{ clientId: clientId, email: staffUser.email, staff: staff, clients: props.clients || [] }}
+                    group={ga}
+                    disabled={!online}
+                  />
+                );
+              })()}
             </ul>
           </section>
         );

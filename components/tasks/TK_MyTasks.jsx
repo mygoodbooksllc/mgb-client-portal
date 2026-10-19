@@ -324,6 +324,7 @@ function TK_vMyTasksBody(props) {
   // tasks drop out), so Delete or Reassign never touch a row you can't see.
   var bulk = TK_useBulkSelect({ ids: ids, enabled: online, keys: !drawerId });
   var bulkStaff = TK_vUseStaff(bulk.count > 0);
+  var addStaff = TK_vUseStaff(false) || []; // for the group add rows: the store's list, no extra fetch
 
   var keys = TK_useKeys({
     ids: ids,
@@ -453,6 +454,19 @@ function TK_vMyTasksBody(props) {
                       />
                     );
                   })}
+                  {(function () {
+                    // T2: "+ Add task" at the bottom of a group; the group says the due date or client.
+                    var ga = typeof TK_rwGroupAdd === "function" ? TK_rwGroupAdd(g.key, { today: today, canCreate: online }) : { show: false };
+                    if (!ga.show) return null;
+                    return (
+                      <TK_vAddRow
+                        sectionName={g.label}
+                        ctx={{ email: email, staff: addStaff, clients: props.clients || [], clientId: clientFilter || null }}
+                        group={ga}
+                        disabled={!online}
+                      />
+                    );
+                  })()}
                 </ul>
               )}
             </section>

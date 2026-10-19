@@ -2698,3 +2698,288 @@ body:has(.ltip-ring.ltip-on) .tk-row .tk-sel {
 .tk-keys-note kbd + kbd {
   margin-left: 2px;
 }
+
+/* ---- T1: cells that edit in place, the "..." menu, "+ Add task" ------------------------- */
+
+.tk-cellbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.tk-cellbtn:hover,
+.tk-cellbtn[aria-expanded="true"] {
+  background: var(--surface-2);
+}
+
+.tk-cellbtn:focus-visible,
+.tk-rowmore:focus-visible,
+.tk-add-open:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--selected-outline);
+}
+
+.tk-asg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.tk-row-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.tk-row-chips .tk-avatar-sm,
+.tk-row-phone .tk-avatar-sm {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+}
+
+/* Eight avatar colors from the project palette; text stays the normal ink so contrast holds. */
+.tk-av-0 { background: color-mix(in srgb, var(--tk-pc-blue) 30%, var(--surface)); color: var(--text); }
+.tk-av-1 { background: color-mix(in srgb, var(--tk-pc-teal) 30%, var(--surface)); color: var(--text); }
+.tk-av-2 { background: color-mix(in srgb, var(--tk-pc-green) 30%, var(--surface)); color: var(--text); }
+.tk-av-3 { background: color-mix(in srgb, var(--tk-pc-amber) 30%, var(--surface)); color: var(--text); }
+.tk-av-4 { background: color-mix(in srgb, var(--tk-pc-coral) 30%, var(--surface)); color: var(--text); }
+.tk-av-5 { background: color-mix(in srgb, var(--tk-pc-pink) 30%, var(--surface)); color: var(--text); }
+.tk-av-6 { background: color-mix(in srgb, var(--tk-pc-purple) 30%, var(--surface)); color: var(--text); }
+.tk-av-7 { background: color-mix(in srgb, var(--tk-pc-navy) 30%, var(--surface)); color: var(--text); }
+
+.tk-avatar-empty {
+  border: 1.5px dashed var(--muted-line);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.tk-cellbtn:hover .tk-avatar-empty,
+.tk-cellbtn:focus-visible .tk-avatar-empty {
+  border-color: var(--text-muted);
+}
+
+/* The "Assign" / "Add date" hint shows on hover and keyboard focus only (never on touch). */
+.tk-ph-label {
+  display: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .tk-cellbtn:hover .tk-ph-label,
+  .tk-cellbtn:focus-visible .tk-ph-label {
+    display: inline;
+  }
+}
+
+.tk-due-chip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.tk-due-chip.tk-cellbtn {
+  padding: 1px 8px;
+}
+
+.tk-due-chip.is-late {
+  background: var(--bad-soft);
+  color: var(--bad);
+  box-shadow: inset 0 0 0 1px var(--bad);
+}
+
+.tk-due-chip.is-today {
+  background: var(--warm-bg);
+  color: var(--warm-text);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--warm-border);
+}
+
+.tk-due-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.tk-due-empty.tk-cellbtn:hover,
+.tk-due-empty.tk-cellbtn:focus-visible {
+  opacity: 1;
+}
+
+.tk-prio {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tk-prio-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted-line);
+}
+
+.tk-prio-dot-high {
+  background: var(--bad);
+}
+
+.tk-prio-dot-low {
+  background: var(--text-muted);
+  opacity: 0.55;
+}
+
+.tk-prio-normal {
+  opacity: 0.8;
+}
+
+.tk-menu-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tk-menu-hint,
+.tk-menu-note {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.tk-menu-note {
+  display: block;
+  padding: 6px 10px;
+}
+
+.tk-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tk-menu-date {
+  width: 100%;
+  min-height: 36px;
+  margin: 2px 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.tk-more-wrap {
+  margin-left: auto;
+}
+
+.tk-rowmore {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.tk-row:hover .tk-rowmore,
+.tk-row:focus-within .tk-rowmore,
+.tk-row.is-focused .tk-rowmore,
+.tk-rowmore:focus-visible,
+.tk-rowmore[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.tk-rowmore:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+@media (hover: none) {
+  .tk-rowmore {
+    opacity: 1;
+  }
+}
+
+.tk-cell-prio .tk-prio-wrap .tk-menu,
+.tk-cell-due .tk-due-wrap .tk-menu {
+  min-width: 180px;
+}
+
+/* "+ Add task": a quiet row until it is clicked, then the title box. */
+.tk-add-row.is-closed {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+}
+
+.tk-add-open {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tk-add-open:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.tk-add-open .tk-add-icon {
+  width: 32px;
+}
+
+.tk-add-row.is-closed .tk-add-msg {
+  grid-column: 1;
+  padding: 0 12px 6px 54px;
+}
+
+@media (max-width: 760px) {
+  .tk-add-open {
+    min-height: 44px;
+  }
+
+  .tk-add-open .tk-add-icon {
+    width: 40px;
+  }
+
+  .tk-add-row.is-closed .tk-add-msg {
+    padding-left: 62px;
+  }
+
+  .tk-cellbtn {
+    min-height: 32px;
+  }
+}

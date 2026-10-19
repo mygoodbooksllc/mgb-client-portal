@@ -255,6 +255,7 @@ function TK_vReviewBody(props) {
                       me={me}
                       isAdmin={isAdmin}
                       canEdit={online}
+                      editFields={false}
                       onOpen={function (id) {
                         TK_vOpenTask(id, { from: "list" });
                       }}

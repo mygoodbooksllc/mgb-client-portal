@@ -2,7 +2,7 @@
 title: How do I use my Slate?
 section: Daily work
 audience: staff
-keywords: [select many, bulk, multi-select, undo, ctrl z, v, select a task, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import, slate, my slate]
+keywords: [task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, select many, bulk, multi-select, undo, ctrl z, v, select a task, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import, slate, my slate]
 sort: 110
 ---
 **Slate** is where your tasks live (it was called Tasks). Its home page is one list of everything assigned to you, across every client and project. Open it from the **Slate** button in the top bar (`#/tasks/my`), or from **Work › Slate** (`#/work/tasks`), which shows the same list inside Work. The Slate page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
@@ -20,6 +20,18 @@ A task is yours when it's assigned to you. A task you give someone else shows on
 - **Done**: finished tasks. It starts folded.
 
 Click a group's heading to fold or open it. The portal remembers which groups you folded. Empty groups don't show.
+
+### On a task row
+
+Every row shows the same few things, and you can change most of them without opening the task:
+
+- **Assignee**: a round badge with the person's initials. A task nobody is on shows a dashed empty circle (hover it, or tab to it, to see *Assign*). Click it to pick a teammate; only the task's owner or an admin can reassign, and people who can't see the client are grayed out.
+- **Due date**: a chip that is red when the task is overdue, amber when it is due today and plain otherwise. With no date it's a faint calendar icon. Click it to pick **Today**, **Tomorrow**, **Next Monday**, **Pick a date…** or **Clear date**.
+- **Priority**: **High**, **Normal** or **Low**, always shown. Click it to change it.
+- **Status**: the pill on the right, as before.
+- **The ... menu**: hover the row (or tab into it) to show it. It has **Open**, **Mark done**, **Claim** (when the task is unassigned) and **Copy link**. On a phone it's always visible.
+
+Each picker is a small menu: arrow keys move, **Enter** picks, **Esc** closes. If you can't edit a task (view-only, or it's waiting for review), the cells are plain text. The list keys (**j**, **k**, **x**, **s**, **a**) work as before.
 
 ### Group by client
 
@@ -41,6 +53,10 @@ Some tasks have nobody on them: tasks brought over from Asana without an owner, 
 The first time you see an unassigned task, a short notice offers a tour of the group and **Claim**. It's also under **What's new** and in the **?** menu.
 
 ### Add a task
+
+The quickest way is the **Add task** row at the bottom of **Today**, **This week** and **Later** (or of a client's group when you group by client). Click it, type a name and press **Enter**: the task is made right there with that group's due date (**Today**, tomorrow for **This week**) or client, and the box stays open for the next one. **Esc** closes it. Groups that can't take a new task, such as **Overdue**, **Waiting on client**, **Unassigned** and **Done**, don't have the row, and neither do people who can't create tasks.
+
+Or:
 
 Press **q** on any staff page (not while you're typing in a box), click **Add task**, or use **+** → **New task** in the top bar. The **+** button works with or without a client open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
 

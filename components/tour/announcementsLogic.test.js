@@ -331,4 +331,16 @@ t("registry: rail-default is an admin and bookkeeper notice pointing at the rail
   assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
 });
 
+t("registry: tasks-inline-edit is an admin and bookkeeper notice pointing at the row and groups", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "tasks-inline-edit");
+  assert.ok(a);
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  const steps = a.steps({});
+  assert.strictEqual(steps.length, 3);
+  assert.strictEqual(steps[0].targets, undefined);
+  assert.deepStrictEqual(steps[1].targets, ["tk-status"]);
+  assert.deepStrictEqual(steps[2].targets, ["tk-groups"]);
+  assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
+});
+
 console.log("announcementsLogic: " + n + " checks passed");

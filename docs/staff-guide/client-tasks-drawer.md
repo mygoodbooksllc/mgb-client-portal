@@ -2,7 +2,7 @@
 title: How do I see a client's tasks without leaving the page?
 section: Daily work
 audience: staff
-keywords: [client tasks, tasks panel, client task panel, up next, next task, strip, all tasks, t, shortcut, for this page, tasks pill, follow my client, follow, side panel]
+keywords: [add task row in the client panel, task row pickers, client tasks, tasks panel, client task panel, up next, next task, strip, all tasks, t, shortcut, for this page, tasks pill, follow my client, follow, side panel]
 sort: 117
 ---
 When you have a client open, their tasks are one glance or one key away. A line under the client's tabs shows the next task, and a side panel lists all of them. Neither one takes you off the page you're on.
@@ -23,7 +23,8 @@ The strip doesn't show on the Client view pages (the ones that copy what the cli
 Press **t**, click **All tasks**, or click **Slate** in the top bar while a client is open. The panel slides in from the right (on a phone it's a sheet from the bottom) and lists every open task for the client:
 
 - in groups: Overdue, Today, This week, Later, Waiting on client and Ready for review;
-- with an add box at the top that picks this client for you;
+- with an add box at the top that picks this client for you, and an **Add task** row at the bottom of **This week**, **Later** and the other groups that can take a new task (click, type, **Enter**);
+- with each row's assignee, due date and priority changeable in place (see [How do I use my Slate?](#/help/my-tasks));
 - with **Show done**, to see finished tasks too;
 - with **Full list** (the client's list on the Slate page) and **Slate** at the bottom.
 

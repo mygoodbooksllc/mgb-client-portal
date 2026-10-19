@@ -379,7 +379,7 @@ const TIPS_CATALOG = [
     target: "tk-groups",
     part: ".tk-group-head",
     snug: true,
-    text: "Click a group's heading to fold it; it stays that way next time. Done starts folded, and View can turn the Today group off.",
+    text: "Click a group's heading to fold it; it stays that way next time. Done starts folded, and View can turn the Today group off. Click Add task at the bottom of a group to add one there.",
     slug: "my-tasks",
   },
   {
@@ -388,7 +388,7 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
     target: "tk-status",
     snug: true,
-    text: "Click a status to change it. On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note.",
+    text: "Click a status to change it (the person, due date and priority change in place too). On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note.",
     slug: "task-details",
   },
   {
