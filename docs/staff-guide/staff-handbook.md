@@ -2,7 +2,7 @@
 title: How do I sign the Staff Handbook?
 section: Daily work
 audience: staff
-keywords: [handbook, staff handbook, policy, policies, sign, signature, sign policy, countersign, countersigner, account manager, re-sign, resign, needs re-signing, overdue, flexible work, scheduling, sla, effective date, signed copy, pdf, download, version, version history, minor edit, staff reviews drive, publish, new version, publish new version, status grid, signatures by bookkeeper, not filed, retry filing, change note, reference, reference policy, signed policy, policy kind, new policy, add a policy, create policy, draft, drafts, publish draft, section, sections, search policies, policies to sign, edit details, make this a signed policy, link name]
+keywords: [handbook, staff handbook, policy, policies, sign, signature, sign policy, countersign, countersigner, account manager, re-sign, resign, needs re-signing, overdue, flexible work, scheduling, sla, effective date, signed copy, pdf, download, version, version history, minor edit, staff reviews drive, publish, new version, publish new version, status grid, signatures by bookkeeper, not filed, retry filing, change note, reference, reference policy, signed policy, policy kind, new policy, add a policy, create policy, draft, drafts, publish draft, section, sections, search policies, policies to sign, edit details, make this a signed policy, link name, approve, approval, approve draft, approver, policy approver, bailley, awaiting approval, needs your approval, request changes, changes asked, withdraw approval, edit text, edit a draft, tbd, employee handbook, handbook drafts to approve, publish blocked]
 sort: 146
 ---
 The firm's staff policies live on the **Handbook** tab of **Team** (`#/hr/handbook`). Anyone on the team can read them. The number on the tab shows what's waiting on you.
@@ -57,13 +57,15 @@ Your older signed copies are kept. **Version history**, at the bottom of each po
 
 **Settings › Notifications › Staff Handbook signatures** turns the handbook emails on or off (on to start with). The Today row and the tab number stay either way. The email only links to the portal; it never includes the policy text.
 
+The policy approver also has **Handbook drafts to approve** (on to start with): at most one email every 30 minutes, with how many drafts are waiting and a link. Nobody else gets that email.
+
 ### For admins
 
 - The top of the Handbook tab shows who countersigns, or **No active countersigner set**. While nobody is set, signatures wait for a countersigner. **Change** (or **Set countersigner**) picks an active staff member. Open countersign items move to the new person.
 - **Signatures by bookkeeper**, at the bottom of the Handbook tab, is a grid with policies down the side and active bookkeepers across the top. Each cell shows **Signed**, **Awaiting countersign**, **Needs re-sign**, **Overdue** or **Not signed**, with the date (countersigned, signed, or due). On a phone, swipe the grid sideways. Click a policy name to open it.
 - Each policy also lists every bookkeeper's state. Click **Download** for anyone's signed copy.
 - **Not filed to Drive yet** appears when a countersigned copy hasn't reached the Staff Reviews drive. It usually files within a minute. **Retry filing** unlocks 2 minutes after the countersignature; click it to try again. If it stays, check Google Drive in Dev Tools.
-- Every sign, countersign, publish, new policy, details change, countersigner change and download is in the [Audit log](#/help/audit-log) under **Staff Handbook**.
+- Every sign, countersign, publish, new policy, details change, countersigner change, approval, request for changes, approver change and download is in the [Audit log](#/help/audit-log) under **Staff Handbook**.
 
 ### Add a new policy (admins)
 
@@ -73,14 +75,37 @@ Your older signed copies are kept. **Version history**, at the bottom of each po
 4. Write the **Policy text** in Markdown. The preview on the right shows it the way staff will see it.
 5. Click **Save draft**.
 
-A new policy is always a **reference** policy and a **draft** first. Only admins see drafts (in a **Drafts** group at the bottom of the list), and nobody is emailed. To change the text, open the draft and click **Edit text**. When it's ready, click **Publish** on the draft and confirm. Everyone can then read it, and nobody is emailed.
+A new policy is always a **reference** policy and a **draft** first. Only admins see drafts (in a **Drafts** group at the bottom of the list), and no staff member is emailed. Every draft needs the policy approver's OK before it can be published (see **Drafts and approval** below). When it's approved, click **Publish** on the draft and confirm. Everyone can then read it, and nobody is emailed.
 
 Nobody is ever asked to sign a new policy. To ask bookkeepers to sign one, open it and use **Make this a signed policy** (below). That's the only way a policy starts asking for signatures. If you use it on a draft, the emails go out when you publish.
+
+### Drafts and approval (admins)
+
+Every draft is approved by one person, the **policy approver** (Bailley to start with), before it can be published. The top of the Handbook tab says who it is and how many drafts are waiting. Any admin can click **Change** to pick another active admin; approvals already given stay. If the approver is no longer an active admin, the tab says so and nothing can be published until an admin picks a new one.
+
+Each draft in the **Drafts** group shows where it stands: **Awaiting Bailley's approval**, **Changes asked** or **Approved**. The buttons above the group (**All drafts**, **Awaiting Bailley**, **Changes asked**, **Approved**) filter the list and show how many are in each.
+
+**For the approver:**
+- **Needs your approval (N)** at the top of the Handbook tab lists the drafts waiting for you. You also get a **Today** row ("N handbook policies need your approval"), the count on the Handbook tab, and at most one email every 30 minutes with the count and a link (never the policy text).
+- Open a draft and read it. In the **Approval** card, click **Approve version N**, or **Request changes**, type what needs to change, and click **Send back for changes**. Your note shows on the draft for the admins; nobody is emailed.
+- On a draft you already approved, **Withdraw approval and ask for changes** takes the approval back.
+- If someone saves the draft while you're reading it, the portal won't approve the old text: it reloads so you can read the new version.
+
+**For the other admins:** you see the same state and notes, but not the buttons. **Publish** (and **Make this a signed policy** on a draft) stays greyed out, with the reason, until the current text is approved.
+
+**Editing a draft** (any admin, and the approver):
+- **Edit text** opens the Markdown editor with a live preview. Change anything, including the **[TBD: ...]** placeholders in the Employee Handbook chapters, write a change note, and click **Save version N**, then confirm. It stays a draft, and nobody on staff is emailed.
+- Saving new text sends the draft back to the approver. On an approved draft, the editor says so before you save. The approver's Today row, count and batched email pick it up (one email per 30 minutes at most, however many times you save; nothing new if it was already waiting).
+- **Edit details** changes the title, section and order. A title or section change on an approved draft also sends it back for approval (the editor warns you). Changing only the order doesn't.
+
+**Editing a published reference policy:** open it on its current version and click **Publish new version** (below). For a reference policy that's always a minor edit: nobody signs, nobody is emailed, and there's no approval step. Only drafts go through approval.
+
+The Employee Handbook chapters 1 to 9 start as reference drafts in the section **Employee Handbook**, waiting for approval. Chapter 10 (the acknowledgment page) isn't loaded: signing in the portal replaces it.
 
 ### Edit details or change the kind (admins)
 
 - **Edit details** (on any policy) changes the title, the section and the **Order** (lower numbers list first within their group). The link name stays the same, so links in old emails keep working.
-- **Make this a signed policy** (on the latest version of a reference policy) starts asking for signatures. Write a change note, tick the box, and click **Make it a signed policy**. The current text is saved again as a new version that every active bookkeeper signs: one email each, a Today row and a badge, and 7 days to sign. On a draft, those go out when you publish it. This can't be undone: a signed policy can't go back to reference.
+- **Make this a signed policy** (on the latest version of a reference policy) starts asking for signatures. On a draft it needs the approver's OK first, and the converted draft goes back for approval before it's published. Write a change note, tick the box, and click **Make it a signed policy**. The current text is saved again as a new version that every active bookkeeper signs: one email each, a Today row and a badge, and 7 days to sign. On a draft, those go out when you publish it. This can't be undone: a signed policy can't go back to reference.
 - New versions of a reference policy are always minor edits: nobody is asked to sign them.
 
 ### Publish a new version (admins)
@@ -107,4 +132,8 @@ If you leave the editor before publishing, your unsaved text comes back the next
 - **I'm an admin and I don't see a Sign button.** Only bookkeepers sign.
 - **There's no Sign button on this policy.** It's a reference policy (it says *For reference. Nobody needs to sign this policy.*). There's nothing to sign.
 - **"Another policy already uses this link name."** Pick a different link name for the new policy.
-- **I can't find a draft.** Drafts are only on the Handbook tab for admins, in the **Drafts** group. Clear the search box.
+- **I can't find a draft.** Drafts are only on the Handbook tab for admins, in the **Drafts** group. Clear the search box, and set the filter above the group to **All drafts**.
+- **Publish is greyed out on a draft.** It needs the policy approver's OK on the current text. The hint under the button says why: waiting for approval, changes asked, or the text changed after it was approved.
+- **"Nobody can approve handbook drafts right now."** The policy approver isn't an active admin. An admin picks a new one with **Change** at the top of the Handbook tab.
+- **"The draft changed since you opened it."** Someone saved new text while you were reading. Read the new version, then approve it.
+- **I don't see Approve.** Only the policy approver gets the buttons.

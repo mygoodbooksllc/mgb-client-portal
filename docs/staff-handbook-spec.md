@@ -294,6 +294,59 @@ Added 2026-10-19. SQL: `supabase/staff-handbook-3-kinds.sql` (run after `staff-h
 
 ---
 
+## Part L — Draft approval
+
+Added 2026-10-19. SQL: `supabase/staff-handbook-4-approvals.sql` (run after `staff-handbook-3-kinds.sql`; it redefines `hb_status`, `hb_get_policy`, `hb_publish_policy` and `hb_convert_to_signed`). Checks: `supabase/staff-handbook-4-approvals-tests.sql` (one transaction, ends in ROLLBACK). Seed: `supabase/staff-handbook-4-seed-handbook-drafts.sql`. Email: `notification-emails` kind `handbook_approval_needed` (`handbookApproval.ts`). Front end: `HB_logic.js`, `HB_api.js`, `HB_PolicyView.jsx`, `HB_Admin.jsx` (`HB_ApprovalCard`), `HB_HandbookTab.jsx`, `hb.css`, plus Today, the Team tab badge, Settings and the Audit log.
+
+**Rule.** A draft can only be published once the policy approver has approved its exact current text. Published policies, including the SLA policy, have no approval step: their changes go through **Publish new version** as before.
+
+**Columns on `handbook_policies`:**
+- `approval_status`: `not_required` (every published policy), `pending`, `approved` or `changes_requested`. Existing drafts become `pending` when the file runs, with no email. New drafts start `pending`.
+- `approved_by`, `approved_at`, `approved_version_id`, `approved_sha256`: who approved which text. Publishing needs the version id and its body hash to match the latest version.
+- `approval_note`: the approver's note when asking for changes (up to 2,000 characters; kept after the next edit so the editor still sees it).
+- `approval_updated_at`, `approval_updated_by`.
+
+**Approver.** `handbook_settings.policy_approver_email`, default `bailley@mygoodbooks.org`. Any admin changes it with `hb_set_policy_approver(email)`; the new approver must be an active admin, and the change is audited (`handbook.approver_changed`). Approvals already given stay valid. While the setting doesn't point at an active admin, nothing can be approved, so nothing can be published, and the Handbook tab, the draft bar and the approval card all say so.
+
+**Triggers (so every path is covered):**
+- Approval columns only change inside the approval RPCs (a transaction-local setting PostgREST can't set). Anything else is refused (42501).
+- A new version of a draft (**Edit text**, which is `hb_publish_version` on a draft, or **Make this a signed policy**) resets it to `pending` (audit `handbook.approval_reset`, reason `text_changed`).
+- A title, section or kind change on an approved or changes-requested draft resets it to `pending` (reasons `details_changed`, `kind_changed`). The list order alone doesn't.
+- Backstop: a draft can't become `published` unless it is `approved` (55000).
+
+**RPCs** (all audited):
+
+| RPC | Who | Does | Audit |
+|---|---|---|---|
+| `hb_approve_policy(policy_id, version_id)` | approver only (42501 for anyone else) | Approves the latest version. `version_id` is the version the approver read; if the draft changed since, it's refused (55000) and the UI reloads. | `handbook.policy_approved` |
+| `hb_request_changes(policy_id, note)` | approver only | `changes_requested` with a required note. Also withdraws an approval. Nobody is emailed. | `handbook.policy_changes_requested` |
+| `hb_set_policy_approver(email)` | any admin | See Approver above. Queues the batched notice for the new approver when drafts are waiting. | `handbook.approver_changed` |
+
+`hb_publish_policy` and `hb_convert_to_signed` (on a draft) refuse with the reason from `hb_approval_problem` (55000) until the latest text is approved. A converted draft then needs approval again, since its kind and text changed. `hb_status` adds, for admins, each draft's `approval_status`, `approval_current` and `approval_note`, plus `approver`, `approver_missing`, `approver_setting`, `approvals_pending`, `admins` and `me.is_approver`; the approver's `badge` includes the drafts waiting. `hb_get_policy` adds `approval` (status, whether it matches the latest text, who and when, the approved version, the note and the `problem` text) and the approver.
+
+**Notice to the approver (one email per batch).** When a draft becomes `pending` (created, edited after approval or after changes were requested, details changed) or the approver changes while drafts wait, `hb_queue_approval_notice()` queues one `handbook_approval_needed` row for the approver, except:
+- the approver isn't set or isn't an active admin;
+- the approver made the change themselves;
+- an unsent row for the approver already exists. That email reads the live count when it goes out, so it covers this draft too.
+
+A new row waits until 30 minutes after the last one sent (`payload.not_before`). So the approver gets at most one email per 30 minutes however many drafts are created or saved, and saving a draft that is already waiting queues nothing. At send time the edge function checks the recipient is still the approver and an active admin, and counts the drafts waiting (none: skipped). The email gives the count and links to `#/team/handbook?item=handbook:approvals`; it never includes titles or policy text. Preference: **Settings › Notifications › Handbook drafts to approve** (`notify.email.handbook_approval`, on by default). A pure copy of the rule, with node tests, is in `supabase/functions/notification-emails/handbookApproval.ts` / `tests/edge/hb_approval_email.test.mjs`.
+
+**Front end:**
+- An **Awaiting {first name}'s approval** pill (or **Approved**, or **Changes asked**) on each draft in the list and the policy view. Filter chips with counts above the Drafts group (**All drafts**, **Awaiting {first name}**, **Changes asked**, **Approved**). A draft approved on older text counts as awaiting.
+- The approver line at the top of the tab for admins: who approves, how many drafts wait, and **Change** (any admin). A warm warning when the approver isn't an active admin.
+- For the approver only: **Needs your approval (N)** panel with **Review** links, a Today row "N handbook policies need your approval", and the count in the Team › Handbook badge (combined with anything to sign or countersign).
+- The **Approval** card on a draft: the state and any note for every admin; **Approve version N** and **Request changes** (or **Withdraw approval and ask for changes**) for the approver only. Other admins read "Only {name} can approve handbook drafts."
+- **Publish** and **Make this a signed policy** on a draft are disabled with the reason until the current text is approved.
+- **Edit text** on an approved draft shows, before saving, that saving sends it back for approval; the confirm step and the toast say so too. **Edit details** warns when a title or section change will reset an approval.
+
+**Editing paths.** Drafts (including the seeded chapters) are edited with **Edit text** (Markdown with live preview; each save is a new draft version, still a draft, back to `pending`) and **Edit details**. A published reference policy is changed with **Publish new version**, which is always a minor edit for reference policies and has no approval step.
+
+**Seed.** `staff-handbook-4-seed-handbook-drafts.sql` loads chapters 1–9 of the Employee Handbook mockup as nine reference drafts in the section "Employee Handbook" (order 1–9), each version 1, `pending`. Placeholders are `**[TBD: ...]**` so they stand out and can be edited in the app. It refuses to run before the approvals file, skips any slug that already exists, never publishes, converts or creates a signature, and queues only the one batched approver notice. Chapter 10 (Acknowledgment, a sign-here page) isn't loaded: signing in the portal replaces it.
+
+**Deploy order:** the `notification-emails` edge function first (so the new kind isn't dropped as unknown), then `staff-handbook-4-approvals.sql`, then the seed once. Re-run `staff-handbook-4-approvals.sql` after any re-run of `staff-handbook.sql`, `-2-admin.sql`, `-3-kinds.sql`, or a file that restates the outbox kind checks in full.
+
+---
+
 ## Critique log
 
 **Opus critique, 2026-10-13. All findings were accepted.**
