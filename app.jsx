@@ -26515,7 +26515,7 @@ const PAGE_META = {
     subtitle: "People, time off and task hand-off, performance, hours, reply times and inventory",
   },
   hr: {
-    title: "HR",
+    title: "Human Resources",
     subtitle: "The staff handbook, quarterly reviews and onboarding",
   },
   // A client's SOP as its own tab (#/client/<id>/sop) — staff only; the
