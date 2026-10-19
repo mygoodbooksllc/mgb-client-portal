@@ -322,6 +322,21 @@ function TK_Sidebar(props) {
         <TK_vNavItem route={{ view: "search" }} label="Search" icon="search" active={route.view === "search"} onNavigate={nav} />
       </ul>
 
+      {isAdmin ? (
+        <div className="tk-nav-section">
+          <div className="tk-nav-head">
+            <h3 className="tk-nav-title">People</h3>
+          </div>
+          <ul className="tk-nav">
+            {staff == null ? <li className="tk-nav-empty">Loading…</li> : null}
+            {people.map(function (s) {
+              var r = { view: "person", staffId: s.id };
+              return <TK_vNavItem key={s.id} route={r} label={s.name || "Staff member"} avatarName={s.name || "Staff member"} avatarPath={photoByEmail[String(s.email || "").toLowerCase()]} active={TK_vSameRoute(route, r)} onNavigate={nav} />;
+            })}
+          </ul>
+        </div>
+      ) : null}
+
       <div className="tk-nav-section">
         <div className="tk-nav-head">
           <h3 className="tk-nav-title">Projects</h3>
@@ -421,21 +436,6 @@ function TK_Sidebar(props) {
           })}
         </ul>
       </div>
-
-      {isAdmin ? (
-        <div className="tk-nav-section">
-          <div className="tk-nav-head">
-            <h3 className="tk-nav-title">People</h3>
-          </div>
-          <ul className="tk-nav">
-            {staff == null ? <li className="tk-nav-empty">Loading…</li> : null}
-            {people.map(function (s) {
-              var r = { view: "person", staffId: s.id };
-              return <TK_vNavItem key={s.id} route={r} label={s.name || "Staff member"} avatarName={s.name || "Staff member"} avatarPath={photoByEmail[String(s.email || "").toLowerCase()]} active={TK_vSameRoute(route, r)} onNavigate={nav} />;
-            })}
-          </ul>
-        </div>
-      ) : null}
 
       {newOpen ? (
         <TK_NewProjectModal
