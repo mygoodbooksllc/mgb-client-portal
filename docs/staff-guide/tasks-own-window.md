@@ -9,7 +9,7 @@ Yes. Slate can sit in a slim window of its own, for example next to QuickBooks o
 
 ### Open it
 
-On the Slate page (`#/tasks/my`), click **Open in own window** at the top right. A narrow window opens with just Slate: no rail and no top bar. It remembers its size next time.
+On the Slate page (`#/tasks/my`), or on the **Slate** tab of the Desk, click **Open in own window** at the top right. A narrow window opens with just Slate: no rail and no top bar. It remembers its size next time.
 
 The button is there on a computer with a window wider than about 760 pixels. It isn't on phones and tablets, or in a narrow window.
 

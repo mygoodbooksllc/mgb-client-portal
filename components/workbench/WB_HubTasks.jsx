@@ -322,6 +322,14 @@ function WB_HubTasksBody(props) {
   return (
     <div className="tk-view wb-hub-tasks" ref={paneRef} onKeyDown={onKeyDown} onClickCapture={onClickCapture} data-tour="wb-hub-tasks">
       {!online ? <p className="wb-offline-line" role="status">Offline. Changes wait until you're back.</p> : null}
+      {typeof TK_popOut === "function" ? (
+        <div className="wb-hub-popout">
+          <button type="button" className="tk-tool-btn tk-popout-btn" title="Open Slate in its own window" onClick={function () { TK_popOut("#/tasks/my"); }}>
+            <TK_vIcon name="window" size={14} />
+            <span>Open in own window</span>
+          </button>
+        </div>
+      ) : null}
       {body}
       {shown.more > 0 ? (
         <p className="wb-later">
