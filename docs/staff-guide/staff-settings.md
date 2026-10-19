@@ -73,7 +73,7 @@ Staff with temporary admin access see Task templates (read-only), Client roster,
 
 ### Sign out
 
-Click your picture or initials at the top right of the page, then **Sign out**.
+Click your picture or initials at the top right of the page, then **Sign out**. The Settings page also has **Sign out** at its top right. (On a phone, open the menu and tap **Sign out**.)
 
 ### Troubleshooting
 

@@ -331,6 +331,22 @@ t("registry: rail-default is an admin and bookkeeper notice pointing at the rail
   assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
 });
 
+t("registry: one-avatar points at the top-right account menu, the drawer row on phones", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "one-avatar");
+  assert.ok(a);
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  const steps = a.steps({});
+  assert.strictEqual(steps.length, 3);
+  assert.strictEqual(steps[0].targets, undefined);
+  assert.deepStrictEqual(steps[1].targets, ["tb-avatar", "staff-nav-settings"]);
+  assert.ok(/top right/.test(steps[1].body("tb-avatar")) || /picture or initials/.test(steps[1].body("tb-avatar")));
+  assert.ok(/phone/.test(steps[1].body("staff-nav-settings")));
+  assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
+  // The rail no longer has Settings: rail-default's last stop is the Expand button.
+  const r = ANN_REGISTRY.find((x) => x.id === "rail-default");
+  assert.deepStrictEqual(r.steps({})[2].targets, ["staff-rail-collapse"]);
+});
+
 t("registry: tasks-inline-edit is an admin and bookkeeper notice pointing at the row and groups", () => {
   const a = ANN_REGISTRY.find((x) => x.id === "tasks-inline-edit");
   assert.ok(a);

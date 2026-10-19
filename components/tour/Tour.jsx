@@ -874,7 +874,7 @@ function TOUR_placesStep(ctx) {
     title: list.length === 5 ? "Your five places" : "Your places",
     body: (key) =>
       key === "staff-nav"
-        ? `${places}. Everything you do lives in one of them, and Settings sits at the bottom.`
+        ? `${places}. Everything you do lives in one of them. Settings and Sign out are under your picture at the top right.`
         : `${places} are in this menu. Everything you do lives in one of them.`,
   };
 }

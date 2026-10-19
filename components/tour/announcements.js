@@ -80,10 +80,15 @@ var ANN_REGISTRY = [
       },
       {
         id: "ann-avatar",
-        title: "Your picture, top right",
-        body: () =>
-          "Click your picture or initials for Settings, dark mode, Preview as and Sign out. The page itself works exactly as before.",
-        targets: ["tb-avatar"],
+        title: "Your account menu",
+        // Phones hide the top bar's account menu (top-bar.css) and keep
+        // Settings and Sign out in the drawer, so point there instead.
+        body: (key) =>
+          key === "staff-nav-settings"
+            ? "On a phone, Settings and Sign out are here in the menu, as before."
+            : "Click your picture or initials for Settings, dark mode, Preview as (on a client's pages) and Sign out. The page itself works exactly as before.",
+        targets: ["tb-avatar", "staff-nav-settings"],
+        drawer: true,
       },
       {
         id: "ann-done",

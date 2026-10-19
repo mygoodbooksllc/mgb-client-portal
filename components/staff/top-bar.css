@@ -1012,9 +1012,9 @@
 /* ==========================================================================
    Moved, not duplicated: while a top-bar piece is mounted (class on <html>)
    hide the copy it replaced. Desktop / mouse layouts only; the phone drawer
-   keeps every original. The staff rail is left alone: since the 2026-10
-   nav redesign its foot (Settings, user chip, Sign out) shows on every
-   page, and it has no client switcher of its own any more.
+   keeps every original. The staff rail is left alone: it has no client
+   switcher, and since 2026-10-19 (N1) no Settings, name or Sign out
+   either, so this account menu is the only desktop path to them.
    ========================================================================== */
 @media (min-width: 761px), (hover: hover) and (pointer: fine) {
   html.tb-has-client .app-shell.has-staff-rail > .sidebar .cs-switcher {

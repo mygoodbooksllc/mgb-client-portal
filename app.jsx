@@ -2278,7 +2278,6 @@ function StaffRail({
   showsAdminPages,
   canViewInternal,
   internalOpen,
-  onSignOut,
   hideMark,
 }) {
   const [tip, setTip] = useState(null);
@@ -29616,7 +29615,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             showsAdminPages={
               (effectiveStaffUser.role === "admin" || hasTempAdminAccess) && !impersonating
             }
-            onSignOut={onSignOut}
             hideMark={false}
           />
         )}

@@ -575,7 +575,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     access.
 
 - **Staff rail** (`components/staff/StaffNav.jsx`, desktop and mouse windows): the five places
-  (Today, Inbox, Work, Clients, Team) with Settings at the bottom and Collapse/Expand. It opens as the 72px icon rail (with a caption and a hover/focus tooltip on each icon) until a person expands it to 220px; the choice is saved per person in `localStorage` `mgb_rail_expanded:<email>` (`"1"` expanded; no value = icon rail; the old shared `mygoodbooks_sidebar_collapsed_v1` is ignored for staff and still drives the client portal; cleared by Reset local state via the `mgb_` prefix). Settings and the user block sit right under the places, not pinned to the bottom of the window.
+  (Today, Inbox, Work, Clients, Team) with Collapse/Expand at the bottom (Settings, the name block and Sign out left the rail on 2026-10-19f; they are in the top bar's account menu). It opens as the 72px icon rail (with a caption and a hover/focus tooltip on each icon) until a person expands it to 220px; the choice is saved per person in `localStorage` `mgb_rail_expanded:<email>` (`"1"` expanded; no value = icon rail; the old shared `mygoodbooks_sidebar_collapsed_v1` is ignored for staff and still drives the client portal; cleared by Reset local state via the `mgb_` prefix). The places take the free height and Expand/Collapse sits at the bottom.
   It stays beside a client's pages too (staff get the breadcrumb and tab row instead of the client
   sidebar). Hidden while you preview as one of the client's people or use View as client, so the
   preview shows only what they see. On touch phones the drawer has the same places.
@@ -677,7 +677,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     with check marks, Exit "View as", temporary access, **Settings** → `#/settings`, Sign out).
   - **Moved, not duplicated:** while mounted, the client picker, sync pill and account menu add
     `tb-has-client` / `tb-has-sync` / `tb-has-avatar` on `<html>`, and desktop-only CSS hides the old
-    copies (sidebar/rail client switcher, header sync pill, rail name/sign out (the rail and sidebar theme toggles were removed; theme
+    copies (sidebar/rail client switcher, header sync pill; the rail's own name/Settings/Sign out were removed outright on 2026-10-19f, and the rail and sidebar theme toggles earlier; theme
     lives in the account menu and Settings), temporary-access banner and Preview as select).
   - **Phones:** the bar sits under the navy `.mobile-topbar` and keeps only the client picker, search,
     bell and "+" (44px; its menu opens fixed under the bar), since "+" is now the only way to add a

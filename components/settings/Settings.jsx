@@ -2,7 +2,7 @@
 // Settings (owner request 2026-09-30)
 //
 //   Staff:   #/settings                   ST_StaffSettingsPage (avatar menu >
-//                                         Settings, the rail's foot, or ⌘K)
+//                                         Settings, the phone drawer, or ⌘K)
 //   Clients: #/client/<id>/settings       ST_ClientSettingsPage (the gear at
 //                                         the foot of the client sidebar)
 //            Staff on a client's pages get the same page with the "Client
