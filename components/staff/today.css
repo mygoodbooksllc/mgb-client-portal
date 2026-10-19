@@ -395,8 +395,14 @@ button.td-row-main:hover {
   margin: 0;
   min-width: 0;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.td-card-scroll {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 .td-card-week {
   --td-edge: var(--td-week);

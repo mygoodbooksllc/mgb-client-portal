@@ -1010,6 +1010,7 @@ function TD_MilestonesCard({ clients, onOpenClientMilestone, celebrations }) {
         This week
       </h3>
       <p className="card-subtitle">Birthdays and anniversaries, and milestones to review: numbers pointing to a different milestone, not confirmed yet, or close to the next one.</p>
+      <div className="td-card-scroll">
       {cel.length > 0 && (
         <ul className="td-mini-list">
           {cel.slice(0, TD_CARD_ROWS).map((r) => (
@@ -1027,6 +1028,7 @@ function TD_MilestonesCard({ clients, onOpenClientMilestone, celebrations }) {
       ) : (
         <p className="card-subtitle td-card-note">Milestones aren't available right now.</p>
       )}
+      </div>
     </section>
   );
 }
@@ -1185,6 +1187,7 @@ function TD_ListCard({ id, title, subtitle, lines, extra, emptyText, loaded, tou
         {title}
       </h3>
       <p className="card-subtitle">{subtitle}</p>
+      <div className="td-card-scroll">
       {!loaded && lines.length === 0 && <p className="card-subtitle td-card-note">Loading…</p>}
       {loaded && lines.length === 0 && <p className="card-subtitle td-card-note td-card-ok">{emptyText}</p>}
       {lines.length > 0 && (
@@ -1206,6 +1209,7 @@ function TD_ListCard({ id, title, subtitle, lines, extra, emptyText, loaded, tou
         </ul>
       )}
       {lines.length > TD_CARD_ROWS && <p className="card-subtitle td-card-note">+{lines.length - TD_CARD_ROWS} more</p>}
+      </div>
       {extra}
     </section>
   );
