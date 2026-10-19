@@ -1006,7 +1006,7 @@ function HB_DetailsEditor({ policy, sections, approval, approverFirst, onCancel,
 // text becomes a new version that everyone signs. It can't be undone.
 // On a draft (Part L) it needs the approver's approval of the current text
 // first, and the converted draft goes back to the approver after.
-function HB_ConvertCard({ policy, bookkeeperCount, approval, approverFirst, onCancel, onDone }) {
+function HB_ConvertCard({ policy, bookkeeperCount, approval, approverFirst, approverMissing, onCancel, onDone }) {
   const toast = HB_useToastSafe();
   const [note, setNote] = React.useState("");
   const [agree, setAgree] = React.useState(false);
@@ -1016,9 +1016,11 @@ function HB_ConvertCard({ policy, bookkeeperCount, approval, approverFirst, onCa
   const n = bookkeeperCount || 0;
   const people = n === 1 ? "1 bookkeeper" : n + " bookkeepers";
   const who = approverFirst || "the approver";
-  const needsApproval = draft && !!approval && !approval.current;
+  const needsApproval = draft && !!approval && (!approval.current || !!approverMissing);
   const problem = needsApproval
-    ? approval.problem || "This draft needs approval first."
+    ? (approverMissing
+        ? "Nobody can approve handbook drafts right now, so this draft can't be converted. An admin can choose a new approver in Team › Handbook."
+        : approval.problem || "This draft needs approval first.")
     : !note.trim()
       ? "Add a short note that says why it now needs signing."
       : !agree

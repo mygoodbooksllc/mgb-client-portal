@@ -301,7 +301,7 @@ Added 2026-10-19. SQL: `supabase/staff-handbook-4-approvals.sql` (run after `sta
 **Rule.** A draft can only be published once the policy approver has approved its exact current text. Published policies, including the SLA policy, have no approval step: their changes go through **Publish new version** as before.
 
 **Columns on `handbook_policies`:**
-- `approval_status`: `not_required` (every published policy), `pending`, `approved` or `changes_requested`. Existing drafts become `pending` when the file runs, with no email. New drafts start `pending`.
+- `approval_status`: `not_required`, `pending`, `approved` or `changes_requested`. Every policy published before this file (including the SLA) is `not_required`. Existing drafts become `pending` when the file runs, with no email. New drafts start `pending`. A draft published after approval keeps `approved` and its approver fields as the record of who approved what; nothing reads them once it's published.
 - `approved_by`, `approved_at`, `approved_version_id`, `approved_sha256`: who approved which text. Publishing needs the version id and its body hash to match the latest version.
 - `approval_note`: the approver's note when asking for changes (up to 2,000 characters; kept after the next edit so the editor still sees it).
 - `approval_updated_at`, `approval_updated_by`.

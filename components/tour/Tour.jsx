@@ -1143,7 +1143,7 @@ function TOUR_adminSteps(ctx) {
     hr(
       "handbook",
       "HR › Handbook",
-      "Staff policies that bookkeepers sign and the Account Manager countersigns. Admins see who countersigns, each bookkeeper's state and every signed copy.",
+      "Staff policies that bookkeepers sign and the Account Manager countersigns, plus reference policies. Admins see who countersigns, each bookkeeper's state and every signed copy. New policies start as drafts, and the policy approver (Bailley) approves each draft before any admin can publish it.",
     ),
     team(
       "ledger",

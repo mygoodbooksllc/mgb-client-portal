@@ -419,6 +419,7 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
           bookkeeperCount={bookkeeperCount}
           approval={approval}
           approverFirst={approverFirst}
+          approverMissing={!!d.approver_missing}
           onCancel={() => setPanel("")}
           onDone={reload}
         />

@@ -27,7 +27,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Manage projects** in the Slate sidebar | Rename, archive, trash or restore any project | [Manage projects](#/help/manage-projects) |
 | **Review** in the Slate sidebar | Approve or send back staff work that needs review, and each person's on-time rate for the last 30 days | [Task review](#/help/task-review) |
 | **HR › Reviews › Team status** | Open and run the quarterly review cycle | [Review cycles](#/help/review-cycles) |
-| **HR › Handbook** | Staff policies bookkeepers sign; who countersigns, each bookkeeper's state and their signed copies | [Staff Handbook](#/help/staff-handbook) |
+| **HR › Handbook** | Staff policies bookkeepers sign, plus reference policies; who countersigns, each bookkeeper's state and their signed copies; drafts, which the policy approver (Bailley) approves before any admin publishes them | [Staff Handbook](#/help/staff-handbook) |
 | **Team › Feedback** | Bug reports and ideas from staff and clients | [Feedback](#/help/feedback-page) |
 | **Team › Ledger review** | Ledger review settings: warn or block when a month is marked done unapproved, how much ledger to pull, Smart or Strict duplicate checks, and the vendor watch list | [Ledger review](#/help/ledger-review) |
 | **Team › Inventory** | Equipment **Requests**, **Items**, the **Roster** of who's missing what, the staff **Directory** and **Export to Google Sheet** | [Inventory](#/help/tech-inventory) |

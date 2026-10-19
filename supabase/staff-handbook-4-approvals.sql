@@ -17,8 +17,10 @@
 --
 -- What changes
 --   handbook_policies gets the approval state of a draft:
---     approval_status       'not_required' (published policies, including the
---                           SLA), 'pending', 'approved' or 'changes_requested'.
+--     approval_status       'not_required' (policies published before this
+--                           file, including the SLA), 'pending', 'approved'
+--                           or 'changes_requested'. A draft published after
+--                           approval keeps 'approved' as the record.
 --                           Existing drafts become 'pending'; new drafts start
 --                           'pending'.
 --     approved_by / approved_at

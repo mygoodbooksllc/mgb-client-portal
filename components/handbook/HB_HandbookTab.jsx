@@ -347,8 +347,9 @@ function HB_HandbookTab({ staffUser, isAdmin }) {
   // Deep link: #/hr/handbook?item=handbook:<slug>.
   LK_useArrival({ place: "hr", tab: "handbook", staff: true, kinds: ["handbook"] }, !!data, (a) => {
     const hit = ((data && data.policies) || []).find((p) => p.slug === a.id);
-    if (a.id === "approvals") {
-      // The approver's Today row / email: the panel, else the drafts.
+    if (a.id === "approvals" && !hit) {
+      // The approver's Today row / email: the panel, else the drafts. (A
+      // policy whose link name is "approvals" still opens as a policy.)
       if (route.slug) HB_goPolicy(null);
       setDraftFilter("all");
       let tries = 0;
