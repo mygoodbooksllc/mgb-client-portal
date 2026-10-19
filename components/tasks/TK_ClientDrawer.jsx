@@ -737,10 +737,27 @@ function TK_ClientDrawerHost(props) {
 
   // R2 (2026-10-19h): while the Desk is live it owns this panel. The client
   // tasks become the Desk's Client tab, and t toggles that tab instead.
+  // deskOn (app.jsx: the Desk is live for this person) means the modal never
+  // opens, even if the Desk's route is not registered yet or says no this
+  // once: the request is retried briefly and then dropped.
+  var deskOnRef = React.useRef(!!p.deskOn);
+  deskOnRef.current = !!p.deskOn;
   var routeDesk = function (action) {
     try {
-      if (!clientIdRef.current || typeof window.TK_openClientRoute !== "function") return false;
-      return window.TK_openClientRoute(String(clientIdRef.current), action) === true;
+      if (!clientIdRef.current) return false;
+      var tryRoute = function () {
+        return typeof window.TK_openClientRoute === "function" && window.TK_openClientRoute(String(clientIdRef.current), action) === true;
+      };
+      if (tryRoute()) return true;
+      if (!deskOnRef.current) return false;
+      var tries = 0;
+      var again = function () {
+        tries++;
+        if (!clientIdRef.current || !deskOnRef.current) return;
+        if (!tryRoute() && tries < 5) setTimeout(again, 120);
+      };
+      setTimeout(again, 120);
+      return true;
     } catch (e) {
       return false;
     }

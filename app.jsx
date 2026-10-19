@@ -30823,6 +30823,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           lastClientId={lastOpenedClientId}
           page={effectivePage}
           available={!isPreviewingUser}
+          deskOn={wbDeskOn}
         />
       )}
       {tkHosts && typeof TK_QuickAddHost === "function" && (

@@ -1114,18 +1114,17 @@ html.wb-desk-dragging .wb-panel {
 }
 .wb-panel-tools {
   display: flex;
-  flex-direction: row; /* filter pills and Mine/Everyone share one line: saves a row when the Desk is short */
+  flex-direction: row;
+  flex-wrap: wrap; /* filters take the full line; Mine/Everyone drops to its own line when it does not fit, never clipped */
   align-items: center;
-  gap: 10px;
-  padding-top: 0;
+  gap: 8px 10px;
+  padding-top: 10px; /* air under the tab line */
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 .wb-panel-tools .wb-tabs {
-  flex: 1 1 auto;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
 }
 .wb-panel-tools .wb-tab,
 .wb-panel-tools .wb-scope-btn {
@@ -1196,11 +1195,6 @@ html.wb-desk-dragging .wb-panel {
 .wb-hub-tab.is-on {
   color: var(--ink-strong);
   border-bottom-color: var(--accent);
-}
-.wb-panel-tools .wb-hub-chips {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 /* While the hub is open the chat drawer sits above the phone sheet and its
    bar (it is normally at 1800, below them; the docked Desk at 680/690 is
