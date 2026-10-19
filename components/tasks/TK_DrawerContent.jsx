@@ -706,6 +706,14 @@ function TK_DrawerContent(props) {
   var descPair = React.useState("");
   var desc = descPair[0];
   var setDesc = descPair[1];
+  // T3: the due date box keeps its own draft, so a year still being typed
+  // (0002, 0020, 0202) is never saved or snapped back while you type.
+  var duePair = React.useState(function () {
+    var t0 = TK_dwState() && TK_dwState().tasks ? TK_dwState().tasks[taskId] : null;
+    return t0 && t0.due_date ? String(t0.due_date).slice(0, 10) : "";
+  });
+  var dueDraft = duePair[0];
+  var setDueDraft = duePair[1];
   var sectionPair = React.useState("");
   var sectionDraft = sectionPair[0];
   var setSectionDraft = sectionPair[1];
@@ -787,6 +795,11 @@ function TK_DrawerContent(props) {
     var el = document.getElementById("tk-dw-desc");
     if (document.activeElement !== el) setDesc(task.description || "");
   }, [task && task.description, taskId]);
+  React.useEffect(function () {
+    if (!task) return;
+    var el = document.getElementById("tk-dw-due");
+    if (document.activeElement !== el) setDueDraft(task.due_date ? String(task.due_date).slice(0, 10) : "");
+  }, [task && task.due_date, taskId]);
   React.useEffect(function () {
     if (!task) return;
     var el = document.getElementById("tk-dw-section");
@@ -1111,68 +1124,44 @@ function TK_DrawerContent(props) {
 
   var fieldDisabled = readOnly;
 
-  if (task) {
-    body = (
-      <div className="tk-dw-body">
-        {deleted && (
-          <div className="tk-dw-banner is-bad" role="status">
-            <span>{TK_dwCopy("deletedBanner", "This task was deleted.")}</span>
-            {(isOwner || isAdmin || canEdit) && (
-              <button type="button" className="btn-secondary tk-dw-btn-sm" disabled={!online} onClick={doRestore}>
-                Restore
-              </button>
-            )}
-          </div>
-        )}
-        {!online && (
-          <div className="tk-dw-banner" role="status">
-            {TK_dwCopy("offline", "You're offline.")}
-          </div>
-        )}
-        <TK_dwReview
-          task={task}
-          staff={staff}
-          me={me}
-          isAdmin={isAdmin}
-          readOnly={readOnly}
-          onApprove={function () {
-            var api = TK_dwApi();
-            if (api && typeof api.approve === "function") api.approve(task.id).catch(TK_dwReviewError);
-          }}
-          onSendBack={function () { setModal("sendback"); }}
-          onWithdraw={function () {
-            var api = TK_dwApi();
-            if (api && typeof api.withdraw === "function") api.withdraw(task.id).catch(TK_dwReviewError);
-          }}
-          onSetReviewer={function (email) {
-            var api = TK_dwApi();
-            if (api && typeof api.setReviewer === "function") api.setReviewer(task.id, email).catch(TK_dwReviewError);
-          }}
-        />
-        {task.parent_id && (
-          <p className="tk-dw-parent">
-            <a href={TK_dwTaskHref(task.parent_id)} onClick={TK_openTaskClick(task.parent_id)} className="link-btn">
-              {"↑"} Open the parent task
-            </a>
-          </p>
-        )}
-        <TK_dwCloseLink task={task} readOnly={readOnly} />
-
-        <div className="tk-dw-fields">
-          <label className="tk-dw-label" htmlFor="tk-dw-assignee">
-            Assignee
-          </label>
+  // ---- T3: values for the labeled field grid, in TK_dlFieldGrid's order.
+  var gf = {};
+  var grid = typeof TK_dlFieldGrid === "function" ? TK_dlFieldGrid(task, { readOnly: readOnly, canAssign: canAssign, status: status }) : [];
+  grid.forEach(function (f) { gf[f.key] = f; });
+  var priority = typeof TK_rwPriorityOf === "function" ? TK_rwPriorityOf(task) : task && (task.priority === "high" || task.priority === "low") ? task.priority : "normal";
+  var priorities = typeof TK_RW_PRIORITIES !== "undefined" ? TK_RW_PRIORITIES : [{ key: "high", label: "High" }, { key: "normal", label: "Normal" }, { key: "low", label: "Low" }];
+  // A due date saves as the task rows save it (TK_rwDuePatch, TK_rwDueSavePatch):
+  // only a whole date with a real year, due_at follows the day and keeps its
+  // time, and clearing the date ends a repeat.
+  var saveDue = function (v) {
+    var t = taskRef.current;
+    if (!t) return;
+    var pick = typeof TK_rwDuePatch === "function" ? TK_rwDuePatch(v ? "date" : "clear", today, v) : { due_date: v || null };
+    if (!pick) return;
+    var draft;
+    if (typeof TK_rwDueSavePatch === "function") {
+      draft = TK_rwDueSavePatch(t, pick, { dueAt: TK_dlDueAt, timeOf: TK_dlTimeOf });
+    } else {
+      draft = { due_date: pick.due_date, due_at: TK_dlDueAt(pick.due_date, dueTime) };
+      if (!pick.due_date && t.recurrence && t.recurrence !== "none") draft.recurrence = "none";
+    }
+    save(draft);
+  };
+  var gridValues = !task
+    ? {}
+    : {
+        assignee: (
           <div className="tk-dw-value">
             <select
               id="tk-dw-assignee"
               ref={assigneeRef}
               className="tk-dw-select"
               value={curAssignee}
-              disabled={!canAssign || status === "ready_for_review"}
+              disabled={!gf.assignee.editable}
               title={
-                status === "ready_for_review" && canAssign
+                gf.assignee.hint === "inReview"
                   ? TK_dwCopy("inReview", "This is in review. Take it back from review before you reassign it.")
-                  : !canAssign && !readOnly
+                  : gf.assignee.hint === "notOwner"
                     ? "Only the task's owner or an admin can reassign it."
                     : undefined
               }
@@ -1239,22 +1228,24 @@ function TK_DrawerContent(props) {
               );
             })()}
           </div>
-
-          <label className="tk-dw-label" htmlFor="tk-dw-due">
-            Due
-          </label>
+        ),
+        due: (
           <div className="tk-dw-value tk-dw-pair">
             <input
               id="tk-dw-due"
               type="date"
               className="tk-dw-input"
-              value={task.due_date ? String(task.due_date).slice(0, 10) : ""}
-              disabled={fieldDisabled}
+              value={dueDraft}
+              disabled={!gf.due.editable}
+              aria-describedby={dueDraft ? undefined : "tk-dw-due-ph"}
               onChange={function (e) {
-                var v = e.target.value || null;
-                var draft = { due_date: v, due_at: TK_dlDueAt(v, dueTime) };
-                if (!v && task.recurrence && task.recurrence !== "none") draft.recurrence = "none";
-                save(draft);
+                var v = e.target.value || "";
+                setDueDraft(v);
+                saveDue(v);
+              }}
+              onBlur={function () {
+                var t = taskRef.current;
+                setDueDraft(t && t.due_date ? String(t.due_date).slice(0, 10) : "");
               }}
             />
             <input
@@ -1265,8 +1256,153 @@ function TK_DrawerContent(props) {
               disabled={fieldDisabled || !task.due_date}
               onChange={function (e) { save({ due_at: TK_dlDueAt(task.due_date, e.target.value) }); }}
             />
+            {!dueDraft && (
+              <span className="tk-dw-ph" id="tk-dw-due-ph">
+                {gf.due.placeholder}
+              </span>
+            )}
           </div>
+        ),
+        client: (
+          <div className="tk-dw-value">
+            {task.client_id ? (
+              <React.Fragment>
+                <a
+                  className="tk-dw-link"
+                  href={TK_dwClientListHref(task.client_id)}
+                  onClick={function (e) {
+                    if (!TK_dlIsPlainClick(e)) return;
+                    e.preventDefault();
+                    leave();
+                    TK_dwGo({ view: "client", clientId: task.client_id }, TK_dwClientListHref(task.client_id));
+                  }}
+                >
+                  {client ? client.name || "Client" : "Client"}
+                </a>
+                <TK_dwPeople clientId={task.client_id} reviewRequired={!!task.review_required} staff={staff} />
+              </React.Fragment>
+            ) : (
+              <span className="tk-dw-ph">{gf.client.placeholder}</span>
+            )}
+          </div>
+        ),
+        project: (
+          <div className="tk-dw-value">
+            {task.project_id ? (
+              <a
+                className="tk-dw-link"
+                href={TK_dwProjectHref(task.project_id)}
+                onClick={function (e) {
+                  if (!TK_dlIsPlainClick(e)) return;
+                  e.preventDefault();
+                  leave();
+                  TK_dwGo({ view: "project", projectId: task.project_id }, TK_dwProjectHref(task.project_id));
+                }}
+              >
+                {project ? project.name || "Project" : "Project"}
+              </a>
+            ) : (
+              <span className="tk-dw-ph">{gf.project.placeholder}</span>
+            )}
+          </div>
+        ),
+        priority: (
+          <div className="tk-dw-value tk-dw-pair">
+            <span className={"tk-prio-dot tk-prio-dot-" + priority} aria-hidden="true" />
+            <select
+              id="tk-dw-priority"
+              className="tk-dw-select"
+              value={priority}
+              disabled={!gf.priority.editable}
+              onChange={function (e) { save({ priority: e.target.value }); }}
+            >
+              {priorities.map(function (o) {
+                return (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        ),
+        status: (
+          <div className="tk-dw-value">
+            <span data-tk-drawer-status className="tk-dw-status">
+              <TK_dwStatus task={task} isAdmin={isAdmin} canEdit={gf.status.editable} onChange={setStatus} />
+            </span>
+          </div>
+        ),
+      };
 
+  if (task) {
+    body = (
+      <div className="tk-dw-body">
+        {deleted && (
+          <div className="tk-dw-banner is-bad" role="status">
+            <span>{TK_dwCopy("deletedBanner", "This task was deleted.")}</span>
+            {(isOwner || isAdmin || canEdit) && (
+              <button type="button" className="btn-secondary tk-dw-btn-sm" disabled={!online} onClick={doRestore}>
+                Restore
+              </button>
+            )}
+          </div>
+        )}
+        {!online && (
+          <div className="tk-dw-banner" role="status">
+            {TK_dwCopy("offline", "You're offline.")}
+          </div>
+        )}
+        <TK_dwReview
+          task={task}
+          staff={staff}
+          me={me}
+          isAdmin={isAdmin}
+          readOnly={readOnly}
+          onApprove={function () {
+            var api = TK_dwApi();
+            if (api && typeof api.approve === "function") api.approve(task.id).catch(TK_dwReviewError);
+          }}
+          onSendBack={function () { setModal("sendback"); }}
+          onWithdraw={function () {
+            var api = TK_dwApi();
+            if (api && typeof api.withdraw === "function") api.withdraw(task.id).catch(TK_dwReviewError);
+          }}
+          onSetReviewer={function (email) {
+            var api = TK_dwApi();
+            if (api && typeof api.setReviewer === "function") api.setReviewer(task.id, email).catch(TK_dwReviewError);
+          }}
+        />
+        {task.parent_id && (
+          <p className="tk-dw-parent">
+            <a href={TK_dwTaskHref(task.parent_id)} onClick={TK_openTaskClick(task.parent_id)} className="link-btn">
+              {"↑"} Open the parent task
+            </a>
+          </p>
+        )}
+        <TK_dwCloseLink task={task} readOnly={readOnly} />
+
+        {/* T3 field grid. Future slot: a task Size field (docs/desk-right-spec.md
+            section 17, idea 7) joins TK_DL_GRID_FIELDS later. Not built. */}
+        <div className="tk-dw-grid" role="group" aria-label="Task fields" data-tour="tk-dw-fields">
+          {grid.map(function (f) {
+            var forId = f.key === "assignee" ? "tk-dw-assignee" : f.key === "due" ? "tk-dw-due" : f.key === "priority" ? "tk-dw-priority" : null;
+            return (
+              <div key={f.key} className={"tk-dw-gf tk-dw-gf-" + f.key + (f.empty ? " is-empty" : "")}>
+                {forId ? (
+                  <label className="tk-dw-label" htmlFor={forId}>
+                    {f.label}
+                  </label>
+                ) : (
+                  <span className="tk-dw-label">{f.label}</span>
+                )}
+                {gridValues[f.key]}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="tk-dw-fields">
           <label className="tk-dw-label" htmlFor="tk-dw-start">
             Start
           </label>
@@ -1279,23 +1415,6 @@ function TK_DrawerContent(props) {
               disabled={fieldDisabled}
               onChange={function (e) { save({ start_on: e.target.value || null }); }}
             />
-          </div>
-
-          <label className="tk-dw-label" htmlFor="tk-dw-priority">
-            Priority
-          </label>
-          <div className="tk-dw-value">
-            <select
-              id="tk-dw-priority"
-              className="tk-dw-select"
-              value={task.priority || "normal"}
-              disabled={fieldDisabled}
-              onChange={function (e) { save({ priority: e.target.value }); }}
-            >
-              <option value="high">High</option>
-              <option value="normal">Normal</option>
-              <option value="low">Low</option>
-            </select>
           </div>
 
           <label className="tk-dw-label" htmlFor="tk-dw-section">
@@ -1332,42 +1451,6 @@ function TK_DrawerContent(props) {
               })}
             </datalist>
           </div>
-
-          {(task.client_id || task.project_id) && (
-            <React.Fragment>
-              <span className="tk-dw-label">{task.client_id ? "Client" : "Project"}</span>
-              <div className="tk-dw-value">
-                {task.client_id ? (
-                  <a
-                    className="tk-dw-link"
-                    href={TK_dwClientListHref(task.client_id)}
-                    onClick={function (e) {
-                      if (!TK_dlIsPlainClick(e)) return;
-                      e.preventDefault();
-                      leave();
-                      TK_dwGo({ view: "client", clientId: task.client_id }, TK_dwClientListHref(task.client_id));
-                    }}
-                  >
-                    {containerName}
-                  </a>
-                ) : (
-                  <a
-                    className="tk-dw-link"
-                    href={TK_dwProjectHref(task.project_id)}
-                    onClick={function (e) {
-                      if (!TK_dlIsPlainClick(e)) return;
-                      e.preventDefault();
-                      leave();
-                      TK_dwGo({ view: "project", projectId: task.project_id }, TK_dwProjectHref(task.project_id));
-                    }}
-                  >
-                    {containerName}
-                  </a>
-                )}
-                {task.client_id && <TK_dwPeople clientId={task.client_id} reviewRequired={!!task.review_required} staff={staff} />}
-              </div>
-            </React.Fragment>
-          )}
 
           <label className="tk-dw-label" htmlFor="tk-dw-kind">
             Type
@@ -1537,6 +1620,10 @@ function TK_DrawerContent(props) {
           )}
         </section>
 
+        {/* Future slot (docs/desk-right-spec.md section 17, idea 4): a "Linked"
+            section for the task's evidence (GL flag, transaction, file,
+            message) goes here. Not built. */}
+
         <section className="tk-dw-section tk-dw-thread-wrap">
           <div className="tk-dw-tabs" role="tablist" aria-label="Comments and activity">
             {[
@@ -1613,9 +1700,6 @@ function TK_DrawerContent(props) {
           </div>
           {task && (
             <div className="tk-dw-title-row">
-              <span data-tk-drawer-status className="tk-dw-status">
-                <TK_dwStatus task={task} isAdmin={isAdmin} canEdit={!readOnly} onChange={setStatus} />
-              </span>
               <h2 className="tk-dw-title-h" id={labelId}>
                 <textarea
                   ref={titleRef}

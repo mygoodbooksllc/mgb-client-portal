@@ -1984,6 +1984,24 @@ Team Reviews files.
   max-width, so page content fills the freed width; its 40px gutters are shared with the top bar's
   negative margins and were left alone. Upkeep: launch announcement `rail-default`, guide
   `getting-started` and `whats-new`, `MGB_VERSION` `2026-10-17f`; no new Usage Stats event.
+- **Task pane split + field grid (R0/T3), 2026-10-19c** (spec `docs/desk-right-spec.md` §10): client
+  only, no SQL, no edge functions. R0: `TK_DrawerContent.jsx` is the task pane body (state, fetch,
+  x/s/a/? keys, the delete/send back/keys modals) with `mode` `"drawer"` or `"embedded"`, `scopeRef`
+  (the element its keys and `s` lookup belong to), `registerEsc` (the chrome asks it first, so an open
+  SOP panel closes before the drawer) and a `frame(inner, after, {label})` render prop so the modal keeps
+  the exact same DOM. `TK_Drawer` in `TK_Drawer.jsx` is now only the chrome: portal, layer, scrim,
+  `aside[role=dialog]`, focus on open and return, `tk-drawer-open` scroll lock, the capture Esc/Tab trap.
+  Static markup was byte-identical before and after for nine task states. T3: a labeled grid at the
+  top of the pane (`.tk-dw-grid`, `data-tour="tk-dw-fields"`): Assignee, Due, Client, Project, Priority,
+  Status, with faint placeholders when empty. Rows come from `TK_dlFieldGrid` / `TK_DL_GRID_FIELDS`
+  (`TK_drawerLogic.js`, node-tested), which also says which are editable (assignee: owner or admin, not
+  in review; client and project are links). The same controls and `save` path as before; due saves
+  through `TK_rwDuePatch` + `TK_rwDueSavePatch` (a half-typed year is not saved), priority options from
+  `TK_RW_PRIORITIES`. Status moved from the title row into the grid. Rows are flex-wrap (label 120px,
+  96px on phones; value wraps under it below about 334px), not a container query, so the pane never
+  becomes a containing block for fixed menus. "Linked" (spec §17) and a task-size field are comments
+  only. Upkeep: launch announcement `tasks-field-grid`, guide `task-details` and `whats-new`, tour
+  text and target list, `MGB_VERSION` `2026-10-19c`; no new Usage Stats event.
 - **Task rows you can change in place + Add task rows (T1/T2), 2026-10-19b:** client only, no SQL, no
   edge functions. `TK_TaskRow.jsx`: assignee initials avatar (dashed empty circle with an Assign hint),
   due chip (red overdue, amber today, faint calendar when empty), always-visible priority, each opening a

@@ -294,6 +294,46 @@
   align-items: start;
 }
 
+/* T3: the labeled field grid at the top of the task pane (Assignee, Due,
+   Client, Project, Priority, Status). Each row is label then value; when the
+   pane is too narrow for both side by side (under about 334px of content,
+   as in a very narrow Desk) the value wraps under its label. flex-wrap, not a
+   container query, so nothing here makes the pane a containing block. */
+.tk-dw-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tk-dw-gf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 2px 14px;
+  min-width: 0;
+}
+
+.tk-dw-gf > .tk-dw-label { flex: 0 0 120px; }
+.tk-dw-gf > .tk-dw-value { flex: 1 1 200px; min-width: 0; }
+
+/* An empty field shows what's missing, faintly, the way the task rows do. */
+.tk-dw-ph {
+  display: inline-block;
+  padding-top: 7px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  font-style: italic;
+}
+
+.tk-dw-pair .tk-dw-ph { padding-top: 0; }
+.tk-dw-gf.is-empty .tk-dw-input:not(:disabled),
+.tk-dw-gf.is-empty .tk-dw-select:not(:disabled) { border-style: dashed; }
+.tk-dw-gf-priority .tk-prio-dot { flex: 0 0 auto; }
+.tk-dw-gf-status .tk-dw-status { display: inline-block; padding-top: 3px; }
+
 .tk-dw-label {
   display: block;
   padding-top: 7px;
@@ -1116,6 +1156,8 @@
 
   .tk-dw-label { padding-top: 8px; }
   .tk-dw-fields .tk-dw-value { margin-bottom: 4px; }
+  .tk-dw-grid { gap: 4px; }
+  .tk-dw-gf > .tk-dw-label { flex-basis: 96px; }
 
   .tk-dw-icon-btn,
   .tk-dw-tab,

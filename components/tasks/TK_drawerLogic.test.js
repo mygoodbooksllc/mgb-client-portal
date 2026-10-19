@@ -391,4 +391,49 @@ t("sectionOptions", () => {
   assert.deepStrictEqual(L.TK_dlSectionOptions([], null, null), []);
 });
 
+// ---- TK_dlFieldGrid (T3)
+const gridTask = { id: "t1", assignee_email: "bk@example.test", staff_email: "bk@example.test", due_date: "2026-10-20", client_id: "c1", project_id: null, priority: "high", status: "in_progress" };
+const pick = (rows, key) => rows.filter((r) => r.key === key)[0];
+t("fieldGrid: the six fields, in order, always listed", () => {
+  const rows = L.TK_dlFieldGrid(gridTask, { readOnly: false, canAssign: true });
+  assert.deepStrictEqual(rows.map((r) => r.label), ["Assignee", "Due", "Client", "Project", "Priority", "Status"]);
+  assert.deepStrictEqual(L.TK_dlFieldGrid(null, {}).map((r) => r.key), ["assignee", "due", "client", "project", "priority", "status"]);
+});
+t("fieldGrid: empty values are flagged with their placeholder", () => {
+  const rows = L.TK_dlFieldGrid({ id: "t2", assignee_email: "  ", due_date: null, client_id: null, project_id: null }, { canAssign: true });
+  assert.deepStrictEqual(rows.filter((r) => r.empty).map((r) => r.placeholder), ["Unassigned", "No due date", "No client", "No project"]);
+  const full = L.TK_dlFieldGrid(Object.assign({}, gridTask, { project_id: "p1" }), { canAssign: true });
+  assert.deepStrictEqual(full.filter((r) => r.empty), []);
+  assert.strictEqual(pick(full, "priority").placeholder, "");
+});
+t("fieldGrid: an editor changes everything but Client and Project", () => {
+  const rows = L.TK_dlFieldGrid(gridTask, { readOnly: false, canAssign: true });
+  assert.deepStrictEqual(rows.filter((r) => r.editable).map((r) => r.key), ["assignee", "due", "priority", "status"]);
+  assert.ok(rows.every((r) => r.hint === ""));
+});
+t("fieldGrid: view-only (or deleted, or offline) locks every field, no reassign hint", () => {
+  const rows = L.TK_dlFieldGrid(gridTask, { readOnly: true, canAssign: false });
+  assert.deepStrictEqual(rows.filter((r) => r.editable), []);
+  assert.strictEqual(pick(rows, "assignee").hint, "");
+});
+t("fieldGrid: an editor who isn't the owner or an admin can't reassign", () => {
+  const rows = L.TK_dlFieldGrid(gridTask, { readOnly: false, canAssign: false });
+  assert.strictEqual(pick(rows, "assignee").editable, false);
+  assert.strictEqual(pick(rows, "assignee").hint, "notOwner");
+  assert.strictEqual(pick(rows, "due").editable, true);
+});
+t("fieldGrid: in review locks only the assignee", () => {
+  const rows = L.TK_dlFieldGrid(gridTask, { readOnly: false, canAssign: true, status: "ready_for_review" });
+  assert.strictEqual(pick(rows, "assignee").editable, false);
+  assert.strictEqual(pick(rows, "assignee").hint, "inReview");
+  assert.deepStrictEqual(rows.filter((r) => r.editable).map((r) => r.key), ["due", "priority", "status"]);
+  // The task's own status counts when ctx doesn't pass one.
+  assert.strictEqual(pick(L.TK_dlFieldGrid(Object.assign({}, gridTask, { status: "ready_for_review" }), { canAssign: true }), "assignee").hint, "inReview");
+});
+t("fieldGrid: a private task (no client, no project) still lists both, empty", () => {
+  const rows = L.TK_dlFieldGrid(Object.assign({}, gridTask, { client_id: null, visibility: "private" }), { canAssign: true });
+  assert.strictEqual(pick(rows, "client").empty, true);
+  assert.strictEqual(pick(rows, "project").empty, true);
+});
+
 console.log(n + " checks passed");

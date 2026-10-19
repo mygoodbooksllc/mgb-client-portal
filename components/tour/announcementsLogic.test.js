@@ -343,4 +343,19 @@ t("registry: tasks-inline-edit is an admin and bookkeeper notice pointing at the
   assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
 });
 
+t("registry: tasks-field-grid is an admin and bookkeeper notice ending on the task details fields", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "tasks-field-grid");
+  assert.ok(a);
+  assert.strictEqual(a.date, "2026-10-19");
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  assert.strictEqual(a.hash, "#/tasks/my");
+  const steps = a.steps({});
+  assert.strictEqual(steps.length, 3);
+  assert.strictEqual(steps[0].targets, undefined);
+  assert.deepStrictEqual(steps[1].targets, ["tk-groups"]);
+  assert.deepStrictEqual(steps[2].targets, ["tk-dw-fields"]);
+  assert.strictEqual(steps[2].wait, true);
+  assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
+});
+
 console.log("announcementsLogic: " + n + " checks passed");

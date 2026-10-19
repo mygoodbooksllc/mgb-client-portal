@@ -2,14 +2,13 @@
 title: What's in a task's details?
 section: Daily work
 audience: staff
-keywords: [task details, details panel, drawer, open task, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted, client requests, ask client, record answer, accept answer]
+keywords: [task details, details panel, drawer, open task, fields at the top, field grid, placeholder, unassigned, no due date, no client, no project, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted, client requests, ask client, record answer, accept answer]
 sort: 112
 ---
 Click a task anywhere (Slate, a client or project list, Today, a client's Overview, the bell or search) and its details slide in from the right. On a phone they fill the screen. Press **Esc** or click **Close** to put them away. Changes save as you make them.
 
 ### The header
 
-- **Status**: click it to change it (see below).
 - **Title**: click to edit.
 - **Copy link**: copies a link that opens this task after sign-in. You'll see *Link copied.* Links in older emails keep working too.
 - **More actions**: **Save as template** (admins) or **Suggest as template** (everyone else), and **Delete**. See [How do I use my Slate?](#/help/my-tasks).
@@ -24,13 +23,22 @@ Every task has one of five statuses: **To do**, **In progress**, **Waiting on cl
 - Anyone who can edit a task can tick **Needs review**. Only an admin can turn it off.
 - All the work waiting for review is on **Review** in the Slate sidebar. See [How does task review work?](#/help/task-review).
 
-### The fields
+### The fields at the top
 
-- **Assignee**: who does it. It shows on their Slate. If they can't see the task's client, you'll see *They can't see this client yet, so they won't see this task.*
-- **Due**, with an optional time, and **Start**.
-- **Priority**: **High**, **Normal** or **Low**.
+Right under the title, six fields sit together in one block, each with its name on the left. When one is empty it says so in faint text, so you can see what's missing at a glance.
+
+- **Assignee**: who does it. It shows on their Slate. Empty shows **Unassigned**, with **Claim** to take it. If they can't see the task's client, you'll see *They can't see this client yet, so they won't see this task.* Only the task's owner or an admin can change it, and not while the task is in review.
+- **Due**, with an optional time. Empty shows **No due date**. The date saves once you've typed all of it, with the same rules as the due date on a task row.
+- **Client** or **Project**: the list the task belongs to (click to open it). Empty shows **No client** or **No project**.
+- **Priority**: **High**, **Normal** or **Low**, with the same colored dot as on the task rows.
+- **Status**: click it to change it (see below).
+
+On a narrow window or a phone, each value drops under its name.
+
+### More fields
+
+- **Start**: the day work can begin. It can't be after the due date.
 - **Section**: where it sits on the client's or project's list, such as Weekly or Monthly.
-- **Client** or **Project**: move the task to another list.
 - **Type**: **Task** or **Reminder**. **Remind me** sets a date and time to nudge you.
 - **Repeat**: **Doesn't repeat**, **Daily**, **Weekly**, **Monthly** or **Month end**. It needs a due date. Finishing a repeating task creates the next one.
 - **Sharing** (only the task's owner, the person who made it, can change it): **Share with the client's team** lets the other staff on that client see and work on it. On a project task it reads **Share with project members**. Unshared tasks are private: only you, the assignee, followers and admins see them.

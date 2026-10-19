@@ -530,6 +530,54 @@ function TK_dlSectionOptions(projectSections, usedSections, order) {
   return out;
 }
 
+// ---- T3: the labeled field grid at the top of the task pane ----------------
+// (docs/desk-right-spec.md decision 16 and section 15 row T3.) One row per
+// field, always in this order and always shown, so an empty field reads as a
+// placeholder instead of disappearing:
+//   [{ key, label, empty, placeholder, editable, hint }]
+// ctx: { readOnly, canAssign, status }. readOnly already covers view-only,
+// deleted and offline. A task in review locks only its assignee, as the drawer
+// always did. Client and Project are links here, never edited in the grid.
+// hint: "" | "inReview" | "notOwner", the reason a control is locked (the
+// pane turns it into the control's title).
+// A Size field (section 17, idea 7) would join this list later; not built.
+var TK_DL_GRID_FIELDS = [
+  ["assignee", "Assignee", "Unassigned"],
+  ["due", "Due", "No due date"],
+  ["client", "Client", "No client"],
+  ["project", "Project", "No project"],
+  ["priority", "Priority", ""],
+  ["status", "Status", ""],
+];
+
+function TK_dlFieldGrid(task, ctx) {
+  var t = task || {};
+  var c = ctx || {};
+  var readOnly = !task || !!c.readOnly;
+  var inReview = (c.status || t.status) === "ready_for_review";
+  return TK_DL_GRID_FIELDS.map(function (f) {
+    var key = f[0];
+    var empty = false;
+    var editable = !readOnly;
+    var hint = "";
+    if (key === "assignee") {
+      empty = !String(t.assignee_email || "").trim();
+      editable = !!c.canAssign && !readOnly && !inReview;
+      if (c.canAssign && !readOnly && inReview) hint = "inReview";
+      else if (!c.canAssign && !readOnly) hint = "notOwner";
+    } else if (key === "due") {
+      empty = !t.due_date;
+    } else if (key === "client") {
+      empty = t.client_id == null || t.client_id === "";
+      editable = false;
+    } else if (key === "project") {
+      empty = t.project_id == null || t.project_id === "";
+      editable = false;
+    }
+    return { key: key, label: f[1], empty: empty, placeholder: f[2], editable: editable, hint: hint };
+  });
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_EDITABLE_FIELDS: TK_EDITABLE_FIELDS,
@@ -562,5 +610,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_dlToLocalInput: TK_dlToLocalInput,
     TK_dlFromLocalInput: TK_dlFromLocalInput,
     TK_dlSectionOptions: TK_dlSectionOptions,
+    TK_DL_GRID_FIELDS: TK_DL_GRID_FIELDS,
+    TK_dlFieldGrid: TK_dlFieldGrid,
   };
 }

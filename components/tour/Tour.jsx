@@ -95,7 +95,9 @@
 //   tk-groups        My Tasks' groups, only when there are tasks
 //   tk-unassigned-group  My Tasks' Unassigned group, only when it has tasks (S8b)
 //   tk-claim         the first Claim button in that group (TK_TaskRow.jsx)
-//   tk-claim-drawer  Claim beside the Unassigned chip in a task's details (TK_Drawer.jsx)
+//   tk-claim-drawer  Claim beside the Unassigned chip in a task's details (TK_DrawerContent.jsx)
+//   tk-dw-fields     the Assignee/Due/Client/Project/Priority/Status block at
+//                    the top of a task's details, only while one is open (TK_DrawerContent.jsx)
 //   tk-no-team       the sidebar's No team yet group, admins, only when a
 //                    client is in it (TK_Sidebar.jsx)
 //   tk-assign-team   Assign team in a client list's header, admins, only on a
@@ -1437,7 +1439,7 @@ function TOUR_tasksSteps() {
       id: "done",
       title: "That's Slate",
       body: () =>
-        "Click any task to open its details: comments, files, subtasks and who's following. Take this tour again from the ? menu.",
+        "Click any task to open its details: the main fields at the top, then comments, files, subtasks and who's following. Take this tour again from the ? menu.",
     },
   ];
 }

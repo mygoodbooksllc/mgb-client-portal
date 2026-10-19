@@ -53,6 +53,38 @@ function ANN_deskDocked() {
 
 var ANN_REGISTRY = [
   {
+    id: "tasks-field-grid",
+    date: "2026-10-19",
+    title: "Task details fields at the top",
+    summary: "A task's details now open with Assignee, Due, Client, Project, Priority and Status together at the top, and empty ones say so (Unassigned, No due date, No client, No project).",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "The main fields, together",
+        body: () =>
+          "When you open a task, the six fields you change most now sit in one block right under the title. About half a minute.",
+      },
+      {
+        id: "ann-open",
+        title: "Open any task",
+        body: () =>
+          "Click a task on your Slate to open its details. Nothing else about opening, closing or the keys has changed.",
+        targets: ["tk-groups"],
+      },
+      {
+        id: "ann-fields",
+        title: "Assignee, Due, Client, Project, Priority, Status",
+        body: () =>
+          "Each field has its name on the left. An empty one shows faint text such as No due date, so you can see what's missing. Status moved here from beside the title. Description, subtasks, comments and Ask client are below as before. To see this again, press ? and pick New: Task details fields at the top tour.",
+        // Only on the page while a task's details are open; centered otherwise.
+        targets: ["tk-dw-fields"],
+        wait: true,
+      },
+    ],
+  },
+  {
     id: "tasks-inline-edit",
     date: "2026-10-19",
     title: "Task rows you can change in place",
