@@ -1998,13 +1998,24 @@ Team Reviews files.
 - **Staff sidebar defaults to the icon rail, 2026-10-17f:** `app.jsx` (`loadStaffRailExpanded`,
   `saveStaffRailExpanded`, `STAFF_RAIL_KEY_PREFIX`; `sidebarCollapsed` starts from the per-email key for
   staff and from the old shared key for client portal users), `.staff-rail` in `styles.css` (expanded
-  width 220px, was 224px; `.staff-rail-nav` is `flex: 0 1 auto` and `.staff-rail-foot` has a 12px top
-  margin so there is no tall empty gap; width transition off under `prefers-reduced-motion`). The
+  width 220px, was 224px; `.staff-rail-nav` was `flex: 0 1 auto` and `.staff-rail-foot` has a 12px top
+  margin (the nav is `flex: 1 1 auto` again since 2026-10-19f); width transition off under `prefers-reduced-motion`). The
   Expand control also shows its tooltip on keyboard focus and has `aria-expanded`. Rail items keep
   `aria-label` plus the caption and tooltip, so no hover-expand overlay was added. `.main` already has no
   max-width, so page content fills the freed width; its 40px gutters are shared with the top bar's
   negative margins and were left alone. Upkeep: launch announcement `rail-default`, guide
   `getting-started` and `whats-new`, `MGB_VERSION` `2026-10-17f`; no new Usage Stats event.
+- **One avatar, one settings path in staff chrome (N1), 2026-10-19f** (spec `docs/desk-right-spec.md`
+  decision 21): client only, no SQL, no edge functions. `StaffRail` in `app.jsx` no longer renders the
+  Settings button, the `.staff-rail-user` name block or the Sign out button; the top bar's avatar menu
+  (`TB_AvatarMenu`, `data-tour="tb-avatar"`) is the only desktop path, and the phone drawer is unchanged.
+  The rail keeps the places and Expand/Collapse (now `data-tour="staff-rail-collapse"`);
+  `.staff-rail-nav` is `flex: 1 1 auto` again so the places take the free height and Expand sits at the
+  bottom; dead `.staff-rail-user` CSS removed. Tour: `rail-default` step 3 re-pointed from
+  `staff-nav-settings` to `staff-rail-collapse` (text updated; `staff-nav-settings` remains only on the
+  phone drawer's Settings row). Upkeep: launch announcement `one-avatar`, guide `getting-started`,
+  `staff-settings`, `whats-new`, `MGB_VERSION` `2026-10-19f`; no Usage Stats or Dev Tools label named the
+  removed controls, no new event.
 - **Task pane split + field grid (R0/T3), 2026-10-19c** (spec `docs/desk-right-spec.md` §10): client
   only, no SQL, no edge functions. R0: `TK_DrawerContent.jsx` is the task pane body (state, fetch,
   x/s/a/? keys, the delete/send back/keys modals) with `mode` `"drawer"` or `"embedded"`, `scopeRef`

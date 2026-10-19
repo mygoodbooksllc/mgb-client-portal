@@ -8340,10 +8340,10 @@ body:has(.modal-overlay) .chat-fab-wrap {
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  /* Sized to its items (not flex: 1) so Settings and the user block sit
-     right under the places instead of a tall empty gap; it still shrinks
-     and scrolls in a short window. */
-  flex: 0 1 auto;
+  /* The places take the free height (Settings, Sign out and the user block
+     moved to the top-right avatar menu, 2026-10-19), so the Expand control
+     sits at the bottom; the list still shrinks and scrolls in a short window. */
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
 }
@@ -8463,17 +8463,6 @@ body:has(.modal-overlay) .chat-fab-wrap {
   .staff-rail {
     transition: none;
   }
-}
-.staff-rail-user {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 6px 4px;
-}
-.staff-rail.expanded .staff-rail-user {
-  justify-content: flex-start;
-  padding: 6px 8px;
 }
 .staff-rail:not(.expanded) .staff-rail-collapse .sidebar-collapse-toggle-icon {
   transform: rotate(-90deg);

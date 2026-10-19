@@ -2,10 +2,10 @@
 title: How do I change my settings (profile, notifications, theme, signature)?
 section: Getting started
 audience: staff
-keywords: [possible duplicates, smart mode, strict mode, ledger review settings, change my name, rename, my name, name, handbook emails, tasks shortcuts, mentions on tasks, tasks tour, settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear, slate]
+keywords: [account menu, avatar menu, top right, possible duplicates, smart mode, strict mode, ledger review settings, change my name, rename, my name, name, handbook emails, tasks shortcuts, mentions on tasks, tasks tour, settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear, slate]
 sort: 27
 ---
-Your Settings page holds everything that's just about you. To open it, click **Settings** at the bottom of the left rail, or your initials at the top right of the page, then **Settings**. (On a phone, open the menu and tap **Settings**.) Changes save on their own a moment after you make them. You'll see **Saved** at the top when they have.
+Your Settings page holds everything that's just about you. To open it, click your picture or initials at the top right of the page, then **Settings**. (On a phone, open the menu and tap **Settings**.) Changes save on their own a moment after you make them. You'll see **Saved** at the top when they have.
 
 Settings are saved to your account, so they follow you to any computer you sign in on.
 
@@ -73,7 +73,7 @@ Staff with temporary admin access see Task templates (read-only), Client roster,
 
 ### Sign out
 
-Click **Sign out** at the top right of the Settings page, or in the account menu.
+Click your picture or initials at the top right of the page, then **Sign out**.
 
 ### Troubleshooting
 

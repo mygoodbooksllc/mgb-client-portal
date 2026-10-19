@@ -65,6 +65,35 @@ function ANN_inReviews() {
 
 var ANN_REGISTRY = [
   {
+    id: "one-avatar",
+    date: "2026-10-19",
+    title: "Settings and Sign out are at the top right",
+    summary: "The left sidebar no longer shows your name, Settings or Sign out. Click your picture or initials at the top right for Settings, dark mode, Preview as and Sign out.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/today",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "One place for your account",
+        body: () =>
+          "Your name, Settings and Sign out used to be in two places, the left sidebar and the top right. They now live only at the top right, and the sidebar is just the places. About half a minute.",
+      },
+      {
+        id: "ann-avatar",
+        title: "Your picture, top right",
+        body: () =>
+          "Click your picture or initials for Settings, dark mode, Preview as and Sign out. The page itself works exactly as before.",
+        targets: ["tb-avatar"],
+      },
+      {
+        id: "ann-done",
+        title: "That's it",
+        body: () =>
+          "The sidebar keeps Today, Inbox, Work, Clients and Team, with Expand and Collapse at the bottom. To see this again, press ? and pick New: Settings and Sign out are at the top right tour.",
+      },
+    ],
+  },
+  {
     id: "team-reviews-final-email",
     date: "2026-10-19",
     title: "Final scores when a review locks",
@@ -181,8 +210,8 @@ var ANN_REGISTRY = [
         id: "ann-expand",
         title: "Expand it if you like",
         body: () =>
-          "Click Expand at the bottom of the sidebar to show the full names. It stays that way for you until you click Collapse, and Settings and your name now sit right under the places. To see this again, press ? and pick New: The sidebar starts as icons tour.",
-        targets: ["staff-nav-settings"],
+          "Click Expand at the bottom of the sidebar to show the full names. It stays that way for you until you click Collapse. Settings and Sign out are in the menu under your picture at the top right. To see this again, press ? and pick New: The sidebar starts as icons tour.",
+        targets: ["staff-rail-collapse"],
       },
     ],
   },

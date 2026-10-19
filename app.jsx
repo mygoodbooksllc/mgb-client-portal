@@ -2402,11 +2402,6 @@ function StaffRail({
     }
     return it;
   });
-  const initials = (staffUser.name || "")
-    .split(" ")
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join("");
   const renderItem = (it) => {
     const active = it.active != null ? it.active : page === it.key;
     return (
@@ -2467,62 +2462,12 @@ function StaffRail({
         {items.map(renderItem)}
       </nav>
       <div className="staff-rail-foot">
-        {/* Theme moved to Settings > Appearance (and the top bar's avatar
-            menu), 2026-09-30. */}
-        <button
-          type="button"
-          className={"staff-rail-item" + (page === "settings" ? " active" : "")}
-          data-tour="staff-nav-settings"
-          onClick={() => onSelectPage("settings")}
-          aria-label={expanded ? undefined : "Settings"}
-          aria-current={page === "settings" ? "page" : undefined}
-          onMouseEnter={(e) => showTip(e, "Settings")}
-          onMouseLeave={hideTip}
-          onFocus={(e) => showTip(e, "Settings")}
-          onBlur={hideTip}
-        >
-          <ST_GearIcon width="18" height="18" />
-          {expanded ? (
-            <span className="staff-rail-label">Settings</span>
-          ) : (
-            <span className="staff-rail-caption" aria-hidden="true">Settings</span>
-          )}
-        </button>
-        <div
-          className="staff-rail-user"
-          onMouseEnter={(e) => showTip(e, `${staffUser.name} · ${staffUser.role}`)}
-          onMouseLeave={hideTip}
-        >
-          <span className="staff-user-avatar">{initials}</span>
-          {expanded && (
-            <span className="staff-user-chip-text">
-              <span className="staff-user-chip-name">{staffUser.name}</span>
-              <span className="staff-user-chip-role">{staffUser.role}</span>
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          className="staff-rail-item"
-          onClick={onSignOut}
-          aria-label={expanded ? undefined : "Sign out"}
-          onMouseEnter={(e) => showTip(e, "Sign out")}
-          onMouseLeave={hideTip}
-          onFocus={(e) => showTip(e, "Sign out")}
-          onBlur={hideTip}
-        >
-          <SignOutIcon />
-          {expanded ? (
-            <span className="staff-rail-label">Sign out</span>
-          ) : (
-            <span className="staff-rail-caption" aria-hidden="true">Sign out</span>
-          )}
-        </button>
         {/* On client pages too: the rail is the only sidebar there now. */}
         {onToggleCollapse && (
           <button
             type="button"
             className="sidebar-collapse-toggle staff-rail-collapse"
+            data-tour="staff-rail-collapse"
             onClick={onToggleCollapse}
             aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
             aria-expanded={expanded}

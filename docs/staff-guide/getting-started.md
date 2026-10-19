@@ -2,7 +2,7 @@
 title: Getting started: a tour of the staff portal
 section: Getting started
 audience: staff
-keywords: [expand sidebar, collapse sidebar, icon rail, narrow sidebar, onboarding checklist, new, start, tips, first 30 days, tour, bookkeeper tour, bookkeeper guide, overview, rail, sidebar, top bar, menu, navigation, today, five places, first day, orientation, reviews, deadlines, settings]
+keywords: [account menu, avatar menu, settings, sign out, expand sidebar, collapse sidebar, icon rail, narrow sidebar, onboarding checklist, new, start, tips, first 30 days, tour, bookkeeper tour, bookkeeper guide, overview, rail, sidebar, top bar, menu, navigation, today, five places, first day, orientation, reviews, deadlines, settings]
 sort: 10
 ---
 Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonprofits) see their finances, and where we, the staff, keep track of our work for them. This page shows you around.
@@ -27,13 +27,13 @@ The dark rail on the left has five places. Everything you do lives in one of the
 - **Clients**: every client you can see, and the way into a client's pages. See [How do I use the Clients page?](#/help/clients-page).
 - **Team**: **People** (who's out, your backups, time off, shout-outs), **Reviews**, **Onboarding** and **Handbook** (staff policies to read and sign). Admins also see **Hours**, **Reply times**, **Feedback** and **Members**. See [What's on the Team page?](#/help/team-page).
 
-At the bottom of the rail: **Settings** (your profile, notifications, theme, start page and signature; admins also find the firm-wide pages there) and **Expand** (or **Collapse**), which switches the rail between icons and icons with names. The rail starts as icons with a small name under each; hover or tab to an icon for its full name. Click **Expand** to keep the names showing. The portal remembers your choice for you on this browser. See [How do I change my settings?](#/help/staff-settings).
+At the bottom of the rail is **Expand** (or **Collapse**), which switches the rail between icons and icons with names. The rail starts as icons with a small name under each; hover or tab to an icon for its full name. Click **Expand** to keep the names showing. The portal remembers your choice for you on this browser. Your picture or initials at the top right open the account menu, where **Settings** and **Sign out** are (see below).
 
 Every page looks the same: a title, one row of tabs, and the content. The tab is part of the address, so you can copy a link to exactly where you are.
 
 ### The top bar
 
-Across the top: the client picker, the sync pill (client pages), search (**Ctrl+K** / **⌘K**, which also jumps to any page or action), the bell, **Slate**, **+** (add a task, note or document request, or message the client), **?** (help for this page, the staff guide, **Send feedback**, **What's new**, **Tips while you learn** and the tours) and your initials (dark mode, Preview as and **Sign out**). See [What's on the bar at the top of the page?](#/help/top-bar).
+Across the top: the client picker, the sync pill (client pages), search (**Ctrl+K** / **⌘K**, which also jumps to any page or action), the bell, **Slate**, **+** (add a task, note or document request, or message the client), **?** (help for this page, the staff guide, **Send feedback**, **What's new**, **Tips while you learn** and the tours) and your picture or initials, the account menu (**Settings**, dark mode, Preview as and **Sign out**). **Settings** holds your profile, notifications, theme, start page and signature, and admins also find the firm-wide pages there; see [How do I change my settings?](#/help/staff-settings). See [What's on the bar at the top of the page?](#/help/top-bar).
 
 ### Inside a client
 

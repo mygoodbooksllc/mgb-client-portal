@@ -56,6 +56,8 @@
 //   staff-nav-<key>  one place, in the rail and in the phone drawer (app.jsx
 //                    StaffRail / Sidebar): today, inbox, work, clients, team
 //   today-list       the ranked list on Today (components/staff/Today.jsx)
+//   staff-rail-collapse  the rail's Expand / Collapse button (app.jsx StaffRail)
+//   tb-avatar        the top-right avatar menu (Settings, Sign out; TopBar.jsx)
 //   tb-search        the ⌘K search box (components/staff/TopBar.jsx)
 //   tb-quick         the "+" menu (TopBar.jsx), on every staff page
 //   tb-help          the "?" menu (components/staff/TopBar.jsx)
