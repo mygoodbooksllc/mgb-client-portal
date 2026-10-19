@@ -13773,16 +13773,6 @@ function inviteCopyFor(row) {
   return { subject, body: signature ? `${body}\n\n${signature}` : body };
 }
 
-// mailto: hands off to whatever the browser/OS has set as the DEFAULT mail
-// handler — Apple Mail on a Mac unless that's been changed, regardless of
-// which mail app someone actually uses day to day. There's no way for a
-// mailto: link itself to specify Gmail; buildInviteGmailUrl below is the
-// separate, Gmail-specific path for staff who'd rather it open there.
-function buildInviteMailto(row) {
-  const { subject, body } = inviteCopyFor(row);
-  return `mailto:${row.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
-
 // Gmail's own compose-in-browser URL — opens gmail.com's compose window
 // (in whichever Google account is signed in) directly, sidestepping the OS
 // mail-handler question entirely. Works for anyone signed into Gmail in
@@ -14772,12 +14762,6 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                               rel="noopener noreferrer"
                             >
                               Email invite
-                            </a>
-                            <a
-                              className="staff-invite-alt"
-                              href={buildInviteMailto(row)}
-                            >
-                              or mail app
                             </a>
                           </div>
                         )}

@@ -31,7 +31,7 @@ Each fix shows in **Developer tools → Recent activity** as "set up Google sign
 
 Why there's no automatic fix in the database: sign-in accounts can only be made safely by Supabase's own sign-in service, not by a database rule. So the page checks for anyone missing one and gives you the button instead.
 
-The app doesn't send invitations. **Email invite** opens a pre-filled draft in Gmail (click **or mail app** to use your mail app instead) for you to send yourself.
+The app doesn't send invitations. **Email invite** opens a pre-filled draft in Gmail for you to send yourself.
 
 ### The Staff roster
 
