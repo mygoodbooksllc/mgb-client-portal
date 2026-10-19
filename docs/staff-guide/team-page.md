@@ -23,7 +23,7 @@ sort: 48
 - **Ledger review** (`#/team/ledger`): Ledger review settings: warn or block when a month is marked done without approval, how much ledger to pull, Smart or Strict duplicate checks, and the vendor watch list. Only admins see this tab. See [How does Ledger review work?](#/help/ledger-review).
 - **Feedback** (`#/team/feedback`): every bug report and idea staff have sent, with status and replies. The number on the tab counts reports still marked **New**. See [How do I review bug reports and feedback?](#/help/feedback-page).
 - **Employee records** (`#/team/employees`): one record per staff member with job details (title, type, schedule, manager, hire and end dates, work location), personal contact details and an emergency contact, plus their handbook signatures (read only). Admins only: a temporary admin grant and **View as** don't show it. Opening a record is logged. See [How do I keep employee records?](#/help/employee-records).
-- **Members** (`#/team/members`): add staff, roles, active/inactive, client assignments, temporary admin access, **View as**, **Offboard** and email invites. Temporary admins see it read-only. See [How do I add staff and manage their access?](#/help/staff-management).
+- **Members** (`#/team/members`): add staff, roles, active/inactive, client assignments, temporary admin access, **View as**, and **Offboard**. Temporary admins see it read-only. See [How do I add staff and manage their access?](#/help/staff-management).
 
 Client health has no tab of its own any more: the **Clients** page shows every client's score and band, and its **Needs attention** filter picks out the ones to look at. See [What does client health mean?](#/help/client-health).
 
