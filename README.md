@@ -2100,8 +2100,14 @@ Team Reviews files.
     `WB_deskClosedShow`), `announcementsLogic.test.js`. Upkeep: announcement `desk-right-now`, tour
     targets `wb-glance`, `wb-rightnow`, `tb-quick` steps and the `tk-quick-plain` tip fall back to
     `wb-rail-add`, the `workbench-launch` tiles step skips while the Desk is on, Usage Stats `wb-glance`,
-    `wb-rightnow`, guide `workbench`, `home-page`, `quick-actions`, `my-tasks`, `whats-new`, MGB_VERSION
-    `2026-10-19i`.
+    `wb-rightnow`, guide `workbench`, `home-page`, `top-bar`, `quick-actions`, `my-tasks`, `task-details`,
+    `whats-new`, MGB_VERSION `2026-10-19i`.
+  - **Review fixes:** `WB_Drawer` owns the fill (`deskExtras`, passed to `WB_Hub` as `extras`); while the
+    Right now card shows a client the info bar drops its page client line (decision 28, one place per
+    fact). The card's message count is the larger of the tab counts and the Desk's own message rows for
+    that client (`ctx.deskMessages`; the tab counts poll every 2 minutes). The Inbox card shows only the
+    oldest wait (the glance strip has the message count). `top-bar.css`: the Slate-link rules no longer
+    split the `.tb-icon-btn:hover` selector.
 - **Task pane split + field grid (R0/T3), 2026-10-19c** (spec `docs/desk-right-spec.md` §10): client
   only, no SQL, no edge functions. R0: `TK_DrawerContent.jsx` is the task pane body (state, fetch,
   x/s/a/? keys, the delete/send back/keys modals) with `mode` `"drawer"` or `"embedded"`, `scopeRef`

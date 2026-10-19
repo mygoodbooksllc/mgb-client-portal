@@ -1164,8 +1164,8 @@ function TB_Bell({ clients, items, me, isAdmin, page }) {
 function TB_SlateLink() {
   const href = typeof TK_App === "function" && TB_tkSchemaOk() ? "#/tasks/my" : "#/work/tasks";
   return (
-    <a className="tb-item tb-pill-btn tb-tasks is-link" href={href} title="Open Slate">
-      <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
+    <a className="tb-item tb-pill-btn tb-tasks is-link" href={href} aria-label="Open Slate" title="Open Slate">
+      <ChecklistIcon width="16" height="16" strokeWidth="1.8" aria-hidden="true" />
       <span className="tb-tasks-label">Slate</span>
     </a>
   );

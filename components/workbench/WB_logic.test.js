@@ -1122,6 +1122,13 @@ t("WB_deskContext: client page card", () => {
   assert.strictEqual(one.parts[0].text, "1 open task, 1 late");
   assert.strictEqual(one.parts[1].text, "1 message to answer");
   assert.strictEqual(one.parts[1].bad, true);
+  // The Desk's own inbox rows for this client win when the tab counts lag
+  // (never "No messages waiting" while the rail counts one for this client).
+  const lag = C({ clientName: "Acme" }, { counts: { loaded: true, tasks: {}, messages: { count: 0 } }, deskMessages: { count: 1, oldestAt: "2026-10-14T15:00:00Z" }, now });
+  assert.deepStrictEqual(lag.parts[1], { key: "messages", text: "1 message to answer, oldest 2h", bad: false, go: "messages" });
+  const older = C({ clientName: "Acme" }, { counts: { loaded: true, tasks: {}, messages: { count: 2, oldestWaitAt: "2026-10-14T15:00:00Z" } }, deskMessages: { count: 1, oldestAt: "2026-10-12T17:00:00Z" }, now });
+  assert.strictEqual(older.parts[1].text, "2 messages to answer, oldest 2 days");
+  assert.strictEqual(older.parts[1].bad, true);
   // Not loaded (or errored): only QuickBooks.
   assert.deepStrictEqual(C({ clientName: "Acme" }, { counts: { loaded: false }, qbo: true, now }).parts, [{ key: "qbo", text: "QuickBooks hasn't synced yet", bad: false, go: null }]);
   assert.deepStrictEqual(C({ clientName: "Acme" }, { counts: { loaded: true, error: true }, now }).parts, []);
@@ -1143,9 +1150,11 @@ t("WB_deskContext: inbox and elsewhere", () => {
     title: "Inbox",
     parts: [
       { key: "all", text: "4 items waiting on you", bad: false, go: null },
-      { key: "messages", text: "2 messages, oldest 2h", bad: false, go: null },
+      { key: "messages", text: "Oldest message waiting 2h", bad: false, go: null },
     ],
   });
+  // No wait known: no messages line (the glance strip has the count).
+  assert.deepStrictEqual(C({ page: "inbox" }, { inbox: { count: 1, messages: 1 }, now }).parts.map((p) => p.key), ["all"]);
   assert.deepStrictEqual(C({ page: "inbox" }, { now }).parts, [{ key: "all", text: "Nothing waiting on you", bad: false, go: null }]);
   // A client name wins over the page (a client tab is a client page).
   assert.strictEqual(C({ page: "inbox", clientName: "Acme" }, { now }).kind, "client");

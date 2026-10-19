@@ -245,7 +245,6 @@
 .tb-avatar-btn[aria-expanded="true"] .staff-user-avatar {
   box-shadow: 0 0 0 2px var(--tb-chip-hover);
 }
-.tb-icon-btn:hover,
 /* Desk on: the Slate pill is a plain link (no counts). */
 a.tb-pill-btn {
   text-decoration: none;
@@ -255,6 +254,7 @@ a.tb-pill-btn {
   outline: 2px solid var(--tb-focus);
   outline-offset: 2px;
 }
+.tb-icon-btn:hover,
 .tb-pill-btn:hover,
 .tb-icon-btn[aria-expanded="true"] {
   background: var(--tb-chip-hover);

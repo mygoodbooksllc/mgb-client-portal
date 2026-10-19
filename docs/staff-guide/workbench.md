@@ -58,7 +58,7 @@ The Desk has three parts:
 The open Desk starts with two things above its tabs (they hide while a task shows):
 
 - **Waiting counts**: the same messages, reviews, files and mentions the rail shows while it's closed, only the ones with something waiting. Click **messages**, **reviews** or **files** to filter the Inbox tab to them; **mentions** opens the bell menu.
-- **Right now**: a card about the page you're on. On a client's page it shows your open tasks for that client (and how many are late, with a red dot), messages to answer and how long the oldest has waited, questions waiting on the client, a month close problem if there is one, and when QuickBooks last synced. Click the tasks line to open the Desk's **Client** tab, or the messages line to answer in the chat drawer. On **Inbox** it shows how many items wait on you and the oldest message. On other pages there is no card.
+- **Right now**: a card about the page you're on. On a client's page it shows your open tasks for that client (and how many are late, with a red dot), messages to answer and how long the oldest has waited, questions waiting on the client, a month close problem if there is one, and when QuickBooks last synced. Click the tasks line to open the Desk's **Client** tab, or the messages line to answer in the chat drawer. On **Inbox** it shows how many items wait on you and how long the oldest message has waited. On other pages there is no card. While the card shows a client, the info bar leaves out its own line for that client, so the same numbers aren't in two places.
 
 The card uses what the page has already loaded, so it adds no wait. On a short window (under about 640 pixels tall) only the counts show, to leave room for the list.
 
@@ -84,7 +84,7 @@ The **Today** item in the left rail shows how many items are overdue or due toda
 
 ### Open a task without leaving the page
 
-With the Desk on, a task opens inside the Desk, wherever you open it from: **Open** (or **Review**) in the Inbox tab, a row on the Slate or Client tab, a task on the Slate or My Tasks page or a client's page, the bell, or a link to a task. The page beside it does not change, and the row you opened is marked. The column widens a little while a task shows (to at least 460px); it goes back to your width afterwards. On a phone the task fills the Desk sheet. Edit it, comment, tick it done, reassign it or approve it there.
+With the Desk on, a task opens inside the Desk, wherever you open it from: **Open** (or **Review**) in the Inbox tab, a row on the Slate or Client tab, a task on the Slate or My Tasks page or a client's page, the bell, or a link to a task. The page beside it does not change, and the row you opened is marked. Click that row again to close its task view. The column widens a little while a task shows (to at least 460px); it goes back to your width afterwards. On a phone the task fills the Desk sheet. Edit it, comment, tick it done, reassign it or approve it there.
 
 - **← Back** at the top of the task goes back one step. Open a subtask or a parent from inside a task and Back names the task you came from; at the first task it says **Back to Desk**.
 - **Esc** goes back one step too: it closes a menu or the SOP panel first, then goes from a subtask to its parent, then to the list (with your row selected again). If the Desk opened just for this task, that last step closes it and puts you back on the page where you were. In a box you're typing in, the first **Esc** only undoes the typing.

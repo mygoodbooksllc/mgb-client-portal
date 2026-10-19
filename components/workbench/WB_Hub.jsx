@@ -307,6 +307,7 @@ var WB_GLANCE_ITEMS = [
   { id: "doc", one: "file", many: "files" },
   { id: "mention", one: "mention", many: "mentions" },
 ];
+var WB_GLANCE_IDS = WB_GLANCE_ITEMS.map((g) => g.id);
 function WB_HubGlance({ counts, onPick }) {
   const c = counts || {};
   return (
@@ -356,7 +357,7 @@ function WB_RightNow({ ctx, onGo }) {
 // deskRef, onDrillStep(step), onCloseTask(), and staffUser plus the template
 // props for TK_DrawerContent. While a task shows, the head, tabs, chips and
 // list panes are hidden (the panes stay mounted; their scroll comes back).
-function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle, drill, deskRef, onDrillStep, onCloseTask, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates, glance, onGlancePick, rightNow, onRightNowGo }) {
+function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle, drill, deskRef, onDrillStep, onCloseTask, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates, glance, extras, onGlancePick, rightNow, onRightNowGo }) {
   const dock = mode !== "sheet";
   const hub = s.hub;
   const tab = hub.tab;
@@ -427,17 +428,10 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
     const el = bodyRef.current;
     if (el) el.scrollTop = hub.scroll[tab] || 0;
   }, [tab, paneReady, taskView]);
-  // R3: the glance strip and the "Right now" card fill by the column's
-  // length (WB_deskFill; the window height, the column is full height).
-  const [winH, setWinH] = React.useState(() => (typeof window !== "undefined" ? window.innerHeight : 0));
-  React.useEffect(() => {
-    const onResize = () => setWinH(window.innerHeight);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  // R3: the glance strip and the "Right now" card, as WB_Drawer's fill
+  // (WB_deskFill by the window height) picked them.
   const glanceN = glance || {};
-  const glanceAny = WB_GLANCE_ITEMS.some((g) => glanceN[g.id] > 0);
-  const extras = WB_deskFill({ tier: WB_deskTier(winH), ctx: { glance: glanceAny, rightNow: !!rightNow } });
+  const extraIds = Array.isArray(extras) ? extras : [];
 
   const onScroll = (e) => {
     if (restored.current !== tab) return;
@@ -494,9 +488,9 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
             ×
           </button>
         </div>
-        {!taskView && extras.length > 0 && (
+        {!taskView && extraIds.length > 0 && (
           <div className="wb-desk-extras">
-            {extras.map((id) =>
+            {extraIds.map((id) =>
               id === "glance" ? (
                 <WB_HubGlance key="glance" counts={glanceN} onPick={onGlancePick} />
               ) : id === "rightNow" ? (

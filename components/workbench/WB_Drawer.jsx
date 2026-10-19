@@ -878,6 +878,16 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
     return () => window.removeEventListener("hashchange", onHash);
   }, [open]);
 
+  // R3: the open column's length (the window height; it is full height)
+  // decides which extras fit (WB_deskFill). Kept here, not in WB_Hub, so the
+  // bar knows whether the "Right now" card is showing.
+  const [winH, setWinH] = React.useState(() => (typeof window !== "undefined" ? window.innerHeight : 0));
+  React.useEffect(() => {
+    const onResize = () => setWinH(window.innerHeight);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   if (!live) return null;
 
   const loading = !s.at && (s.status === "loading" || s.status === "idle");
@@ -957,10 +967,22 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
     : null;
   // ---- The open Desk's "Right now" card (R3, decision 18): the page's
   // context from what the page already loaded (no new fetch).
+  // The page client's message rows in the Desk's own inbox (the rail's
+  // source) are merged in, so the card never says "No messages waiting"
+  // while the rail counts one for this client (the tab counts poll every
+  // 2 minutes; the Desk's rows can be newer).
   let inboxOldest = null;
+  let pcMsgs = 0;
+  let pcOldest = null;
+  const pcId = pageClient && pageClient.id != null ? String(pageClient.id) : "";
   allView.groups.forEach((g) =>
     g.rows.forEach((r) => {
-      if (WB_chipOf(r) !== "message" || !r.waiting_since) return;
+      if (WB_chipOf(r) !== "message") return;
+      if (pcId && String(r.client_id) === pcId) {
+        pcMsgs += 1;
+        if (r.waiting_since && (!pcOldest || String(r.waiting_since) < pcOldest)) pcOldest = String(r.waiting_since);
+      }
+      if (!r.waiting_since) return;
       if (!inboxOldest || String(r.waiting_since) < inboxOldest) inboxOldest = String(r.waiting_since);
     }),
   );
@@ -974,8 +996,14 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
       ago,
       now,
       inbox: { count: allView.counts.all, messages: allView.counts.message, oldestAt: inboxOldest },
+      deskMessages: { count: pcMsgs, oldestAt: pcOldest },
     },
   );
+  const glanceAny = WB_GLANCE_IDS.some((id) => railCounts[id] > 0);
+  const deskExtras = open && !taskView ? WB_deskFill({ tier: WB_deskTier(winH), ctx: { glance: glanceAny, rightNow: !!rightNow } }) : [];
+  // Decision 28 (each fact in one place): while the open Desk's "Right now"
+  // card shows this client, the bar's page client line steps aside.
+  const barClientLine = clientLine && !(rightNow && rightNow.kind === "client" && deskExtras.indexOf("rightNow") >= 0) ? clientLine : null;
   const onRightNowGo = (go) => {
     WB_track("wb-rightnow", go);
     if (go === "client") {
@@ -1004,7 +1032,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
     progress.todayText,
     next ? "Next up: " + next.title + (next.client_name ? " for " + next.client_name : "") : "",
     empty ? "Clean slate" : "",
-    clientLine ? clientLine.name + (clientLine.parts.length ? ": " + clientLine.parts.map((p) => p.text).join(", ") : "") : "",
+    barClientLine ? barClientLine.name + (barClientLine.parts.length ? ": " + barClientLine.parts.map((p) => p.text).join(", ") : "") : "",
   ]
     .filter(Boolean)
     .join(". ");
@@ -1044,10 +1072,10 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
             {next.client_name && <span className="wb-bar-next-client"> · {next.client_name}</span>}
           </span>
         )}
-        {clientLine && (
+        {barClientLine && (
           <span className="wb-bar-client">
-            <span className="wb-bar-client-name">{clientLine.name}</span>
-            {clientLine.parts.map((p) => (
+            <span className="wb-bar-client-name">{barClientLine.name}</span>
+            {barClientLine.parts.map((p) => (
               <span key={p.key} className={"wb-bar-client-part" + (p.bad ? " is-bad" : "")}>
                 {p.text}
               </span>
@@ -1098,6 +1126,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
           canCreateTemplates={canCreateTemplates}
           onOpenTemplates={onOpenTemplates}
           glance={railCounts}
+          extras={deskExtras}
           onGlancePick={onGlancePick}
           rightNow={rightNow}
           onRightNowGo={onRightNowGo}

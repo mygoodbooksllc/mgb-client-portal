@@ -1508,10 +1508,12 @@ function WB_railLine(row, now) {
 // (useClientTabCounts) and the Desk's own rows.
 // route = { page, clientName }. ctx = { counts (the client tab counts), qbo,
 // syncedAt, staleHours, ago ("3 hours ago" for syncedAt), now, inbox:
-// { count, messages, oldestAt } }.
+// { count, messages, oldestAt }, deskMessages: { count, oldestAt } (the
+// Desk's inbox message rows for this client) }.
 // Client page: my open tasks (late ones marked), messages to answer with the
 // oldest wait, questions waiting on the client, a month close problem, and
-// the QuickBooks sync. Inbox page: what waits on me and the oldest message.
+// the QuickBooks sync. Inbox page: what waits on me and the oldest message's
+// wait.
 // Anywhere else null (no card). Ledger, close-page and task contexts are a
 // later pass.
 function WB_deskContext(route, ctx) {
@@ -1533,13 +1535,18 @@ function WB_deskContext(route, ctx) {
         go: "client",
       });
       var m = c.messages || {};
-      var mc = WB__pos(m.count);
+      // The Desk's own inbox rows for this client (the rail's source) can be
+      // newer than the tab counts: take the larger count and the older wait.
+      var dm = x.deskMessages || {};
+      var mc = Math.max(WB__pos(m.count), WB__pos(dm.count));
       var waitMs = m.oldestWaitAt ? Date.parse(m.oldestWaitAt) : NaN;
+      var dWait = dm.oldestAt ? Date.parse(dm.oldestAt) : NaN;
+      if (isFinite(dWait) && (!isFinite(waitMs) || dWait < waitMs)) waitMs = dWait;
       if (mc)
         parts.push({
           key: "messages",
           text: mc + " message" + WB__s(mc) + " to answer" + (isFinite(waitMs) ? ", oldest " + WB__ago(waitMs, now) : ""),
-          bad: WB__pos(m.overdue) > 0,
+          bad: WB__pos(m.overdue) > 0 || (isFinite(dWait) && now - dWait > 24 * 36e5),
           go: "messages",
         });
       else parts.push({ key: "messages", text: "No messages waiting", bad: false, go: null });
@@ -1566,13 +1573,9 @@ function WB_deskContext(route, ctx) {
     var msgs = WB__pos(ib.messages);
     var oldMs = ib.oldestAt ? Date.parse(ib.oldestAt) : NaN;
     var ip = [{ key: "all", text: all ? all + " item" + WB__s(all) + " waiting on you" : "Nothing waiting on you", bad: false, go: null }];
-    if (msgs)
-      ip.push({
-        key: "messages",
-        text: msgs + " message" + WB__s(msgs) + (isFinite(oldMs) ? ", oldest " + WB__ago(oldMs, now) : ""),
-        bad: false,
-        go: null,
-      });
+    // The glance strip above already shows the message count (decision 28:
+    // one place per fact), so this line is only the oldest wait.
+    if (msgs && isFinite(oldMs)) ip.push({ key: "messages", text: "Oldest message waiting " + WB__ago(oldMs, now), bad: false, go: null });
     return { kind: "inbox", title: "Inbox", parts: ip };
   }
   return null;

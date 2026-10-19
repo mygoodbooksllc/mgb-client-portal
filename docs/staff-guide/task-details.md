@@ -7,7 +7,7 @@ sort: 112
 ---
 Click a task anywhere (Slate, a client or project list, Today, a client's Overview, the bell or search) and its details slide in from the right. On a phone they fill the screen. Press **Esc** or click **Close** to put them away. Changes save as you make them.
 
-With the Desk on, the details open inside the Desk column instead, beside the page, with **← Back** at the top. **Esc** or Back goes from a subtask to its parent, then to the list; **D** closes the Desk and the task waits there for 5 minutes. See [How do I use the Desk?](#/help/workbench).
+With the Desk on, the details open inside the Desk column instead, beside the page, with **← Back** at the top. **Esc** or Back goes from a subtask to its parent, then to the list; **D** closes the Desk and the task waits there for 5 minutes. Clicking the open task's row again closes its task view. See [How do I use the Desk?](#/help/workbench).
 
 ### The header
 
