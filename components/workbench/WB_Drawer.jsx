@@ -6,7 +6,7 @@
 // protocol, saved state. `clients` (the staff member's client list) gives the
 // Slate rows their client names.
 //
-// Collapsed: a 44px glass bar, centered right of the left nav (--desk-max-w
+// Collapsed: a 44px bar (sidebar color), centered right of the left nav (--desk-max-w
 // wide), above the phone's safe area, with the count, the next item and
 // "Press D".
 // Open, desktop and tablet ("dock", wider than 760px): the panel rises from

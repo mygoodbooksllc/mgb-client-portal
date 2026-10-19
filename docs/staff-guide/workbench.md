@@ -45,7 +45,7 @@ Items also leave by themselves when the work is done: you reply, finish or appro
 
 ### The Desk, on every page
 
-A bar runs along the bottom of every staff page and shows your count, the next item and **Press D**. Click it or press **D** and the Desk slides up from it as a glass panel in the middle of the page. Its **Inbox** tab has filters (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the Needs you list on Today. **Open Today** goes to Today. **D** closes it, and so does **Esc** while you're working inside it.
+A bar runs along the bottom of every staff page and shows your count, the next item and **Press D**. Click it or press **D** and the Desk slides up from it as a panel in the middle of the page, in the same color as the left menu. Its **Inbox** tab has filters (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the Needs you list on Today. **Open Today** goes to Today. **D** closes it, and so does **Esc** while you're working inside it.
 
 **The page keeps working while the Desk is open.** Nothing is dimmed: you can scroll the page, click on it and use its shortcuts (like **q** for quick add, or **j** and **k** on a list) with the Desk still open. The page gets extra room at the bottom so nothing ends up hidden behind the Desk. **Tab** moves from the page to the bar and then into the Desk.
 

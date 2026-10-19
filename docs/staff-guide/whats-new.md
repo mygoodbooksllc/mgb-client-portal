@@ -9,6 +9,10 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-19: The Desk is the same color as the left menu (still off until the owner turns it on)
+
+- **Look only.** The Desk panel and its bar are now solid, the same color as the left menu, instead of see-through glass. Nothing else about the Desk changed.
+
 ### 2026-10-19: Task details open with the main fields at the top
 
 - **One block at the top.** A task's details now start with **Assignee**, **Due**, **Client**, **Project**, **Priority** and **Status** together, each with its name on the left. **Status** moved there from beside the title.

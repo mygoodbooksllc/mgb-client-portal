@@ -27,10 +27,10 @@
   /* Desk glass (spec D2): light set here, dark sets below (twice, the styles.css pattern). */
   --desk-max-w: 640px; /* Desk + bar width; set to 100vw to go back to full width */
   --desk-radius: 16px;
-  --desk-glass-blur: 22px;
-  --desk-glass-sat: 1.6;
-  --desk-glass-bg: rgba(255, 255, 255, 0.62);
-  --desk-glass-edge: rgba(255, 255, 255, 0.7);
+  --desk-glass-blur: 0px;
+  --desk-glass-sat: 1;
+  --desk-glass-bg: var(--sidebar-bg);
+  --desk-glass-edge: var(--sidebar-border, rgba(128, 128, 128, 0.25));
   --desk-glass-shadow: 0 -10px 36px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.55);
   --desk-row-bg: rgba(255, 255, 255, 0.8);
   --desk-row-bg-hover: rgba(255, 255, 255, 0.94);
@@ -39,8 +39,8 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --desk-glass-bg: rgba(22, 28, 40, 0.58);
-    --desk-glass-edge: rgba(255, 255, 255, 0.12);
+    --desk-glass-bg: var(--sidebar-bg);
+    --desk-glass-edge: var(--sidebar-border, rgba(128, 128, 128, 0.25));
     --desk-glass-shadow: 0 -10px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     --desk-row-bg: rgba(255, 255, 255, 0.06);
     --desk-row-bg-hover: rgba(255, 255, 255, 0.1);
@@ -48,8 +48,8 @@
   }
 }
 :root[data-theme="dark"] {
-  --desk-glass-bg: rgba(22, 28, 40, 0.58);
-  --desk-glass-edge: rgba(255, 255, 255, 0.12);
+  --desk-glass-bg: var(--sidebar-bg);
+  --desk-glass-edge: var(--sidebar-border, rgba(128, 128, 128, 0.25));
   --desk-glass-shadow: 0 -10px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   --desk-row-bg: rgba(255, 255, 255, 0.06);
   --desk-row-bg-hover: rgba(255, 255, 255, 0.1);
@@ -806,8 +806,6 @@ html.wb-desk-strip .wb-panel .wb-panel-foot {
 }
 .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
   background: var(--desk-glass-bg);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
 }
 /* Solid fallbacks: no backdrop-filter, reduced transparency, forced colors,
    and the phone sheet (it covers the page, so glass adds cost, no benefit). */
