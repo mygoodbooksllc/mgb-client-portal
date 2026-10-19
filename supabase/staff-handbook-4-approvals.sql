@@ -149,7 +149,7 @@ begin
       raise exception 'handbook part 4: could not read the values of % (%). Nothing changed.', t.con, v_def;
     end if;
     if 'handbook_approval_needed' = any (v_vals) then continue; end if;
-    v_vals := v_vals || 'handbook_approval_needed';
+    v_vals := array_append(v_vals, 'handbook_approval_needed'::text);
     execute format('alter table %s drop constraint %I', t.tbl, t.con);
     execute format('alter table %s add constraint %I check (%I in (%s))', t.tbl, t.con, t.col,
                    (select string_agg(quote_literal(x), ', ' order by x) from unnest(v_vals) x));
