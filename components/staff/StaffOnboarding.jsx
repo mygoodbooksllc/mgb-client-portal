@@ -5,7 +5,7 @@
 //                     each with a link to its Staff guide article. Hides
 //                     itself once every step is done or you click "Hide
 //                     this card".
-//   SON_ProgressTab   Team → Onboarding (#/hr/onboarding). Admins:
+//   SON_ProgressTab   HR → Onboarding (#/hr/onboarding). Admins:
 //                     everyone's progress, tick for someone, and edit the
 //                     step list (add, edit, reorder, retire / restore; never
 //                     deleted). Everyone else: their own steps
@@ -172,7 +172,7 @@ function SON_HomeCard({ staffUser, className, dragProps }) {
   );
 }
 
-// ---- Team → Onboarding ----
+// ---- HR → Onboarding ----
 
 // What a non-admin sees on the tab: their own steps, tickable, same as the
 // home card but always here even after the card is hidden.
@@ -200,7 +200,7 @@ function SON_MyStepsTab({ staffUser, st, steps }) {
   );
 }
 
-// ---- Team → Onboarding (admins): everyone's progress and the step list ----
+// ---- HR → Onboarding (admins): everyone's progress and the step list ----
 
 function SON_StepEditor({ step, onDone, nextSort }) {
   const showToast = useToast();

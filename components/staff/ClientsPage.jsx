@@ -323,7 +323,7 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
     ? 'No real clients yet. Test clients are hidden: turn on "Show test clients" to see them.'
     : !rows.length
     ? isAdmin
-      ? "No clients yet. Add one from Team → Members, or wait for the roster to load."
+      ? "No clients yet. Add one from HR → Members, or wait for the roster to load."
       : "No clients are assigned to you yet. An admin can assign you from the client's settings."
     : needle
       ? `No clients match "${q.trim()}".`

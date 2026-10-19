@@ -1941,7 +1941,7 @@ function Sidebar({
                   className="staff-user-dropdown"
                   role={inDrawer ? undefined : "menu"}
                 >
-                  {/* The same five places as the desktop rail (StaffRail /
+                  {/* The same six places as the desktop rail (StaffRail /
                       components/staff/StaffNav.jsx), with the same
                       data-tour names so the staff tour can point at them
                       in the phone drawer. Help, Feedback and the tour live
@@ -2354,9 +2354,9 @@ function StaffRail({
       window.removeEventListener("resize", align);
     };
   }, [expanded, onClientPage]);
-  // The five places (components/staff/StaffNav.jsx): Today, Inbox, Work,
-  // Clients, Team — the same list on staff pages and a client's pages, so
-  // the rail never changes shape under someone. Inbox, Work and Team step
+  // The six places (components/staff/StaffNav.jsx): Today, Inbox, Work,
+  // Clients, Team, HR — the same list on staff pages and a client's pages, so
+  // the rail never changes shape under someone. Inbox, Work, Team and HR step
   // aside while an admin is in "View as" (see NAV_PLACES). What each place
   // adds to its row: Today the client-access approvals dot (admins), Inbox
   // the unread dot, Work the tasks-due count, Team the review / feedback
@@ -27170,8 +27170,24 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     try {
       let route = parseHashRoute(window.location.hash);
       if (!route) {
-        const stashed = sessionStorage.getItem(PENDING_ROUTE_KEY);
+        let stashed = sessionStorage.getItem(PENDING_ROUTE_KEY);
+        // A stash from before the HR split (#/team/reviews/r/<id>) is
+        // rewritten to #/hr/... first (staffNavRoutes.js).
+        const movedStash = typeof NAV_legacyTeamRedirect === "function" ? NAV_legacyTeamRedirect(stashed) : null;
+        if (movedStash) stashed = movedStash;
         route = parseHashRoute(stashed);
+        // Work, Team, HR and Help: the whole sub-path comes back too, so a
+        // review link opened signed out ends on #/hr/reviews/r/<id>, not #/hr.
+        const subHash =
+          route && !clientPortalUser && typeof NAV_restoreStashedHash === "function" ? NAV_restoreStashedHash(stashed) : null;
+        if (subHash && !isAuthHash(window.location.hash)) {
+          window.history.replaceState(
+            window.history.state,
+            "",
+            window.location.pathname + window.location.search + subHash,
+          );
+          if (subHash.indexOf("?") >= 0 && typeof LK_capture === "function") LK_capture(subHash);
+        }
         // Tasks (spec 11.1): a stashed #/tasks/... link comes back exactly
         // as it was (no lowercasing, no rebuild through buildHashRoute).
         if (
@@ -29193,7 +29209,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     }));
   };
 
-  // Staff sidebar (desktop; see StaffRail): the same five places on staff
+  // Staff sidebar (desktop; see StaffRail): the same six places on staff
   // pages and on a client's pages alike — a client's own tabs run across
   // the top of its pages (CL_ClientTabs, components/staff/ClientsPage.jsx)
   // instead of down a second sidebar. Hidden while previewing as one of

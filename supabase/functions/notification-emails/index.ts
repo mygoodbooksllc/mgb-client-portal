@@ -615,14 +615,14 @@ Deno.serve(async (req) => {
               ? `A new version of <b>${esc(one.title)}</b>${esc(one.v)} was published and needs your signature${one.due ? ` by <b>${esc(one.due)}</b>` : ""}.`
               : "New versions of these staff policies need your signature:",
             ...(one ? [] : [L.bullets(items.map((i) => `<b>${esc(i.title)}</b>${esc(i.v)}${i.due ? L.tone(` (sign by ${esc(i.due)})`, "muted") : ""}`))]),
-            "Read it in the portal under Team › Handbook, then sign at the bottom.",
+            "Read it in the portal under HR › Handbook, then sign at the bottom.",
           ],
           textLines: [
             one
               ? `A new version of ${one.title}${one.v} was published and needs your signature${one.due ? ` by ${one.due}` : ""}.`
               : "New versions of these staff policies need your signature:",
             ...(one ? [] : items.map((i) => `- ${i.title}${i.v}${i.due ? ` (sign by ${i.due})` : ""}`)),
-            "Read it in the portal under Team › Handbook, then sign at the bottom.",
+            "Read it in the portal under HR › Handbook, then sign at the bottom.",
           ],
           cta: one ? "Read and sign" : "Open the Handbook",
           href: one ? handbookLink(one.slug) : handbookLink(null),
@@ -647,14 +647,14 @@ Deno.serve(async (req) => {
               ? `${esc(one.who)} signed <b>${esc(one.title)}</b>${esc(one.v)}. It's ready for your countersignature.`
               : "These staff policy signatures are ready for your countersignature:",
             ...(one ? [] : [L.bullets(items.map((i) => `${esc(i.who)}: <b>${esc(i.title)}</b>${esc(i.v)}`))]),
-            "Countersign in the portal under Team › Handbook. The signed copy is filed once you do.",
+            "Countersign in the portal under HR › Handbook. The signed copy is filed once you do.",
           ],
           textLines: [
             one
               ? `${one.who} signed ${one.title}${one.v}. It's ready for your countersignature.`
               : "These staff policy signatures are ready for your countersignature:",
             ...(one ? [] : items.map((i) => `- ${i.who}: ${i.title}${i.v}`)),
-            "Countersign in the portal under Team › Handbook. The signed copy is filed once you do.",
+            "Countersign in the portal under HR › Handbook. The signed copy is filed once you do.",
           ],
           cta: "Open the Handbook",
           href: handbookLink(slugs.length === 1 ? slugs[0] : null),

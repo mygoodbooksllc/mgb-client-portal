@@ -174,10 +174,19 @@ function LK_parsePath(hash) {
   // Tasks ids are case-sensitive (client ids, uuids): keep tab and sub as typed.
   if (place === "tasks") return { place, clientId: null, tab: parts[1] || "", sub: parts[2] || "" };
   const tab = (parts[1] || "").toLowerCase();
-  // An arrival stored under the old Team address of a tab that moved to HR
-  // (staffNavRoutes.js rewrites live hashes first; this covers anything else).
+  // A hash that reaches here under the old Team address of a tab that moved to
+  // HR (a link built by a caller, or one that skipped the live rewrite in
+  // staffNavRoutes.js) is parsed as the HR place. Saved arrivals go through
+  // LK_remapStored instead.
   const moved = place === "team" && typeof NAV_HR_MOVED_TABS !== "undefined" && NAV_HR_MOVED_TABS.indexOf(tab) !== -1;
   return { place: moved ? "hr" : place, clientId: null, tab, sub: (parts[2] || "").toLowerCase() };
+}
+
+// A saved arrival (sessionStorage, written before a deploy) may carry place
+// "team" with a tab that moved to HR, including "team/handbook", which would
+// otherwise match no claim and be dropped silently.
+function LK_remapStored(a) {
+  return typeof NAV_remapArrival === "function" ? NAV_remapArrival(a) : a;
 }
 
 // Parse a full hash with a query into an arrival, or null. `invalid: true`
@@ -407,7 +416,7 @@ function LK_rearm() {
   if (!a) {
     try {
       const raw = window.sessionStorage.getItem(LK_KEY);
-      a = raw ? JSON.parse(raw) : null;
+      a = raw ? LK_remapStored(JSON.parse(raw)) : null;
     } catch (e) {
       a = null;
     }
@@ -568,7 +577,7 @@ function LK_useArrival(match, ready, onArrive) {
       // only hands it out while fresh; LK_rearm gives it a fresh TTL once.
       // LK_watch holds its timers until LK_rearm, so it stays stored.
       const raw = window.sessionStorage.getItem(LK_KEY);
-      const a = raw ? JSON.parse(raw) : null;
+      const a = raw ? LK_remapStored(JSON.parse(raw)) : null;
       if (a && a.place && Date.now() - (a.at || 0) <= LK_REARM_MAX_MS) {
         LK_pending = { ...a, hint: null, owned: false };
         if (LK_fresh(LK_pending)) LK_watch();

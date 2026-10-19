@@ -166,7 +166,7 @@ function HB_fmtDay(ymd) {
 }
 
 // ---------------------------------------------------------------------------
-// Today and the Team tab badge (hb_status)
+// Today and the HR tab badge (hb_status)
 // ---------------------------------------------------------------------------
 // Plain items for Today (TD_useHandbookItems). Each: { key, kind, slug,
 // title, detail, overdue, due }. kind: "sign" | "countersign". Signing
@@ -211,7 +211,7 @@ function HB_todayItems(st) {
   return out;
 }
 
-// Team tab badge: my unsigned signing policies, plus signatures I
+// HR tab badge: my unsigned signing policies, plus signatures I
 // countersign. Same count as Today's handbook rows.
 function HB_badgeCount(st) {
   if (!st) return 0;
