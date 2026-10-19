@@ -447,7 +447,15 @@ Weekly-usage estimates assume the 85% weekly cap and about 12% a day.
 
 - **Total**: about 46–61% of a week, roughly 4–5 working days at the current pace. Plan it over two weeks next to other work.
 - **Without the bottom dock** (decision 10 = no): drop R1b (about −5%).
-- **Order (updated 2026-10-18)**: T1 → T2 → R0 → T3 → (P4-4) → R1 → R1b → R2 → R3 → R4 → R4b → R5. T1 and T2 touch `TK_TaskRow`/list hosts only and need no R0. T3 follows R0 because it edits `TK_DrawerContent`. T1 to T3 add about 8–11% to the total (now about 54–72%, with T4 and T5 optional on top). R1b can run in parallel with R2 in separate worktrees only if R1 has landed; they touch different blocks of WB.css and WB_Drawer.jsx, so merge with care.
+- **Order (updated 2026-10-19, trimmed plan)**. Run strictly in sequence, one writer per file set, upkeep in each slice's own commit, one Opus review per slice:
+  1. **T1 + T2** (row pass and "+ Add task" row, one brief). Sonnet builds, Opus reviews. 5–7%.
+  2. **R0 + T3** (TK_Drawer split, then the labeled task pane on top; one job). Opus builds, Opus reviews. 6–9%.
+  3. **R1** right-dock shell. Opus builds, Opus critiques. 10–12%.
+  4. **R2** task view inside the Desk. Opus builds, Opus critiques. 10–12%.
+  5. **R3 + R4** (length auto-fill and gear/prefs share the item list and prefs; one job). Sonnet builds, Opus reviews. 8–11%.
+  6. **Final Opus verify** (whole feature, owner checklist dry run; replaces the old R5, since upkeep ships in each slice). 2–3%.
+  Total about 41–54% of a week. Owner then turns on `wb_enabled`.
+- **Deferred to the week of Nov 2 (kept in the plan, owner decision 2026-10-19):** **R1b** bottom dock option (+4–6%), **R4b** optional glance-item reorder (1–2%), **P4-4** snooze and saved filters (rebases onto R0/R2 afterwards), **T4** board view and **T5** drag reorder (owner calls), the section 17 differentiators, handle extras if trimmed at R1/R3 (key hint, page-aware client line, pinned chips, QBO staleness), width magnet stops and push layout if shipped as free-drag overlay first. Until R1b lands the existing D3 bottom dock is replaced by the right dock when R1 ships; decision 10 stays on the list.
 - **Upkeep for T1 to T3** (same commit each): staff guide Tasks articles, Tasks tour stops (row, add row, task pane), tips targets that point at row cells, What's-new entry and announcement, Dev Tools MGB_VERSION, README.
 
 ---
