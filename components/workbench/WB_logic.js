@@ -1066,9 +1066,9 @@ function WB_barLeft(rails, vw) {
   return left > max ? 0 : Math.max(0, Math.round(left));
 }
 
-// ---- D3: the docked, resizable Desk (spec 4.1-4.3) ----
-// Mode: a full sheet on phones (the existing 760px breakpoint, kept by D2),
-// a non-modal dock above it. A bad width counts as desktop.
+// ---- R1: the right-side Desk column (desk-right-spec 3.1, decision 26) ----
+// Mode: a full sheet on phones (the existing 760px breakpoint), the right
+// column above it. A bad width counts as desktop.
 var WB_DESK_SHEET_MAX = 760;
 function WB_deskMode(width) {
   var w = Number(width);
@@ -1076,135 +1076,138 @@ function WB_deskMode(width) {
   return w <= WB_DESK_SHEET_MAX ? "sheet" : "dock";
 }
 
-// Height preference: a sibling of the hub blob (that one is rewritten every
-// 500ms and expires after 5 minutes; a height is a lasting preference). Only
-// the snap name is stored, never px, so every window size recomputes its own.
+// Geometry preference: a sibling of the hub blob (that one is rewritten every
+// 500ms and expires after 5 minutes; a width is a lasting preference).
 var WB_DESK_KEY = "mgb_wb_desk";
-var WB_DESK_STRIP = 148; // head 44 + tabs 40 + one row 56 + 8
-var WB_DESK_SNAPS = ["strip", "medium", "tall"];
-var WB_DESK_TINY = 360; // under this much room, all three points merge and the handle hides
 function WB_deskKey(email) {
   var e = String(email || "").trim().toLowerCase();
   return e ? WB_DESK_KEY + ":" + e : null;
 }
 
-// vh = the room above the bar (window height minus the sticky top bar and the
-// bar itself). Medium keeps at least 80px over strip; tall closer than 100px
-// to medium merges into it (the spec's "+40" left a 84px gap at vh 400, too
-// small to be worth a stop). Under WB_DESK_TINY everything is one height.
-function WB_deskPoints(vh) {
-  var v = Number(vh);
-  if (!isFinite(v) || v <= 0) v = 0;
-  var strip = WB_DESK_STRIP;
-  if (v < WB_DESK_TINY) {
-    var one = Math.max(0, Math.min(v - 16, Math.max(strip, Math.round(0.78 * v))));
-    return { strip: one, medium: one, tall: one, merged: true };
-  }
-  var medium = Math.max(Math.round(0.45 * v), strip + 80);
-  var tall = Math.min(Math.round(0.78 * v), v - 16);
-  if (tall - medium < 100) tall = medium;
-  if (medium > tall) medium = tall;
-  return { strip: strip, medium: medium, tall: tall, merged: false };
-}
-
-// Keep a dragged height inside the room: never under strip, never closer than
-// 16px to the top. A window too short for even the strip gets what fits.
-function WB_deskClamp(h, vh) {
-  var n = Number(h);
-  var v = Number(vh);
-  var hi = isFinite(v) ? v - 16 : Infinity;
-  if (hi < WB_DESK_STRIP) return Math.max(0, Math.round(hi));
-  if (!isFinite(n)) return WB_DESK_STRIP;
-  return Math.round(Math.min(hi, Math.max(WB_DESK_STRIP, n)));
-}
-
-function WB_deskSnapName(snap) {
-  return WB_DESK_SNAPS.indexOf(snap) >= 0 ? snap : "medium";
-}
-function WB_deskHeight(snap, points) {
-  var p = points || {};
-  var h = Number(p[WB_deskSnapName(snap)]);
-  return isFinite(h) ? h : WB_DESK_STRIP;
-}
-// The distinct stops, low to high, each with the first snap name at that height.
-function WB__deskLevels(points) {
-  var out = [];
-  WB_DESK_SNAPS.forEach(function (s) {
-    var h = Number((points || {})[s]);
-    if (!isFinite(h)) return;
-    if (!out.some(function (l) { return l.h === h; })) out.push({ h: h, snap: s });
-  });
-  return out.sort(function (a, b) {
-    return a.h - b.h;
-  });
-}
-
-// Where a released drag lands. h = the height at release; vy = how fast the
-// height was growing in px/ms (positive = taller). A fling (|vy| > 0.6) goes
-// to the next stop in that direction from h; otherwise the nearest stop wins
-// and a tie goes up.
+// The closed slim rail, the bottom info bar, and the column widths (decision
+// 26: default 380, 320-520 by the grip). The page keeps at least 480px; under
+// 1100px window width the open column overlays instead of pushing.
+var WB_DESK_RAIL = 52;
+var WB_DESK_BAR_H = 42;
+var WB_DESK_PUSH_MIN = 1100;
+var WB_DESK_PAGE_MIN = 480;
+var WB_DESK_W = { min: 320, narrow: 320, standard: 380, wide: 460, max: 520 };
+var WB_DESK_MAGNET = 24;
+var WB_DESK_STEP = 24;
 var WB_DESK_FLING = 0.6;
-function WB_deskSnap(h, vy, points) {
-  var levels = WB__deskLevels(points);
-  if (!levels.length) return "medium";
-  var n = Number(h);
-  if (!isFinite(n)) n = levels[0].h;
-  var v = Number(vy);
-  if (isFinite(v) && Math.abs(v) > WB_DESK_FLING) {
-    if (v > 0) {
-      var up = levels.filter(function (l) { return l.h > n; })[0];
-      return (up || levels[levels.length - 1]).snap;
-    }
-    var downs = levels.filter(function (l) { return l.h < n; });
-    return (downs.length ? downs[downs.length - 1] : levels[0]).snap;
+var WB_DESK_STOPS = [
+  { w: WB_DESK_W.narrow, name: "Narrow" },
+  { w: WB_DESK_W.standard, name: "Standard" },
+  { w: WB_DESK_W.wide, name: "Wide" },
+  { w: WB_DESK_W.max, name: "Widest" },
+];
+
+// The widest the column may be in this window: the page beside it (vw minus
+// the left rail minus the column) never drops under 480px.
+function WB_deskWidthMax(vw, railW) {
+  var v = Number(vw);
+  var r = Number(railW);
+  if (!isFinite(v) || v <= 0) return WB_DESK_W.max;
+  if (!isFinite(r) || r < 0) r = 0;
+  return Math.max(WB_DESK_W.min, Math.min(WB_DESK_W.max, Math.round(v - r - WB_DESK_PAGE_MIN)));
+}
+function WB_deskWidthClamp(w, max) {
+  var m = Number(max);
+  if (!isFinite(m)) m = WB_DESK_W.max;
+  m = Math.max(WB_DESK_W.min, Math.min(WB_DESK_W.max, m));
+  var n = Number(w);
+  if (!isFinite(n)) n = WB_DESK_W.standard;
+  return Math.round(Math.max(WB_DESK_W.min, Math.min(m, n)));
+}
+
+// Where the Desk sits: "sheet" on phones, "push" (the page moves over) when
+// the window is at least 1100 wide and the page keeps 480px, else "overlay".
+// occupy = what the page gives up on the right (the closed rail always takes
+// its 52px on desktop so it never covers content; the open column takes its
+// width in push). occupyAny = the open column's width in push or overlay, so
+// toasts, the chat drawer button and the Undo bar move left of it.
+function WB_deskLayout(o) {
+  var x = o || {};
+  var vw = Number(x.vw);
+  var railW = Number(x.railW);
+  if (!isFinite(railW) || railW < 0) railW = 0;
+  var max = WB_deskWidthMax(vw, railW);
+  var w = WB_deskWidthClamp(x.w, max);
+  var open = !!x.open;
+  if (WB_deskMode(x.vw) === "sheet") return { mode: "sheet", w: w, max: max, occupy: 0, occupyAny: 0 };
+  var push = isFinite(vw) && vw >= WB_DESK_PUSH_MIN && vw - railW - w >= WB_DESK_PAGE_MIN;
+  var mode = push ? "push" : "overlay";
+  var occupy = open && push ? w : WB_DESK_RAIL;
+  return { mode: mode, w: w, max: max, occupy: occupy, occupyAny: open ? w : 0 };
+}
+
+// Where a released width drag lands. w = the width at release; vx = how fast
+// the width was growing in px/ms (negative = the grip moving right, so the
+// column narrowing). A 24px magnet pulls to Narrow, Standard, Wide and the
+// max. Dragged 80px past the minimum, or flung right with the column under
+// Standard, closes the column back to the rail.
+function WB_deskWidthSnap(w, vx, max) {
+  var n = Number(w);
+  if (!isFinite(n)) n = WB_DESK_W.standard;
+  var v = Number(vx);
+  var close = n < WB_DESK_W.min - 80 || (isFinite(v) && v < -WB_DESK_FLING && n < WB_DESK_W.standard);
+  var top = WB_deskWidthClamp(max, max);
+  var c = WB_deskWidthClamp(n, top);
+  var best = null;
+  WB_DESK_STOPS.concat([{ w: top }]).forEach(function (s) {
+    if (s.w > top) return;
+    var d = Math.abs(s.w - c);
+    if (d <= WB_DESK_MAGNET && (!best || d < Math.abs(best - c))) best = s.w;
+  });
+  return { w: best == null ? c : best, close: close };
+}
+
+// Keys on the focused grip (it sits on the column's left edge, so Left
+// widens): Left/Right 24px, PageUp/PageDown the next stop, Home min, End max,
+// Enter Standard. Unknown keys return null.
+function WB_deskWidthStep(w, key, max) {
+  var top = WB_deskWidthClamp(max, max);
+  var c = WB_deskWidthClamp(w, top);
+  var stops = WB_DESK_STOPS.map(function (s) { return s.w; })
+    .filter(function (s) { return s <= top; })
+    .concat([top])
+    .filter(function (s, i, a) { return a.indexOf(s) === i; })
+    .sort(function (a, b) { return a - b; });
+  if (key === "ArrowLeft") return WB_deskWidthClamp(c + WB_DESK_STEP, top);
+  if (key === "ArrowRight") return WB_deskWidthClamp(c - WB_DESK_STEP, top);
+  if (key === "Home") return WB_DESK_W.min;
+  if (key === "End") return top;
+  if (key === "Enter") return WB_deskWidthClamp(WB_DESK_W.standard, top);
+  if (key === "PageUp") {
+    var up = stops.filter(function (s) { return s > c; })[0];
+    return up == null ? top : up;
   }
-  var best = levels[0];
-  levels.forEach(function (l) {
-    var d = Math.abs(l.h - n);
-    var bd = Math.abs(best.h - n);
-    if (d < bd || (d === bd && l.h > best.h)) best = l;
-  });
-  return best.snap;
+  if (key === "PageDown") {
+    var downs = stops.filter(function (s) { return s < c; });
+    return downs.length ? downs[downs.length - 1] : WB_DESK_W.min;
+  }
+  return null;
+}
+function WB_deskWidthName(w) {
+  var n = Math.round(Number(w));
+  var hit = WB_DESK_STOPS.filter(function (s) { return s.w === n; })[0];
+  return hit ? hit.name : "";
+}
+function WB_deskWidthText(w) {
+  var n = Math.round(Number(w));
+  if (!isFinite(n)) n = WB_DESK_W.standard;
+  var name = WB_deskWidthName(n);
+  return "Desk width " + n + " pixels" + (name ? ", " + name : "");
 }
 
-// Keys on the focused separator: ArrowUp/PageUp up one stop, ArrowDown/
-// PageDown down one, Home strip, End tall. Unknown keys and no-op moves keep
-// the snap as given; merged stops are stepped over.
-function WB_deskStep(snap, key, points) {
-  var cur = WB_deskSnapName(snap);
-  var levels = WB__deskLevels(points);
-  if (!levels.length) return cur;
-  if (key === "Home") return "strip";
-  if (key === "End") return "tall";
-  var h = WB_deskHeight(cur, points);
-  var i = -1;
-  levels.forEach(function (l, j) {
-    if (l.h === h) i = j;
-  });
-  if (i < 0) return cur;
-  var j = i;
-  if (key === "ArrowUp" || key === "PageUp") j = Math.min(levels.length - 1, i + 1);
-  else if (key === "ArrowDown" || key === "PageDown") j = Math.max(0, i - 1);
-  else return cur;
-  return j === i ? cur : levels[j].snap;
+// Stored geometry, v2 (spec 3.5, trimmed to what decision 26 kept): the
+// wanted width, re-clamped to each window when applied. v1 (the D3 bottom
+// panel height) and junk fall back to the default column.
+function WB_deskDefault() {
+  return { v: 2, dock: "right", right: { w: WB_DESK_W.standard } };
 }
-
-// The separator's value, as a percent of the room, and words for it.
-function WB_deskPct(h, vh) {
-  var v = Number(vh);
-  var n = Number(h);
-  if (!isFinite(v) || v <= 0 || !isFinite(n)) return 0;
-  return Math.max(0, Math.min(100, Math.round((100 * n) / v)));
-}
-function WB_deskValueText(snap) {
-  var s = WB_deskSnapName(snap);
-  if (s === "strip") return "Short, about one row";
-  if (s === "tall") return "Tall, most of the window";
-  return "Medium, about half the window";
-}
-
 function WB_deskParse(raw) {
-  var fallback = { v: 1, snap: "medium" };
+  var fallback = WB_deskDefault();
   if (raw == null || raw === "") return fallback;
   var o = null;
   try {
@@ -1212,27 +1215,34 @@ function WB_deskParse(raw) {
   } catch (e) {
     return fallback;
   }
-  if (!o || typeof o !== "object" || o.v !== 1) return fallback;
-  return { v: 1, snap: WB_DESK_SNAPS.indexOf(o.snap) >= 0 ? o.snap : "medium" };
+  if (!o || typeof o !== "object" || o.v !== 2) return fallback;
+  var r = o.right && typeof o.right === "object" ? o.right : {};
+  var w = Number(r.w);
+  return {
+    v: 2,
+    dock: "right",
+    right: { w: isFinite(w) ? Math.round(Math.max(WB_DESK_W.min, Math.min(WB_DESK_W.max, w))) : WB_DESK_W.standard },
+  };
 }
 function WB_deskSerialize(st) {
-  return JSON.stringify({ v: 1, snap: WB_deskSnapName(st && st.snap) });
+  var p = WB_deskParse(st);
+  return JSON.stringify(p);
 }
 
-// Bottom room the page needs so its end is reachable above the Desk. pad is
-// the extra space under .main (60 is the closed bar's long-standing value);
-// lift is how far the toast and chat button rise. The sheet covers the page,
-// so it needs neither.
-function WB_deskPagePad(o) {
+// Route changes (decision 11): a pushed column stays open, an overlay or the
+// sheet closes so the new page shows, except within 500ms of opening (an
+// arrival that routed and opened at once).
+var WB_DESK_NAV_GRACE = 500;
+function WB_deskNavStep(o) {
   var x = o || {};
-  var h = Number(x.h);
-  if (!x.open || x.mode === "sheet" || !isFinite(h) || h <= 0) return { pad: 60, lift: 0 };
-  var r = Math.round(h);
-  return { pad: r, lift: r };
+  if (x.layout === "push") return "keep";
+  var ms = Number(x.msSinceOpen);
+  if (isFinite(ms) && ms >= 0 && ms < WB_DESK_NAV_GRACE) return "keep";
+  return "close";
 }
 
-// Esc with focus inside the Desk, one step at a time (spec 4.2). D3 has no
-// drill-in, so drillInner/drillDepth are always empty here; D4 fills them.
+// Esc with focus inside the Desk, one step at a time (spec 6). R1 has no
+// drill-in, so drillInner/drillDepth are always empty here; R2 fills them.
 function WB_deskEscStep(o) {
   var x = o || {};
   if (x.layerAbove) return "layer";
@@ -1250,6 +1260,12 @@ function WB_deskMounts(o) {
   if (!x.showStaffRail || x.tkShell || x.previewing || x.impersonating) return false;
   return !!String(x.email || "").trim();
 }
+// Live = mounted, the switch on, and the hub table present. The chat bubble
+// hides only while this is true (decision 20).
+function WB_deskLive(o) {
+  var x = o || {};
+  return !!x.mounts && !!x.on && x.status !== "missing";
+}
 
 // The open/close key: plain D (caps lock D counts; Shift+D, Ctrl, Cmd and Alt
 // do not, so browser and OS shortcuts stay free).
@@ -1259,8 +1275,8 @@ function WB_deskToggleKey(e) {
   return x.key === "d" || x.key === "D";
 }
 
-// Where focus sits: inside the Desk, on its bar, or on the page. Focus inside
-// a stacked layer (a modal over the Desk) is none of these, so it is ignored.
+// Where focus sits: inside the Desk, on its rail or bar, or on the page.
+// Focus inside a stacked layer (a modal over the Desk) is none of these.
 function WB_deskFocusZone(f) {
   var x = f || {};
   if (x.inLayer) return null;
@@ -1268,9 +1284,89 @@ function WB_deskFocusZone(f) {
   if (x.onBar) return "bar";
   return "page";
 }
-// After close: focus goes to the bar only if it was inside the Desk.
-function WB_deskCloseFocus(zone) {
-  return zone === "desk" ? "bar" : "stay";
+// After close (spec 7): back to the opener if it is still on the page, else
+// the rail (the handle), else the page's main.
+function WB_deskReturnFocus(o) {
+  var x = o || {};
+  if (x.openerOk) return "opener";
+  if (x.handleOk) return "handle";
+  return "main";
+}
+
+// The info bar's progress words (R1c). late and dueOpen are my open tasks in
+// the overdue and today groups; doneToday is tasks I finished today, or null
+// while unknown (the task list has not loaded).
+function WB_barProgress(o) {
+  var x = o || {};
+  var late = Math.max(0, Number(x.late) || 0);
+  var open = Math.max(0, Number(x.dueOpen) || 0);
+  var done = x.doneToday == null ? null : Math.max(0, Number(x.doneToday) || 0);
+  var out = { late: late, lateText: late ? late + " late" : "", todayText: "", empty: false };
+  if (done == null) out.todayText = open ? open + " today" : "";
+  else if (open + done > 0) out.todayText = done + " of " + (open + done) + " today";
+  out.empty = !late && !out.todayText;
+  return out;
+}
+
+// Tasks I finished today (Chicago day), from the task store's loaded tasks.
+// isMine and isDone come from the Tasks module (TK_isMine, TK_effectiveStatus).
+function WB_doneToday(tasks, o) {
+  var x = o || {};
+  var today = x.today;
+  if (!today || typeof x.isMine !== "function" || typeof x.isDone !== "function") return 0;
+  var n = 0;
+  (tasks || []).forEach(function (t) {
+    if (!t || t.deleted_at || !t.completed_at || !x.isMine(t) || !x.isDone(t)) return;
+    var ms = Date.parse(t.completed_at);
+    if (isFinite(ms) && WB_today(ms) === today) n++;
+  });
+  return n;
+}
+
+// The info bar's page-client line (R1c): what the client page already knows,
+// no new fetch. tasks = my open tasks on this client, waiting = questions
+// staff asked that the client has not answered, the QuickBooks sync state as
+// the Overview strip words it. ago is the "3 hours ago" text for syncedAt.
+// Returns null off a client page.
+function WB_barClientLine(o) {
+  var x = o || {};
+  var name = String(x.name || "").trim();
+  if (!name) return null;
+  var out = [];
+  if (x.loaded && !x.error) {
+    var t = Math.max(0, Number(x.tasks) || 0);
+    var w = Math.max(0, Number(x.waiting) || 0);
+    out.push({ key: "tasks", text: t ? t + " open task" + (t === 1 ? "" : "s") : "No open tasks", bad: Number(x.overdue) > 0 });
+    if (w) out.push({ key: "waiting", text: w + " waiting on the client", bad: false });
+  }
+  if (x.qbo) {
+    if (x.qboError) out.push({ key: "qbo", text: "QuickBooks needs reconnecting", bad: true });
+    else if (x.syncedAt) {
+      var ms = Date.parse(x.syncedAt);
+      var now = Number(x.now) || Date.now();
+      var hrs = isFinite(ms) ? (now - ms) / 36e5 : null;
+      var stale = hrs != null && Number(x.staleHours) > 0 && hrs > Number(x.staleHours);
+      out.push({ key: "qbo", text: "QuickBooks synced " + (x.ago || "recently"), bad: stale });
+    } else out.push({ key: "qbo", text: "QuickBooks hasn't synced yet", bad: false });
+  }
+  return { name: name, parts: out };
+}
+
+// The rail's four counts (decision 28): messages, reviews and files from the
+// Desk's own chip counts, mentions from the bell's unseen mentions.
+function WB_railCounts(o) {
+  var x = o || {};
+  var c = x.counts || {};
+  var n = function (v) {
+    var k = Number(v);
+    return isFinite(k) && k > 0 ? Math.round(k) : 0;
+  };
+  return {
+    message: n(c.message),
+    review: n(c.review),
+    doc: n(c.doc),
+    mention: n(x.mentions),
+  };
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -1339,28 +1435,39 @@ if (typeof module !== "undefined" && module.exports) {
     WB_barLeft: WB_barLeft,
     WB_DESK_SHEET_MAX: WB_DESK_SHEET_MAX,
     WB_DESK_KEY: WB_DESK_KEY,
-    WB_DESK_STRIP: WB_DESK_STRIP,
-    WB_DESK_SNAPS: WB_DESK_SNAPS,
-    WB_DESK_TINY: WB_DESK_TINY,
+    WB_DESK_RAIL: WB_DESK_RAIL,
+    WB_DESK_BAR_H: WB_DESK_BAR_H,
+    WB_DESK_PUSH_MIN: WB_DESK_PUSH_MIN,
+    WB_DESK_PAGE_MIN: WB_DESK_PAGE_MIN,
+    WB_DESK_W: WB_DESK_W,
+    WB_DESK_MAGNET: WB_DESK_MAGNET,
+    WB_DESK_STEP: WB_DESK_STEP,
     WB_DESK_FLING: WB_DESK_FLING,
+    WB_DESK_STOPS: WB_DESK_STOPS,
+    WB_DESK_NAV_GRACE: WB_DESK_NAV_GRACE,
     WB_deskMode: WB_deskMode,
     WB_deskKey: WB_deskKey,
-    WB_deskPoints: WB_deskPoints,
-    WB_deskClamp: WB_deskClamp,
-    WB_deskSnapName: WB_deskSnapName,
-    WB_deskHeight: WB_deskHeight,
-    WB_deskSnap: WB_deskSnap,
-    WB_deskStep: WB_deskStep,
-    WB_deskPct: WB_deskPct,
-    WB_deskValueText: WB_deskValueText,
+    WB_deskWidthMax: WB_deskWidthMax,
+    WB_deskWidthClamp: WB_deskWidthClamp,
+    WB_deskLayout: WB_deskLayout,
+    WB_deskWidthSnap: WB_deskWidthSnap,
+    WB_deskWidthStep: WB_deskWidthStep,
+    WB_deskWidthName: WB_deskWidthName,
+    WB_deskWidthText: WB_deskWidthText,
+    WB_deskDefault: WB_deskDefault,
     WB_deskParse: WB_deskParse,
     WB_deskSerialize: WB_deskSerialize,
-    WB_deskPagePad: WB_deskPagePad,
+    WB_deskNavStep: WB_deskNavStep,
     WB_deskEscStep: WB_deskEscStep,
     WB_deskMounts: WB_deskMounts,
+    WB_deskLive: WB_deskLive,
     WB_deskToggleKey: WB_deskToggleKey,
     WB_deskFocusZone: WB_deskFocusZone,
-    WB_deskCloseFocus: WB_deskCloseFocus,
+    WB_deskReturnFocus: WB_deskReturnFocus,
+    WB_barProgress: WB_barProgress,
+    WB_railCounts: WB_railCounts,
+    WB_doneToday: WB_doneToday,
+    WB_barClientLine: WB_barClientLine,
     WB_fromToday: WB_fromToday,
     WB_primaryAction: WB_primaryAction,
     WB_menuActions: WB_menuActions,

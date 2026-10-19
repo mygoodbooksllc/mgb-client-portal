@@ -117,7 +117,7 @@ var WB_store = (function () {
     undo: null, // { id, text, run, until }
     drawerOpen: false,
     openedBy: "", // who opened the Desk last: "restore" (page load reopen) keeps focus where it is (spec 4.2)
-    desk: { snap: "medium" }, // D3 height preference, saved per person in mgb_wb_desk:<email> (no TTL)
+    desk: WB_deskParse(null), // R1 column width, saved per person in mgb_wb_desk:<email> v2 (no TTL)
     hub: WB_hubDefault(), // tab, chip, client, scroll per tab (spec 2.2); saved per person in mgb_wb_hub:<email>
   };
   var users = 0;
@@ -610,15 +610,20 @@ var WB_store = (function () {
     hubUser = email;
     WB__lsSet(WB_HUB_KEY, null);
     var h = WB_hubParse(WB__ls(WB_hubKey(email)), Date.now(), { hash: hubHash() });
-    var d = WB_deskParse(WB__ls(WB_deskKey(email)));
-    set({ hub: h, drawerOpen: h.open, openedBy: h.open ? "restore" : "", desk: { snap: d.snap } });
+    var raw = WB__ls(WB_deskKey(email));
+    var d = WB_deskParse(raw);
+    // Migration: a v1 (D3 bottom height) or junk value is rewritten as v2 once.
+    if (raw != null && raw !== WB_deskSerialize(d)) WB__lsSet(WB_deskKey(email), WB_deskSerialize(d));
+    set({ hub: h, drawerOpen: h.open, openedBy: h.open ? "restore" : "", desk: d });
   }
-  // D3: the Desk height (a snap name). Saved at once, no throttle: it changes
-  // only when a drag ends or a key is pressed on the handle.
-  function setDeskSnap(snap) {
-    var s = WB_deskSnapName(snap);
-    if (s !== state.desk.snap) set({ desk: { snap: s } });
-    if (hubUser) WB__lsSet(WB_deskKey(hubUser), WB_deskSerialize({ snap: s }));
+  // R1: the column width the person wants (re-clamped to each window when
+  // applied). Saved at once, no throttle: it changes only when a drag ends or
+  // a key is pressed on the grip.
+  function setDeskWidth(w) {
+    var n = Number(w);
+    var d = WB_deskParse({ v: 2, right: { w: isFinite(n) ? n : state.desk.right.w } });
+    if (d.right.w !== state.desk.right.w) set({ desk: d });
+    if (hubUser) WB__lsSet(WB_deskKey(hubUser), WB_deskSerialize(d));
   }
 
   if (typeof window !== "undefined" && window.addEventListener) {
@@ -652,7 +657,7 @@ var WB_store = (function () {
     setHub: setHub,
     flushHub: flushHub,
     adoptHub: adoptHub,
-    setDeskSnap: setDeskSnap,
+    setDeskWidth: setDeskWidth,
   };
 })();
 

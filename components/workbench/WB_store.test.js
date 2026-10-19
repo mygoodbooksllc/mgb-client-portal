@@ -508,30 +508,38 @@ t("Client tab recents: the client switcher's own per-person list, when it is loa
   assert.strictEqual(lsKeys[0], "mgb-client-switcher-recent:pat@mgb.com");
 });
 
-t("D3 Desk height: per person, saved at once, bad values read as medium", () => {
+t("R1 Desk width: per person, saved at once, v1 migrates, junk reads as Standard", () => {
   const D = (e) => "mgb_wb_desk:" + e;
   const c = load();
   // Before anyone joins: the state changes but nothing is written.
-  c.S.setDeskSnap("tall");
-  assert.strictEqual(c.S.getState().desk.snap, "tall");
+  c.S.setDeskWidth(460);
+  assert.strictEqual(c.S.getState().desk.right.w, 460);
   assert.strictEqual(Object.keys(c.store).length, 0);
-  c.store[D("pat@example.com")] = '{"v":1,"snap":"strip"}';
+  c.store[D("pat@example.com")] = '{"v":2,"dock":"right","right":{"w":420}}';
   c.S.join("pat@example.com", false);
-  assert.strictEqual(c.S.getState().desk.snap, "strip", "Pat's saved height is read on join");
-  c.S.setDeskSnap("tall");
-  assert.strictEqual(c.store[D("pat@example.com")], '{"v":1,"snap":"tall"}', "saved at once, no throttle");
-  c.S.setDeskSnap("huge");
-  assert.strictEqual(c.S.getState().desk.snap, "medium");
-  // Sam on the same browser has their own height (none saved: medium).
+  assert.strictEqual(c.S.getState().desk.right.w, 420, "Pat's saved width is read on join");
+  c.S.setDeskWidth(500);
+  assert.strictEqual(c.store[D("pat@example.com")], '{"v":2,"dock":"right","right":{"w":500}}', "saved at once, no throttle");
+  c.S.setDeskWidth(9000);
+  assert.strictEqual(c.S.getState().desk.right.w, 520, "kept inside 320-520");
+  c.S.setDeskWidth("nope");
+  assert.strictEqual(c.S.getState().desk.right.w, 520, "a bad value keeps the current width");
+  // Sam on the same browser has their own width (none saved: Standard, and nothing written).
   c.S.join("sam@example.com", false);
-  assert.strictEqual(c.S.getState().desk.snap, "medium");
+  assert.strictEqual(c.S.getState().desk.right.w, 380);
+  assert.strictEqual(c.store[D("sam@example.com")], undefined);
+  // A D3 (v1) height migrates to the v2 default and is rewritten once.
+  c.store[D("kim@example.com")] = '{"v":1,"snap":"tall"}';
+  c.S.join("kim@example.com", false);
+  assert.strictEqual(c.S.getState().desk.right.w, 380);
+  assert.strictEqual(c.store[D("kim@example.com")], '{"v":2,"dock":"right","right":{"w":380}}');
   c.store[D("lee@example.com")] = "garbage";
   c.S.join("lee@example.com", false);
-  assert.strictEqual(c.S.getState().desk.snap, "medium");
-  // The hub blob never carries the height.
+  assert.strictEqual(c.S.getState().desk.right.w, 380);
+  // The hub blob never carries the width.
   c.S.setDrawerOpen(true);
   c.S.flushHub();
-  assert.ok(c.store[K("lee@example.com")].indexOf("snap") < 0);
+  assert.ok(c.store[K("lee@example.com")].indexOf("right") < 0);
 });
 
 t("D3 openedBy: a page-load reopen says restore; a click or key says who", () => {
