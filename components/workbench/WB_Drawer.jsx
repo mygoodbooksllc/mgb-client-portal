@@ -160,7 +160,7 @@ function WB__deskTop() {
     const tb = document.querySelector(".tb-bar");
     if (tb) {
       const r = tb.getBoundingClientRect();
-      if (r.height > 0) return Math.max(0, Math.round(r.bottom));
+      if (r.height > 0) return Math.max(0, Math.floor(r.bottom)); // floor: a fractional bottom must not leave a page-colored sliver above the rail
     }
   } catch (e) {}
   return 0;
@@ -274,12 +274,17 @@ function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
   // matches :focus-visible and would pin the flyout open. Mouse use marks the
   // rail (is-pointer); a key press clears it, so keyboard focus still shows it.
   React.useEffect(() => {
+    // Any pointer movement or press marks mouse use; only keys that move focus
+    // (Tab, arrows, Home, End) clear it, so a stray key press or Esc elsewhere
+    // can't leave a flyout pinned open after the mouse has left.
     const down = () => { if (ref.current) ref.current.classList.add("is-pointer"); };
-    const key = (e) => { if (ref.current && ["Shift", "Control", "Alt", "Meta"].indexOf(e.key) < 0) ref.current.classList.remove("is-pointer"); };
+    const key = (e) => { if (ref.current && ["Tab", "ArrowUp", "ArrowDown", "Home", "End"].indexOf(e.key) >= 0) ref.current.classList.remove("is-pointer"); };
     window.addEventListener("pointerdown", down, true);
+    window.addEventListener("pointermove", down, true);
     window.addEventListener("keydown", key, true);
     return () => {
       window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("pointermove", down, true);
       window.removeEventListener("keydown", key, true);
     };
   }, []);
