@@ -1996,7 +1996,8 @@ Team Reviews files.
   Status, with faint placeholders when empty. Rows come from `TK_dlFieldGrid` / `TK_DL_GRID_FIELDS`
   (`TK_drawerLogic.js`, node-tested), which also says which are editable (assignee: owner or admin, not
   in review; client and project are links). The same controls and `save` path as before; due saves
-  through `TK_rwDuePatch` + `TK_rwDueSavePatch` (a half-typed year is not saved), priority options from
+  through `TK_rwDuePatch` + `TK_rwDueSavePatch` (a half-typed year is not saved, and a box with one
+  part blanked, `validity.badInput`, is not a clear), priority options from
   `TK_RW_PRIORITIES`. Status moved from the title row into the grid. Rows are flex-wrap (label 120px,
   96px on phones; value wraps under it below about 334px), not a container query, so the pane never
   becomes a containing block for fixed menus. "Linked" (spec §17) and a task-size field are comments

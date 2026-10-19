@@ -799,7 +799,9 @@ function TK_DrawerContent(props) {
     if (!task) return;
     var el = document.getElementById("tk-dw-due");
     if (document.activeElement !== el) setDueDraft(task.due_date ? String(task.due_date).slice(0, 10) : "");
-  }, [task && task.due_date, taskId]);
+    // !!task: a task opened in place of another (parent link) that arrives
+    // with no due date must still replace the previous task's draft.
+  }, [task && task.due_date, taskId, !!task]);
   React.useEffect(function () {
     if (!task) return;
     var el = document.getElementById("tk-dw-section");
@@ -1027,6 +1029,10 @@ function TK_DrawerContent(props) {
       if (embedded) ctx.embedded = true;
       if (typeof TK_shouldHandleKey === "function") {
         if (!TK_shouldHandleKey(e, ctx)) return;
+        // Embedded: any drawer keyscope passes TK_shouldHandleKey, so also
+        // require this pane's own scope (a modal drawer over the Desk must not
+        // get x / s / a / ? twice).
+        if (embedded && !(scopeRef.current && scopeRef.current.contains(e.target))) return;
       } else {
         if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented || e.isComposing) return;
         if (ctx.modalOpen || ctx.menuOpen || ctx.tourOpen) return;
@@ -1241,6 +1247,11 @@ function TK_DrawerContent(props) {
               onChange={function (e) {
                 var v = e.target.value || "";
                 setDueDraft(v);
+                // A date box reports "" while one part (day, month or year) is
+                // blank but the others are not (validity.badInput). That is a
+                // half-typed date, not a clear: saving it would drop the due
+                // date and end a repeat. Only an all-blank box clears.
+                if (!v && e.target.validity && e.target.validity.badInput) return;
                 saveDue(v);
               }}
               onBlur={function () {
