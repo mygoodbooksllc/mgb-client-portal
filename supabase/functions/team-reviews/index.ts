@@ -24,7 +24,12 @@
 //   GOOGLE_DRIVE_REVIEWS_DRIVE_ID   the admin-only "~ MGB: Staff Reviews" Shared Drive
 //   RESEND_API_KEY                  via ../_shared/email.ts
 //
-// Deploy with ../drive-files/logic.ts, ../_shared/email.ts, ../_shared/layout.ts and ./pdf.ts.
+// Deploy with ../drive-files/logic.ts, ../_shared/email.ts, ../_shared/layout.ts, ./pdf.ts,
+// ./selfsubmitted.ts and ./finalemail.ts.
+//
+// Email kinds (review_notifications.kind): cycle_opened, review_assigned, comparison_ready,
+// self_review_submitted, reopened, signature_needed, reminder, due_soon, cycle_relabelled,
+// review_final (queued by exportReview since 2026-10-19) and locked (legacy rows only).
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
@@ -34,6 +39,7 @@ import { esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
 import { buildHandbookPdf, buildReviewPdf, buildYearPdf, isoDateCT } from "./pdf.ts";
 import { selfSubmittedEmail } from "./selfsubmitted.ts";
+import { finalEmail } from "./finalemail.ts";
 
 void DRIVE_SCOPE; // scope is baked into signServiceAccountJwt's claims
 
@@ -245,12 +251,29 @@ async function exportReview(db: SupabaseClient, reviewId: string) {
       result = { ok: false, error: msg };
     }
   }
-  // "Locked" email, once per person per review (re-exports after an addendum don't resend).
+  // "Review final" email (scores + quarter-over-quarter change), once per person
+  // per review: the dedupe key stops re-exports after an addendum from resending.
+  // Reviews locked before this shipped already got the old "locked" email; a row
+  // with that key means skip (no second email, no backfill).
   const payload = { cycle: doc.cycle.label, staff_name: doc.staff?.name };
-  await db.from("review_notifications").upsert([
-    { kind: "locked", to_staff_id: doc.staff_id, review_id: reviewId, payload, dedupe_key: `locked:${reviewId}:staff` },
-    { kind: "locked", to_staff_id: doc.reviewer_id, review_id: reviewId, payload, dedupe_key: `locked:${reviewId}:reviewer` },
-  ], { onConflict: "dedupe_key", ignoreDuplicates: true });
+  const { data: legacy, error: legacyErr } = await db.from("review_notifications").select("dedupe_key")
+    .in("dedupe_key", [`locked:${reviewId}:staff`, `locked:${reviewId}:reviewer`]);
+  if (legacyErr) {
+    // Can't tell whether the old email went out: queue nothing rather than risk a second one.
+    console.log(`team-reviews: review_final not queued for ${reviewId}: ${clip(legacyErr.message, 200)}`);
+    return result;
+  }
+  const hadLegacy = (who: string) => (legacy || []).some((x: any) => x.dedupe_key === `locked:${reviewId}:${who}`);
+  const finals = [
+    { who: "staff", to: doc.staff_id },
+    { who: "reviewer", to: doc.reviewer_id },
+  ].filter((f) => !hadLegacy(f.who)).map((f) => ({
+    kind: "review_final", to_staff_id: f.to, review_id: reviewId, payload, dedupe_key: `final:${reviewId}:${f.who}`,
+  }));
+  if (finals.length) {
+    const { error: queueErr } = await db.from("review_notifications").upsert(finals, { onConflict: "dedupe_key", ignoreDuplicates: true });
+    if (queueErr) console.log(`team-reviews: review_final not queued for ${reviewId}: ${clip(queueErr.message, 200)}`);
+  }
   return result;
 }
 
@@ -353,7 +376,8 @@ function fmtDue(d: string | null | undefined): string {
   if (!d) return "";
   return new Date(`${String(d).slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
 }
-function emailFor(n: any, to: any, review: any): { subject: string; lines: string[]; cta: string; href: string } | null {
+type EmailMsg = { subject: string; lines: string[]; cta: string; href: string; html?: string; textLines?: string[] };
+function emailFor(n: any, to: any, review: any, cmp: any = null): EmailMsg | null {
   const p = n.payload || {};
   const cycle = p.cycle || "this quarter";
   const reviewLink = n.review_id ? `${APP_URL}#/team/reviews/r/${n.review_id}` : `${APP_URL}#/team/reviews`;
@@ -448,7 +472,21 @@ function emailFor(n: any, to: any, review: any): { subject: string; lines: strin
         href: reviewer ? `${APP_URL}#/team/reviews` : reviewLink,
       };
     }
+    case "review_final":
+      // Numbers read at send time (tr_final_compare). Skip when the review isn't
+      // signed any more or the recipient is no longer its team member or reviewer.
+      if (!review || !cmp) return null;
+      if (n.to_staff_id !== review.staff_id && n.to_staff_id !== review.reviewer_id) return null;
+      return finalEmail(cmp, {
+        isReviewer: !!isReviewer,
+        staffName: review.staff_name || p.staff_name || "the team member",
+        reviewerName: review.reviewer_name,
+        reviewLink,
+        adminWithFile: to.role === "admin" && !!review.drive_file_id,
+        fmtDate: fmtDue,
+      });
     case "locked": {
+      // Legacy: reviews locked before review_final shipped (no new rows are queued).
       const adminWithFile = to.role === "admin" && review?.drive_file_id;
       return {
         subject: `${cycle} review signed and locked`,
@@ -483,7 +521,19 @@ async function sendOutbox(db: SupabaseClient) {
         review = { ...r, staff_name: nm(r.staff_id), reviewer_name: nm(r.reviewer_id), manager_submitted: managerSubmitted };
       }
     }
-    const msg = to?.active && to.email ? emailFor(n, to, review) : null;
+    let cmp: any = null;
+    if (n.kind === "review_final" && review && to?.active && to.email) {
+      const { data: c, error: cErr } = await db.rpc("tr_final_compare", { p_review: n.review_id });
+      if (cErr) {
+        // Leave it queued and count the attempt; give up after 5 like a send failure.
+        const giveUp = n.attempts + 1 >= 5;
+        await db.from("review_notifications").update({ status: giveUp ? "failed" : "queued", attempts: n.attempts + 1, last_error: clip(cErr.message, 300) }).eq("id", n.id);
+        out.failed++;
+        continue;
+      }
+      cmp = c;
+    }
+    const msg = to?.active && to.email ? emailFor(n, to, review, cmp) : null;
     if (!msg) {
       await db.from("review_notifications").update({ status: "skipped", last_error: to?.active ? "nothing to send" : "recipient inactive" }).eq("id", n.id);
       out.skipped++;
@@ -493,10 +543,10 @@ async function sendOutbox(db: SupabaseClient) {
       title: msg.subject,
       preheader: msg.lines[0] || msg.subject,
       subtitle: "Team reviews",
-      cards: L.card(L.p(`Hi ${esc(firstName(to.name))},`) + msg.lines.map((l) => L.p(esc(l))).join("") + L.button(msg.cta, msg.href)),
+      cards: L.card(L.p(`Hi ${esc(firstName(to.name))},`) + msg.lines.map((l) => L.p(esc(l))).join("") + (msg.html || "") + L.button(msg.cta, msg.href)),
       footer: "You're receiving this because you're on the MyGoodBooks team. Reviews are private to you, your reviewer and MyGoodBooks admins.",
     });
-    const text = [`Hi ${firstName(to.name)},`, "", ...msg.lines, "", `${msg.cta}: ${msg.href}`].join("\n");
+    const text = [`Hi ${firstName(to.name)},`, "", ...msg.lines, ...(msg.textLines || []), "", `${msg.cta}: ${msg.href}`].join("\n");
     const res = await sendEmail({ to: [to.email], subject: msg.subject, html, text, tags: [{ name: "kind", value: `team_reviews_${n.kind}` }] });
     if (res.ok) {
       await db.from("review_notifications").update({ status: "sent", sent_at: new Date().toISOString(), attempts: n.attempts + 1, last_error: null }).eq("id", n.id);

@@ -51,7 +51,49 @@ function ANN_deskDocked() {
   }
 }
 
+// True once the Reviews overview has loaded and this person is in reviews:
+// a review of their own this cycle, reviews they're giving, or past totals.
+function ANN_inReviews() {
+  try {
+    if (typeof TR_store === "undefined" || !TR_store.data) return false;
+    var d = TR_store.data;
+    return !!(d.my_review || (d.giving || []).length || (d.last_totals || []).length);
+  } catch (e) {
+    return false;
+  }
+}
+
 var ANN_REGISTRY = [
+  {
+    id: "team-reviews-final-email",
+    date: "2026-10-19",
+    title: "Final scores when a review locks",
+    summary: "When a review is signed by both and locks, the team member and the reviewer each get one email with the final scores, the change from the last locked review and the agreed action steps. The same comparison shows on the locked review.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/team/reviews",
+    // Only for people who take part in reviews (the overview has loaded and has something for them).
+    ready: () => ANN_inReviews(),
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Final scores, by email and on the review",
+        body: () =>
+          "When both of you sign a quarterly review, you each get one email with the final scores (the reviewer's ratings), how each area changed from the last locked review (Up, Down or No change) and the agreed action steps. About half a minute.",
+      },
+      TOUR_tabStep(
+        "team",
+        "reviews",
+        "Team › Reviews",
+        "Open a locked review here to see the same numbers under Compared with last quarter. If the last locked review wasn't the quarter right before, it says which quarter it compares with; a first review has nothing to compare yet.",
+      ),
+      {
+        id: "ann-done",
+        title: "That's it",
+        body: () =>
+          "The email never includes comments or self-review scores, and adding an addendum doesn't send it again. To see this again, press ? and pick New: Final scores when a review locks tour.",
+      },
+    ],
+  },
   {
     id: "tasks-field-grid",
     date: "2026-10-19",

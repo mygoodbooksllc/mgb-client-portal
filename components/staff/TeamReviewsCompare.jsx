@@ -289,6 +289,8 @@ function TR_CompareBody({ review, onChanged }) {
         </p>
       </div>
 
+      {locked && r.quarter_compare && <TR_QuarterCompareCard review={r} />}
+
       <TR_CommentsCard self={self} mgr={mgr} rFirst={rFirst} />
 
       <TR_StepsCard review={r} editable={editable} onChanged={onChanged} />
@@ -299,6 +301,69 @@ function TR_CompareBody({ review, onChanged }) {
 
       {(locked || r.status === "closed_unsigned") && <TR_AddendaCard review={r} onChanged={onChanged} />}
     </>
+  );
+}
+
+// Locked reviews only: the official scores (the reviewer's ratings) next to the
+// most recent earlier locked review. Same numbers and words as the review final
+// email; helpers in teamReviewsLogic.js (TR_qc*).
+function TR_QuarterCompareCard({ review }) {
+  const r = review;
+  const cmp = r.quarter_compare;
+  const rows = TR_qcRows(cmp);
+  if (!rows.length) return null;
+  const hasPrior = !!cmp.prior;
+  const nowHead = `This quarter (${cmp.current.label})`;
+  const priorHead = TR_qcPriorHead(cmp);
+  const gap = TR_qcGapText(cmp);
+  const tone = (d) => (d === "up" ? "good" : d === "down" ? "bad" : "neutral");
+  return (
+    <div className="card tr-qc-card">
+      <h2 className="card-title">Compared with last quarter</h2>
+      <p className="card-subtitle">
+        Scores are the reviewer’s ratings. Each area is the average of its two items, out of 5; Overall is all six items, out of 30.
+      </p>
+      {gap && <p className="tr-muted">{gap}</p>}
+      <div className="al-table-wrap">
+        <table className="tx-table tx-table-labeled tr-table">
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col">{nowHead}</th>
+              {hasPrior && <th scope="col">{priorHead}</th>}
+              {hasPrior && <th scope="col">Change</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.key} className={row.key === "total" ? "tr-qc-total" : undefined}>
+                <td data-label="Category">
+                  <span className="tr-row-title">{row.title}</span>
+                </td>
+                <td data-label={nowHead} className="tr-num">
+                  {row.now}
+                </td>
+                {hasPrior && (
+                  <td data-label={priorHead} className="tr-num">
+                    {row.before}
+                  </td>
+                )}
+                {hasPrior && (
+                  <td data-label="Change">
+                    <TR_Pill tone={tone(row.direction)}>{row.change}</TR_Pill>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!hasPrior && (
+        <p className="tr-muted" style={{ marginTop: 10 }}>
+          {TR_qcNoPriorText(r.my_role === "staff", r.staff && r.staff.name)}
+        </p>
+      )}
+    </div>
   );
 }
 

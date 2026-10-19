@@ -233,6 +233,70 @@ function TR_fmtDate(iso, opts) {
   return d.toLocaleDateString("en-US", opts || { month: "short", day: "numeric" });
 }
 
+// "Compared with last quarter" on a locked review (tr_get_review.quarter_compare,
+// built by tr_final_compare in team-reviews-5-final-compare.sql). Same words as
+// the review final email (supabase/functions/team-reviews/finalemail.ts); keep
+// the two in step. Official scores = the reviewer's ratings.
+var TR_QC_ROWS = [
+  { key: "camaraderie", title: "Camaraderie" },
+  { key: "ownership", title: "Ownership" },
+  { key: "healthy_hustle", title: "Healthy Hustle" },
+  { key: "total", title: "Overall (/30)" },
+];
+
+// Category scores show one decimal (4.0, 4.5); Overall is a whole number.
+function TR_qcScore(key, v) {
+  if (v === null || v === undefined || v === "" || !isFinite(Number(v))) return "–";
+  return key === "total" ? String(Math.round(Number(v))) : Number(v).toFixed(1);
+}
+
+// "Up 0.5", "Down 1", "No change": the words carry the meaning, not the color.
+function TR_qcChangeText(change, direction) {
+  if (change === null || change === undefined || change === "") return "–";
+  var n = Number(change);
+  if (!isFinite(n)) return "–";
+  var dir = direction || (n > 0 ? "up" : n < 0 ? "down" : "flat");
+  var amt = String(Number(Math.abs(n).toFixed(1)));
+  if (dir === "up" && n !== 0) return "Up " + amt;
+  if (dir === "down" && n !== 0) return "Down " + amt;
+  return "No change";
+}
+
+function TR_qcRows(cmp) {
+  if (!cmp || !cmp.current) return [];
+  return TR_QC_ROWS.map(function (r) {
+    var ch = cmp.changes && cmp.changes[r.key];
+    var n = ch ? Number(ch.change) : NaN;
+    return {
+      key: r.key,
+      title: r.title,
+      now: TR_qcScore(r.key, cmp.current[r.key]),
+      before: cmp.prior ? TR_qcScore(r.key, cmp.prior[r.key]) : null,
+      change: cmp.prior ? TR_qcChangeText(ch ? ch.change : null, ch && ch.direction) : "",
+      direction: !cmp.prior ? "" : (ch && ch.direction) || (n > 0 ? "up" : n < 0 ? "down" : "flat"),
+    };
+  });
+}
+
+// Column header for the earlier quarter: "Last quarter" only when it is the one right before.
+function TR_qcPriorHead(cmp) {
+  if (!cmp || !cmp.prior) return "";
+  return (cmp.prior.consecutive ? "Last quarter (" : "Earlier review (") + cmp.prior.label + ")";
+}
+
+function TR_qcGapText(cmp) {
+  return cmp && cmp.prior && !cmp.prior.consecutive
+    ? "Compared with " + cmp.prior.label + ", the most recent earlier locked review."
+    : "";
+}
+
+// isOwn: the viewer is the team member ("your"); otherwise name them.
+function TR_qcNoPriorText(isOwn, staffName) {
+  return isOwn
+    ? "This is your first locked review, so there is no earlier quarter to compare with yet."
+    : "This is " + (staffName || "the team member") + "’s first locked review, so there is no earlier quarter to compare with yet.";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TR_SCALE: TR_SCALE, TR_scaleLabel: TR_scaleLabel, TR_SECTIONS: TR_SECTIONS, TR_ITEMS: TR_ITEMS,
@@ -242,5 +306,7 @@ if (typeof module !== "undefined" && module.exports) {
     TR_itemsToDiscuss: TR_itemsToDiscuss, TR_canSeeSubmission: TR_canSeeSubmission,
     TR_surveyAnsweredCount: TR_surveyAnsweredCount, TR_anonVisible: TR_anonVisible,
     TR_yearSummaryDraft: TR_yearSummaryDraft, TR_sectionAvg: TR_sectionAvg, TR_fmtDate: TR_fmtDate,
+    TR_QC_ROWS: TR_QC_ROWS, TR_qcScore: TR_qcScore, TR_qcChangeText: TR_qcChangeText, TR_qcRows: TR_qcRows,
+    TR_qcPriorHead: TR_qcPriorHead, TR_qcGapText: TR_qcGapText, TR_qcNoPriorText: TR_qcNoPriorText,
   };
 }

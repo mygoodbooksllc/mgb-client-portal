@@ -2,7 +2,7 @@
 title: How do quarterly reviews work?
 section: Daily work
 audience: staff
-keywords: [review, previous quarter, quarter just ended, admins see in progress, live view, shout-outs, reviews, quarterly review, self-review, performance, jesse, reviewer, compare, comparison, sign, signature, action steps, history, pdf, download, disagree, rating, score, camaraderie, ownership, healthy hustle, year-end]
+keywords: [review, final scores, review final email, compared with last quarter, quarter over quarter, previous quarter, quarter just ended, admins see in progress, live view, shout-outs, reviews, quarterly review, self-review, performance, jesse, reviewer, compare, comparison, sign, signature, action steps, history, pdf, download, disagree, rating, score, camaraderie, ownership, healthy hustle, year-end]
 sort: 145
 ---
 Once a quarter you review the quarter that just ended (in October, that's Q3). You fill in a short self-review, your reviewer (usually Jesse) fills in the same form about you, and then you meet, agree on action steps and both sign. Everything lives on the **Reviews** tab of **Team** (`#/team/reviews`). The number on the tab shows how many things are waiting on you.
@@ -44,6 +44,8 @@ After your meeting, the agreed action steps are added with an owner, a due date 
 To sign, type your full name and check the box. You can sign before or after your reviewer. If you disagree with parts of the review you can still sign: check **I disagree with parts of this review** and say why. Your note is saved with your signature and printed on the PDF.
 
 When both of you have signed, the review locks for good. Nothing in it can be edited after that. If something needs correcting, an admin adds an addendum.
+
+When it locks, you and your reviewer each get one email with the final scores (your reviewer's ratings: each area out of 5, Overall out of 30), how each one changed from your last locked review (Up, Down or No change), and the agreed action steps. If your last locked review wasn't the quarter right before, the email says which quarter it compares with; on your first locked review there's nothing to compare yet. The same comparison shows on the locked review under **Compared with last quarter**. It never includes comments or self-review scores, and an addendum doesn't send it again.
 
 ### History and PDFs
 

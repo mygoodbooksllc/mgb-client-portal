@@ -1002,6 +1002,26 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   self form is submitted first (dedupe `self_submitted:<review id>`, no reopen counter, so once per
   review). Payload has cycle, name and due date only. The edge function (`selfsubmitted.ts`) skips
   it at send time if the reviewer has since submitted. Tests: `tests/edge/self_submitted.test.mjs`.
+- **Review final email** (2026-10-19, `supabase/team-reviews-5-final-compare.sql`): when a review
+  locks, `exportReview` queues kind `review_final` (instead of the old `locked`) for the team
+  member and the reviewer, dedupe `final:<review id>:staff` / `final:<review id>:reviewer`, so
+  re-exports after an addendum never resend. It queues nothing for a person who already has a
+  `locked:<review id>:<staff|reviewer>` row (reviews locked before this shipped; no backfill), and
+  nothing when that lookup fails. At send time the edge function calls `tr_final_compare` (service
+  role only) and renders `finalemail.ts`: the official scores (the reviewer's ratings; each area is
+  the average of its two items out of 5, Overall out of 30), the change from the most recent
+  earlier **signed** review of the same person by any reviewer ("Up 0.5", "Down 1", "No change"; a
+  "Compared with Q1 2026, the most recent earlier locked review." line when it isn't the quarter
+  right before; a "first locked review" sentence when there is none), and up to 10 agreed action
+  steps. Never comments, notes, disagree text or self ratings. It is skipped if the review is no
+  longer signed or the recipient is no longer its team member or reviewer. `tr_get_review` returns
+  the same object as `quarter_compare` on signed reviews, shown as the **Compared with last
+  quarter** card in `TeamReviewsCompare.jsx` (`TR_qc*` helpers in `teamReviewsLogic.js`). The
+  `locked` case stays in `emailFor` for legacy rows. Tests: `tests/edge/review_final.test.mjs`,
+  `teamReviewsLogic.test.js`, SQL `supabase/team-reviews-5-final-compare-tests.sql` (ends in
+  ROLLBACK). Email kinds: `cycle_opened`, `review_assigned`, `comparison_ready`,
+  `self_review_submitted`, `reopened`, `signature_needed`, `reminder`, `due_soon`,
+  `cycle_relabelled`, `review_final` (and legacy `locked`).
 - **Reassigning:** a former reviewer can't be put back on a review once its self-review exists
   (`tr_reassign_reviewer`), since while off it they could see the self-review as "another admin".
 - **Drafts:** review forms autosave to `review_submissions`. Survey drafts stay in the browser
@@ -1015,7 +1035,8 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   `x-real-ip`, then the first `x-forwarded-for` entry), never from the browser.
 - **Edge function** `supabase/functions/team-reviews/` (`verify_jwt` off, checks the caller's JWT
   or the cron bearer itself): `pdf`, `export`, `year_pdf`, `year_export`, `drive_status`, plus the
-  `sweep` job that sends queued emails and retries Drive exports hourly. PDFs are drawn in `pdf.ts`.
+  `sweep` job that sends queued emails and retries Drive exports hourly. PDFs are drawn in `pdf.ts`;
+  pure email bodies in `selfsubmitted.ts` and `finalemail.ts` (deploy both with `index.ts`).
   Email kind `cycle_relabelled` is a correction queued by hand when a cycle's quarter is fixed after
   the opening emails went out (payload `cycle`, `was`, `period`, `opened_on`, `due_at`, `role`
   reviewee/reviewer); first used 2026-10-13 for Q4 2026 -> Q3 2026.

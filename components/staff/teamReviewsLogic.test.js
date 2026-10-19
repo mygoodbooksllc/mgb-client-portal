@@ -135,4 +135,47 @@ t("rubric: late tasks are not held against anyone during the grace period", () =
   assert.ok(/late tasks are not held against anyone yet/.test(src));
 });
 
+// "Compared with last quarter" card (same words as the review final email).
+const qc = {
+  current: { label: "Q3 2026", camaraderie: 4.5, ownership: 4, healthy_hustle: 3.5, total: 24 },
+  prior: { label: "Q2 2026", camaraderie: 4, ownership: 4, healthy_hustle: 4.5, total: 25, consecutive: true },
+  changes: {
+    camaraderie: { change: 0.5, direction: "up" }, ownership: { change: 0, direction: "flat" },
+    healthy_hustle: { change: -1, direction: "down" }, total: { change: -1, direction: "down" },
+  },
+};
+
+t("quarter compare: change words", () => {
+  assert.strictEqual(L.TR_qcChangeText(0.5, "up"), "Up 0.5");
+  assert.strictEqual(L.TR_qcChangeText(-1, "down"), "Down 1");
+  assert.strictEqual(L.TR_qcChangeText(0, "flat"), "No change");
+  assert.strictEqual(L.TR_qcChangeText(1.5), "Up 1.5");
+  assert.strictEqual(L.TR_qcChangeText(null), "–");
+});
+
+t("quarter compare: scores and rows", () => {
+  assert.strictEqual(L.TR_qcScore("ownership", 4), "4.0");
+  assert.strictEqual(L.TR_qcScore("total", 24), "24");
+  const rows = L.TR_qcRows(qc);
+  assert.deepStrictEqual(rows.map((r) => r.title), ["Camaraderie", "Ownership", "Healthy Hustle", "Overall (/30)"]);
+  assert.deepStrictEqual(rows.map((r) => r.change), ["Up 0.5", "No change", "Down 1", "Down 1"]);
+  assert.deepStrictEqual(rows.map((r) => r.direction), ["up", "flat", "down", "down"]);
+  assert.deepStrictEqual(rows.map((r) => r.before), ["4.0", "4.0", "4.5", "25"]);
+  assert.deepStrictEqual(L.TR_qcRows(null), []);
+});
+
+t("quarter compare: no prior, gap, headers", () => {
+  const first = Object.assign({}, qc, { prior: null, changes: null });
+  const rows = L.TR_qcRows(first);
+  assert.ok(rows.every((r) => r.before === null && r.change === "" && r.direction === ""));
+  assert.strictEqual(L.TR_qcPriorHead(first), "");
+  assert.strictEqual(L.TR_qcNoPriorText(true), "This is your first locked review, so there is no earlier quarter to compare with yet.");
+  assert.ok(/^This is Jane Doe’s first locked review/.test(L.TR_qcNoPriorText(false, "Jane Doe")));
+  assert.strictEqual(L.TR_qcPriorHead(qc), "Last quarter (Q2 2026)");
+  assert.strictEqual(L.TR_qcGapText(qc), "");
+  const gap = Object.assign({}, qc, { prior: Object.assign({}, qc.prior, { label: "Q1 2026", consecutive: false }) });
+  assert.strictEqual(L.TR_qcPriorHead(gap), "Earlier review (Q1 2026)");
+  assert.strictEqual(L.TR_qcGapText(gap), "Compared with Q1 2026, the most recent earlier locked review.");
+});
+
 console.log("teamReviewsLogic: " + n + " checks passed");

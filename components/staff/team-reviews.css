@@ -334,6 +334,10 @@
   display: block;
   font-weight: 600;
 }
+/* Compared with last quarter (locked reviews): Overall row stands out. */
+.tr-qc-card .tr-qc-total td {
+  font-weight: 700;
+}
 .tr-comments-grid {
   display: grid;
   grid-template-columns: 140px minmax(0, 1fr) minmax(0, 1fr);
