@@ -1396,8 +1396,8 @@ const PAYROLL_PRICING = { base: 49, perEmployee: 6 };
 // bookkeeper. Everything else is hidden rather than shown locked.
 // Payroll is an add-on for any plan, so Basic shows it too once they have it.
 // "dashboard" is Home since the 2026-10-08 client redesign (every plan lands
-// there): Basic gets the Needs-you list and org card, and one locked card
-// where the financial snapshot would be.
+// there): Basic gets the Needs-you list and org card, then "Home at a glance"
+// (components/client/BasicHome.jsx) where the financial snapshot would be.
 const BASIC_TAB_KEYS = new Set(["dashboard", "messages", "reports", "documents", "payroll"]);
 
 // Staff bookkeeper view of a client: one fixed tab row on every plan
@@ -12376,7 +12376,7 @@ const ENTERPRISE_FEATURES = [
     icon: <BarChartIcon />,
     key: "dashboard",
     title: "Board-ready Financial Overview",
-    tag: "Replaces the locked card on Home",
+    tag: "Adds a live snapshot to Home",
     planLine: "Board-ready Financial Overview on Home",
     description:
       "Home gets a live snapshot of your finances: cash, receivables, payables and net income this month, synced from QuickBooks every hour with a Sync now button. Click through from receivables, payables and net income, get a low-cash warning, work a collections queue, and save a one-click PDF snapshot. Customize which cards show.",
@@ -30141,13 +30141,29 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {effectivePage === "dashboard" &&
             (access.plan === "basic" ? (
-              <CLIENT_LockedCard
-                title="Your financial snapshot is part of Pro"
-                text="Pro adds a live snapshot of your cash, receivables, payables and net income on Home, plus Budget, Bank accounts, Cash flow and Giving & funds tabs. Your statements are always on Reports."
-                onSeePlans={() => setPage("enterprise-upgrade")}
-                // The Pro tour opens Settings › Plan itself (Tour.jsx).
-                onTakeTour={() => TOUR_start("pro")}
-              />
+              // Basic: "Home at a glance" (components/client/BasicHome.jsx):
+              // page-wide drop-and-sort upload, the latest message, links to
+              // Reports and Documents, and one slim Pro row. Uploads are for
+              // the client's own login (not staff previewing).
+              typeof BasicHome === "function" ? (
+                <BasicHome
+                  client={client}
+                  access={access}
+                  messages={liveMessages}
+                  live={siLiveThread}
+                  canUpload={!!clientPortalUser && access.tabs.has("documents")}
+                  onGo={setPage}
+                  onSeePlans={() => setPage("enterprise-upgrade")}
+                />
+              ) : (
+                <CLIENT_LockedCard
+                  title="Your financial snapshot is part of Pro"
+                  text="Pro adds a live snapshot of your cash, receivables, payables and net income on Home, plus Budget, Bank accounts, Cash flow and Giving & funds tabs. Your statements are always on Reports."
+                  onSeePlans={() => setPage("enterprise-upgrade")}
+                  // The Pro tour opens Settings › Plan itself (Tour.jsx).
+                  onTakeTour={() => TOUR_start("pro")}
+                />
+              )
             ) : showsLiveReport ? (
               // A premium, full-access client's "Dashboard" IS the Live
               // Report — one cohesive page instead of two separate tabs

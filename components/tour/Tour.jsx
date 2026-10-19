@@ -207,7 +207,7 @@
 // client Settings > Help; staff previewing get the version that person
 // gets, and ST_store is paused then, so nothing is saved.
 // The Pro tour starts only when asked: TOUR_start("pro") (or TOUR_startPro())
-// from the Plans hero's "Take the Pro tour", Basic Home's locked card, the
+// from the Plans hero's "Take the Pro tour", Basic Home's Pro row, the
 // client "?" menu and client Settings › Help, for a client whose plan reads
 // below Pro. Any
 // client user, staff previewing as one, and staff in the bookkeeper view
@@ -539,7 +539,7 @@ function TOUR_clientSteps(ctx) {
         const pick = key === "customize" ? " Use Customize dashboard to pick which cards show and put them in the order you like." : "";
         if (category) return "Home shows what needs you, then your areas of the budget at a glance." + pick;
         if (ctx.plan === "basic")
-          return "Home shows what needs you and your organization card. The locked card below shows what Pro adds.";
+          return "Home shows what needs you and your organization card. Below that you can drop files anywhere on the page and say where they go, and see your latest message and files.";
         return `Home starts with what needs you, then ${ctx.pro && ctx.qbo ? "a live snapshot of your finances" : "your financial snapshot"}.` + pick;
       },
     },
@@ -730,7 +730,7 @@ function TOUR_proGo(ctx) {
 const TOUR_PRO_COPY = {
   dashboard: (ctx) =>
     "Cash on hand, money owed to you and bills coming due, at a glance, with a low-cash warning and a one-click PDF snapshot to hand your board. " +
-    (ctx.plan === "basic" ? "On Pro it takes the place of the locked card on your Home." : "On Pro it becomes your Home."),
+    (ctx.plan === "basic" ? "On Pro it adds a live snapshot to your Home." : "On Pro it becomes your Home."),
   reports: () =>
     "Your four statement PDFs stay on Downloads. Board packet adds one PDF for your board: the reports you pick, a cover page and a treasurer's note, with comparisons to budget and last year. Save it as a template to rebuild next month in one click, share a read-only link with your board, or show it full screen at the meeting. On Pro it's the Board packet tab on Reports.",
   budget: () =>

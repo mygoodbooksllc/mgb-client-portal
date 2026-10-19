@@ -208,7 +208,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   `PAYROLL_PRICING` in app.jsx. The plan prices (not payroll) are published in
   `marketing/pricing-embed.html`.
   - **Basic**, free with 1 login included; extra logins are $20/mo each. It gets Home (the
-    Needs-you list, the org card and one locked card), Messages, Reports (the Downloads tab with
+    Needs-you list, the org card and Home at a glance: BasicHome.jsx), Messages, Reports (the Downloads tab with
     the four statement PDFs; the Board packet is locked), Documents, plus the milestone pill. It
     has no Budget, Bank accounts, Cash flow or Giving & funds tab and no per-person access
     (`BASIC_TAB_KEYS`). QuickBooks syncs monthly, on the 15th (US Central), with no Sync now for
@@ -411,7 +411,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     lives on Settings › Plan (`EnterpriseUpgradePage`), offered only when the shown plan is below Pro
     (`planShownKey(effectivePlan(...))`, so the retired Plus reads as Basic). It never auto-starts.
     Start it with `TOUR_start("pro")` / `TOUR_startPro()` (plain `TOUR_start()` is still the client
-    tour) from the **Take the Pro tour** button in the Plans hero card, the Basic Home locked card,
+    tour) from the **Take the Pro tour** button in the Plans hero card, the slim Pro row on Basic Home,
     Settings › Help (**Pro tour**, **Preview the Pro tour** in preview), the client top bar's **?**
     menu (`CLIENT_HelpButton`), or the client tour's Plan step. Every step first goes to Settings › Plan, then walks the plan cards, one step per
     `ENTERPRISE_FEATURES` card, the tool-by-tool comparison, the Payroll add-on (only without it)
@@ -1345,8 +1345,12 @@ Team Reviews files.
   current page. On phones the sync pill says just "Synced 5 minutes ago" (`.live-sync-short`), and the
   grey not-yet-connected pill just "Setting up" (`unsyncedPillShortLabel`), so the bell, ? and
   search fit.
-- **Basic** lands on Home too: Needs you, the org card, and one locked card (`CLIENT_LockedCard`)
-  where the dashboard would be. Board packet shows the same locked card on Basic.
+- **Basic** lands on Home too: Needs you, the org card, then "Home at a glance"
+  (`components/client/BasicHome.jsx`, logic in `basicHomeLogic.js`): a page-wide drop-and-sort upload (drop
+  anywhere, then pick Bank statement / Credit card statement / Receipts / Invoices and bills / Tax documents
+  / Something else; it calls `DRV_upload` with `visibility: "shared"` and the button's document type, the same
+  drive-files path as Documents), the latest bookkeeper message, links to Reports and Documents, and one slim
+  Pro row. Board packet shows the `CLIENT_LockedCard` on Basic.
 - **Settings** (gear at the bottom of the client sidebar; staff get **Client setup** at the right end
   of their tab row; `#/client/<id>/settings[/<tab>]`):
   Profile, Notifications (bookkeeper messages, reports ready, monthly summary), Organization

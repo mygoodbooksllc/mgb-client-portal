@@ -32,7 +32,7 @@ Every stop is left out when that person can't see it. The step count shown (**St
 | Stop | Full on Pro | Full on Basic | Limited | Budget-only |
 |---|---|---|---|---|
 | **Welcome** | Yes | Yes | Yes | Yes |
-| **Home**: what needs them, their organization card | Yes, with **Customize dashboard** and a live snapshot | Yes, and the locked card shows what Pro adds | Yes | Yes, their areas of the budget at a glance |
+| **Home**: what needs them, their organization card | Yes, with **Customize dashboard** and a live snapshot | Yes, then Home at a glance (drop files, latest message, statements, files) and a slim row on what Pro adds | Yes | Yes, their areas of the budget at a glance |
 | **Milestone** on Home's organization card | Yes | Yes | Yes | No |
 | **Sync**: Pro updates from QuickBooks every hour, and **Sync now** pulls the latest | Yes, when the organization syncs from QuickBooks | No | On a Pro plan, when the organization syncs from QuickBooks | On a Pro plan, when the organization syncs from QuickBooks |
 | **Finances**: Budget, Bank accounts, Cash flow, Giving & funds | Yes, the tabs they have | No (Basic has no Finances) | Only the tabs they have | Only the budget lines for their areas |
@@ -45,7 +45,7 @@ Every stop is left out when that person can't see it. The step count shown (**St
 | **Plan**: what's included, **Upgrade to Pro**, **Add Payroll** | Yes | Yes | No | No |
 | **You're all set**: points at the **?** menu in the top bar | Yes | Yes | Yes | Yes |
 
-On Basic, the **Plan** stop ends by pointing at the **Pro tour**, a separate two-minute walkthrough of what Pro adds. Clients start it themselves from the Plan page, the locked card on Home, **Settings** > **Help** or the **?** menu in the top bar; it never starts on its own. See [How does the Pro tour work?](#/help/pro-tour).
+On Basic, the **Plan** stop ends by pointing at the **Pro tour**, a separate two-minute walkthrough of what Pro adds. Clients start it themselves from the Plan page, the slim Pro row at the bottom of Home, **Settings** > **Help** or the **?** menu in the top bar; it never starts on its own. See [How does the Pro tour work?](#/help/pro-tour).
 
 The **Finances**, **Reports** and **Messages** stops light up their whole row of tabs, so the person can see every tab the step names.
 

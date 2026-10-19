@@ -9,6 +9,11 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-19: A real Home for Basic clients
+
+- **Home at a glance.** A Basic client's Home no longer shows a locked card. Below **Needs you** and the organization card it has a **Choose files** box, **Latest from your bookkeeper** (with **Reply**), **Latest statements**, **Your files** and one slim row on what Pro adds.
+- **Drop files anywhere.** They can drag files onto the page, then pick where each goes (bank statement, card statement, receipts, invoices and bills, tax documents, something else). It's the Documents page's upload, so files land in the same Drive folders. Details in [the client portal article](#/help/client-portal).
+
 ### 2026-10-19: A calmer Today
 
 - **One Do next card.** Today now leads with your top item (what, which client, when it's due, and **then:** the one after it) and a button that starts or opens it. The long **Needs you** list, the filter buttons and the four number tiles are gone from Today; **Work › Slate** and the Desk (press **D**) hold the full list. **N more tasks in Slate** (or **N more in your Desk**) links there.

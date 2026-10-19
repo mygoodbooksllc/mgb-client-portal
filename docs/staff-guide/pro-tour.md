@@ -20,7 +20,7 @@ It's separate from the first-sign-in tour. See [How does the client guided tour 
 It's always the client's choice. There are five places:
 
 1. **Settings** > **Plan**: the **Plans** card at the top has a **Take the Pro tour** button.
-2. **Home**: the locked card on a Basic client's Home (the one with **See plans**) also has a **Take the Pro tour** link. It opens **Settings** > **Plan** and starts the tour.
+2. **Home**: the slim row at the bottom of a Basic client's Home ("Pro adds a live snapshot…", with **See plans**) also has a **Take the Pro tour** link. It opens **Settings** > **Plan** and starts the tour.
 3. **Settings** > **Help**: a **Pro tour** row, "See what Pro adds, step by step". While you preview as a client user it reads **Preview the Pro tour**.
 4. **The ? menu** in the client's top bar, next to the bell: **Take the Pro tour**, shown only to clients below Pro (**Preview the Pro tour** while you preview). See [What does the client portal look like?](#/help/client-portal).
 5. **The client tour's Plan stop** (for Basic clients): it ends by saying they can take the Pro tour there.

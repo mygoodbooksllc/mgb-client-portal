@@ -1,0 +1,80 @@
+/* Basic plan Home (components/client/BasicHome.jsx). Existing variables only. */
+.bh-home { display: grid; gap: 14px; margin-top: 14px; }
+.bh-heading { margin: 0; font-size: 18px; color: var(--ink-strong); }
+.bh-upload { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-style: dashed; }
+.bh-upload.is-off { opacity: 0.75; }
+.bh-upload-text { flex: 1 1 260px; min-width: 0; }
+.bh-choose { min-height: 44px; padding-inline: 22px; }
+.bh-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.bh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.bh-card { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; }
+.bh-card .card-title { margin: 0; }
+.bh-card > .btn-secondary { margin-top: auto; }
+.bh-quote { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.bh-meta { margin: 0; font-size: 13px; color: var(--text-muted); }
+.bh-recent { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; width: 100%; }
+.bh-recent li { display: flex; flex-direction: column; min-width: 0; }
+.bh-recent-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-recent-meta { font-size: 12px; color: var(--text-muted); }
+.bh-pro-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+  padding: 10px 14px; border: 1px dashed var(--border); border-radius: var(--radius);
+  font-size: 13px; color: var(--text-muted);
+}
+.bh-pro-actions { display: flex; gap: 14px; }
+.bh-link { background: none; border: 0; padding: 4px 0; font: inherit; font-weight: 600; color: var(--accent-text, var(--accent)); cursor: pointer; text-decoration: underline; }
+
+/* Full-page drop overlay */
+.bh-drop {
+  position: fixed; inset: 0; z-index: 2900; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 3px dashed var(--accent); outline-offset: -14px;
+}
+.bh-drop-box { display: grid; gap: 6px; text-align: center; padding: 28px 40px; border-radius: var(--radius); background: var(--surface); box-shadow: 0 8px 30px rgba(0,0,0,0.18); }
+.bh-drop-box strong { font-size: 26px; color: var(--ink-strong); }
+.bh-drop-box span { color: var(--text-muted); }
+
+/* "Where should this go?" */
+.bh-scrim { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.bh-chooser { width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; background: var(--surface); border-radius: var(--radius); padding: 20px; display: grid; gap: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
+.bh-chooser-title { margin: 0; font-size: 20px; color: var(--ink-strong); }
+.bh-rejected { font-size: 13px; padding: 10px 12px; border: 1px solid var(--warm-border); border-radius: var(--radius); color: var(--warm-text); }
+.bh-rejected ul { margin: 4px 0 0; padding-left: 18px; }
+.bh-files { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 190px; overflow-y: auto; }
+.bh-file { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+.bh-file.is-failed { border-color: var(--warm-border); }
+.bh-file-main { display: flex; flex-direction: column; min-width: 0; }
+.bh-file-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-file-size { font-size: 12px; color: var(--text-muted); }
+.bh-file-state { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; text-align: right; }
+.bh-ok { color: var(--good); font-weight: 600; }
+.bh-bad { color: var(--warm-text); max-width: 200px; }
+.bh-remove { background: none; border: 0; padding: 6px 4px; font: inherit; font-size: 13px; color: var(--text-muted); text-decoration: underline; cursor: pointer; }
+.bh-bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+.bh-bar span { display: block; height: 100%; width: 40%; background: var(--accent); border-radius: 2px; animation: bh-slide 1.1s ease-in-out infinite; }
+@keyframes bh-slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+.bh-spin { width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; display: inline-block; animation: bh-rot 0.8s linear infinite; }
+@keyframes bh-rot { to { transform: rotate(360deg); } }
+.bh-progress, .bh-retry-note { margin: 0; font-size: 14px; color: var(--text-muted); }
+.bh-dests { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bh-dest {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  min-height: 64px; padding: 12px 14px; font: inherit; color: var(--text); cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.bh-dest:hover, .bh-dest:focus-visible { border-color: var(--accent); background: var(--accent-soft); outline: none; }
+.bh-dest.is-last { border-color: var(--accent); }
+.bh-dest-label { font-weight: 600; color: var(--ink-strong); }
+.bh-dest-hint { font-size: 12px; color: var(--text-muted); }
+.bh-chooser-foot { display: flex; justify-content: space-between; gap: 8px; }
+
+@media (max-width: 560px) {
+  .bh-dests { gap: 8px; }
+  .bh-dest { min-height: 56px; padding: 10px 12px; }
+  .bh-choose { width: 100%; }
+  .bh-chooser { padding: 16px; }
+  .bh-scrim { align-items: flex-end; padding: 0; }
+  .bh-chooser { border-radius: var(--radius) var(--radius) 0 0; max-height: 92dvh; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) { .bh-bar span, .bh-spin { animation: none; } }
