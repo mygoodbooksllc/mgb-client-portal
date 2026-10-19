@@ -303,9 +303,20 @@ function WB_HubClientTasks(props) {
     var id = row.getAttribute("data-tk-id") || row.getAttribute("data-tk-sub");
     if (id) remember(id);
   };
+  // Enter on a focused row opens it (focus lands back on the row after Back or
+  // Esc), the same as the Slate tab.
+  var onKeyDown = function (e) {
+    if (e.key !== "Enter" || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    var t = e.target;
+    if (!t || !t.matches) return;
+    var id = t.matches("li.tk-row[data-tk-id]") ? t.getAttribute("data-tk-id") : t.matches("li[data-tk-sub]") ? t.getAttribute("data-tk-sub") : null;
+    if (!id) return;
+    e.preventDefault();
+    open(id);
+  };
 
   return (
-    <div className="tk-cd-body wb-hub-client-body" onClickCapture={onClickCapture}>
+    <div className="tk-cd-body wb-hub-client-body" onClickCapture={onClickCapture} onKeyDown={onKeyDown}>
       <TK_ClientTasksBody
         clientId={clientId}
         clientName={props.clientName}

@@ -1595,7 +1595,7 @@ html.wb-hub-open .si-drawer-layer {
   }
 }
 
-/* R2: the row whose task is showing in the Desk (or the modal drawer). */
+/* R2: the row whose task is showing in the Desk's task view. */
 .tk-row.is-open-in-desk {
   box-shadow: inset 3px 0 0 var(--accent);
 }

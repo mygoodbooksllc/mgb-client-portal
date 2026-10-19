@@ -1552,10 +1552,11 @@ function TK_TaskRow(props) {
   );
   if (!task) return null;
   var id = task.id;
-  // R2: the task showing in the Desk's task view (TK_store.deskTaskId) or the
-  // modal drawer is marked on every list it appears in.
+  // R2: the task showing in the Desk's task view (TK_store.deskTaskId) is marked
+  // on every list it appears in. The modal drawer (drawerId) is not, so rows
+  // look exactly as before while the Desk is off.
   var deskOpen = TK_vUseStore(function (s) {
-    return !!s && id != null && (String(s.deskTaskId) === String(id) || String(s.drawerId) === String(id));
+    return !!s && id != null && s.deskTaskId != null && String(s.deskTaskId) === String(id);
   });
   var unassigned = !TK_vAssigneeOf(task);
   // T1: the dashed assignee circle already says "Unassigned", so the label is read aloud only.
