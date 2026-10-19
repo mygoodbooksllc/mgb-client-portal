@@ -736,6 +736,13 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
       } catch (err) {}
       if (WB_deskRoute({ live: true, schemaOk, opts: o }) !== "desk") return false;
       const st = WB_store.getState();
+      // Clicking the row of the task already showing closes its view.
+      const top = st.drill.length ? st.drill[st.drill.length - 1] : null;
+      if (o.from === "list" && st.drawerOpen && top && String(top.id) === String(id) && deskRef.current && deskRef.current.drillStep) {
+        while (WB_store.getState().drill.length > 1) WB_store.drillBack();
+        deskRef.current.drillStep(st.drillOrigin.closeOnEmpty ? "close" : "list");
+        return true;
+      }
       const panel = panelRef.current;
       const ae = document.activeElement;
       const real = ae && ae !== document.body && ae !== document.documentElement ? ae : null;

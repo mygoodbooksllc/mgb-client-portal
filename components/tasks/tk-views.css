@@ -978,7 +978,7 @@ li.tk-empty-inline {
 
 .tk-row-cols,
 .tk-col-head {
-  grid-template-columns: 32px minmax(0, 1fr) minmax(0, 140px) 120px 136px 64px;
+  grid-template-columns: 32px minmax(0, 1fr) minmax(0, 140px) 100px 136px 64px;
 }
 
 .tk-row-cols .tk-cell-status,
@@ -1635,7 +1635,7 @@ li.tk-empty-inline {
 @container tk-list (max-width: 960px) {
   .tk-row-cols,
   .tk-col-head {
-    grid-template-columns: 32px minmax(0, 1fr) 72px 112px 136px 64px;
+    grid-template-columns: 32px minmax(0, 1fr) 72px 96px 136px 64px;
   }
   /* Visually hidden, still read aloud; the avatar's tooltip shows it. */
   .tk-row-cols .tk-who-name {
@@ -2796,6 +2796,8 @@ body:has(.ltip-ring.ltip-on) .tk-row .tk-sel {
 
 .tk-due-chip.tk-cellbtn {
   padding: 1px 8px;
+  /* .tk-cellbtn's font: inherit would reset the chip to the page's 16px; keep the due size. */
+  font-size: 12.5px;
 }
 
 .tk-due-chip.is-late {
