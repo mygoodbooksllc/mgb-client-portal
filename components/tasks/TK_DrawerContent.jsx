@@ -1103,7 +1103,6 @@ function TK_DrawerContent(props) {
   var assignees = (assignable || []).slice();
   // S8b: the assignee only; "" is Unassigned (anyone on the client can claim it).
   var curAssignee = task ? TK_dwLower(task.assignee_email) : "";
-  var canClaim = !!task && !curAssignee && !deleted && online && ["todo", "in_progress", "waiting_client"].indexOf(status) >= 0;
   if (curAssignee && !assignees.some(function (a) { return TK_dwLower(a.email) === curAssignee; })) {
     assignees.unshift({ email: curAssignee, name: nameOf(curAssignee), can_see: true });
   }
@@ -1204,19 +1203,6 @@ function TK_DrawerContent(props) {
                 <span className="tk-chip tk-chip-unassigned">
                   <span className="tk-chip-name">Unassigned</span>
                 </span>
-                {canClaim && (
-                  <button
-                    type="button"
-                    className="tk-tool-btn tk-claim-btn"
-                    data-tour="tk-claim-drawer"
-                    onClick={function () {
-                      var api = TK_dwApi();
-                      if (api && typeof api.claim === "function") api.claim(task.id).catch(function () {});
-                    }}
-                  >
-                    Claim
-                  </button>
-                )}
               </span>
             )}
             {assigneeWarn && (

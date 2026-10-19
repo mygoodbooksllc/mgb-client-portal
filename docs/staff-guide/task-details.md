@@ -29,7 +29,7 @@ Every task has one of five statuses: **To do**, **In progress**, **Waiting on cl
 
 Right under the title, six fields sit together in one block, each with its name on the left. When one is empty it says so in faint text, so you can see what's missing at a glance.
 
-- **Assignee**: who does it. It shows on their Slate. Empty shows **Unassigned**, with **Claim** to take it. If they can't see the task's client, you'll see *They can't see this client yet, so they won't see this task.* Only the task's owner or an admin can change it, and not while the task is in review.
+- **Assignee**: who does it. It shows on their Slate. Empty shows **Unassigned**, with an **Assignee** dropdown to pick yourself or a teammate. If they can't see the task's client, you'll see *They can't see this client yet, so they won't see this task.* Only the task's owner or an admin can change it, and not while the task is in review.
 - **Due**, with an optional time. Empty shows **No due date**. The date saves once you've typed all of it, with the same rules as the due date on a task row.
 - **Client** or **Project**: the list the task belongs to (click to open it). Empty shows **No client** or **No project**.
 - **Priority**: **High**, **Normal** or **Low**, with the same colored dot as on the task rows.

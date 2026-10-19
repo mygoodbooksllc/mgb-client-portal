@@ -218,35 +218,107 @@ function TK_vClaim(task) {
   });
 }
 
-// "Unassigned" plus a Claim button (when the row offers one).
+// "Assign" button with a people dropdown, shown on an open Unassigned task. It
+// uses the same pick list and reassign call as the assignee cell, so picking
+// yourself is the old "Claim".
+function TK_vAssignMenu(props) {
+  var task = props.task;
+  var menu = TK_vUseMenu();
+  var staff = TK_vUseStore(function (s) {
+    return s ? s.staff : null;
+  });
+  var peoplePair = React.useState(null);
+  var people = peoplePair[0];
+  var setPeople = peoplePair[1];
+  React.useEffect(
+    function () {
+      if (!menu.open || people !== null) return undefined;
+      var live = true;
+      var fallback = function () {
+        if (live) setPeople((staff || []).map(function (s) { return { email: String(s.email || "").toLowerCase(), name: s.name, can_see: true }; }));
+      };
+      if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.assignable !== "function") {
+        fallback();
+        return undefined;
+      }
+      Promise.resolve(TK_api.assignable({ clientId: task.client_id, projectId: task.project_id })).then(function (rows) {
+        if (live) setPeople(rows || []);
+      }, fallback);
+      return function () {
+        live = false;
+      };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [menu.open],
+  );
+  var pick = function (p) {
+    menu.close(true);
+    var api = typeof TK_api !== "undefined" ? TK_api : null;
+    if (api && typeof api.bulkReady === "function" && api.bulkReady() && typeof api.reassign === "function") {
+      api.reassign(task.id, p.email, { toast: "Assigned to " + (p.name || p.email) + "." }).catch(function (e) {
+        TK_vToast(TK_vErrText(e));
+      });
+      return;
+    }
+    TK_vRowSave(task, { assignee_email: p.email });
+  };
+  var list = people || [];
+  return (
+    <span className="tk-pop-wrap tk-asg-wrap">
+      <button
+        type="button"
+        ref={menu.btnRef}
+        className="tk-tool-btn tk-claim-btn"
+        data-tour={props.tour || undefined}
+        aria-haspopup="menu"
+        aria-expanded={menu.open ? "true" : "false"}
+        aria-label={"Assign " + (task.text || "this task")}
+        onClick={function (e) {
+          e.stopPropagation();
+          menu.setOpen(!menu.open);
+        }}
+      >
+        Assign <span aria-hidden="true">{"\u25BE"}</span>
+      </button>
+      {menu.open ? (
+        <div className="tk-menu" role="menu" aria-label="Assign to" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
+          {people === null ? <span className="tk-menu-note">Loading…</span> : null}
+          {list.map(function (p) {
+            var em = String(p.email).toLowerCase();
+            return (
+              <button
+                key={em}
+                type="button"
+                role="menuitem"
+                className="tk-menu-item"
+                disabled={p.can_see === false}
+                title={p.can_see === false ? "No access to this task's client" : undefined}
+                onClick={function (e) {
+                  e.stopPropagation();
+                  pick(p);
+                }}
+              >
+                <span className={"tk-avatar tk-avatar-sm" + TK_vRowToneClass(em)} aria-hidden="true">
+                  {typeof TK_initials === "function" ? TK_initials(p.name || em) : "?"}
+                </span>
+                <span className="tk-menu-label">{p.name || em}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
+// "Unassigned" plus an Assign dropdown (when the row offers one).
 function TK_vUnassignedClaim(props) {
   var task = props.task;
-  var busyPair = React.useState(false);
-  var busy = busyPair[0];
-  var setBusy = busyPair[1];
   var canClaim = !!props.onClaim && TK_vCanClaim(task);
   return (
     <span className="tk-unassigned">
       <span className={props.compact ? "tk-sr" : "tk-muted"}>Unassigned</span>
-      {canClaim ? (
-        <button
-          type="button"
-          className="tk-tool-btn tk-claim-btn"
-          data-tour={props.tour || undefined}
-          disabled={busy}
-          aria-label={"Claim " + (task.text || "this task")}
-          onClick={function (e) {
-            e.stopPropagation();
-            setBusy(true);
-            Promise.resolve(props.onClaim(task)).then(
-              function () { setBusy(false); },
-              function () { setBusy(false); },
-            );
-          }}
-        >
-          {busy ? "Claiming…" : "Claim"}
-        </button>
-      ) : null}
+      {canClaim ? <TK_vAssignMenu task={task} tour={props.tour} /> : null}
     </span>
   );
 }
@@ -1456,7 +1528,7 @@ function TK_vRowMore(props) {
   };
   var items = [{ key: "open", label: "Open", run: props.onOpen }];
   if (props.allowDone) items.push({ key: "done", label: props.done ? "Mark not done" : "Mark done", run: function () { props.onToggleDone(task); } });
-  if (props.canClaim) items.push({ key: "claim", label: "Claim", run: function () { props.onClaim(task); } });
+  if (props.canClaim) items.push({ key: "claim", label: "Assign to me", run: function () { props.onClaim(task); } });
   items.push({ key: "link", label: "Copy link", run: copy });
   return (
     <span className="tk-pop-wrap tk-more-wrap">

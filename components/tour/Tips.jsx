@@ -498,7 +498,7 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
     target: "tk-claim",
     snug: true,
-    text: "Nobody is on this task yet. Claim takes it: it moves into your groups and the team sees your name on it.",
+    text: "Nobody is on this task yet. Assign opens a list of people: pick yourself and it moves into your groups, or pick a teammate to hand it to them.",
     slug: "my-tasks",
     ready: () => !!document.querySelector('[data-tour="tk-claim"]'),
   },

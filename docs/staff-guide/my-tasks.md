@@ -16,7 +16,7 @@ A task is yours when it's assigned to you. A task you give someone else shows on
 - **This week**: due in the next 7 days.
 - **Later**: due after that, or with no due date.
 - **Waiting on client**: tasks paused with the **Waiting on client** status. They never count as late, whatever the date. **Slate › Waiting on client** in the sidebar lists every open client request, longest wait first; see [How do I ask a client something from a task?](#/help/ask-client).
-- **Unassigned**: open tasks on your clients that nobody is on yet (see below). Click **Claim** to take one.
+- **Unassigned**: open tasks on your clients that nobody is on yet (see below). Click **Assign** and pick yourself to take one, or pick a teammate.
 - **Done**: finished tasks. It starts folded.
 
 Click a group's heading to fold or open it. The portal remembers which groups you folded. Empty groups don't show.
@@ -29,7 +29,7 @@ Every row shows the same few things, and you can change most of them without ope
 - **Due date**: a chip that is red when the task is overdue, amber when it is due today and plain otherwise. With no date it's a faint calendar icon. Click it to pick **Today**, **Tomorrow**, **Next Monday**, **Pick a date…** or **Clear date**.
 - **Priority**: **High**, **Normal** or **Low**, always shown. Click it to change it.
 - **Status**: the pill on the right, as before.
-- **The ... menu**: hover the row (or tab into it) to show it. It has **Open**, **Mark done**, **Claim** (when the task is unassigned) and **Copy link**. On a phone it's always visible.
+- **The ... menu**: hover the row (or tab into it) to show it. It has **Open**, **Mark done**, **Assign to me** (when the task is unassigned) and **Copy link**. On a phone it's always visible.
 
 Each picker is a small menu: arrow keys move, **Enter** picks, **Esc** closes. If you can't edit a task (view-only, or it's waiting for review), the cells are plain text. The list keys (**j**, **k**, **x**, **s**, **a**) work as before.
 
@@ -44,7 +44,7 @@ The toolbar has **Add task**, a client filter (**All clients**, or one client), 
 Some tasks have nobody on them: tasks brought over from Asana without an owner, and recurring tasks whose template says **Leave unassigned**. They show as **Unassigned** wherever the person's name would be.
 
 - **Slate** has an **Unassigned** group with the open ones on clients you can see. Admins see only the ones on their own clients (where they are the bookkeeper) or ones they made, so the group stays short.
-- Click **Claim** on the row, or in the task's details next to the **Unassigned** chip, to take it. You'll see *It's yours. Find it in Slate.* and it moves into your groups.
+- Click **Assign** on the row and pick yourself to take it (or pick a teammate to hand it to them). In the task's details, use the **Assignee** dropdown. You'll see *It's yours. Find it in Slate.* and it moves into your groups.
 - If someone claimed it a moment before you, you'll see *Someone already took this task.*
 - Admins can also pick a person in the task's details instead of claiming it.
 - An unassigned task never counts as anyone's overdue, and it isn't in anyone's performance score, on-time or review numbers, or weekly digest until someone claims it. Time off hand-off leaves it alone, and when you tick off a recurring unassigned task the next one stays unassigned too.
