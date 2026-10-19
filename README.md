@@ -2035,7 +2035,7 @@ Team Reviews files.
     hover and focus; the messages icon opens the chat drawer (`mgb:open-chat`), mentions dispatch
     `tb:open-bell` (`TB_Bell` publishes `window.TB_bellMentions` and `tb:bell-mentions`), reviews and
     files open the Inbox on that chip. The foot reuses `TB_QuickAdd` with `variant="rail"`; the top
-    bar + stays. `SI_ChatLauncher` is hidden while `WB_useDeskLive` is true.
+    bar + stays. `SI_ChatLauncher` is hidden while `WB_useDeskLive` is true (Desk on and not the phone sheet: phones have no rail, so the bubble stays there, lifted above the info bar).
   - **Info bar:** `button.wb-bar.wb-infobar`, 42px, from `--wb-bar-left` to `--desk-occupy-any`: late
     and `N of M today` (`WB_barProgress`, done count from `WB_doneToday` over the Slate store, null
     until a mine list loads), next task, the page client's open / waiting / QBO sync line

@@ -51,7 +51,7 @@ The Desk has three parts:
 - **The rail**, a slim strip on the right while the Desk is closed. It shows four counts only: **messages**, **reviews**, **files** and **mentions**. Point at one (or Tab to it) to see the latest few. Click it to open them: **messages** opens the chat drawer (on a client's page, already on that client), **mentions** opens the bell menu, and **reviews** and **files** open the Desk's Inbox on that filter. Up and down arrows move between the icons and **Enter** opens one. The **+** at the foot is the same quick add as the **+** in the top bar.
 - **The column**: click the bar, click the rail or press **D**, and the rail widens into the Desk, in the same color as the left menu. Its **Inbox** tab has filters (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the Needs you list on Today. **Open Today** goes to Today. **D** closes it, and so does **Esc** while you're working inside it; it goes back to the rail and you're back where you were.
 
-**The chat bubble steps aside while the Desk is on.** The rail's messages icon opens the same chat drawer.
+**The chat bubble steps aside while the Desk is on** (on a computer). The rail's messages icon opens the same chat drawer. On a phone the bubble stays, just above the bar.
 
 **The page keeps working while the Desk is open.** Nothing is dimmed. On a wide window the column sits beside the page and pushes it over, so nothing is hidden; on a window narrower than about 1100 pixels it sits over the right side of the page instead. Either way you can scroll the page, click on it and use its shortcuts (like **q** for quick add, or **j** and **k** on a list) with the Desk still open. The top bar always runs the full width.
 

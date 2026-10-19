@@ -13,7 +13,7 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 
 - **A rail and a column.** While closed, the Desk is a slim rail on the right with four counts: messages, reviews, files and mentions. Point at one for the latest few; click to open. Press **D**, or click the rail or the bar, and it widens into the Desk beside the page. Drag its left edge to make it wider or narrower; it remembers your width. **Esc** goes back to the rail.
 - **An info bar along the bottom.** It shows what's late, how many of today's tasks you've done, your next task and, on a client's pages, that client's open tasks, waiting tasks and QuickBooks sync. **Clean slate** when there's nothing late or due.
-- **No chat bubble while the Desk is on.** The rail's messages icon opens the same chat drawer. On a phone the Desk still opens full screen from the bar. A short tour comes with it; rerun it from **?** → **New: The Desk moves to the right tour**. See [How do I use the Desk?](#/help/workbench).
+- **No chat bubble while the Desk is on** (on a computer). The rail's messages icon opens the same chat drawer. On a phone the bubble stays and the Desk still opens full screen from the bar. A short tour comes with it; rerun it from **?** → **New: The Desk moves to the right tour**. See [How do I use the Desk?](#/help/workbench).
 
 ### 2026-10-19: Settings and Sign out are only at the top right
 

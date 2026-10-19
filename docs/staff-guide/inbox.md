@@ -70,7 +70,7 @@ Any section with nothing to show (or that you can't see) is left out.
 
 ### Chat from any page
 
-The chat button at the bottom right, or **+** → **Message** in the top bar on a client page, opens a small chat drawer without leaving the page you're on. Press **Esc** or click outside it to close.
+The chat button at the bottom right (once the Desk is on, the messages icon on the Desk's rail on a computer), or **+** → **Message** in the top bar on a client page, opens a small chat drawer without leaving the page you're on. Press **Esc** or click outside it to close.
 
 ### What the client sees on their Messages page
 

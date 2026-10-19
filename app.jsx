@@ -29409,8 +29409,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       enabled: staffClientTabs,
     });
   // Is the Desk live for me right now (components/workbench/WB_Drawer.jsx)?
-  // While it is, the floating chat bubble steps aside: the Desk rail's
-  // messages icon opens the same chat drawer (Desk spec decision 20).
+  // While it is (on a computer: phones have no rail), the floating chat
+  // bubble steps aside: the Desk rail's messages icon opens the same chat
+  // drawer (Desk spec decision 20).
   const wbDeskMounts = !!(
     staffUser &&
     typeof WB_deskMounts === "function" &&

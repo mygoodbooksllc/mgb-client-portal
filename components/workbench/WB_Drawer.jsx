@@ -70,10 +70,13 @@ function WB_useDeskMode() {
   return mode;
 }
 
-// app.jsx: is the Desk live for this person right now? (mounts is
-// WB_deskMounts(...)). Hides the floating chat bubble while it is. Re-renders
+// app.jsx: is the Desk live for this person right now, with its rail showing?
+// (mounts is WB_deskMounts(...)). Hides the floating chat bubble while it is.
+// Phones (the sheet, 760px and under) have no rail and so no messages icon,
+// so the bubble stays there, lifted above the info bar (WB.css). Re-renders
 // only when the answer changes.
 function WB_useDeskLive(mounts) {
+  const mode = WB_useDeskMode();
   const read = () => {
     if (!mounts || typeof WB_store === "undefined") return false;
     const st = WB_store.getState();
@@ -95,7 +98,7 @@ function WB_useDeskLive(mounts) {
     on();
     return WB_store.subscribe(on);
   }, [mounts]);
-  return live;
+  return live && mode === "dock";
 }
 
 // The bell's mentions (TB_Bell publishes them on window, TopBar.jsx).
@@ -249,6 +252,7 @@ function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
   const ref = React.useRef(null);
   const items = () => Array.prototype.slice.call((ref.current && ref.current.querySelectorAll("[data-wb-rail]")) || []);
   const onKeyDown = (e) => {
+    if (e.defaultPrevented) return; // the open + menu already moved focus
     const t = e.target;
     try {
       if (t && t.closest && t.closest('[role="menu"]')) return; // the + menu moves its own focus

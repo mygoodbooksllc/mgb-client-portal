@@ -603,7 +603,10 @@ html.wb-drawer-on .wb-undo {
 html.wb-desk-side .wb-undo {
   left: calc(var(--wb-bar-left, 0px) + (100vw - var(--wb-bar-left, 0px) - var(--desk-cover)) / 2);
 }
-/* The client side's chat button (never on a staff page with the Desk). */
+/* The chat buttons sit above the info bar: the staff bubble shows with the
+   Desk on only on a phone (no rail there; WB_useDeskLive), the client side's
+   never on a staff page with the Desk. */
+html.wb-drawer-on .si-launcher,
 html.wb-drawer-on .chat-fab-wrap {
   bottom: calc(16px + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
 }
@@ -999,6 +1002,15 @@ html.wb-desk-dragging .wb-panel {
   -webkit-backdrop-filter: blur(var(--desk-glass-blur)) saturate(var(--desk-glass-sat));
   backdrop-filter: blur(var(--desk-glass-blur)) saturate(var(--desk-glass-sat));
   box-shadow: var(--desk-glass-shadow);
+}
+/* The right column: the glass shadow above was the bottom panel's (it cast
+   upward and drew a light top line). Pushed, the column sits beside the page
+   and needs none; over the page it casts to the left. */
+.wb-panel.wb-glass.is-right {
+  box-shadow: none;
+}
+.wb-panel.wb-glass.is-right.is-overlay {
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.18);
 }
 /* Inner layer: rows, the quick add and the picker input sit on a lighter
    layer so text keeps 4.5:1 over a busy page. */
