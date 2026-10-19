@@ -14628,7 +14628,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                             <span className="staff-self-note">—</span>
                           )
                         ) : row.role === "admin" ? (
-                          <span className="staff-self-note">N/A (admin)</span>
+                          <span className="staff-self-note">—</span>
                         ) : (
                           <div className="staff-temp-access-cell" data-tour="members-temp">
                             {tempActive ? (
