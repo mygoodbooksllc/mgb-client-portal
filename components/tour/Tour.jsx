@@ -918,7 +918,10 @@ function TOUR_hasPlace(place, ctx) {
 // the tab row uses); a step that needs a real admin also checks ctx.isAdmin.
 function TOUR_hasTab(place, tab, ctx) {
   if (typeof NAV_visibleTabs !== "function" || !TOUR_hasPlace(place, ctx)) return false;
-  return NAV_visibleTabs(place, { isAdmin: !!(ctx && ctx.showsAdminPages) }).some((t) => t.key === tab);
+  return NAV_visibleTabs(place, {
+    isAdmin: !!(ctx && ctx.showsAdminPages),
+    isRealAdmin: !!(ctx && ctx.isAdmin && !ctx.impersonating),
+  }).some((t) => t.key === tab);
 }
 
 function TOUR_go(place, tab) {

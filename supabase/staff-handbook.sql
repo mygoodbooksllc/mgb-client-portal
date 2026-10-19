@@ -4,7 +4,9 @@
 --
 -- Later changes: supabase/staff-handbook-2-admin.sql redefines hb_publish_version
 -- (refuses identical text) and hb_status (adds `unfiled` for admins). If you
--- re-run this file, run that one right after it.
+-- re-run this file, run that one right after it, then
+-- supabase/staff-handbook-3-kinds.sql (policy kinds and drafts), which
+-- redefines most hb_* functions and the read policies again.
 --
 -- Depends on (checked against the live database 2026-10-13):
 --   * public.staff (id, email unique + lower-case @mygoodbooks.org, name,

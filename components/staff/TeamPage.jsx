@@ -525,7 +525,8 @@ const TP_roleLabel = (role) =>
 // The tabs come from NAV_PLACES ("team" in StaffNav.jsx): People, Reviews and
 // Onboarding for everyone; Hours, Reply times, Feedback and Members for
 // admins (isAdmin includes a temporary admin grant; isRealAdmin is the staff
-// row's role, which the database checks). The open tab lives in the hash
+// row's role, which the database checks); Employee records for real admins
+// only (HR_RecordsTab, components/hr/). The open tab lives in the hash
 // (#/team/<tab>) through NAV_useHashSub, so a deep link opens the right tab,
 // a tab click is not a history entry, and a bookkeeper's link to an admin tab
 // falls back to People. `tab` is App's hint for a legacy route (an old
@@ -572,7 +573,7 @@ function TP_TabBadge({ n, label }) {
 function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembers }) {
   const admin = !!isAdmin;
   const realAdmin = isRealAdmin != null ? !!isRealAdmin : !!(staffUser && staffUser.role === "admin");
-  const tabs = NAV_visibleTabs("team", { isAdmin: admin });
+  const tabs = NAV_visibleTabs("team", { isAdmin: admin, isRealAdmin: realAdmin });
   const keys = tabs.map((t) => t.key);
   const [current, setTab] = NAV_useHashSub("team", keys, "people");
 
@@ -617,6 +618,8 @@ function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembe
   else if (current === "ledger")
     body = typeof LR_SettingsPanel === "function" ? <LR_SettingsPanel staffUser={staffUser} isAdmin={realAdmin} /> : missing("Ledger review");
   else if (current === "members") body = typeof renderMembers === "function" ? renderMembers() : missing("Members");
+  else if (current === "employees")
+    body = typeof HR_RecordsTab === "function" && realAdmin ? <HR_RecordsTab staffUser={staffUser} /> : missing("Employee records");
 
   // App's page header already shows "Team" and its subtitle (PAGE_META), so
   // the hub starts at the tab row.

@@ -248,6 +248,50 @@ Convert the current Google Doc to markdown and seed it as v1 of `flexible-work-s
 
 ---
 
+## Part K — Policy kinds and drafts
+
+Added 2026-10-19. SQL: `supabase/staff-handbook-3-kinds.sql` (run after `staff-handbook-2-admin.sql`; it redefines `hb_status`, `hb_publish_version`, `hb_sign`, `hb_countersign`, `hb_retry_export`, `hb_get_policy` and `hb_signature_doc`). Checks: `supabase/staff-handbook-3-kinds-tests.sql` (one transaction, ends in ROLLBACK). Front end: `HB_logic.js` (pure rules, node test `HB_logic.test.js`), `HB_HandbookTab.jsx`, `HB_PolicyView.jsx`, `HB_Admin.jsx`.
+
+**Columns on `handbook_policies`:**
+- `kind`: `signed` or `reference`. Existing policies are backfilled to `signed`. The seeded `flexible-work-sla` stays signed and published, unchanged.
+- `status`: `draft` or `published`. Existing policies are `published`.
+- `section`: optional, up to 80 characters. Used to group reference policies.
+- `published_at`.
+
+**Reference policies:**
+- Read-only and versioned, like any policy.
+- No sign panel, status grid row, nudges, Today items, badge or emails. Not part of the signing state (`hb_state`).
+- Every version is a minor edit. The rule "version 1 needs re-signing" is relaxed for reference only. A trigger refuses `requires_resign` on a reference version.
+- The server refuses reference policies in `hb_sign`, `hb_countersign`, `hb_retry_export` and the PDF export (`hb_signature_doc`). A trigger on `handbook_signatures` refuses them too.
+
+**Drafts:**
+- Visible to admins only, in `hb_status`, `hb_get_policy` and RLS on `handbook_policies` / `handbook_versions`.
+- A draft never reaches Today, the badge, the grid, the countersign queue or email.
+- An admin can save new draft text with **Edit text**. Draft versions don't email anyone.
+
+**Admin RPCs** (all admin-only and audited):
+
+| RPC | Does | Audit |
+|---|---|---|
+| `hb_create_policy(title, slug, kind, section, body_md)` | Creates a draft with version 1. The slug matches `^[a-z0-9][a-z0-9-]{1,80}$` and is unique. Never emails. | `handbook.policy_created` |
+| `hb_publish_policy(policy_id)` | Draft → published. A signed policy emails each active bookkeeper once (7 days to sign). A reference policy emails nobody. | `handbook.policy_published` |
+| `hb_update_policy(policy_id, title, section, sort)` | Changes the title, section and list order. The slug never changes. A null sort keeps the current one. | `handbook.policy_updated` |
+| `hb_convert_to_signed(policy_id, body_md, change_note, confirm)` | Reference → signed. Needs `confirm = true` and a change note. Publishes a new version that needs re-signing (the current text when `body_md` is empty). Emails only when the policy is already published. | `handbook.policy_converted` |
+
+**Kind changes:**
+- Reference → signed only through `hb_convert_to_signed`, enforced by a guard trigger.
+- Signed → reference is refused, and so is published → draft.
+
+**List:**
+- "Policies to sign" (signed and published) comes first.
+- Reference policies follow, grouped by section, A to Z, with "General" for those without a section, last.
+- "Drafts" (admins only) comes at the end.
+- Client-side search covers title, section and slug.
+
+**Second lock.** The front end filters reference policies and drafts out of Today, the badge and the grid (`HB_todayItems`, `HB_badgeCount`, `HB_gridPolicies`) even though the server already leaves them out.
+
+---
+
 ## Critique log
 
 **Opus critique, 2026-10-13. All findings were accepted.**

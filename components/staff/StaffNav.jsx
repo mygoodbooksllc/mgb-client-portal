@@ -97,6 +97,16 @@ const NAV_PLACES = [
       { key: "inventory", label: "Inventory", help: "tech-inventory", visible: () => typeof TI_TechTab === "function" },
       { key: "ledger", label: "Ledger review", help: "ledger-review", admin: true, visible: () => typeof LR_SettingsPanel === "function" },
       { key: "members", label: "Members", help: "staff-management", admin: true },
+      // Employee records (components/hr/): real admins only, never a
+      // temporary admin grant or "View as" (the RPCs refuse them too).
+      {
+        key: "employees",
+        label: "Employee records",
+        help: "employee-records",
+        admin: true,
+        realAdmin: true,
+        visible: () => typeof HR_RecordsTab === "function",
+      },
     ],
   },
   // MGB (internal): MyGoodBooks' own books, files and close, in the same
@@ -118,18 +128,20 @@ const NAV_PLACES = [
 const NAV_PLACE_BY_KEY = Object.fromEntries(NAV_PLACES.map((p) => [p.key, p]));
 const NAV_PLACE_BY_SLUG = Object.fromEntries(NAV_PLACES.map((p) => [p.slug, p]));
 
-// ctx: { role, isAdmin (admin or temporary admin), impersonating, canViewInternal }.
+// ctx: { role, isAdmin (admin or temporary admin), isRealAdmin (role admin,
+// not in "View as"), impersonating, canViewInternal }.
 function NAV_visiblePlaces(ctx) {
   const c = ctx || {};
   return NAV_PLACES.filter((p) => !p.visible || p.visible(c));
 }
 
-// A place's tabs the viewer can open, in order. Admin tabs need ctx.isAdmin.
+// A place's tabs the viewer can open, in order. Admin tabs need ctx.isAdmin;
+// realAdmin tabs also need ctx.isRealAdmin.
 function NAV_visibleTabs(place, ctx) {
   const p = typeof place === "string" ? NAV_PLACE_BY_KEY[place] : place;
   const c = ctx || {};
   if (!p || !p.tabs) return [];
-  return p.tabs.filter((t) => (!t.admin || c.isAdmin) && (!t.visible || t.visible(c)));
+  return p.tabs.filter((t) => (!t.admin || c.isAdmin) && (!t.realAdmin || c.isRealAdmin) && (!t.visible || t.visible(c)));
 }
 
 function NAV_isPlace(key) {

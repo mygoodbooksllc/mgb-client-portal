@@ -6,11 +6,25 @@
 //                                    each with Retry filing (hb_retry_export).
 //   HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel })
 //                                    the "Publish new version" editor in the
-//                                    policy view (latest version only).
+//                                    policy view (latest version only). On a
+//                                    reference policy or a draft there is no
+//                                    kind of change to pick (see below).
+//   HB_NewPolicy({ policies, bookkeeperCount, onCancel, onCreated })
+//                                    Team › Handbook › New policy: title, link
+//                                    name, kind, section, first text. Always
+//                                    creates a draft (hb_create_policy).
+//   HB_DraftBar({ policy, bookkeeperCount, onDone })
+//                                    the draft banner with Publish
+//                                    (hb_publish_policy).
+//   HB_DetailsEditor({ policy, sections, onCancel, onDone })
+//                                    title, section, order (hb_update_policy).
+//   HB_ConvertCard({ policy, bookkeeperCount, onCancel, onDone })
+//                                    reference -> signed, with an explicit
+//                                    confirm (hb_convert_to_signed).
 //
 // Only shown to admins; the database checks admin on every call anyway
-// (hb_status returns grid / unfiled only for admins, hb_publish_version and
-// hb_retry_export refuse anyone else).
+// (hb_status returns grid / unfiled / drafts only for admins; every hb_*
+// write RPC refuses anyone else).
 //
 // Name care: HoursBudget.jsx owns HB_Cell / HB_Bar / .hb-over / .hb-tag, so
 // this file uses HB_GridCell and .hb-gc-* / .hb-pub-* classes.
@@ -39,7 +53,8 @@ function HB_GridCell({ g }) {
 
 function HB_StatusGrid({ status }) {
   const people = (status && status.bookkeepers) || [];
-  const policies = (status && status.policies) || [];
+  // Signing policies only: reference policies and drafts have no signatures.
+  const policies = HB_gridPolicies((status && status.policies) || []);
   const grid = (status && status.grid) || [];
   if (!policies.length) return null;
   const at = {};
@@ -187,11 +202,19 @@ function HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel }
   const [base] = React.useState(() => ({ no: (version && version.version_no) || 0, body: (version && version.body_md) || "" }));
   const original = base.body;
   const first = base.no === 0; // version 1 always needs signing (the server forces it)
+  // No kind to pick on a reference policy (never signed) or a draft (nobody
+  // has signed it yet). A signed draft's new text is the version everyone
+  // signs at publish, so it is saved as one that needs signing (no email
+  // while it's a draft).
+  const reference = HB_kindOf(policy) === "reference";
+  const unpublished = HB_isDraft(policy);
+  const fixedKind = reference ? "minor" : unpublished ? "resign" : "";
   const key = HB_draftKey(policy, base.no);
   const [draft] = React.useState(() => HB_draftLoad(key));
   const [body, setBody] = React.useState(draft ? draft.body : original);
   const [note, setNote] = React.useState(draft && typeof draft.note === "string" ? draft.note : "");
-  const [kind, setKind] = React.useState(first ? "resign" : draft && (draft.kind === "resign" || draft.kind === "minor") ? draft.kind : ""); // "resign" | "minor"
+  const [kindPick, setKind] = React.useState(first ? "resign" : draft && (draft.kind === "resign" || draft.kind === "minor") ? draft.kind : ""); // "resign" | "minor"
+  const kind = fixedKind || kindPick;
   const [confirming, setConfirming] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -199,8 +222,8 @@ function HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel }
   const stale = ((version && version.version_no) || 0) !== base.no;
 
   React.useEffect(() => {
-    HB_draftSave(key, dirty || note.trim() ? { body, note, kind } : null);
-  }, [key, body, note, kind, dirty]);
+    HB_draftSave(key, dirty || note.trim() ? { body, note, kind: kindPick } : null);
+  }, [key, body, note, kindPick, dirty]);
 
   React.useEffect(() => {
     if (!dirty) return undefined;
@@ -233,10 +256,16 @@ function HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel }
       const r = await HB_api.publish(policy.id, body, kind === "resign", note.trim());
       const n = Number(r && r.notified) || 0;
       toast(
-        "Version " +
-          ((r && r.version_no) || nextNo) +
-          " published." +
-          (r && r.requires_resign ? " " + n + (n === 1 ? " bookkeeper was" : " bookkeepers were") + " asked to re-sign." : " Nobody needs to re-sign."),
+        unpublished
+          ? "Version " + ((r && r.version_no) || nextNo) + " saved. It's still a draft."
+          : "Version " +
+              ((r && r.version_no) || nextNo) +
+              " published." +
+              (r && r.requires_resign
+                ? " " + n + (n === 1 ? " bookkeeper was" : " bookkeepers were") + " asked to re-sign."
+                : reference
+                  ? ""
+                  : " Nobody needs to re-sign."),
       );
       HB_draftSave(key, null);
       HB_changed();
@@ -259,15 +288,17 @@ function HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel }
     <section className="card hb-pub" aria-labelledby="hb-pub-title">
       <div className="hb-row-head">
         <h3 className="card-title" id="hb-pub-title">
-          Publish version {nextNo}
+          {unpublished ? "Edit text (version " + nextNo + ")" : "Publish version " + nextNo}
         </h3>
         <button type="button" className="link-btn" onClick={cancel}>
           Cancel
         </button>
       </div>
       <p className="hb-muted">
-        Edit the text in Markdown. Keep {"{{effective_date}}"} and {"{{employee_name}}"} where the signing date and the signer's name go. Published versions can't be changed
-        later.
+        {reference
+          ? "Edit the text in Markdown. This is a reference policy: nobody signs it and nobody is emailed. Versions can't be changed later."
+          : 'Edit the text in Markdown. Keep {{effective_date}} and {{employee_name}} where the signing date and the signer\'s name go. Versions can\'t be changed later.'}
+        {unpublished ? " It's a draft, so only admins see this text until you publish the policy." : ""}
       </p>
       {draft && !stale && (
         <p className="hb-muted" role="status">
@@ -321,6 +352,7 @@ function HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel }
         }}
       />
 
+      {!fixedKind && (
       <fieldset className="hb-pub-kind">
         <legend className="hb-label">Kind of change</legend>
         <label className="hb-check">
@@ -354,18 +386,23 @@ function HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel }
           </span>
         </label>
       </fieldset>
+      )}
 
       {!confirming ? (
         <div className="hb-actions">
           <button type="button" className="btn-primary" disabled={!!problem} onClick={() => setConfirming(true)}>
-            Publish version {nextNo}
+            {unpublished ? "Save version " + nextNo : "Publish version " + nextNo}
           </button>
           {problem && <span className="hb-muted">{problem}</span>}
         </div>
       ) : (
         <div className="hb-banner warm hb-pub-confirm" role="alert">
           <p>
-            {kind === "resign"
+            {unpublished
+              ? "Save version " + nextNo + " of the draft? Nobody is emailed."
+              : reference
+                ? "Publish version " + nextNo + "? Everyone sees the new text. Nobody is emailed."
+                : kind === "resign"
               ? "Publish version " +
                 nextNo +
                 " and ask " +
@@ -375,6 +412,296 @@ function HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel }
           </p>
           <div className="hb-actions">
             <button type="button" className="btn-primary" disabled={busy || stale} onClick={publish}>
+              {busy ? (unpublished ? "Saving…" : "Publishing…") : unpublished ? "Yes, save" : "Yes, publish"}
+            </button>
+            <button type="button" className="btn-secondary" disabled={busy} onClick={() => setConfirming(false)}>
+              Back
+            </button>
+          </div>
+        </div>
+      )}
+      <HB_Error text={error} />
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// New policy (Team › Handbook › New policy). Always saves a draft: nothing is
+// emailed and nothing reaches Today or the badge until Publish (HB_DraftBar).
+// The link name follows the title until it's edited by hand. Unsaved input is
+// kept in sessionStorage like the publish editor's.
+// ---------------------------------------------------------------------------
+const HB_NEW_KEY = "mgb.hb.new";
+
+function HB_NewPolicy({ policies, onCancel, onCreated }) {
+  const toast = HB_useToastSafe();
+  const [saved] = React.useState(() => HB_draftLoad(HB_NEW_KEY));
+  const s0 = saved || {};
+  const [title, setTitle] = React.useState(s0.title || "");
+  const [slug, setSlug] = React.useState(s0.slug || "");
+  const [slugEdited, setSlugEdited] = React.useState(!!s0.slugEdited);
+  const [kind, setKind] = React.useState(s0.kind === "signed" ? "signed" : "reference");
+  const [section, setSection] = React.useState(s0.section || "");
+  const [body, setBody] = React.useState(typeof s0.body === "string" ? s0.body : "");
+  const [tried, setTried] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+  const autoSlug = HB_slugify(title);
+  const linkName = slugEdited ? slug : autoSlug;
+  const taken = (policies || []).map((p) => p.slug);
+  const sections = HB_sections(policies);
+  const dirty = !!(title.trim() || body.trim() || section.trim());
+
+  React.useEffect(() => {
+    HB_draftSave(HB_NEW_KEY, dirty ? { title, slug, slugEdited, kind, section, body } : null);
+  }, [title, slug, slugEdited, kind, section, body, dirty]);
+
+  React.useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  const titleProblem = !title.trim() ? "Add a title." : title.trim().length > 200 ? "Keep the title under 200 characters." : "";
+  const slugProblem = HB_slugProblem(linkName, taken);
+  const sectionProblem = section.trim().length > 80 ? "Keep the section under 80 characters." : "";
+  const bodyProblem = !body.trim() ? "Add the policy text." : "";
+  const problem = titleProblem || slugProblem || sectionProblem || bodyProblem;
+
+  const create = async () => {
+    setTried(true);
+    setError("");
+    if (problem || busy) return;
+    setBusy(true);
+    try {
+      const r = await HB_api.createPolicy({ title: title.trim(), slug: linkName, kind, section: section.trim(), body });
+      HB_draftSave(HB_NEW_KEY, null);
+      toast("Draft saved. Only admins can see it until you publish it.");
+      HB_changed();
+      if (typeof onCreated === "function") onCreated((r && r.slug) || linkName);
+    } catch (e) {
+      setError(HB_errText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancel = () => {
+    if (dirty && !window.confirm("Discard this new policy?")) return;
+    HB_draftSave(HB_NEW_KEY, null);
+    if (typeof onCancel === "function") onCancel();
+  };
+
+  return (
+    <div className="hb-view">
+      <button type="button" className="link-btn hb-back" onClick={cancel}>
+        ← All policies
+      </button>
+      <section className="card hb-pub hb-new" aria-labelledby="hb-new-title">
+        <div className="hb-row-head">
+          <h3 className="card-title" id="hb-new-title">
+            New policy
+          </h3>
+          <button type="button" className="link-btn" onClick={cancel}>
+            Cancel
+          </button>
+        </div>
+        <p className="hb-muted">
+          It's saved as a draft. Only admins see a draft, and nobody is emailed until you publish it.
+          {saved ? " Your unsaved input from earlier was restored." : ""}
+        </p>
+
+        <label className="hb-label" htmlFor="hb-new-name">
+          Title
+        </label>
+        <input id="hb-new-name" className="hb-inp" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
+        {tried && titleProblem && (
+          <span className="hb-field-error" role="alert">
+            {titleProblem}
+          </span>
+        )}
+
+        <label className="hb-label" htmlFor="hb-new-slug">
+          Link name
+        </label>
+        <input
+          id="hb-new-slug"
+          className="hb-inp"
+          value={linkName}
+          maxLength={81}
+          spellCheck="false"
+          autoComplete="off"
+          aria-describedby="hb-new-slug-hint"
+          onChange={(e) => {
+            setSlugEdited(true);
+            setSlug(e.target.value.toLowerCase());
+          }}
+        />
+        <p className="hb-muted hb-hint" id="hb-new-slug-hint">
+          The policy's address: {HB_policyHash(linkName || "…")}. It can't change after the policy is created.
+          {slugEdited && autoSlug && linkName !== autoSlug && (
+            <>
+              {" "}
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => {
+                  setSlugEdited(false);
+                  setSlug("");
+                }}
+              >
+                Use the title
+              </button>
+            </>
+          )}
+        </p>
+        {(tried || slugEdited) && linkName && slugProblem && (
+          <span className="hb-field-error" role="alert">
+            {slugProblem}
+          </span>
+        )}
+        {tried && !linkName && (
+          <span className="hb-field-error" role="alert">
+            {slugProblem}
+          </span>
+        )}
+
+        <fieldset className="hb-pub-kind">
+          <legend className="hb-label">Kind</legend>
+          <label className="hb-check">
+            <input type="radio" name="hb-new-kind" checked={kind === "reference"} onChange={() => setKind("reference")} />
+            <span>
+              <strong>Reference.</strong> Everyone can read it. Nobody signs it, and nobody is emailed when it changes.
+            </span>
+          </label>
+          <label className="hb-check">
+            <input type="radio" name="hb-new-kind" checked={kind === "signed"} onChange={() => setKind("signed")} />
+            <span>
+              <strong>Signed.</strong> When you publish it, every bookkeeper gets one email, a Today item and a badge, and has 7 days to sign. The firm countersigns.
+            </span>
+          </label>
+        </fieldset>
+
+        <label className="hb-label" htmlFor="hb-new-section">
+          Section <span className="hb-muted">(optional)</span>
+        </label>
+        <input
+          id="hb-new-section"
+          className="hb-inp"
+          value={section}
+          maxLength={80}
+          list="hb-new-sections"
+          placeholder="For example: Time off"
+          onChange={(e) => setSection(e.target.value)}
+        />
+        <datalist id="hb-new-sections">
+          {sections.map((x) => (
+            <option key={x} value={x} />
+          ))}
+        </datalist>
+        <p className="hb-muted hb-hint">Reference policies are listed under their section. Policies to sign have their own group.</p>
+        {sectionProblem && (
+          <span className="hb-field-error" role="alert">
+            {sectionProblem}
+          </span>
+        )}
+
+        <div className="hb-pub-cols">
+          <div className="hb-pub-col">
+            <label className="hb-label" htmlFor="hb-new-body">
+              Policy text (version 1)
+            </label>
+            <textarea id="hb-new-body" className="hb-inp hb-pub-text" value={body} spellCheck="true" onChange={(e) => setBody(e.target.value)} />
+          </div>
+          <div className="hb-pub-col">
+            <span className="hb-label" id="hb-new-prev-label">
+              Preview
+            </span>
+            <div className="hb-doc hb-pub-preview" aria-labelledby="hb-new-prev-label">
+              {body.trim() ? <HLP_Markdown source={HB_fillPlaceholders(body, null)} /> : <p className="hb-muted">Nothing to preview.</p>}
+            </div>
+          </div>
+        </div>
+        <p className="hb-muted hb-hint">
+          Markdown: # for headings, - for lists, **bold**.
+          {kind === "signed" ? " Use {{effective_date}} and {{employee_name}} where the signing date and the signer's name go." : ""}
+        </p>
+        {tried && bodyProblem && (
+          <span className="hb-field-error" role="alert">
+            {bodyProblem}
+          </span>
+        )}
+
+        <div className="hb-actions">
+          <button type="button" className="btn-primary" disabled={busy} onClick={create}>
+            {busy ? "Saving…" : "Save draft"}
+          </button>
+          <button type="button" className="btn-secondary" disabled={busy} onClick={cancel}>
+            Cancel
+          </button>
+        </div>
+        <HB_Error text={error} />
+      </section>
+    </div>
+  );
+}
+
+// The draft banner in the policy view (admins). Publish asks once more; a
+// signed policy then emails each active bookkeeper (one each), a reference
+// policy emails nobody.
+function HB_DraftBar({ policy, bookkeeperCount, onDone }) {
+  const toast = HB_useToastSafe();
+  const [confirming, setConfirming] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const signed = HB_kindOf(policy) === "signed";
+  const n = bookkeeperCount || 0;
+  const people = n === 1 ? "1 bookkeeper" : n + " bookkeepers";
+
+  const publish = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await HB_api.publishPolicy(policy.id);
+      const sent = Number(r && r.notified) || 0;
+      toast(signed ? "Published. " + sent + (sent === 1 ? " bookkeeper was" : " bookkeepers were") + " asked to sign." : "Published. Everyone can read it now.");
+      HB_changed();
+      if (typeof onDone === "function") onDone(r);
+    } catch (e) {
+      setError(HB_errText(e));
+      setConfirming(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="hb-banner hb-draft-bar" role="status">
+      <div className="hb-cs-line">
+        <span>
+          <strong>Draft.</strong> Only admins can see this policy. Nobody has been emailed.
+        </span>
+        {!confirming && (
+          <button type="button" className="btn-primary" onClick={() => setConfirming(true)}>
+            Publish
+          </button>
+        )}
+      </div>
+      {confirming && (
+        <div className="hb-pub-confirm">
+          <p>
+            {signed
+              ? "Publish it and ask " + people + " to sign? Each gets one email now and has 7 days."
+              : "Publish it for everyone to read? Nobody is emailed and nobody signs it."}
+          </p>
+          <div className="hb-actions">
+            <button type="button" className="btn-primary" disabled={busy} onClick={publish}>
               {busy ? "Publishing…" : "Yes, publish"}
             </button>
             <button type="button" className="btn-secondary" disabled={busy} onClick={() => setConfirming(false)}>
@@ -383,6 +710,144 @@ function HB_PublishEditor({ policy, version, bookkeeperCount, onDone, onCancel }
           </div>
         </div>
       )}
+      <HB_Error text={error} />
+    </div>
+  );
+}
+
+// Title, section and list order (admins). The link name never changes.
+function HB_DetailsEditor({ policy, sections, onCancel, onDone }) {
+  const toast = HB_useToastSafe();
+  const [title, setTitle] = React.useState(policy.title || "");
+  const [section, setSection] = React.useState(policy.section || "");
+  const [sort, setSort] = React.useState(policy.sort == null ? "" : String(policy.sort));
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const sortOk = sort.trim() === "" || /^-?\d{1,6}$/.test(sort.trim());
+  const problem = !title.trim() ? "Add a title." : !sortOk ? "The order is a whole number." : "";
+
+  const save = async () => {
+    if (problem || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await HB_api.updatePolicy(policy.id, title.trim(), section.trim(), sort.trim());
+      toast("Details saved.");
+      HB_changed();
+      if (typeof onDone === "function") onDone();
+    } catch (e) {
+      setError(HB_errText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="card hb-details" aria-labelledby="hb-details-title">
+      <h3 className="card-title" id="hb-details-title">
+        Edit details
+      </h3>
+      <p className="hb-muted">The link name ({policy.slug}) stays the same so links in emails keep working.</p>
+      <label className="hb-label" htmlFor="hb-det-title">
+        Title
+      </label>
+      <input id="hb-det-title" className="hb-inp" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
+      <label className="hb-label" htmlFor="hb-det-section">
+        Section <span className="hb-muted">(optional)</span>
+      </label>
+      <input id="hb-det-section" className="hb-inp" value={section} maxLength={80} list="hb-det-sections" onChange={(e) => setSection(e.target.value)} />
+      <datalist id="hb-det-sections">
+        {(sections || []).map((x) => (
+          <option key={x} value={x} />
+        ))}
+      </datalist>
+      <label className="hb-label" htmlFor="hb-det-sort">
+        Order <span className="hb-muted">(lower numbers list first)</span>
+      </label>
+      <input id="hb-det-sort" className="hb-inp hb-inp-short" inputMode="numeric" value={sort} onChange={(e) => setSort(e.target.value)} />
+      <div className="hb-actions">
+        <button type="button" className="btn-primary" disabled={busy || !!problem} onClick={save}>
+          {busy ? "Saving…" : "Save details"}
+        </button>
+        <button type="button" className="btn-secondary" disabled={busy} onClick={onCancel}>
+          Cancel
+        </button>
+        {problem && <span className="hb-muted">{problem}</span>}
+      </div>
+      <HB_Error text={error} />
+    </section>
+  );
+}
+
+// Reference -> signed. The only way to start asking for signatures on a
+// reference policy: a change note, a checkbox, then one click. The current
+// text becomes a new version that everyone signs. It can't be undone.
+function HB_ConvertCard({ policy, bookkeeperCount, onCancel, onDone }) {
+  const toast = HB_useToastSafe();
+  const [note, setNote] = React.useState("");
+  const [agree, setAgree] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const draft = HB_isDraft(policy);
+  const n = bookkeeperCount || 0;
+  const people = n === 1 ? "1 bookkeeper" : n + " bookkeepers";
+  const problem = !note.trim() ? "Add a short note that says why it now needs signing." : !agree ? "Check the box to confirm." : "";
+
+  const go = async () => {
+    if (problem || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await HB_api.convertToSigned(policy.id, note.trim());
+      const sent = Number(r && r.notified) || 0;
+      toast(
+        draft
+          ? "It's now a signed policy. Bookkeepers are asked to sign when you publish it."
+          : "It's now a signed policy. " + sent + (sent === 1 ? " bookkeeper was" : " bookkeepers were") + " asked to sign.",
+      );
+      HB_changed();
+      if (typeof onDone === "function") onDone(r);
+    } catch (e) {
+      setError(HB_errText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="card hb-convert" aria-labelledby="hb-convert-title">
+      <h3 className="card-title" id="hb-convert-title">
+        Make this a signed policy
+      </h3>
+      <p className="hb-muted">
+        The current text is published again as a new version that every bookkeeper signs, with the firm's countersignature.
+        {draft ? " It's a draft, so nobody is emailed until you publish it." : " Each active bookkeeper gets one email, a Today item and a badge, and has 7 days to sign."}{" "}
+        A signed policy can't go back to reference.
+      </p>
+      <label className="hb-label" htmlFor="hb-convert-note">
+        Change note
+      </label>
+      <input
+        id="hb-convert-note"
+        className="hb-inp"
+        value={note}
+        maxLength={500}
+        placeholder="Why it now needs signing, in one line"
+        onChange={(e) => setNote(e.target.value)}
+      />
+      <label className="hb-check">
+        <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+        <span>{draft ? "I understand every bookkeeper will need to sign this policy once it's published." : "Ask " + people + " to sign this policy now."}</span>
+      </label>
+      <div className="hb-actions">
+        <button type="button" className="btn-primary" disabled={busy || !!problem} onClick={go}>
+          {busy ? "Working…" : "Make it a signed policy"}
+        </button>
+        <button type="button" className="btn-secondary" disabled={busy} onClick={onCancel}>
+          Cancel
+        </button>
+        {problem && <span className="hb-muted">{problem}</span>}
+      </div>
       <HB_Error text={error} />
     </section>
   );

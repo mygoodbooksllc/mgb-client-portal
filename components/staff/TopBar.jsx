@@ -1678,6 +1678,7 @@ function TB_StaffTopBar({
   const navCtx = {
     role: staffUser.role,
     isAdmin: !!(isAdmin || hasTempAdminAccess),
+    isRealAdmin: isRealAdmin && !impersonating,
     impersonating: !!impersonating,
     canViewInternal: typeof STAFF_canViewInternal === "function" && STAFF_canViewInternal(realStaffUser, impersonating),
   };

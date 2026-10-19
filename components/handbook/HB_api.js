@@ -1,6 +1,7 @@
 // Staff Handbook: data access (spec docs/staff-handbook-spec.md, Part E).
 //
-// Everything is enforced in the database (supabase/staff-handbook.sql): who
+// Everything is enforced in the database (supabase/staff-handbook.sql,
+// staff-handbook-2-admin.sql, staff-handbook-3-kinds.sql): who
 // signs (hb_is_signer: active bookkeepers), who countersigns (the setting),
 // the name match, the acknowledgment text, the immutable versions and the
 // one-time countersign / PDF columns. The UI only mirrors those rules.
@@ -12,7 +13,14 @@
 //   HB_api.setCountersigner(email)          hb_set_countersigner() (admins)
 //   HB_api.publish(policyId, body, resign, note)  hb_publish_version() (admins)
 //   HB_api.retryExport(sigId)               hb_retry_export() (admins)
+//   HB_api.createPolicy({title, slug, kind, section, body})  hb_create_policy() (admins; a draft)
+//   HB_api.publishPolicy(policyId)          hb_publish_policy() (admins; draft -> published)
+//   HB_api.updatePolicy(policyId, title, section, sort)  hb_update_policy() (admins)
+//   HB_api.convertToSigned(policyId, note)  hb_convert_to_signed() (admins; reference -> signed)
 //   HB_downloadPdf(signatureId, filename)   team-reviews download_handbook_pdf
+//
+// Pure rules (kinds, grouping, search, slugs, dates, Today items, the badge)
+// live in HB_logic.js, which loads first.
 //
 // HB_useStatus() is one shared hb_status() request for the tab, the Team tab
 // badge (TeamPage.jsx) and Today (TD_useHandbookItems). HB_changed() refreshes
@@ -70,6 +78,35 @@ const HB_api = {
   retryExport(signatureId) {
     return HB_api.rpc("hb_retry_export", { p_signature_id: signatureId });
   },
+  createPolicy(f) {
+    return HB_api.rpc("hb_create_policy", {
+      p_title: f.title,
+      p_slug: f.slug,
+      p_kind: f.kind,
+      p_section: f.section || null,
+      p_body_md: f.body,
+    });
+  },
+  publishPolicy(policyId) {
+    return HB_api.rpc("hb_publish_policy", { p_policy_id: policyId });
+  },
+  updatePolicy(policyId, title, section, sort) {
+    return HB_api.rpc("hb_update_policy", {
+      p_policy_id: policyId,
+      p_title: title,
+      p_section: section || null,
+      p_sort: sort == null || sort === "" ? null : Number(sort),
+    });
+  },
+  // The current text becomes a new version that everyone signs.
+  convertToSigned(policyId, changeNote) {
+    return HB_api.rpc("hb_convert_to_signed", {
+      p_policy_id: policyId,
+      p_body_md: null,
+      p_change_note: changeNote,
+      p_confirm: true,
+    });
+  },
   // The team-reviews edge function (PDF download). Same call shape as TR_api.call.
   async call(body, wantBlob) {
     const sb = window.mgbSupabase;
@@ -117,32 +154,6 @@ function HB_pdfName(title, versionNo, signedAt) {
   const safe = String(title || "Policy").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
   const day = signedAt ? HB_ymd(signedAt) : "";
   return safe + " v" + (versionNo || "") + (day ? " — " + day : "") + ".pdf";
-}
-
-// ---------------------------------------------------------------------------
-// Dates (America/Chicago, like the server)
-// ---------------------------------------------------------------------------
-function HB_ymd(ts) {
-  try {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ts));
-  } catch (e) {
-    return String(ts || "").slice(0, 10);
-  }
-}
-function HB_fmtDate(ts) {
-  if (!ts) return "";
-  try {
-    return new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Chicago" });
-  } catch (e) {
-    return String(ts).slice(0, 10);
-  }
-}
-// A YYYY-MM-DD due date (no time) → "Oct 20".
-function HB_fmtDay(ymd) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
-  if (!m) return "";
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // ---------------------------------------------------------------------------
@@ -200,45 +211,7 @@ function HB_useStatus() {
   };
 }
 
-// Team tab badge: my unsigned policies, plus signatures I countersign.
-function HB_badgeCount(st) {
-  return (st && Number(st.badge)) || 0;
-}
-
-// Plain items for Today (TD_useHandbookItems). Each: { key, kind, slug,
-// title, detail, overdue, due }. kind: "sign" | "countersign".
-function HB_todayItems(st) {
-  if (!st) return [];
-  const out = [];
-  (st.policies || []).forEach((p) => {
-    const my = p.my;
-    if (!my || (my.state !== "not_signed" && my.state !== "overdue")) return;
-    const v = my.required_version_no || p.required_version_no || p.latest_version_no;
-    out.push({
-      key: "hb-sign-" + p.id,
-      kind: "sign",
-      slug: p.slug,
-      title: "Sign: " + p.title + " v" + p.latest_version_no,
-      detail: my.overdue ? "Overdue" : my.due_date ? "Due " + HB_fmtDay(my.due_date) : "",
-      overdue: !!my.overdue,
-      due: my.due_date || "",
-      versionNo: v,
-    });
-  });
-  (st.to_countersign || []).forEach((q) => {
-    out.push({
-      key: "hb-cs-" + q.signature_id,
-      kind: "countersign",
-      slug: q.policy_slug,
-      title: "Countersign: " + (q.signer_name || "a bookkeeper") + ", " + q.policy_title + " v" + q.version_no,
-      detail: q.signed_at ? "Signed " + HB_fmtDate(q.signed_at) : "",
-      overdue: false,
-      due: "",
-      signatureId: q.signature_id,
-    });
-  });
-  return out;
-}
+// HB_badgeCount and HB_todayItems: HB_logic.js.
 
 // Open a policy (and, from a link, its sign or countersign panel).
 function HB_policyHash(slug, versionNo) {

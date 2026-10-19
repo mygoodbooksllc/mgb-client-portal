@@ -52,6 +52,12 @@ const AL_ACTIONS = {
   "handbook.published": "Handbook version published",
   "handbook.countersigner_changed": "Handbook countersigner changed",
   "handbook.exported": "Handbook signed copy filed or downloaded",
+  "handbook.policy_created": "Handbook policy created (draft)",
+  "handbook.policy_published": "Handbook policy published",
+  "handbook.policy_updated": "Handbook policy details changed",
+  "handbook.policy_converted": "Handbook policy made a signed policy",
+  "hr.record_viewed": "Employee record opened",
+  "hr.record_saved": "Employee record saved",
   "staff_photo.submitted": "Profile photo submitted",
   "staff_photo.replaced": "Profile photo replaced (edited)",
   "staff_photo.restored": "Profile photo restored",
@@ -76,6 +82,7 @@ const AL_ACTION_GROUPS = [
   { value: "view_as.", label: "View as" },
   { value: "portal_preview.", label: "Portal preview" },
   { value: "handbook.", label: "Staff Handbook" },
+  { value: "hr.", label: "Employee records" },
   { value: "staff_photo.", label: "Profile photos" },
   { value: "gl_review.", label: "Ledger review" },
 ];
@@ -123,6 +130,18 @@ function AL_summary(row) {
   if (a.startsWith("view_as.") || a.startsWith("portal_preview.")) return d.name || d.target || "";
   if (a === "handbook.countersigner_changed") return `${d.from || "none"} → ${d.to || "none"}`;
   if (a === "handbook.exported") return d.event === "download" ? "Downloaded" : d.event === "filed" ? "Filed to Drive" : "";
+  if (a === "handbook.policy_created" || a === "handbook.policy_published")
+    return [d.policy, d.kind === "reference" ? "reference" : d.kind === "signed" ? "signed" : "", d.notified ? d.notified + " asked to sign" : ""]
+      .filter(Boolean)
+      .join(" · ");
+  if (a === "handbook.policy_updated")
+    return [d.policy, d.title ? "title" : "", d.section ? "section" : "", d.sort ? "order" : ""].filter(Boolean).join(" · ");
+  if (a === "hr.record_viewed") return [row.target_id, d.has_record === false ? "no record yet" : ""].filter(Boolean).join(" · ");
+  if (a === "hr.record_saved") {
+    const f = Array.isArray(d.fields) ? d.fields : [];
+    const names = f.map((k) => (typeof HR_fieldLabel === "function" ? HR_fieldLabel(k) : k));
+    return [row.target_id, d.created ? "created" : "", names.length ? names.join(", ") : "no changes"].filter(Boolean).join(" · ");
+  }
   if (a.startsWith("handbook."))
     return [d.policy ? `${d.policy}${d.version_no ? " v" + d.version_no : ""}` : "", a === "handbook.published" ? (d.requires_resign ? "needs re-signing" : "minor edit") : "", d.staff_email]
       .filter(Boolean)

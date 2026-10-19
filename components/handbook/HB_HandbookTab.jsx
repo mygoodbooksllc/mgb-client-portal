@@ -10,9 +10,13 @@
 // that policy; this tab claims it with LK_useArrival.
 //
 // List view: the countersigner line (admins), the countersign queue (the
-// countersigner), each policy with my status (bookkeepers), then for admins
-// the status grid and the not-filed list (HB_Admin.jsx). The publish editor
-// lives in the policy view (HB_PolicyView, admins, latest version).
+// countersigner), a search box and (admins) New policy, then the policies
+// grouped (HB_groupPolicies: "Policies to sign", one group per section for
+// reference policies, "Drafts" for admins), each with my status
+// (bookkeepers, signing policies only), then for admins the status grid and
+// the not-filed list (HB_Admin.jsx). The publish editor lives in the policy
+// view (HB_PolicyView, admins, latest version); New policy swaps the list for
+// HB_NewPolicy (HB_Admin.jsx).
 
 function HB_parseRoute() {
   const h = String(window.location.hash || "").split("?")[0];
@@ -45,7 +49,7 @@ function HB_useRoute() {
 }
 
 // Version history for one policy, newest first. Used by HB_PolicyView.
-function HB_VersionHistory({ slug, versions, current, latest, mySigs }) {
+function HB_VersionHistory({ slug, versions, current, latest, mySigs, kind }) {
   if (!versions || !versions.length) return null;
   const signed = new Set((mySigs || []).map((s) => s.version_no));
   return (
@@ -64,7 +68,8 @@ function HB_VersionHistory({ slug, versions, current, latest, mySigs }) {
                   {x.version_no === latest ? " (current)" : ""}
                 </strong>
                 <span className="hb-muted">
-                  {HB_fmtDate(x.published_at)} · {x.requires_resign ? "Needs re-signing" : "Minor edit"}
+                  {HB_fmtDate(x.published_at)}
+                  {x.requires_resign ? " · Needs signing" : kind === "reference" ? "" : " · Minor edit"}
                   {signed.has(x.version_no) ? " · Signed by you" : ""}
                 </span>
                 {x.change_note && <span className="hb-note">{x.change_note}</span>}
@@ -179,8 +184,9 @@ function HB_CountersignerLine({ status }) {
 }
 
 function HB_PolicyRow({ p, isSigner }) {
-  const my = p.my;
-  const pill = isSigner ? HB_statePill(my) : null;
+  const signing = HB_isSigning(p);
+  const my = signing ? p.my : null;
+  const pill = HB_isDraft(p) ? ["Draft", "neutral"] : isSigner && signing ? HB_statePill(my) : null;
   const due =
     isSigner && my && (my.state === "not_signed" || my.state === "overdue") && my.due_date
       ? my.overdue
@@ -193,6 +199,7 @@ function HB_PolicyRow({ p, isSigner }) {
         <span className="hb-list-main">
           <strong>{p.title}</strong>
           <span className="hb-muted">
+            {HB_isDraft(p) ? (HB_kindOf(p) === "signed" ? "To sign · " : "Reference · ") : ""}
             Version {p.latest_version_no}
             {due ? " · " + due : ""}
             {my && my.state === "signed" && my.version_no ? " · You signed v" + my.version_no : ""}
@@ -207,6 +214,12 @@ function HB_PolicyRow({ p, isSigner }) {
 function HB_HandbookTab({ staffUser, isAdmin }) {
   const { data, error } = HB_useStatus();
   const route = HB_useRoute();
+  const [query, setQuery] = React.useState("");
+  const [creating, setCreating] = React.useState(false);
+
+  // Opening a policy, or clicking the Handbook tab again, closes the New
+  // policy form (HB_useRoute hands back a new route object each time).
+  React.useEffect(() => setCreating(false), [route]);
 
   // Deep link: #/team/handbook?item=handbook:<slug>.
   LK_useArrival({ place: "team", tab: "handbook", staff: true, kinds: ["handbook"] }, !!data, (a) => {
@@ -229,6 +242,23 @@ function HB_HandbookTab({ staffUser, isAdmin }) {
   const me = data.me || {};
   const policies = data.policies || [];
   const queue = data.to_countersign || [];
+  const canCreate = !!me.is_admin && typeof HB_NewPolicy === "function";
+
+  if (creating && canCreate)
+    return (
+      <HB_NewPolicy
+        policies={policies}
+        bookkeeperCount={(data.bookkeepers || []).length}
+        onCancel={() => setCreating(false)}
+        onCreated={(slug) => {
+          setCreating(false);
+          HB_goPolicy(slug);
+        }}
+      />
+    );
+
+  const shown = HB_searchPolicies(policies, query);
+  const groups = HB_groupPolicies(shown);
 
   return (
     <div className="hb-tab">
@@ -258,22 +288,55 @@ function HB_HandbookTab({ staffUser, isAdmin }) {
       )}
 
       <section className="card hb-policies" aria-labelledby="hb-policies-title">
-        <h3 className="card-title" id="hb-policies-title">
-          Policies
-        </h3>
+        <div className="hb-row-head">
+          <h3 className="card-title" id="hb-policies-title">
+            Policies
+          </h3>
+          {canCreate && (
+            <button type="button" className="btn-secondary" onClick={() => setCreating(true)}>
+              New policy
+            </button>
+          )}
+        </div>
         <p className="hb-muted">
           {me.is_signer
-            ? "Read each policy and sign it at the end. When a policy changes and needs re-signing, it shows here and on Today."
-            : "Bookkeepers sign these policies. Anyone on the team can read them here."}
+            ? "Read each policy to sign and sign it at the end. When one changes and needs signing again, it shows here and on Today. The rest are for reference: read them any time."
+            : "Bookkeepers sign the policies to sign. The rest are for reference. Anyone on the team can read them here."}
         </p>
-        {policies.length ? (
-          <ul className="hb-list">
-            {policies.map((p) => (
-              <HB_PolicyRow key={p.id} p={p} isSigner={!!me.is_signer} />
-            ))}
-          </ul>
-        ) : (
+        {policies.length > 0 && (
+          <div className="hb-search">
+            <label className="hb-sr" htmlFor="hb-search">
+              Search policies
+            </label>
+            <input
+              id="hb-search"
+              type="search"
+              className="hb-inp"
+              value={query}
+              placeholder="Search policies"
+              autoComplete="off"
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+        )}
+        {!policies.length ? (
           <p className="hb-muted">No policies yet.</p>
+        ) : !groups.length ? (
+          <p className="hb-muted">No policies match "{query.trim()}".</p>
+        ) : (
+          groups.map((g) => (
+            <div key={g.key} className={"hb-group" + (g.key === "sign" ? " is-sign" : g.key === "drafts" ? " is-drafts" : "")}>
+              <h4 className="hb-group-title">
+                {g.label}
+                {g.key === "drafts" && <span className="hb-muted"> · Only admins see drafts</span>}
+              </h4>
+              <ul className="hb-list">
+                {g.items.map((p) => (
+                  <HB_PolicyRow key={p.id} p={p} isSigner={!!me.is_signer} />
+                ))}
+              </ul>
+            </div>
+          ))
         )}
       </section>
 

@@ -2,12 +2,17 @@
 title: How do I sign the Staff Handbook?
 section: Daily work
 audience: staff
-keywords: [handbook, staff handbook, policy, policies, sign, signature, sign policy, countersign, countersigner, account manager, re-sign, resign, needs re-signing, overdue, flexible work, scheduling, sla, effective date, signed copy, pdf, download, version, version history, minor edit, staff reviews drive, publish, new version, publish new version, status grid, signatures by bookkeeper, not filed, retry filing, change note]
+keywords: [handbook, staff handbook, policy, policies, sign, signature, sign policy, countersign, countersigner, account manager, re-sign, resign, needs re-signing, overdue, flexible work, scheduling, sla, effective date, signed copy, pdf, download, version, version history, minor edit, staff reviews drive, publish, new version, publish new version, status grid, signatures by bookkeeper, not filed, retry filing, change note, reference, reference policy, signed policy, policy kind, new policy, add a policy, create policy, draft, drafts, publish draft, section, sections, search policies, policies to sign, edit details, make this a signed policy, link name]
 sort: 146
 ---
-The firm's staff policies live on the **Handbook** tab of **Team** (`#/team/handbook`). Anyone on the team can read them. Bookkeepers sign each one in the portal, and the Account Manager countersigns. The number on the tab shows what's waiting on you.
+The firm's staff policies live on the **Handbook** tab of **Team** (`#/team/handbook`). Anyone on the team can read them. The number on the tab shows what's waiting on you.
 
-The first policy is **Flexible Work, Scheduling & Operational SLA Policy**.
+A policy is one of two kinds:
+
+- **Signed**: bookkeepers sign it in the portal, and the Account Manager countersigns. The first one is **Flexible Work, Scheduling & Operational SLA Policy**.
+- **Reference**: read only. It has versions like any policy, but nobody signs it, and it never adds a Today row, a number on the tab or an email.
+
+The list starts with **Policies to sign**, then the reference policies grouped by section (**General** for those without one). Type in **Search policies** to filter by title, section or link name.
 
 ### Sign a policy (bookkeepers)
 
@@ -58,7 +63,29 @@ Your older signed copies are kept. **Version history**, at the bottom of each po
 - **Signatures by bookkeeper**, at the bottom of the Handbook tab, is a grid with policies down the side and active bookkeepers across the top. Each cell shows **Signed**, **Awaiting countersign**, **Needs re-sign**, **Overdue** or **Not signed**, with the date (countersigned, signed, or due). On a phone, swipe the grid sideways. Click a policy name to open it.
 - Each policy also lists every bookkeeper's state. Click **Download** for anyone's signed copy.
 - **Not filed to Drive yet** appears when a countersigned copy hasn't reached the Staff Reviews drive. It usually files within a minute. **Retry filing** unlocks 2 minutes after the countersignature; click it to try again. If it stays, check Google Drive in Dev Tools.
-- Every sign, countersign, publish, countersigner change and download is in the [Audit log](#/help/audit-log) under **Staff Handbook**.
+- Every sign, countersign, publish, new policy, details change, countersigner change and download is in the [Audit log](#/help/audit-log) under **Staff Handbook**.
+
+### Add a new policy (admins)
+
+1. On the Handbook tab, click **New policy**.
+2. Type the **Title**. The **Link name** (the policy's address, like `#/team/handbook/paid-time-off`) fills in from the title. You can change it before saving: lower-case letters, numbers and hyphens, 2 to 81 characters. It can't change later.
+3. Pick the **Kind**: **Reference** (the default; nobody signs it) or **Signed**.
+4. Optionally type a **Section**, such as *Time off*. Sections you've used before are suggested.
+5. Write the **Policy text** in Markdown. The preview on the right shows it the way staff will see it.
+6. Click **Save draft**.
+
+A new policy is always a **draft** first. Only admins see drafts (in a **Drafts** group at the bottom of the list), and nobody is emailed. To change the text, open the draft and click **Edit text**. When it's ready, click **Publish** on the draft and confirm:
+
+- A reference policy is then visible to everyone. Nobody is emailed.
+- A signed policy asks every active bookkeeper to sign: one email each, a Today row and a badge, and 7 days to sign.
+
+Creating a policy never emails anyone. Only **Publish** does, and only for a signed policy.
+
+### Edit details or change the kind (admins)
+
+- **Edit details** (on any policy) changes the title, the section and the **Order** (lower numbers list first within their group). The link name stays the same, so links in old emails keep working.
+- **Make this a signed policy** (on the latest version of a reference policy) starts asking for signatures. Write a change note, tick the box, and click **Make it a signed policy**. The current text is published again as a new version that every bookkeeper signs (each gets one email and has 7 days). This can't be undone: a signed policy can't go back to reference.
+- New versions of a reference policy are always minor edits: nobody is asked to sign them.
 
 ### Publish a new version (admins)
 
@@ -68,7 +95,7 @@ Your older signed copies are kept. **Version history**, at the bottom of each po
 4. Choose **Needs re-signing** (every bookkeeper gets one email, a Today row and a badge, and has 7 days) or **Minor edit** (nobody is emailed or asked to re-sign).
 5. Click **Publish version N**, read the confirmation, and click **Yes, publish**.
 
-Published versions can't be edited or deleted, so check the preview first. The portal won't publish text that's identical to the current version. The first version of a new policy always needs signing.
+Published versions can't be edited or deleted, so check the preview first. The portal won't publish text that's identical to the current version. On a reference policy you won't see the two choices: its versions are always minor edits.
 
 If you leave the editor before publishing, your unsaved text comes back the next time you open it in the same browser tab. If another admin publishes while you're editing, the portal stops you from publishing over their version: copy what you want to keep, click **Cancel** and start again. A bookkeeper who joins after a version is published gets 7 days from the day they joined.
 
@@ -82,3 +109,6 @@ If you leave the editor before publishing, your unsaved text comes back the next
 - **"The signed copy is still being filed."** The PDF is saved right after the countersignature. Try again in a minute.
 - **"Google Drive isn't connected yet."** The Staff Reviews drive isn't set up. Tell an admin. See [How do I set up Google Drive for staff reviews?](#/help/review-drive-setup).
 - **I'm an admin and I don't see a Sign button.** Only bookkeepers sign.
+- **There's no Sign button on this policy.** It's a reference policy (it says *For reference. Nobody needs to sign this policy.*). There's nothing to sign.
+- **"Another policy already uses this link name."** Pick a different link name for the new policy.
+- **I can't find a draft.** Drafts are only on the Handbook tab for admins, in the **Drafts** group. Clear the search box.

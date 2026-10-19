@@ -1,6 +1,8 @@
 -- Staff Handbook, part 2: admin tools (spec docs/staff-handbook-spec.md
 -- Parts A, C, E). Run AFTER supabase/staff-handbook.sql. Safe to re-run.
 -- Flat file; every function pins search_path = public.
+-- NOTE: supabase/staff-handbook-3-kinds.sql redefines hb_status,
+-- hb_publish_version, hb_sign and hb_retry_export; re-run it after this file.
 --
 -- Depends on (all from staff-handbook.sql, checked live 2026-10-14):
 --   handbook_policies, handbook_versions, handbook_signatures, staff,

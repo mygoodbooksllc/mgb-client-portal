@@ -10,8 +10,13 @@
 //   - Countersign cards for the countersigner (from hb_status to_countersign).
 //   - For admins: each bookkeeper's state on this policy, with Download.
 //   - Version history (HB_VersionHistory, HB_HandbookTab.jsx).
-//   - For admins on the latest version: "Publish new version", which swaps
-//     the text for HB_PublishEditor (HB_Admin.jsx).
+//   - For admins on the latest version: "Publish new version" ("Edit text"
+//     on a draft), which swaps the text for HB_PublishEditor (HB_Admin.jsx).
+//   - For admins: Edit details (title, section, order), the draft bar with
+//     Publish (HB_DraftBar), and on a reference policy "Make this a signed
+//     policy" (HB_ConvertCard). All in HB_Admin.jsx.
+// Reference policies and drafts never show a sign panel, signatures or a
+// due date (HB_isSigning, HB_logic.js; the server refuses signing them too).
 // Admins who aren't bookkeepers never see a sign prompt.
 // The server decides everything; its error message is shown as is.
 
@@ -233,6 +238,7 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
   const [st, setSt] = React.useState({ loading: true, data: null, error: "" });
   const [tick, setTick] = React.useState(0);
   const [editing, setEditing] = React.useState(false);
+  const [panel, setPanel] = React.useState(""); // "" | "details" | "convert"
   const endRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -247,7 +253,10 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
   }, [slug, versionNo, tick]);
 
   // Leaving the policy (or opening another version) closes the editor.
-  React.useEffect(() => setEditing(false), [slug, versionNo]);
+  React.useEffect(() => {
+    setEditing(false);
+    setPanel("");
+  }, [slug, versionNo]);
 
   // Reload after a sign or countersign anywhere.
   React.useEffect(() => {
@@ -292,14 +301,24 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
   const sigHere = v ? mySigs.find((s) => s.version_no === v.version_no) : null;
   const fill = sigHere ? { date: HB_fmtDate(sigHere.signed_at), name: me.name || "" } : null;
   const body = v ? HB_fillPlaceholders(v.body_md, fill) : "";
-  const pill = HB_statePill(me.status);
+  const signing = HB_isSigning(p);
+  const draft = HB_isDraft(p);
+  const reference = HB_kindOf(p) === "reference";
+  const pill = signing ? HB_statePill(me.status) : null;
+  const latest = !v || v.is_latest;
+  const admin = !!(me.is_admin && typeof HB_DetailsEditor === "function");
+  const bookkeeperCount = ((status && status.bookkeepers) || []).length;
+  const reload = () => {
+    setPanel("");
+    setTick((n) => n + 1);
+  };
   // Sign only when the server says this person still owes a signature. After
   // a minor edit, someone who signed the version that needs signing stays
   // Signed and isn't asked again (hb_sign refuses it too).
   const owes = !me.status || me.status.state === "not_signed" || me.status.state === "overdue";
-  const canSign = !!(me.is_signer && v && v.is_latest && !sigHere && owes);
+  const canSign = !!(signing && me.is_signer && v && v.is_latest && !sigHere && owes);
   const queue = ((status && status.to_countersign) || []).filter((q) => q.policy_slug === p.slug);
-  const canPublish = !!(me.is_admin && p.active !== false && (!v || v.is_latest) && typeof HB_PublishEditor === "function");
+  const canPublish = !!(me.is_admin && p.active !== false && latest && typeof HB_PublishEditor === "function");
   const gridRows = me.is_admin && status && status.grid ? status.grid.filter((g) => g.policy_slug === p.slug) : [];
 
   return (
@@ -309,21 +328,40 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
         <div className="hb-row-head">
           <h2 className="hb-title">{p.title}</h2>
           <span className="hb-list-side">
+            {draft && <HB_Pill tone="neutral">Draft</HB_Pill>}
+            {reference && !draft && <HB_Pill tone="neutral">Reference</HB_Pill>}
             {pill && <HB_Pill tone={pill[1]}>{pill[0]}</HB_Pill>}
             {canPublish && !editing && (
               <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
-                Publish new version
+                {draft ? "Edit text" : "Publish new version"}
               </button>
             )}
           </span>
         </div>
         {v && (
           <p className="hb-muted">
-            Version {v.version_no} · Published {HB_fmtDate(v.published_at)}
+            {p.section ? p.section + " · " : ""}
+            Version {v.version_no} · {draft ? "Saved" : "Published"} {HB_fmtDate(v.published_at)}
             {v.change_note ? " · " + v.change_note : ""}
           </p>
         )}
-        {me.is_signer && me.status && (me.status.state === "not_signed" || me.status.state === "overdue") && me.status.due_date && (
+        {reference && !draft && <p className="hb-muted hb-kind-note">For reference. Nobody needs to sign this policy.</p>}
+        {admin && !editing && (
+          <div className="hb-admin-links">
+            <button type="button" className="link-btn" onClick={() => setPanel(panel === "details" ? "" : "details")}>
+              Edit details
+            </button>
+            {reference && latest && typeof HB_ConvertCard === "function" && (
+              <button type="button" className="link-btn" onClick={() => setPanel(panel === "convert" ? "" : "convert")}>
+                Make this a signed policy
+              </button>
+            )}
+          </div>
+        )}
+        {admin && draft && !editing && typeof HB_DraftBar === "function" && (
+          <HB_DraftBar policy={p} bookkeeperCount={bookkeeperCount} onDone={reload} />
+        )}
+        {signing && me.is_signer && me.status && (me.status.state === "not_signed" || me.status.state === "overdue") && me.status.due_date && (
           <p className={"hb-due" + (me.status.overdue ? " is-overdue" : "")}>
             {me.status.overdue ? "Overdue. It was due " + HB_fmtDay(me.status.due_date) + "." : "Please sign by " + HB_fmtDay(me.status.due_date) + "."}
           </p>
@@ -338,11 +376,18 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
         )}
       </div>
 
+      {admin && !editing && panel === "details" && (
+        <HB_DetailsEditor policy={p} sections={HB_sections((status && status.policies) || [])} onCancel={() => setPanel("")} onDone={reload} />
+      )}
+      {admin && !editing && panel === "convert" && typeof HB_ConvertCard === "function" && (
+        <HB_ConvertCard policy={p} bookkeeperCount={bookkeeperCount} onCancel={() => setPanel("")} onDone={reload} />
+      )}
+
       {editing && canPublish ? (
         <HB_PublishEditor
           policy={p}
           version={v}
-          bookkeeperCount={((status && status.bookkeepers) || []).length}
+          bookkeeperCount={bookkeeperCount}
           onCancel={() => setEditing(false)}
           onDone={() => {
             setEditing(false);
@@ -360,7 +405,7 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
 
       {canSign && !editing && <HB_SignPanel version={v} unlocked={seen} onSigned={() => setTick((n) => n + 1)} />}
 
-      {me.is_signer && mySigs.length > 0 && (
+      {signing && me.is_signer && mySigs.length > 0 && (
         <section className="card hb-mine">
           <h3 className="card-title">My signatures</h3>
           <ul className="hb-list">
@@ -384,7 +429,7 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
         </section>
       )}
 
-      {me.is_countersigner && queue.length > 0 && (
+      {signing && me.is_countersigner && queue.length > 0 && (
         <section className="card hb-queue" aria-labelledby="hb-cs-title">
           <h3 className="card-title" id="hb-cs-title">
             To countersign
@@ -395,7 +440,7 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
         </section>
       )}
 
-      {gridRows.length > 0 && (
+      {signing && gridRows.length > 0 && (
         <section className="card hb-admin-sigs">
           <h3 className="card-title">Bookkeepers' signatures</h3>
           <p className="hb-muted">Admins only. Signed copies are filed in the Staff Reviews Shared Drive under Handbook.</p>
@@ -424,7 +469,7 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
       )}
 
       {typeof HB_VersionHistory === "function" && (
-        <HB_VersionHistory slug={p.slug} versions={d.versions || []} current={v ? v.version_no : null} latest={d.latest_version_no} mySigs={mySigs} />
+        <HB_VersionHistory slug={p.slug} versions={d.versions || []} current={v ? v.version_no : null} latest={d.latest_version_no} mySigs={mySigs} kind={HB_kindOf(p)} />
       )}
     </div>
   );

@@ -1243,6 +1243,34 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    id: "handbook-policies-employee-records",
+    date: "2026-10-19",
+    title: "New handbook policies and employee records",
+    summary: "Admins can add handbook policies (reference or signed), and keep an employee record for each staff member.",
+    roles: ["admin"],
+    hash: "#/team/handbook",
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Two new admin tools",
+        body: () =>
+          "Add your own handbook policies, either reference (read only) or signed, and keep job and emergency contact details for each staff member. About a minute.",
+      },
+      TOUR_tabStep(
+        "team",
+        "handbook",
+        "Team › Handbook › New policy",
+        "New policy saves a draft only admins see. Pick Reference (nobody signs it) or Signed (bookkeepers are asked to sign when you publish). Nobody is emailed until you choose Publish.",
+      ),
+      TOUR_tabStep(
+        "team",
+        "employees",
+        "Team › Employee records",
+        "One record per staff member: job details, personal contact details and an emergency contact. Only admins see it, and each record you open is logged. No pay or Social Security numbers here.",
+      ),
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

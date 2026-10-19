@@ -355,6 +355,62 @@
   flex-shrink: 0;
 }
 
+
+/* Policy kinds and drafts (HB_logic.js): search, the grouped list, the
+   draft bar, New policy, Edit details, Make this a signed policy. */
+.hb-search {
+  margin: 10px 0 4px;
+}
+.hb-search .hb-inp {
+  max-width: 360px;
+}
+.hb-group {
+  margin-top: 16px;
+}
+.hb-group-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.hb-group.is-sign .hb-group-title {
+  color: var(--ink-strong);
+}
+.hb-group.is-sign .hb-list {
+  border-left: 3px solid var(--gold);
+  padding-left: 12px;
+}
+.hb-group .hb-list {
+  margin-top: 4px;
+}
+.hb-kind-note {
+  margin-top: 8px;
+}
+.hb-admin-links {
+  display: flex;
+  gap: 6px 16px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.hb-head .hb-draft-bar {
+  margin: 12px 0 0;
+}
+.hb-inp-short {
+  max-width: 140px;
+}
+.hb-details,
+.hb-convert {
+  margin-bottom: 16px;
+}
+.hb-convert .hb-check {
+  margin-top: 12px;
+}
+.hb-new .hb-pub-kind .hb-check span {
+  min-width: 0;
+}
+
 @media (max-width: 640px) {
   .hb-title {
     font-size: 18px;
@@ -383,5 +439,12 @@
   }
   .hb-unfiled .hb-list-row {
     flex-wrap: wrap;
+  }
+  .hb-search .hb-inp,
+  .hb-inp-short {
+    max-width: none;
+  }
+  .hb-draft-bar .btn-primary {
+    width: 100%;
   }
 }
