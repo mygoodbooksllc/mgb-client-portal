@@ -776,8 +776,26 @@ li.tk-empty-inline {
   cursor: pointer;
 }
 
-.tk-chev {
+.tk-group-btn:hover {
+  background: var(--surface-hover, rgba(127, 127, 127, 0.1));
+  border-radius: 8px;
+}
+
+/* Say it out loud: a Hide / Show hint at the right of every group header. */
+.tk-group-btn::after {
+  content: "Hide";
+  margin-left: auto;
+  padding-right: 6px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-muted);
+}
+.tk-group-btn[aria-expanded="false"]::after {
+  content: "Show";
+}
+
+.tk-chev {
+  color: var(--ink-strong);
   transform: rotate(90deg);
   transition: transform 0.15s ease;
 }
