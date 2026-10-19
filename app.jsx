@@ -14682,7 +14682,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                       {isInternalOwner && (
                         <td data-label="MGB (internal)">
                           {row.role !== "admin" ? (
-                            <span className="staff-self-note">Admins only</span>
+                            <span className="staff-self-note">—</span>
                           ) : (internalGrants[String(row.email).toLowerCase()] || {}).is_owner ? (
                             <span className="staff-self-note">Owner</span>
                           ) : (
