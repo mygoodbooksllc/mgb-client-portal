@@ -1551,7 +1551,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                       {data.payables.hasPastDue ? "Some past due" : "Nothing past due"}
                     </div>
                     <div className={styles.kpiFoot} style={{ marginTop: "auto" }}>
-                      {fmtMoney(data.payables.dueWithin7Days)} due within 7 days{onNavigate ? " · view in Cash Flow Pro" : ""}
+                      {fmtMoney(data.payables.dueWithin7Days)} due within 7 days{onNavigate ? " · view in Cash flow" : ""}
                     </div>
                   </button>
                 );

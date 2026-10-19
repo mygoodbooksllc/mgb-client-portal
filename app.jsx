@@ -871,8 +871,8 @@ const ALWAYS_VISIBLE_KEY = "dashboard";
 // like the sidebar entry it's under, even on the six
 // PREMIUM_UPGRADE_TAB_KEYS pages where the upgraded page has its own
 // separate product name that deliberately never appears in the sidebar
-// (see §131's ENTERPRISE_FEATURES "Upgrades your {tab} tab" pill, which
-// exists precisely because the premium name isn't visible there).
+// (see §131's ENTERPRISE_FEATURES `tag` line, which exists precisely because
+// the premium name isn't visible there).
 const NAV_LABEL_BY_KEY = Object.fromEntries(
   NAV_SECTIONS.flatMap((section) => section.items).map((item) => [
     item.key,
@@ -12415,218 +12415,177 @@ function ReportBarRows({ items }) {
 
 // ----------------------------------------------------------------------------
 // Plans page (PAGE_META "enterprise-upgrade"; the key predates the Basic/
-// Pro names) — what a non-Pro client's lock in the sidebar opens instead of the real upgraded pages, none of which are
-// separate tabs to strip from access.tabs anymore: a standard client's
-// Dashboard/Budget vs. Actual/Cash Flow/Reports/Bank Accounts/Giving & Funds
-// already ARE the tabs they'll keep using after upgrading, just showing the
-// plain version — see showsLiveReport/showsBudgetingTool/showsCashFlowPro/
+// Pro names) — what a non-Pro client's lock in the sidebar opens. Basic has
+// no Budget, Bank accounts, Cash flow or Giving & funds tabs; Pro adds them
+// (see showsLiveReport/showsBudgetingTool/showsCashFlowPro/
 // showsReportBuilder/showsReconciliationPro/showsFundAccountingPro in App
-// for where each one flips over.
+// for where each one switches on).
 // ----------------------------------------------------------------------------
 
-// `sidebarTab` names the exact sidebar tab (NAV_SECTIONS' `label`) each
-// premium feature upgrades in place — same pairing ENTERPRISE_COMPARISON
-// already uses via standardLabel/premiumLabel — so a client can match a
-// card here to what they actually see in their own sidebar, since the
-// premium product name (e.g. "Board-ready Financial Overview") never appears there itself.
-// `key` is the matching ENTERPRISE_COMPARISON row; the Pro tour
+// `tag` is the short line under each card title saying where the feature
+// shows up (the premium product name, e.g. "Board-ready Financial Overview",
+// never appears in the sidebar). `planLine` is the matching bullet on the
+// Pro plan card. `key` is the matching ENTERPRISE_COMPARISON row; the Pro tour
 // (components/tour/Tour.jsx) finds each card by it (data-tour pro-feature-<key>).
 const ENTERPRISE_FEATURES = [
   {
     icon: <BarChartIcon />,
     key: "dashboard",
     title: "Board-ready Financial Overview",
-    sidebarTab: "Dashboard",
+    tag: "Replaces the locked card on Home",
+    planLine: "Board-ready Financial Overview on Home",
     description:
-      "Your dashboard becomes a fuller financial snapshot — cash on hand, receivables, what's due — synced from QuickBooks every hour, with a Sync now button. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
+      "Home gets a live snapshot of your finances: cash, receivables, payables and net income this month, synced from QuickBooks every hour with a Sync now button. Click through from receivables, payables and net income, get a low-cash warning, work a collections queue, and save a one-click PDF snapshot. Customize which cards show.",
   },
   {
     icon: <DocumentIcon />,
     key: "reports",
     title: "Board Packet",
-    sidebarTab: "Reports",
+    tag: "Adds a Board packet tab to Reports",
+    planLine: "Board Packet on Reports",
     description:
-      "A board packet in one PDF (cover, contents, your logo and colors) from saved templates, with comparisons to budget and last year, a Statement of Functional Expenses, giving reports, a plain-language monthly summary, read-only links for your board, and a full-screen presentation view for the meeting.",
+      "Your four statement PDFs stay on Downloads. Board Packet adds one PDF for your board, with a cover, contents, treasurer's note, and your logo and colors, built from saved templates. It has comparisons to budget and last year (where there's enough history), a Statement of Functional Expenses, a plain-language monthly summary you edit, read-only links for your board that expire, and a full-screen presentation view.",
   },
   {
     icon: <CalculatorIcon />,
     key: "budget",
     title: "Budgeting Tool",
-    sidebarTab: "Budget vs. Actual",
+    tag: "Adds a Budget tab",
+    planLine: "Budgeting Tool: a Budget tab",
     description:
-      "Year-end forecasts by category, what-if scenarios, variance notes, and next year's budget drafted together (by month, with ministry owners, or started from recent actuals) and approved by your board.",
+      "Budgeted vs. actual by category, year-end forecasts, what-if scenarios, variance notes, and next year's budget drafted together (by month, with ministry owners, or started from recent actuals) and sent for approval.",
   },
   {
     icon: <StackedBillsIcon />,
     key: "receivables",
     title: "Cash Flow Pro",
-    sidebarTab: "Cash Flow",
+    tag: "Adds a Cash flow tab",
+    planLine: "Cash Flow Pro: a Cash flow tab",
     description:
-      "Every bill in one place with aging and vendor summaries, batch pay runs with an approval step and a cash-impact forecast, duplicate-bill detection, and a ready-to-upload ACH export.",
+      "Money owed to you and bills you owe in one place: open bills with filters and search, aging and vendor summaries, duplicate-bill checks (same vendor, same amount), and a planning list for paying bills with a forecast of your balance afterward. Export the list as a CSV.",
   },
   {
     icon: <BankIcon />,
     key: "bank",
     title: "Reconciliation Pro",
-    sidebarTab: "Bank Accounts",
+    tag: "Adds a Bank accounts tab",
+    planLine: "Reconciliation Pro: a Bank accounts tab",
     description:
-      "A real month-end close on Bank Accounts — clear transactions against your statement, track outstanding items automatically, and keep a signed-off history of every period you've closed.",
+      "Balances and transaction history for every bank and card account, with search, filters and CSV export, plus a reconciliation view for each account and a downloadable reconciliation report.",
   },
   {
     icon: <GiftHeartIcon />,
     key: "giving",
     title: "Fund Accounting Pro",
-    sidebarTab: "Giving & Funds",
+    tag: "Adds a Giving & funds tab",
+    planLine: "Fund Accounting Pro: a Giving & funds tab",
     description:
-      "See money move between funds with a reason attached, track pledges from committed to received, and send year-end giving statements to every donor for their tax write-offs.",
+      "Fund balances (restricted and unrestricted) and contribution history, plus year-end giving statements you can download for each donor, by year.",
   },
 ];
 
 // Tool-by-tool feature lists for the interactive comparison accordion below.
-// One entry per tab that has a premium upgrade (PREMIUM_UPGRADE_TAB_KEYS) —
+// One entry per tab that Pro adds or upgrades (PREMIUM_UPGRADE_TAB_KEYS) —
 // kept as its own list rather than reused from ENTERPRISE_FEATURES because
-// this one needs a "what you already have" column too, not just "what's
-// new." Feature text mirrors what each real page actually renders (same
-// grounding rule as the standard-vs-premium comparison mockup this was
-// built from), not marketing copy.
+// this one is a longer, line-by-line list. `tool` is the tab's name as Pro
+// clients see it; `intro` is the line above the list. Feature text mirrors
+// what each real page actually renders, not marketing copy.
 const ENTERPRISE_COMPARISON = [
   {
     key: "dashboard",
-    tool: "Dashboard",
-    standardLabel: "Dashboard",
-    premiumLabel: "Board-ready Financial Overview",
-    standard: [
-      "KPI row: Cash on Hand, Net Surplus/Deficit, Revenue, Operating Reserve",
-      "Income vs. Expenses — 12-month trend chart",
-      "Recent Activity — latest transactions across all accounts",
-      "Customizable widget layout, with saved views",
-    ],
-    premium: [
-      "Synced from QuickBooks every hour, plus a Sync now button",
-      "Click-to-jump KPIs: Cash, Receivables, Payables, Net Income MTD",
+    tool: "Home",
+    intro: "What you get on Home:",
+    features: [
+      "Synced from QuickBooks every hour, plus a Sync now button in the header",
+      "Four numbers up top: Cash, Receivables, Payables and Net income this month (receivables, payables and net income click through to the detail)",
+      "A low-cash warning on the Cash number (you set the amount; it's saved in this browser)",
       "Cash by Account donut and Top Expense Categories",
-      "Receivables Aging with a Collections Queue",
-      "Cash Flow Forecast, Revenue Trend, and Anomalies & Flags",
-      "Low-cash alert and a one-click PDF snapshot",
+      "Receivables Aging with a Collections Queue that opens an email draft",
+      "Cash Flow Forecast (projected from your recent averages), Revenue Trend, and Anomalies & Flags (over budget, past due, due within 7 days)",
+      "Customizable cards with saved views, and a one-click PDF snapshot",
     ],
   },
   {
     key: "receivables",
-    tool: "Cash Flow",
-    standardLabel: "Cash Flow",
-    premiumLabel: "Cash Flow Pro",
-    standard: [
-      "Money Owed To You / Money You Owe ledger",
-      "Simple receivables and payables tables",
-    ],
-    premium: [
-      "Open Bills workflow with status filters and search",
-      "Duplicate-bill detection",
-      "Batch Pay Runs with an approval step and a ready-to-upload ACH export",
+    tool: "Cash flow",
+    intro: "What you get on the Cash flow tab:",
+    features: [
+      "Money Owed To You and Money You Owe, side by side",
+      "Open bills with status filters and search",
+      "Duplicate-bill check: flags bills from the same vendor for the same amount",
+      "Pay run planner: pick bills and see your balance afterward. It's a planning list; nothing is paid from the portal",
+      "CSV export of the bills to pay",
       "Vendor Summary and Aging Summary",
       "Next 5 Due, at a glance",
     ],
   },
   {
     key: "budget",
-    tool: "Budget vs. Actual",
-    standardLabel: "Budget vs. Actual",
-    premiumLabel: "Budgeting Tool",
-    standard: [
-      "Budgeted vs. actual, by category, with a variance and % used",
-      "Spending Trend chart",
-    ],
-    premium: [
+    tool: "Budget",
+    intro: "What you get on the Budget tab:",
+    features: [
+      "Budgeted vs. actual by category, with variance and % used, and a Spending Trend chart",
       "Year-end forecast for every category: on pace to overspend or come in under",
       "What-if scenarios: giving or expenses up or down, a new monthly cost, and what it does to your reserve",
       "Variance notes that explain big swings and carry into your reports",
       "Next year's budget drafted together: by month for seasonal giving, with ministry owners, or started from recent actuals",
-      "Board approval: submit, comment on any line, approve or ask for changes, with every version kept",
+      "Approval: submit the draft, comment on any line, approve or ask for changes, with every version kept",
       "Download Draft Budget PDF",
     ],
   },
   {
     key: "reports",
     tool: "Reports",
-    standardLabel: "Reports",
-    premiumLabel: "Board packet",
-    standard: [
-      "Four canned PDFs — Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement",
-    ],
-    premium: [
-      "The same four canned PDFs, still on the Downloads tab",
+    intro: "What Board Packet adds to Reports (your four statement PDFs stay on Downloads):",
+    features: [
       "Board packet: several reports, a cover page and a treasurer's note in one PDF with a table of contents, plus a full-screen presentation view for the meeting",
       "Saved templates like \"Monthly board packet\", rebuilt in one click",
-      "Comparison columns: vs budget, vs last month, vs last year, year-to-date, with % change",
+      "Comparison columns: vs budget, vs last month, vs last year, year-to-date, with % change (where there's enough history)",
       "Statement of Functional Expenses (program, management, fundraising) in the Form 990 layout",
-      "Giving reports: top and lapsed donors, giving by fund, pledge progress",
+      "Giving reports (top and lapsed donors, giving by fund, pledge progress) once your giving data is connected",
       "A plain-language \"what happened this month\" summary, drafted for you to edit",
       "Read-only share links for your board that expire, no login needed",
-      "Your church's logo and colors on every packet",
+      "Your organization's logo and colors on every packet",
     ],
   },
   {
     key: "bank",
-    tool: "Bank Accounts",
-    standardLabel: "Bank Accounts",
-    premiumLabel: "Reconciliation Pro",
-    standard: [
+    tool: "Bank accounts",
+    intro: "What you get on the Bank accounts tab:",
+    features: [
       "Balances and transaction history, per account or all at once",
-      "CSV export",
-    ],
-    premium: [
-      "Real month-end reconciliation workflow",
-      "Cleared vs. outstanding tracking, transaction by transaction",
-      "Reconciliation history, with who closed each period and when",
-      "Downloadable reconciliation report",
+      "Search and filters, and CSV export",
+      "A reconciliation view for each account",
+      "A downloadable reconciliation report",
     ],
   },
   {
     key: "giving",
-    tool: "Giving & Funds",
-    standardLabel: "Giving & Funds",
-    premiumLabel: "Fund Accounting Pro",
-    standard: [
+    tool: "Giving & funds",
+    intro: "What you get on the Giving & funds tab:",
+    features: [
       "Fund balances, restricted vs. unrestricted",
       "Contribution history",
-    ],
-    premium: [
-      "Fund Activity ledger — money moved between funds, with a reason",
-      "Pledge tracking — committed vs. received, with an aging status",
-      "Tax Documents — year-end giving statements, downloadable per donor or sent to everyone at once",
+      "Tax Documents: year-end giving statements, downloadable per donor and year",
     ],
   },
 ];
 
 // What each plan includes, for the Plans page cards. Prices live in
-// PLAN_PRICING (next to PLAN_LABELS) so they're set in one place. Pro now
-// includes everything the retired Plus plan had (its "standard" list stays
-// here for now but no card shows it).
+// PLAN_PRICING (next to PLAN_LABELS) so they're set in one place. Plus is
+// retired (PLAN_ORDER is Basic and Pro only), so only those two are listed.
 const PLAN_FEATURES = {
   basic: [
-    "Monthly financial statements",
+    "Home: what needs you, plus your organization card",
+    "Reports: Profit & Loss, Balance Sheet, Budget vs. Actual and Contribution Statement as PDFs",
     "Documents, shared with your bookkeeper",
     "Messages with your bookkeeper",
     "Your pricing milestone, always visible",
   ],
-  standard: [
-    "Everything in Basic, plus:",
-    "Dashboard: cash on hand, income vs. expenses, recent activity",
-    "Budget vs. Actual, by category",
-    "Bank Accounts with every transaction",
-    "Cash Flow: who owes you and what you owe",
-    "Giving & Funds: fund balances and contributions",
-    "Custom access for each person",
-  ],
   premium: [
     "Everything in Basic, plus:",
-    "Dashboard: cash on hand, income vs. expenses, recent activity",
-    "Budget vs. Actual, by category",
-    "Bank Accounts with every transaction",
-    "Cash Flow: who owes you and what you owe",
-    "Giving & Funds: fund balances and contributions",
     "Custom access for each person",
-    ...ENTERPRISE_FEATURES.map((f) => `${f.title} on your ${f.sidebarTab} tab`),
+    ...ENTERPRISE_FEATURES.map((f) => f.planLine),
   ],
 };
 
@@ -12825,9 +12784,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
             <h3 className="card-title" style={{ marginTop: 14 }}>
               {f.title}
             </h3>
-            <div className="enterprise-feature-tab-tag">
-              Upgrades your {f.sidebarTab} tab
-            </div>
+            <div className="enterprise-feature-tab-tag">{f.tag}</div>
             <p className="card-subtitle" style={{ marginBottom: 0 }}>
               {f.description}
             </p>
@@ -12862,20 +12819,17 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
                 {/* Always mounted (not isOpen &&) so grid-template-rows can
                     animate both open and close. */}
                 <div className="compare-row-body-wrap">
-                  {/* One column now that Plus is off: Basic has none of
-                      these tools, so Pro gets the plain version's features
-                      (c.standard) and the Pro extras (c.premium) together. */}
+                  {/* One column: Basic doesn't have these tabs, so this is
+                      the full list of what Pro gives you here (c.features). */}
                   <div className="compare-row-body compare-row-body-single">
                     <div className="compare-col compare-col-premium">
                       <div className="compare-col-header premium">
-                        {c.premiumLabel}{" "}
+                        {c.tool}{" "}
                         <span className="nav-pro-pill">{PLAN_LABELS.premium}</span>
                       </div>
-                      <p className="compare-feat-all">
-                        On your {c.standardLabel} tab:
-                      </p>
+                      <p className="compare-feat-all">{c.intro}</p>
                       <ul className="compare-feat-list">
-                        {c.standard.concat(c.premium).map((f, i) => (
+                        {c.features.map((f, i) => (
                           <li key={i}>{f}</li>
                         ))}
                       </ul>
@@ -26582,11 +26536,11 @@ const PAGE_META = {
   },
   "bank-reconciliation": {
     title: "Bank Accounts",
-    subtitle: "Balances, activity, and month-end reconciliation",
+    subtitle: "Balances, activity, and reconciliation",
   },
   "fund-accounting-pro": {
     title: "Giving & Funds",
-    subtitle: "Contributions, fund balances, transfers, and pledges",
+    subtitle: "Contributions, fund balances, and giving statements",
   },
   "client-overview": {
     title: "Client overview",
@@ -30208,7 +30162,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             (access.plan === "basic" ? (
               <CLIENT_LockedCard
                 title="Your financial snapshot is part of Pro"
-                text="Pro adds cash, income, spending and runway at a glance, plus Budget, Bank accounts and Cash flow. Your statements are always on Reports."
+                text="Pro adds a live snapshot of your cash, receivables, payables and net income on Home, plus Budget, Bank accounts, Cash flow and Giving & funds tabs. Your statements are always on Reports."
                 onSeePlans={() => setPage("enterprise-upgrade")}
                 // The Pro tour opens Settings › Plan itself (Tour.jsx).
                 onTakeTour={() => TOUR_start("pro")}
@@ -30407,7 +30361,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               ) : (
                 <CLIENT_LockedCard
                   title="Board packet is part of Pro"
-                  text="Assemble a formatted packet for your board in three steps: pick the reports, add a note, download one PDF. Downloads of your statements stay on the Downloads tab."
+                  text="Assemble a formatted packet for your board in three steps: pick the reports, add a note, download one PDF. Your four statement PDFs stay on the Downloads tab."
                   onSeePlans={() => setPage("enterprise-upgrade")}
                 />
               )

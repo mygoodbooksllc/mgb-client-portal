@@ -43,7 +43,7 @@ You can still add a staff note to any transaction with the note button next to i
 
 ### Reconciliation
 
-On clients with Reconciliation Pro, a **Transactions / Reconciliation** toggle at the top switches to the reconciliation view. It works one account at a time, the same as before.
+On clients with Reconciliation Pro, a **Transactions / Reconciliation** toggle at the top switches to the reconciliation view. It is read-only: it shows the balances and outstanding items, with a downloadable reconciliation PDF, and nothing is cleared or closed from it. It works one account at a time.
 
 ### For staff: links, filters and sync
 

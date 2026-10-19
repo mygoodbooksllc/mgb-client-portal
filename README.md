@@ -201,21 +201,24 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     (see [Known gaps](#known-gaps-and-roadmap)).
   - The Requests tab is real (`access_requests`).
 - **Preview.** Staff can "Preview as" a client user to see what that person sees.
-- **Plans: Basic, Plus, Pro.** Set per client in `clients.plan`, whose stored values are
-  `basic` / `standard` / `premium`. They're shown as Basic / Plus / Pro. Names, prices and sync
-  schedules live only in `PLAN_LABELS` / `PLAN_PRICING` / `PLAN_SYNC` / `PAYROLL_PRICING` in
-  app.jsx. The plan prices (not payroll) are published in `marketing/pricing-embed.html`.
-  - **Basic**, $9/mo with 1 login included; extra logins are $9/mo each. It gets Reports,
-    Documents and Messages, plus the milestone pill. There is **no Dashboard** and no per-person
-    access (`BASIC_TAB_KEYS`); the landing tab is Reports. QuickBooks syncs monthly, on the 15th
-    (US Central), with no Sync now for the client. Staff still see **Bank** and can Sync now on a
-    Basic client (staff override in `effectivePage`; `resolveAccess` is unchanged, so the client
-    portal and Preview as a Basic user still have no Bank).
-  - **Plus**, $25/mo + $9 per login. It gets every standard tab and per-person access.
-    QuickBooks syncs weekly, with no Sync now.
-  - **Pro**, $39/mo + $9 per login. It adds the Pro tools inline on the same tabs (see below).
-    QuickBooks syncs every hour (2 hours when the monthly API budget is running hot; see the
-    usage guard below), and Sync now is available.
+- **Plans: Basic and Pro.** Set per client in `clients.plan`, whose stored values are
+  `basic` / `standard` / `premium`. They're shown as Basic / Pro. `standard` is the retired Plus
+  plan: it was never sold and is shown as Basic (its old $25 + $9 price is never shown). Names,
+  prices and sync schedules live only in `PLAN_LABELS` / `PLAN_PRICING` / `PLAN_SYNC` /
+  `PAYROLL_PRICING` in app.jsx. The plan prices (not payroll) are published in
+  `marketing/pricing-embed.html`.
+  - **Basic**, free with 1 login included; extra logins are $20/mo each. It gets Home (the
+    Needs-you list, the org card and one locked card), Messages, Reports (the Downloads tab with
+    the four statement PDFs; the Board packet is locked), Documents, plus the milestone pill. It
+    has no Budget, Bank accounts, Cash flow or Giving & funds tab and no per-person access
+    (`BASIC_TAB_KEYS`). QuickBooks syncs monthly, on the 15th (US Central), with no Sync now for
+    the client. Staff still see **Bank** and can Sync now on a Basic client (staff override in
+    `effectivePage`; `resolveAccess` is unchanged, so the client portal and Preview as a Basic
+    user still have no Bank).
+  - **Pro**, $100/mo + $20 per login. It adds the Budget, Bank accounts, Cash flow and Giving &
+    funds tabs and the Pro tools inline (see below), plus per-person access. QuickBooks syncs
+    every hour (2 hours when the monthly API budget is running hot; see the usage guard below),
+    and the header pill has Sync now.
   - **Payroll add-on:** available on any plan (Basic included). Its price is never shown to clients
     or published (owner 2026-10-08); clients are told to message their account manager.
     `PAYROLL_PRICING` is internal only, for the staff overview's bill estimate. Clients without it
@@ -225,7 +228,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     . Staff see
     a hint to turn it on under Client organizations. Clients with the add-on but no Gusto data see
     the Connect Gusto screen.
-  - **Downgrades:** logins beyond what the new plan includes stay at $9/mo each, or they're
+  - **Downgrades:** logins beyond what the new plan includes stay at $20/mo each, or they're
     removed.
   - Plan fees sit on top of the milestone (bookkeeping) fee.
   - **Sync schedule:** enforced server-side in `qbo-sync` (`isDueForPlan`). The cron ticks every
@@ -1354,15 +1357,22 @@ Team Reviews files.
 - **Budget vs. Actual**, **Bank Accounts**, **Cash Flow** (receivables and
   payables), **Reports**, **Giving & Funds**, **Payroll** (add-on), **Documents** (with folders
   and previews).
-- **Pro upgrades** show inline on the same tabs:
-  - Financial Overview
-  - Budgeting Tool
-  - Cash Flow Pro
+- **Pro tools** show inline on the same tabs:
+  - Financial Overview (Home): cash, receivables, payables and net income this month, a
+    low-cash warning (threshold saved in that browser only), a collections queue that opens an
+    email draft, and a one-click PDF snapshot.
+  - Budgeting Tool: forecasts, what-if scenarios, variance notes and next year's draft, sent for
+    approval.
+  - Cash Flow Pro: open bills, aging, duplicate-bill checks (same vendor, same amount) and a
+    planning list for paying bills with a balance forecast, exported as a CSV. Nothing is paid
+    from the portal.
   - Board packet (Reports › Board packet, the one report builder; see "Pro board reports" below)
-  - Reconciliation Pro
-  - Fund Accounting Pro, including **Tax Documents**: year-end giving statements per donor.
-    A "Sent" status is saved only in that browser (`mygoodbooks_tax_docs_sent_v1`), and the app
-    asks for confirmation before resending.
+  - Reconciliation Pro: a read-only reconciliation view for each account and a downloadable
+    reconciliation PDF.
+  - Fund Accounting Pro: fund balances and contributions, including **Tax Documents**:
+    year-end giving statements, downloadable per donor and year. A "Sent" flag is saved only in
+    that browser (`mygoodbooks_tax_docs_sent_v1`), and the app asks for confirmation before
+    resending. Nothing is emailed.
 - **Notifications from the bookkeeper:** a bell in the page header (clients, and staff
   previewing as a client, with the ? menu just after it) with an unseen count, a "From your bookkeeper" panel, and a pop-up
   when something new arrives. Items: open document requests ("Please upload: …") and, for
@@ -1396,7 +1406,8 @@ Team Reviews files.
     isn't enough history it says so.
   - A Statement of Functional Expenses using the Form 990 columns, with an editable
     category-to-function map.
-  - Giving detail: top and lapsed donors, giving by fund, and pledges.
+  - Giving detail: top and lapsed donors, giving by fund, and pledge progress. Only once giving
+    data is connected (QuickBooks-connected orgs see "Giving isn't connected yet").
   - An editable "what happened this month" summary.
   - Read-only share links (7/30/90 days, can be turned off). They open at `/?share=<token>`
     without signing in, through `get_report_share`.

@@ -409,7 +409,7 @@ const TOUR_CLIENT_LABELS = {
 const TOUR_MONEY_TABS = ["budget", "bank", "receivables", "giving"];
 const TOUR_MONEY_PRO = {
   budget: "Budget with approvals",
-  bank: "Bank accounts with reconciliation",
+  bank: "Bank accounts and a reconciliation report",
   receivables: "Cash flow for bills and money coming in",
   giving: "Giving by fund",
 };
@@ -719,20 +719,20 @@ function TOUR_proGo(ctx) {
 // used only when they come from QuickBooks (ctx.bankCount, ctx.fundCount).
 const TOUR_PRO_COPY = {
   dashboard: (ctx) =>
-    "Cash on hand, money owed to you and bills coming due, at a glance, with a low-cash alert and a one-click PDF snapshot to hand your board. " +
+    "Cash on hand, money owed to you and bills coming due, at a glance, with a low-cash warning and a one-click PDF snapshot to hand your board. " +
     (ctx.plan === "basic" ? "On Pro it takes the place of the locked card on your Home." : "On Pro it becomes your Home."),
   reports: () =>
-    "Your board packet in one PDF: the reports you pick, a cover page and a treasurer's note, with comparisons to budget and last year. Save it as a template to rebuild next month in one click, share a read-only link with your board, or show it full screen at the meeting. On Pro it's the Board packet tab on Reports.",
+    "Your four statement PDFs stay on Downloads. Board packet adds one PDF for your board: the reports you pick, a cover page and a treasurer's note, with comparisons to budget and last year. Save it as a template to rebuild next month in one click, share a read-only link with your board, or show it full screen at the meeting. On Pro it's the Board packet tab on Reports.",
   budget: () =>
-    "See where each category is heading by year-end, try what-if scenarios, and draft next year's budget with the people who run each area, then send it to your board to approve. On Pro it's the Budget tab, under Finances.",
+    "See where each category is heading by year-end, try what-if scenarios, and draft next year's budget with the people who run each area, then send it for approval. On Pro it's the Budget tab, under Finances.",
   receivables: () =>
-    "Every bill in one place, with what's due next and duplicate bills flagged. Pay runs go through an approval step and export an ACH file ready to upload to your bank. On Pro it's the Cash flow tab, under Finances.",
+    "Every bill in one place, with what's due next and duplicate bills flagged. Plan which bills to pay, see your balance afterward, and export the list as a CSV. On Pro it's the Cash flow tab, under Finances.",
   bank: (ctx) => {
-    const which = ctx.bankCount > 1 ? ` for each of your ${ctx.bankCount} bank accounts` : ctx.bankCount === 1 ? " for your bank account" : "";
-    return `A real month-end close${which}: check transactions off against your bank statement, see what's still outstanding, and keep a history of who closed each month and when. On Pro it's the Bank accounts tab, under Finances.`;
+    const which = ctx.bankCount > 1 ? ` for each of your ${ctx.bankCount} bank accounts` : ctx.bankCount === 1 ? " for your bank account" : " for every account";
+    return `Balances and transactions${which}, with a reconciliation view and a downloadable reconciliation report. On Pro it's the Bank accounts tab, under Finances.`;
   },
   giving: (ctx) =>
-    `See money move between ${ctx.fundCount > 1 ? `your ${ctx.fundCount} funds` : "funds"}, with the reason for each move, track pledges from promised to received, and prepare year-end giving statements for your donors. On Pro it's the Giving & funds tab, under Finances.`,
+    `Fund balances and contributions${ctx.fundCount > 1 ? ` across your ${ctx.fundCount} funds` : ""}, with year-end giving statements you can download for each donor. On Pro it's the Giving & funds tab, under Finances.`,
 };
 // The cards' keys and titles, in page order, if app.jsx hasn't loaded them.
 const TOUR_PRO_FEATURES = [

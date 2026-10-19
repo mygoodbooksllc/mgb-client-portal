@@ -33,12 +33,12 @@ The page dims and one part of the Plan page is highlighted at a time, with **Ste
 
 1. **Welcome**: "See what Pro would do for" their organization, a two-minute look at what Pro adds. Nothing changes unless they ask for it.
 2. **Plans**: the plan cards. Basic updates their books once a month, on the 15th. Pro keeps them live, synced from QuickBooks every hour, with a **Sync now** button, and adds the tools that follow. The price is on each plan card; the tour doesn't quote one.
-3. **Board-ready Financial Overview**: **Home** becomes a fuller snapshot, with click-to-jump numbers, a low-cash alert and a one-click PDF.
+3. **Board-ready Financial Overview**: **Home** becomes a fuller snapshot, with click-through numbers, a low-cash warning and a one-click PDF.
 4. **Board Packet**: the reports they pick, a cover page and a treasurer's note in one PDF, with comparisons to budget and last year, saved templates, read-only links for the board, and a full-screen **Presentation view** for the board meeting. On Pro it's the **Board packet** tab on **Reports**; the canned statement PDFs stay on **Downloads**. (This step used to be called Report Builder.)
-5. **Budgeting Tool**: year-end forecasts by category, what-if scenarios and next year's budget drafted together and approved by the board. It lives under **Finances** > **Budget**.
-6. **Cash Flow Pro**: every bill in one place, batch pay runs with an approval step, duplicate-bill detection and an ACH export. It lives under **Finances** > **Cash flow**.
-7. **Reconciliation Pro**: a real month-end close on **Bank accounts**, with every period signed off and kept.
-8. **Fund Accounting Pro**: money moving between funds with a reason, pledges from committed to received, and year-end giving statements. It lives under **Finances** > **Giving & funds**.
+5. **Budgeting Tool**: year-end forecasts by category, what-if scenarios and next year's budget drafted together and sent for approval. It lives under **Finances** > **Budget**.
+6. **Cash Flow Pro**: every bill in one place, duplicate-bill checks, a planning list for which bills to pay with your balance afterward, and a CSV export. It lives under **Finances** > **Cash flow**.
+7. **Reconciliation Pro**: balances and transactions on **Bank accounts**, with a reconciliation view and a downloadable reconciliation report.
+8. **Fund Accounting Pro**: fund balances and contributions, with year-end giving statements you can download for each donor. It lives under **Finances** > **Giving & funds**.
 9. **Pro, tool by tool**: the comparison list below the cards. "Every tool, line by line. Click one to see exactly what you get."
 10. **Payroll**: only when the organization doesn't have the add-on. Payroll can be added on either plan, and **Add Payroll** asks us to set it up.
 11. **Upgrade to Pro** (the last step, with a **Finish** button): when they're ready, the button sends a request to the bookkeeper, who switches the plan and confirms the price. The tour points at the button but never clicks it for them.

@@ -9,6 +9,12 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-19: Settings › Plan now describes only what exists
+
+- **Written for a Basic client.** Each Pro card says where it shows up ("Adds a Budget tab", "Replaces the locked card on Home"), and the tool-by-tool list says "What you get on the Budget tab" instead of implying Basic already has it. On Reports, only the Board packet is new; the four statement PDFs are on Basic.
+- **Claims brought back to what the portal does.** Cash flow is a planning list for paying bills with a CSV export (no bank file, no approval step, nothing is paid), and duplicate-bill checks match the same vendor and amount. Bank accounts has a read-only reconciliation view and a downloadable reconciliation PDF (no month-end close). Giving & funds lists fund balances, contributions and year-end statements you download per donor (nothing is emailed). Home lists the four numbers it really has (Cash, Receivables, Payables, Net income this month).
+- **Same wording everywhere.** The Pro tour, locked cards, README plan block and the pricing page embed match. The embed must be pasted into Squarespace again to show it publicly.
+
 ### 2026-10-17: The left sidebar starts as icons
 
 - **Icon rail by default.** The sidebar on the left now opens as the narrow icon rail, with the name under each icon, so pages get more room. Hover over an icon, or tab to it, to see its full name.
@@ -371,7 +377,7 @@ See [How does Ledger review work?](#/help/ledger-review).
 
 ### 2026-10-09: Pro tour for Basic clients
 
-- **Pro tour**: a two-minute walkthrough on a Basic client's **Settings › Plan** page that shows what Pro would add: live QuickBooks sync every 15 minutes with **Sync now**, the Board-ready Financial Overview, Board Packet (called Report Builder at the time), Budgeting Tool, Cash Flow Pro, Reconciliation Pro and Fund Accounting Pro, the tool-by-tool comparison, Payroll (if they don't have it) and **Upgrade to Pro**. It never starts on its own and never clicks anything: an upgrade is still a request to the bookkeeper, which shows on **Today**.
+- **Pro tour**: a two-minute walkthrough on a Basic client's **Settings › Plan** page that shows what Pro would add: live QuickBooks sync every hour with **Sync now**, the Board-ready Financial Overview, Board Packet (called Report Builder at the time), Budgeting Tool, Cash Flow Pro, Reconciliation Pro and Fund Accounting Pro, the tool-by-tool comparison, Payroll (if they don't have it) and **Upgrade to Pro**. It never starts on its own and never clicks anything: an upgrade is still a request to the bookkeeper, which shows on **Today**.
 - Clients start it from **Take the Pro tour** on the Plan page, from the locked card on their Home, or from **Settings › Help**. The client tour's Plan stop points to it on Basic.
 - To see it, use **Preview as** on a Basic client's person, then **Settings › Plan › Take the Pro tour**. See [How does the Pro tour work?](#/help/pro-tour).
 - **Client tour**: the Sync stop now shows for anyone at a Pro organization synced from QuickBooks, even with their Pro pages turned off. See [How does the client guided tour work?](#/help/client-tour).
