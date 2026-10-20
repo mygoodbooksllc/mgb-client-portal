@@ -71,6 +71,7 @@ function CTC_monthName(period) {
 
 // True when `period` (YYYY-MM-01) is past its late day (late_day of the next month).
 function CTC_pastLateDay(period, lateDay) {
+  if (String(period).slice(0, 7) < "2026-10") return false; // caught up through Sep 2026 (see CT_LATE_FROM)
   const [y, m] = String(period).split("-").map(Number);
   const deadline = new Date(y, m, lateDay || 15); // month index m = the following month
   const t = new Date();

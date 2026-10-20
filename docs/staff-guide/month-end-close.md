@@ -83,7 +83,7 @@ Admins can change the number of days with **Stale bank after (days)** (1 to 90) 
 
 ### When is a month "late"?
 
-A month is late if it isn't **Done** or **N/A** by the 15th of the following month. Admins can change that day with **Late after day** and **Save**.
+A month is late if it isn't **Done** or **N/A** by the 15th of the following month. Admins can change that day with **Late after day** and **Save**. Months before October 2026 are never counted as late, so the first late date is November 15, 2026.
 
 > Signing off a month (**Done**), on Work › Close or on the client's Close tab, also ticks the client's "first month closed" onboarding step.
 

@@ -71,7 +71,12 @@ function CT_deadline(period, lateDay) {
   return new Date(y, m, lateDay); // month index m = the following month
 }
 
+// Books are treated as caught up through September 2026, so lateness only
+// counts for October 2026 onward (the first late date is Nov 15, 2026).
+const CT_LATE_FROM = "2026-10";
+
 function CT_isLate(period, status, lateDay, today) {
+  if (String(period).slice(0, 7) < CT_LATE_FROM) return false;
   // "review" = Ready for sign-off: the bookkeeper's part is in on time (tasks p2 s3).
   if (status === "done" || status === "na" || status === "review") return false;
   const dl = CT_deadline(period, lateDay);
@@ -860,7 +865,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
         </div>
         <p className="card-subtitle ct-note">
           Counts are for {CT_monthLabel(focus, true)}. A month is late after the {lateDay}
-          {CT_ordinal(lateDay)} of the next month if it isn't done or N/A
+          {CT_ordinal(lateDay)} of the next month if it isn't done or N/A (months before Oct 2026 aren't counted)
           {lateAll ? ` · ${lateAll} late cell${lateAll === 1 ? "" : "s"} in the grid` : ""}.
         </p>
         {cc && (qbCounts.any > 0 || qbCounts.stale > 0) && (
