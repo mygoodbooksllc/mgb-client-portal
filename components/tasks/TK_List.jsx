@@ -1437,6 +1437,7 @@ function TK_vListBody(props) {
                   {byClient && g.flag ? <span className="tk-group-flag">{TK_vGroupFlagText(g.flag)}</span> : null}
                   <span className="tk-count">{g.tasks.length}</span>
                 </button>
+                {!isCol && typeof TK_BulkGroupBox === "function" ? <TK_BulkGroupBox select={bulk} tasks={g.tasks} label={g.name} /> : null}
               </h3>
               {isCol ? null : (
                 <ul className="tk-rows" role="rowgroup">

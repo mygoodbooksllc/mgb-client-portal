@@ -10,6 +10,7 @@ In **Slate**, a client's or project's list and a person's list, you can pick sev
 ### Select tasks
 
 - Each task row has a small check box at its left, before the done box. It shows when you point at the row (on a touch screen it always shows). Tick it to select the task.
+- To select a whole group at once (Overdue, This week, a client), tick the box on the group header, just left of **Hide**. Tick it again to unselect the group. Once you have selected something, the bar at the bottom reminds you that Shift-click on another box selects everything between.
 - On the keyboard, move to a row with **j** / **k** and press **v** to select it. **Shift+V** selects every task from the last one you picked to this one. **Shift-click** on a check box does the same.
 - Selected rows are shaded, and a bar at the bottom of the page says how many you picked.
 - **Esc**, or **Clear** in the bar, clears the selection. You can pick up to 100 tasks at a time.

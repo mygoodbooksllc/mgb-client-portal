@@ -3040,3 +3040,35 @@ body:has(.ltip-ring.ltip-on) .tk-row .tk-sel {
   border-radius: 50%;
   object-fit: cover;
 }
+
+/* Select-all box on a group header, left of the Hide hint. */
+.tk-group-head:has(.tk-sel-group) {
+  position: sticky;
+}
+.tk-sel-group {
+  position: absolute;
+  top: 50%;
+  right: 52px;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+  opacity: 0.55;
+}
+.tk-group-head:hover .tk-sel-group,
+.tk-sel-group:checked,
+.tk-sel-group:indeterminate,
+.tk-sel-group:focus-visible {
+  opacity: 1;
+}
+.tk-bulk-hint {
+  font-size: 12px;
+  color: var(--ink-muted, var(--muted));
+}
+@media (hover: none), (max-width: 720px) {
+  .tk-bulk-hint {
+    display: none;
+  }
+}

@@ -78,6 +78,26 @@ function TK_useBulkSelect(opts) {
   var clear = React.useCallback(function () {
     setSel(TK_selEmpty());
   }, []);
+  // A group header's box: select (or unselect) every row of that group.
+  var setMany = React.useCallback(function (ids, on) {
+    var max = typeof TK_api !== "undefined" && TK_api && TK_api.BULK_MAX ? TK_api.BULK_MAX : 100;
+    var next = { ids: {}, anchor: selRef.current.anchor };
+    Object.keys(selRef.current.ids).forEach(function (k) {
+      next.ids[k] = true;
+    });
+    var capped = false;
+    (ids || []).forEach(function (id) {
+      var k = String(id);
+      if (!on) {
+        delete next.ids[k];
+      } else if (!next.ids[k]) {
+        if (Object.keys(next.ids).length >= max) capped = true;
+        else next.ids[k] = true;
+      }
+    });
+    if (capped) TK_vToast("You can select up to " + max + " tasks at a time.");
+    setSel(next);
+  }, []);
 
   // Esc clears the selection (not while typing, in a dialog or a menu, or
   // while the list's keys are paused: the task drawer is open).
@@ -116,8 +136,44 @@ function TK_useBulkSelect(opts) {
       return ready && id != null && visible.indexOf(String(id)) >= 0;
     },
     toggle: toggle,
+    setMany: setMany,
     clear: clear,
   };
+}
+
+// The "select all" box on a group header (Overdue, This week, a client...).
+// props: { select (TK_useBulkSelect), tasks: the group's tasks, label }
+function TK_BulkGroupBox(props) {
+  var select = props.select || {};
+  var ref = React.useRef(null);
+  var ids = (props.tasks || []).map(function (t) {
+    return String(t.id);
+  });
+  var n = 0;
+  ids.forEach(function (id) {
+    if (select.has && select.has(id)) n++;
+  });
+  var all = ids.length > 0 && n === ids.length;
+  React.useEffect(
+    function () {
+      if (ref.current) ref.current.indeterminate = n > 0 && !all;
+    },
+    [n, all],
+  );
+  if (!select.ready || typeof select.setMany !== "function" || !ids.length) return null;
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      className="tk-sel-group"
+      checked={all}
+      aria-label={(all ? "Unselect all " : "Select all ") + ids.length + " in " + (props.label || "this group")}
+      title={all ? "Unselect this group" : "Select all in this group"}
+      onChange={function () {
+        select.setMany(ids, !all);
+      }}
+    />
+  );
 }
 
 var TK_vDUE_CHOICES = [
@@ -284,6 +340,7 @@ function TK_BulkBar(props) {
       <span className="tk-bulk-count" aria-live="polite">
         {count + " selected"}
       </span>
+      <span className="tk-bulk-hint">Shift-click another box to select everything between.</span>
       {confirmDelete ? (
         <span className="tk-bulk-confirm" role="group" aria-label="Confirm delete">
           <span>{count === 1 ? "Delete 1 task?" : "Delete " + count + " tasks?"}</span>
