@@ -119,15 +119,41 @@ the existing section order (`TK_CLIENT_SECTION_ORDER`). Only filings take hard d
 1. `tk_settings` key `month_rhythm` plus its Settings editor (admin).
 2. `firm_part` rule type in JS and SQL with shared fixtures and tests.
 3. Seed the eight monthly templates above (cadence `monthly`, `due_rule` `firm_part`).
-4. The 24th auto-complete rule (needs the open-requests count per client).
-5. Option B view, then the per-person A/B choice.
-6. Option C pre-fill by client type.
+4. The 24th auto-complete rule (needs the open-requests count per client), the
+   two-months-running account manager notice, and `tk_report_state` with the client-facing
+   Preliminary badge.
+5. Client rhythm override (profile column, admin editor, resolver order client then firm).
+6. Option B view, then the per-person A/B choice.
+7. Option C pre-fill by client type.
 
-## Open questions for the owner
+## Owner decisions, 2026-10-20 (second round)
 
-- Is "preliminary" a report status the portal should record (so clients see "Preliminary,
-  missing: statement for Operating") or just a label on the email? Recommended: record it.
-- Should the 24th follow-up also notify the account manager when a client has been
-  preliminary two months running?
-- Do any clients get a different rhythm (for example a client billed on a 15th close)? If yes,
-  allow a per-client override of the three days; if no, leave the setting firm-wide.
+1. **Preliminary is a recorded status the client can see.** Each client month has a report
+   state: `none`, `preliminary` or `full`. When a bookkeeper sends reports on the 14th (row 6)
+   they pick Full or Preliminary. Preliminary requires a list of what is missing, taken from the
+   client's open Ask client requests and editable before sending. The client sees a
+   "Preliminary" badge on that month's reports with the missing items, for example "Missing:
+   statement for Operating", each linking to the upload. Sending the full reports (row 8)
+   changes the state to `full` and clears the badge. The state is stored per client and month
+   (suggested table `tk_report_state`: `client_id`, `period` (first of month), `state`,
+   `missing` jsonb, `set_by`, `set_at`), written only by staff, readable by that client's
+   users for their own rows. It must never expose the internal task list (the client sees
+   outcomes only).
+2. **The account manager is notified when a client is preliminary two months running.** On the
+   24th, when row 7 is created for a client whose previous month's state was also
+   `preliminary`, notify that client's account manager through the existing bell and
+   notification email path (quiet by default: this is an assigned-to-you style event, not a
+   broadcast). The row 7 description says "Second month in a row". If the client has no account
+   manager, notify admins.
+3. **A client can have its own rhythm.** The firm setting is the default. A client may override
+   the three days, stored on that client's profile (suggested: a nullable jsonb column on
+   `client_profile`, same shape as `parts`; null means use the firm setting). The `firm_part`
+   rule resolves the client's override first, then the firm setting, then fails closed with a
+   clear error. Only admins can set an override. Validation is the same as the firm setting.
+   The client's Settings tab shows "Uses the firm rhythm (4th, 14th, 24th)" or the override.
+
+Effects on earlier sections: the `resolveDue` change needs the client's override as well as
+the firm setting, so its extra argument becomes `rhythm` (already merged client-over-firm by
+the caller). The seeded templates do not change. Add `tk_report_state` and the profile
+column to the build order after step 2, and the account manager notice after step 4.
+
