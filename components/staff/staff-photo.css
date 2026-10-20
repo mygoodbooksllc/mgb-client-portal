@@ -32,7 +32,7 @@
   letter-spacing: -0.01em;
   color: var(--ink-strong, var(--text));
 }
-.pg-wordmark-good { color: var(--gold-deep, #8a6d34); }
+.pg-wordmark-good { color: inherit; }
 .pg-head-actions { display: flex; align-items: center; gap: 8px; }
 .pg-head-btn { padding: 8px 14px; font-size: 13.5px; }
 

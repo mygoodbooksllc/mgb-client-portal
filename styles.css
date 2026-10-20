@@ -702,14 +702,14 @@ body {
 .brand-name {
   font-family: "Lato", var(--font-body, sans-serif);
   font-weight: 900;
-  /* Warm cream, matches the sign-in header wordmark; fixed so dark mode doesn't flip it. */
-  color: #f0ece3;
+  /* Solid white, same as the sign-in header wordmark; fixed so dark mode doesn't flip it. */
+  color: #ffffff;
   font-size: 17px;
   letter-spacing: -0.01em;
 }
 
 .brand-name-good {
-  color: var(--gold);
+  color: inherit;
 }
 
 .brand-sub {
@@ -5925,10 +5925,10 @@ body:has(.modal-overlay) .chat-fab-wrap {
   font-weight: 900;
   font-size: 34px;
   letter-spacing: -0.01em;
-  color: #f0ece3;
+  color: #ffffff;
 }
 
-.auth-wordmark-good { color: #c7ae86; }
+.auth-wordmark-good { color: inherit; }
 
 .auth-logo-sub {
   margin-top: 4px;
