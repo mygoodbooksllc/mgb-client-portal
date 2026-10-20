@@ -37,7 +37,7 @@ three of them:
 | --- | --- | --- |
 | 2. Ask for missing documents | `request` | Email 1, statement and clarification request |
 | 6. Send reports (full or preliminary) | `reports` | Email 2, financial reports delivery |
-| 7. Follow up on missing documents | `maintenance` | Email 3 (see open question 1) |
+| 7. Follow up on missing documents | `maintenance` | Email 3: one email, two sections (follow-up request, then maintenance update). Decided 2026-10-20 |
 
 Changes to the email handoff, all additive:
 
@@ -68,14 +68,19 @@ Changes to the email handoff, all additive:
 - Nullable `rhythm` jsonb on `client_profile`, same shape as `month_rhythm.parts`.
 - `task_templates.email_kind` (from the email spec), set in slice 3's migration.
 
-## Open questions for the owner
+## Decisions and open questions
 
-1. Email 3 in the doc is "Account maintenance update" (bank feed check, standard text). The
-   month rhythm's 24th is "Follow up on missing documents". Should the 24th email be the
-   follow-up request, the maintenance update, or both (one email with two sections)?
-2. Are the client-facing dates always the internal date plus one day (5th, 15th, 25th)?
-3. Competitive brainstorm questions still open: task-size estimate acceptable to staff, client
-   checklist scope (every open request or this month only), where "QuickBooks agrees" shows.
+Decided 2026-10-20:
+
+1. The 24th email is one email with two sections: the follow-up request for missing
+   documents, then the standard account maintenance update.
+2. Client-facing dates are always the internal date plus one day (5th, 15th, 25th), derived
+   from the resolved rhythm.
+
+Still open (competitive brainstorm, for the owner):
+
+3. Task-size estimate acceptable to staff, client checklist scope (every open request or this
+   month only), and where "QuickBooks agrees" shows.
 
 ## Rules that stay in force
 
