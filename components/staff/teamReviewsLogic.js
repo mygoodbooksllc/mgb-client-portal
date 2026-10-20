@@ -182,8 +182,9 @@ function TR_surveyAnsweredCount(a) {
   return n;
 }
 
-// Anonymous groups are shown only once 3 or more people answered.
-var TR_ANON_MIN = 3;
+// Anonymous groups are shown as soon as 1 person answered (owner decision
+// 2026-10-20; was 3). Keep in step with tr_survey_results.
+var TR_ANON_MIN = 1;
 function TR_anonVisible(count) {
   return typeof count === "number" && count >= TR_ANON_MIN;
 }

@@ -1061,7 +1061,8 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
 - **Retention:** keep forever. Nothing in the module hard-deletes; unsigned reviews end as
   `closed_unsigned`, corrections after lock are addenda.
 - **Anonymous survey questions (7 and 10)** are stored in `survey_anonymous_answers` without a
-  staff id and shown only once 3 or more people answered. Caveat: with a small team, timing and
+  staff id and shown to admins as soon as 1 person answered (was 3; owner decision 2026-10-20,
+  `team-reviews-6-anon-min-one.sql`). Caveat: with a small team, timing and
   writing style can still identify someone, and the table has no timestamp or staff id but someone
   with direct database access could guess from physical row order. It's "not linked by name", not
   cryptographic anonymity.

@@ -2,7 +2,7 @@
 // Loaded after TeamReviews.jsx; uses its TR_* helpers.
 //
 // Q7 and Q10 are anonymous: tr_survey_submit stores them without a name or
-// time, and tr_survey_results returns them only once 3 or more people have
+// time, and tr_survey_results returns them as soon as 1 person has
 // answered that question. Everything else is visible to all admins by name.
 
 const TR_SURVEY_QUESTIONS = [
@@ -198,8 +198,8 @@ function TR_SurveyPage({ onBack }) {
           Your answers are visible to all admins{admins ? ` (${admins})` : ""}.
         </p>
         <p className="tr-muted" style={{ margin: "6px 0 0" }}>
-          Questions 7 and 10 are anonymous: those answers are saved without your name and are shown to admins only once 3 or more
-          people have answered.
+          Questions 7 and 10 are anonymous: those answers are saved without your name and shown to admins without names, in no
+          particular order. With a small team, an admin may be able to guess who wrote one.
         </p>
       </div>
 
@@ -399,7 +399,7 @@ function TR_SurveyResultsTab() {
                 </>
               ) : (
                 <p className="tr-muted" style={{ margin: 0 }}>
-                  Shown once 3 or more people answer.
+                  No anonymous answers yet.
                 </p>
               )}
             </div>

@@ -9,6 +9,10 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-20: Anonymous survey answers show right away
+
+Admins now see the anonymous answers to survey questions 7 and 10 as soon as one person has answered, including for the current quarter. They still show without names. The survey page tells staff that, with a small team, an admin may be able to guess who wrote one.
+
 ### 2026-10-19: Handbook drafts need approval
 
 - **One approver.** A handbook draft can only be published once the policy approver (Bailley) has approved its current text. Each draft shows **Awaiting Bailley's approval**, **Changes asked** or **Approved**, and the Drafts group has filters with counts. Published policies, including the Flexible Work policy, don't change.

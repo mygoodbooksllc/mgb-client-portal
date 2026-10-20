@@ -114,7 +114,8 @@ t("survey answered count", () => {
 });
 
 t("anonymous threshold", () => {
-  assert.strictEqual(L.TR_anonVisible(2), false);
+  assert.strictEqual(L.TR_anonVisible(0), false);
+  assert.strictEqual(L.TR_anonVisible(1), true);
   assert.strictEqual(L.TR_anonVisible(3), true);
   assert.strictEqual(L.TR_anonVisible(undefined), false);
 });

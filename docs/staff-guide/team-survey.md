@@ -19,7 +19,7 @@ Once you submit, your answers are read-only for that quarter.
 
 Your answers are visible to all admins, by name. The survey page lists who they are.
 
-Questions **7** and **10** are anonymous: those answers are saved without your name, and admins only see them once 3 or more people have answered that question. Because they aren't linked to you, they don't show on your own copy after you submit.
+Questions **7** and **10** are anonymous: those answers are saved without your name, and admins see them without names, in no particular order. With a small team, an admin may be able to guess who wrote one. Because they aren't linked to you, they don't show on your own copy after you submit.
 
 ### For admins: survey results
 
@@ -28,4 +28,4 @@ Questions **7** and **10** are anonymous: those answers are saved without your n
 - how many people responded out of everyone in the cycle
 - average morale, with the change from last quarter
 - how many want more work, the same or less
-- every answer, question by question, with the person's name (anonymous questions show answers without names once 3 or more people have answered, and "Shown once 3 or more people answer" until then)
+- every answer, question by question, with the person's name (anonymous questions show answers without names as soon as one person has answered, and "No anonymous answers yet." until then)
