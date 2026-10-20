@@ -410,6 +410,15 @@ button.td-row-main:hover {
 .td-card-note {
   margin-top: 12px;
 }
+.td-more {
+  display: block;
+  font-weight: 600;
+  cursor: pointer;
+}
+.td-card .td-reminders-scroll {
+  margin: 8px 0 0;
+  padding-bottom: 4px;
+}
 .td-link {
   background: none;
   border: none;

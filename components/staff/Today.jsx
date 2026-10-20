@@ -973,6 +973,7 @@ function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }
       {items === null && !error && <p className="card-subtitle td-card-note">Loading…</p>}
       {items && sorted.length === 0 && !error && <p className="card-subtitle td-card-note">No reminders yet.</p>}
       {sorted.length > 0 && (
+        <div className="td-card-scroll">
         <ul className="staff-audit-list td-reminders-scroll">
           {sorted.map((r) => (
             <li className="staff-audit-row" key={r.id}>
@@ -996,6 +997,7 @@ function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }
             </li>
           ))}
         </ul>
+        </div>
       )}
     </section>
   );
@@ -1183,6 +1185,8 @@ function TD_SummaryLine({ due, late, ready }) {
 
 // A card of up to four lines: { key, title, chips: [{tone, text}], onClick }.
 function TD_ListCard({ id, title, subtitle, lines, extra, emptyText, loaded, tour }) {
+  const [showAll, setShowAll] = React.useState(false);
+  const shown = showAll ? lines : lines.slice(0, TD_CARD_ROWS);
   return (
     <section className="card td-card" aria-labelledby={id} {...(tour ? { "data-tour": tour } : {})}>
       <h3 className="card-title" id={id}>
@@ -1194,7 +1198,7 @@ function TD_ListCard({ id, title, subtitle, lines, extra, emptyText, loaded, tou
       {loaded && lines.length === 0 && <p className="card-subtitle td-card-note td-card-ok">{emptyText}</p>}
       {lines.length > 0 && (
         <ul className="td-mini-list">
-          {lines.slice(0, TD_CARD_ROWS).map((l) => (
+          {shown.map((l) => (
             <li key={l.key}>
               <button type="button" className="td-mini-row" onClick={l.onClick} {...(l.tour ? { "data-tour": l.tour } : {})}>
                 <span className="td-mini-title">{l.title}</span>
@@ -1210,7 +1214,11 @@ function TD_ListCard({ id, title, subtitle, lines, extra, emptyText, loaded, tou
           ))}
         </ul>
       )}
-      {lines.length > TD_CARD_ROWS && <p className="card-subtitle td-card-note">+{lines.length - TD_CARD_ROWS} more</p>}
+      {lines.length > TD_CARD_ROWS && (
+        <button type="button" className="td-link td-card-note td-more" aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>
+          {showAll ? "Show fewer" : "+" + (lines.length - TD_CARD_ROWS) + " more"}
+        </button>
+      )}
       </div>
       {extra}
     </section>
