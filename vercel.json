@@ -43,12 +43,6 @@
       ]
     },
     {
-      "source": "/desk.webmanifest",
-      "headers": [
-        { "key": "Content-Type", "value": "application/manifest+json" }
-      ]
-    },
-    {
       "source": "/respond",
       "headers": [
         { "key": "Referrer-Policy", "value": "no-referrer" },

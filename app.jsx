@@ -29553,9 +29553,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       return undefined;
     }
   }, [tkHosts]);
-  // A client never gets the Tasks or Desk shell: clear the flag.
+  // A client never gets the Tasks shell: clear the flag.
   useEffect(() => {
-    if (!clientPortalUser || (window.MGB_SHELL !== "tasks" && window.MGB_SHELL !== "desk")) return;
+    if (!clientPortalUser || window.MGB_SHELL !== "tasks") return;
     try {
       sessionStorage.removeItem("mgb_shell_v1");
     } catch (e) {}
