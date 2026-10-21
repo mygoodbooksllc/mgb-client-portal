@@ -327,6 +327,7 @@ function TK_StandaloneBar(props) {
             type="button"
             className="tk-sbar-btn tk-sbar-add"
             title="Add a task"
+            aria-label="Add a task"
             onClick={function () {
               try {
                 window.dispatchEvent(new CustomEvent("tk:quick-add", { detail: typeof TK_vQuickAddFor === "function" ? TK_vQuickAddFor(route) : {} }));

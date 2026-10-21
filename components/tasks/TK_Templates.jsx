@@ -399,6 +399,10 @@ function TK_tplEditor(props) {
   var filter = fPair[0];
   var setFilter = fPair[1];
 
+  // Slate app compact: read-only with "Make the window wider to edit" (the
+  // modal portals out of the page's read-only fieldset, so it has its own).
+  var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
+  var RO = typeof TK_SlateReadOnly === "function" ? TK_SlateReadOnly : React.Fragment;
   var titleId = "tk-tpl-ed-title";
   var isNew = !d.id;
   var inSet = !!d.template_set_id;
@@ -424,7 +428,7 @@ function TK_tplEditor(props) {
 
   var save = function (e) {
     if (e) e.preventDefault();
-    if (busy) return;
+    if (busy || !slateWide) return;
     var x = full();
     var v = TK_tplValidate(x);
     if (String(clText).split("\n").filter(function (s) { return s.trim(); }).length > 50) {
@@ -475,6 +479,7 @@ function TK_tplEditor(props) {
           </button>
         </div>
         <div className="modal-body tk-form">
+          <RO>
           {isNew ? (
             <p className="tk-form-note">
               {d._prefilled ? "Filled in from the task. " : ""}New templates start as drafts. Nothing is created until you turn it on.
@@ -823,12 +828,13 @@ function TK_tplEditor(props) {
               {msg}
             </p>
           ) : null}
+          </RO>
         </div>
         <div className="modal-footer tk-modal-footer">
           <button type="button" className="btn-secondary" onClick={props.onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary" disabled={busy || !props.online}>
+          <button type="submit" className="btn-primary" disabled={busy || !props.online || !slateWide}>
             {busy ? "Saving…" : isNew ? "Save draft" : "Save"}
           </button>
         </div>
@@ -991,6 +997,10 @@ function TK_tplOverrideModal(props) {
   var msg = mPair[0];
   var setMsg = mPair[1];
   var titleId = "tk-tpl-ov-title";
+  // Slate app compact: read-only with "Make the window wider to edit" (the
+  // modal portals out of the page's read-only fieldset, so it has its own).
+  var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
+  var RO = typeof TK_SlateReadOnly === "function" ? TK_SlateReadOnly : React.Fragment;
 
   // an admin turned approval off for this client: only an admin changes that
   var reviewLocked = !props.isAdmin && o.review_required === false;
@@ -999,6 +1009,7 @@ function TK_tplOverrideModal(props) {
 
   var save = function (e) {
     e.preventDefault();
+    if (!slateWide) return;
     var next = TK_tplOverridePayload({ title: title, rule: rule, role: role, review: review }, { isAdmin: props.isAdmin, stored: o });
     setBusy(true);
     setMsg("");
@@ -1026,6 +1037,7 @@ function TK_tplOverrideModal(props) {
           </button>
         </div>
         <div className="modal-body tk-form">
+          <RO>
           <p className="tk-form-note">{"Only " + (props.clientName || "this client") + "'s tasks from “" + t.title + "” change. Leave a field blank to use the template's."}</p>
           <label className="tk-field">
             <span className="tk-field-label">Title for this client</span>
@@ -1117,12 +1129,13 @@ function TK_tplOverrideModal(props) {
               {msg}
             </p>
           ) : null}
+          </RO>
         </div>
         <div className="modal-footer tk-modal-footer">
           <button type="button" className="btn-secondary" onClick={props.onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary" disabled={busy || !props.online}>
+          <button type="submit" className="btn-primary" disabled={busy || !props.online || !slateWide}>
             {busy ? "Saving…" : "Save for this client"}
           </button>
         </div>

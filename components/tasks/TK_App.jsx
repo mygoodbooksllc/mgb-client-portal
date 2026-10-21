@@ -102,10 +102,6 @@ function TK_App(props) {
   else if (route.view === "waiting") main = <TK_WaitingList staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "templates") main = <TK_Templates staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "manage") main = <TK_ManageProjects staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
-  // Compact in the app: Templates and Manage are read-only with a note.
-  if (slm && (route.view === "templates" || route.view === "manage") && typeof TK_SlateReadOnly === "function") {
-    main = <TK_SlateReadOnly>{main}</TK_SlateReadOnly>;
-  }
   else if (route.view === "client" || route.view === "project" || route.view === "person") {
     main = <TK_List route={route} staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   } else {
@@ -125,6 +121,10 @@ function TK_App(props) {
         </a>
       </div>
     );
+  }
+  // Compact in the app: Templates and Manage are read-only with a note.
+  if (slm && (route.view === "templates" || route.view === "manage") && typeof TK_SlateReadOnly === "function") {
+    main = <TK_SlateReadOnly>{main}</TK_SlateReadOnly>;
   }
 
   var needBar = !rail && !bottomBar;

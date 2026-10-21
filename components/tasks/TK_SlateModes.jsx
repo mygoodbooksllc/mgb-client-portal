@@ -286,8 +286,12 @@ function TK_useSlateTaskHost() {
   return m && typeof TK_slateTaskHost === "function" ? TK_slateTaskHost(m.mode) : "drawer";
 }
 
+// A sliver hides the list (still mounted), so its keys (x, v, j, k ...) stay
+// off there: they must never act on rows nobody can see.
 function TK_useListKeysOn(drawerId) {
-  var host = TK_useSlateTaskHost();
+  var m = TK_useSlateMode();
+  if (m && m.mode === "sliver") return false;
+  var host = m && typeof TK_slateTaskHost === "function" ? TK_slateTaskHost(m.mode) : "drawer";
   return !drawerId || host === "pane";
 }
 
@@ -437,9 +441,7 @@ function TK_SlatePaneTask(props) {
     <div
       ref={ref}
       className="tk-slate-pane-task"
-      role="region"
       tabIndex={-1}
-      aria-label="Task details"
       data-tk-keyscope="drawer"
       onKeyDownCapture={function (e) {
         if (e.key === "Escape") ref.escAt = Date.now();
