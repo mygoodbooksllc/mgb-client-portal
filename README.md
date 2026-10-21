@@ -2530,6 +2530,8 @@ the browser, so they'd type the emailed code instead). Staff sign-in inside the 
 work email + emailed code in the first (client) form; `RootGate` then routes the `@mygoodbooks.org` session to `AuthGate`.
 `/?install-app=0` no longer hides it for signed-in staff; tester overrides (`/?install-app=1`, the unreleased flag) are never cleared by sign-out. Staff guide article: `get-the-app.md` (desktop Chrome/Edge only; phones use the website). Tip `install-app-desktop` (Today, ring on the ? button) shows only where `mgbInstallApp.canOffer()` is true.
 
+**MGB Slate app (preview, S2).** `/slate` (a Vercel rewrite that keeps the path; `/slate/` redirects to it) is a second installable app with its own `slate.webmanifest` (id, scope and start_url `/slate`). On `/slate` the install script links nothing until the app calls `mgbInstallApp.setSlate(on)` (`TK_slateBoot` in `components/tasks/TK_SlateBridge.jsx`); on it links the Slate manifest, holds the install prompt (`mgb-slate-prompt`, `mgb-slate-installed`, localStorage `mgb_slate_installed_v1`), off it links the portal manifest as everywhere else. All of it sits behind `TK_slateAppIsOn` (Slate app preview checkbox `mgb_slate_app_preview`, owner switch `tk_settings.slate_app_enabled`). The app and portal windows talk over the BroadcastChannel `mgb-slate` (links that leave Tasks, chat, Dock in portal). Icons: `app-icons/slate-icon-192.png`, `slate-icon-512.png`, `slate-icon-maskable-512.png` and `slate-apple-touch-icon.png` (task rows with one gold check on teal `#06262D`, maskable-safe; the manifest theme and background match).
+
 ## Staff guide
 
 The staff guide (`#/help`, opened from the **?** menu in the top bar: Help for this page, Staff

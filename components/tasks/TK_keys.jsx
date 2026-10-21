@@ -312,11 +312,17 @@ function TK_useRoute() {
 
 // ---- Pop-out (Row 11.2) -------------------------------------------------------------
 
-function TK_popOut(hash) {
+// opts.app (the Slate app is on; TK_openSlateApp in TK_SlateBridge.jsx): the
+// window opens at /slate (TK_slateAppUrl) with the app minimum size, and is
+// then sized with resizeTo, which sets the OUTER size the shell bar saved (so
+// it no longer grows by the frame height on every reopen). Without opts.app
+// this is exactly the classic pop-out.
+function TK_popOut(hash, opts) {
   var h = typeof hash === "string" && hash ? hash : "#/tasks/my";
   if (h.charAt(0) !== "#") h = "#" + h;
   var key = typeof TK_POPOUT_KEY === "string" ? TK_POPOUT_KEY : "mgb_tk_popout_v1";
   var saved = TK_vLsGet(key, null);
+  if (opts && opts.app === true) return TK_vPopOutApp(h, saved);
   var features = typeof TK_popOutFeatures === "function" ? TK_popOutFeatures(saved) : "popup,width=480,height=820";
   var w = null;
   try {
@@ -330,6 +336,33 @@ function TK_popOut(hash) {
     return null;
   }
   TK_vTrack("tasks-popout");
+  try {
+    w.focus();
+  } catch (e) {}
+  return w;
+}
+
+function TK_vPopOutApp(h, saved) {
+  var size = typeof TK_popOutSize === "function" ? TK_popOutSize(saved, undefined, true) : { w: 480, h: 820 };
+  var features = typeof TK_popOutFeatures === "function" ? TK_popOutFeatures(saved, undefined, true) : "popup,width=480,height=820";
+  var url = typeof TK_slateAppUrl === "function" ? TK_slateAppUrl(h) : "/slate#/tasks/my";
+  var w = null;
+  try {
+    w = window.open(url, "mgb-tasks", features);
+  } catch (e) {
+    w = null;
+  }
+  if (!w) {
+    TK_vToast(TK_vCopy("popupBlocked"));
+    return null;
+  }
+  // Only a saved size (the outer size TK_StandaloneBar remembered) needs the
+  // fix; a first open keeps the classic 480x820 request.
+  if (saved && typeof saved === "object" && saved.w && saved.h) {
+    try {
+      w.resizeTo(size.w, size.h);
+    } catch (e) {}
+  }
   try {
     w.focus();
   } catch (e) {}

@@ -7,7 +7,10 @@
 //   (#/tasks/search), the "Follow my client" switch (a menu item on touch
 //   screens; mgb_tk_follow_v1; TK_useFollowClient in TK_ClientDrawer.jsx),
 //   "Dock in portal", and an avatar menu with "Open full portal" and
-//   "Help". While mounted it adds body.tk-shell (which hides the
+//   "Help". Inside the Slate app (TK_slateInApp, TK_SlateBridge.jsx) Dock,
+//   Open full portal and Help go to a portal window over the "mgb-slate"
+//   channel instead, and the install strip shows on /slate?install=1.
+//   While mounted it adds body.tk-shell (which hides the
 //   chat button) and, when the window has an opener, remembers its size in
 //   mgb_tk_popout_v1 (debounced 500 ms).
 // TK_startDockReceiver()
@@ -159,6 +162,7 @@ function TK_StandaloneBar(props) {
   var info = TK_vOpenerInfo();
   var showDock = info.hasOpener || !touch;
   var name = staffUser.name || staffUser.full_name || staffUser.email || "";
+  var inApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
 
   // Follow my client: the list follows the client open in the portal window.
   var fPair = React.useState(function () {
@@ -227,15 +231,30 @@ function TK_StandaloneBar(props) {
   };
   var dock = function () {
     if (cancelRef.current) cancelRef.current();
+    if (inApp) {
+      cancelRef.current = null;
+      TK_slateDock(currentHash(), function (r) {
+        if (r === "stay") TK_vToast("You can close this window now.");
+      });
+      return;
+    }
     cancelRef.current = TK_vDock(currentHash());
   };
   var openPortal = function () {
+    if (inApp) {
+      TK_slateForwardHash("#/today");
+      return;
+    }
     TK_vClearShellFlag();
     try {
       window.location.assign("/#/today");
     } catch (e) {}
   };
   var help = function () {
+    if (inApp) {
+      TK_slateForwardHash("#/help/tasks-own-window");
+      return;
+    }
     var op = null;
     try {
       op = window.opener && !window.opener.closed ? window.opener : null;
@@ -254,7 +273,7 @@ function TK_StandaloneBar(props) {
     } catch (e) {}
   };
 
-  return (
+  var bar = (
     <header className={"tk-sbar" + (phone ? " is-compact" : "")} role="banner">
       <a
         className="tk-sbar-brand"
@@ -373,5 +392,12 @@ function TK_StandaloneBar(props) {
         </TK_vMenuButton>
       </div>
     </header>
+  );
+  if (!inApp || typeof TK_SlateInstallBanner !== "function") return bar;
+  return (
+    <>
+      {bar}
+      <TK_SlateInstallBanner />
+    </>
   );
 }

@@ -1439,4 +1439,65 @@ t("slateDeepHref: junk is rejected", () => {
   assert.strictEqual(L.TK_slateDeepHref({ view: "client", clientId: "a.b" }), "/slate#/tasks/c/a.b");
 });
 
+// ---- Slate app bridge (S2; ported from the MGB Desk window tests) -------------
+t("slateForwardOk: plain app hashes only", () => {
+  const K = L.TK_slateForwardOk;
+  assert.strictEqual(K("#/clients/12/chat"), true);
+  assert.strictEqual(K("#/help/my-tasks"), true);
+  ["javascript:alert(1)", "https://evil", "#//x", "//evil.com", "", "#", "#/a b", "#/<x>", 5, null, undefined, {}, "#/" + "a".repeat(300)].forEach((v) =>
+    assert.strictEqual(K(v), false, String(v)),
+  );
+  assert.strictEqual(K("#/" + "a".repeat(298)), true);
+  assert.strictEqual(K("#/" + "a".repeat(299)), false);
+  assert.strictEqual(K("#/client/ab-12/inbox?item=request:9f%2Fx&month=2026-09"), true);
+  assert.strictEqual(K("#/work/tasks?item=task:abc123"), true);
+  assert.strictEqual(K("#/tasks/c/Ab%2Fc"), true);
+  assert.strictEqual(K("#/today?client=a%40b.co"), true);
+  assert.strictEqual(K("#/tasks/c/" + encodeURIComponent("O'Brien")), true);
+  assert.strictEqual(K('#/a"b'), false);
+});
+t("slateDockPick: none, one, several", () => {
+  const D = L.TK_slateDockPick;
+  assert.strictEqual(D([]), null);
+  assert.strictEqual(D(undefined), null);
+  assert.strictEqual(D([{ from: "a", focusedAt: 5, visible: false }]), "a");
+  assert.strictEqual(D([{ from: "a", focusedAt: 9, visible: false }, { from: "b", focusedAt: 1, visible: true }]), "b");
+  assert.strictEqual(D([{ from: "a", focusedAt: 3, visible: true }, { from: "b", focusedAt: 8, visible: true }]), "b");
+  assert.strictEqual(D([{ from: "a", focusedAt: 3 }, { from: "b", focusedAt: 8 }, { from: "c", focusedAt: 2 }]), "b");
+  assert.strictEqual(D([null, {}, { from: "z" }]), "z");
+});
+t("slateIsTasksHash and slateDockHashOk", () => {
+  const T = L.TK_slateIsTasksHash;
+  ["#/tasks", "#/tasks/", "#/tasks/my", "#/tasks/my?item=task:1", "#/tasks/c/x"].forEach((h) => assert.strictEqual(T(h), true, h));
+  ["#/taskss", "#/today", "#/client/1/tasks", "", null, "#/work/tasks", "#/tasks?item=task:1"].forEach((h) => assert.strictEqual(T(h), false, String(h)));
+  const D = L.TK_slateDockHashOk;
+  assert.strictEqual(D("#/tasks/my"), true);
+  assert.strictEqual(D("#/tasks/c/Ab%2Fc?item=task:abc-1"), true);
+  ["#/today", "#/tasks/a/b/c/d", "#/tasks/my?x=1", "javascript:x", null].forEach((h) => assert.strictEqual(D(h), false, String(h)));
+});
+t("slateAppUrl: current Tasks route, else My tasks", () => {
+  assert.strictEqual(L.TK_slateAppUrl("#/tasks/templates"), "/slate#/tasks/templates");
+  assert.strictEqual(L.TK_slateAppUrl("#/tasks/c/acme?item=task:1"), "/slate#/tasks/c/acme?item=task:1");
+  assert.strictEqual(L.TK_slateAppUrl("#/today"), "/slate#/tasks/my");
+  assert.strictEqual(L.TK_slateAppUrl(""), "/slate#/tasks/my");
+  assert.strictEqual(L.TK_slateAppUrl(undefined), "/slate#/tasks/my");
+  assert.strictEqual(L.TK_slateAppUrl("#/tasks/" + "a".repeat(400)), "/slate#/tasks/my");
+  assert.strictEqual(L.TK_slateAppUrl("#/tasks/a b"), "/slate#/tasks/my");
+  assert.strictEqual(L.TK_slateAppUrl("#/tasks?item=task:1"), "/slate#/tasks/my");
+  assert.strictEqual(L.TK_slateAppUrl("#/tasks"), "/slate#/tasks");
+});
+t("slateLaunchItems: open, install, installed, phone", () => {
+  const I = (o) => L.TK_slateLaunchItems(o).map((x) => x.id + ":" + x.label);
+  assert.deepStrictEqual(I({ canInstall: true }), ["open:Open Slate app", "install:Install Slate app"]);
+  assert.deepStrictEqual(I({ canInstall: false }), ["open:Open Slate app"]);
+  assert.deepStrictEqual(I({ installed: true, canInstall: true }), ["open-app:Open Slate app"]);
+  assert.deepStrictEqual(I({ canInstall: true, mobile: true }), []);
+  assert.deepStrictEqual(I(undefined), ["open:Open Slate app"]);
+});
+t("Slate app bridge constants", () => {
+  assert.strictEqual(L.TK_SLATE_CHANNEL, "mgb-slate");
+  assert.strictEqual(L.TK_SLATE_INSTALLED_KEY, "mgb_slate_installed_v1");
+  assert.strictEqual(L.TK_SLATE_APP_NAME, "MGB Slate");
+});
+
 console.log(n + " checks passed");

@@ -75,6 +75,8 @@ function WB_HubTasksBody(props) {
   var isAdmin = !!props.isAdmin;
   var today = TK_vToday();
   var online = TK_vUseOnline();
+  // The Slate app (TK_SlateBridge.jsx): "Open Slate app" instead of the pop-out.
+  var slateOn = typeof TK_useSlateAppOn === "function" ? TK_useSlateAppOn() : false;
   var paneRef = React.useRef(null);
   var focusPair = React.useState(null);
   var focusedId = focusPair[0];
@@ -377,7 +379,11 @@ function WB_HubTasksBody(props) {
   return (
     <div className="tk-view wb-hub-tasks" ref={paneRef} onKeyDown={onKeyDown} onClickCapture={onClickCapture} data-tour="wb-hub-tasks">
       {!online ? <p className="wb-offline-line" role="status">Offline. Changes wait until you're back.</p> : null}
-      {typeof TK_popOut === "function" ? (
+      {slateOn && typeof TK_SlateLaunch === "function" ? (
+        <div className="wb-hub-popout">
+          <TK_SlateLaunch hash="#/tasks/my" iconSize={14} />
+        </div>
+      ) : typeof TK_popOut === "function" ? (
         <div className="wb-hub-popout">
           <button type="button" className="tk-tool-btn tk-popout-btn" title="Open Slate in its own window" onClick={function () { TK_popOut("#/tasks/my"); }}>
             <TK_vIcon name="window" size={14} />

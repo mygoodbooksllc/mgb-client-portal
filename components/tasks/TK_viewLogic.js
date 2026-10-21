@@ -21,6 +21,8 @@
 //   small display helpers                 TK_initials, TK_canManageProjectHint, TK_listScopeOf, TK_searchRowToTask
 //   Slate app (preview, spec-desk-fullpage) TK_slateAppIsOn, TK_slateMode, TK_slateCurrent,
 //                                         TK_slateSizePreset, TK_slateDeepHref (and the app minimum in TK_popOutSize)
+//   Slate app bridge (S2)                 TK_slateForwardOk, TK_slateDockPick, TK_slateIsTasksHash,
+//                                         TK_slateDockHashOk, TK_slateAppUrl, TK_slateLaunchItems
 //
 // TK_logic.js loads first, so TK_compareTasks, TK_isOldDone and
 // TK_CLIENT_SECTION_ORDER are used when they exist. Under node (where only
@@ -1706,8 +1708,77 @@ function TK_slateDeepHref(route) {
   return "/slate#/tasks/" + path + (hasTask ? "?item=task:" + r.taskId : "");
 }
 
+// ---- Slate app bridge (S2; TK_SlateBridge.jsx uses these) ----------------------
+// Ported from the retired MGB Desk window (WB_deskForwardOk, WB_deskDockPick,
+// WB_deskLaunchItems). Pure, so the channel code stays thin.
+var TK_SLATE_APP_NAME = "MGB Slate";
+var TK_SLATE_CHANNEL = "mgb-slate"; // BroadcastChannel between the app and portal windows
+var TK_SLATE_INSTALLED_KEY = "mgb_slate_installed_v1"; // set by index.html on appinstalled
+
+// A hash the Slate app may ask a portal to show: "#/..." with a short, plain
+// set of characters (encodeURIComponent output, which keeps ' too, plus "?",
+// "=", "&", ":"). No "//", nothing over 300 characters.
+function TK_slateForwardOk(hash) {
+  if (typeof hash !== "string" || hash.length > 300) return false;
+  return /^#\/[A-Za-z0-9/_\-?=&.%:~!*()']*$/.test(hash) && hash.indexOf("//") < 0;
+}
+
+// Which portal answers a forwarded link or Dock in portal. replies = [{from,
+// focusedAt, visible}]: a visible portal first, then the latest focus.
+function TK_slateDockPick(replies) {
+  var best = null;
+  (Array.isArray(replies) ? replies : []).forEach(function (r) {
+    if (!r || !r.from) return;
+    var at = Number(r.focusedAt) || 0;
+    if (!best || (!!r.visible && !best.visible) || (!!r.visible === !!best.visible && at > best.at)) best = { from: r.from, visible: !!r.visible, at: at };
+  });
+  return best ? best.from : null;
+}
+
+// "#/tasks" and "#/tasks/..." stay inside the Slate app; every other hash is a
+// portal place. Same rule as the index.html shell script (^#/tasks(/|$)), so
+// the address the app opens is never rewritten on load.
+function TK_slateIsTasksHash(hash) {
+  return typeof hash === "string" && /^#\/tasks(\/|$)/.test(hash);
+}
+
+// The only hashes Dock in portal may move a portal window to (the same rule
+// as TK_startDockReceiver): up to three path parts and one ?item=kind:id.
+function TK_slateDockHashOk(hash) {
+  return typeof hash === "string" && /^#\/tasks(\/[A-Za-z0-9%._~-]+){0,3}(\?item=[a-z]+:[A-Za-z0-9%._~-]+)?$/.test(hash);
+}
+
+// The address "Open Slate app" opens: "/slate" plus the current Tasks route
+// when it is a plain Tasks hash, otherwise "/slate#/tasks/my".
+function TK_slateAppUrl(hash) {
+  return "/slate" + (TK_slateIsTasksHash(hash) && TK_slateForwardOk(hash) ? hash : "#/tasks/my");
+}
+
+// The launch buttons beside the Slate page header and the Desk's Slate tab.
+// o: { installed, canInstall, mobile }. Phones get none. Installed: one
+// "Open Slate app" (id open-app: the "open it from your Dock" dialog). Not
+// installed: "Open Slate app" (id open: the popup) plus "Install Slate app"
+// (id install) when the browser can install apps at all.
+function TK_slateLaunchItems(o) {
+  var x = o || {};
+  if (x.mobile) return [];
+  if (x.installed) return [{ id: "open-app", label: "Open Slate app" }];
+  var out = [{ id: "open", label: "Open Slate app" }];
+  if (x.canInstall) out.push({ id: "install", label: "Install Slate app" });
+  return out;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    TK_SLATE_APP_NAME: TK_SLATE_APP_NAME,
+    TK_SLATE_CHANNEL: TK_SLATE_CHANNEL,
+    TK_SLATE_INSTALLED_KEY: TK_SLATE_INSTALLED_KEY,
+    TK_slateForwardOk: TK_slateForwardOk,
+    TK_slateDockPick: TK_slateDockPick,
+    TK_slateIsTasksHash: TK_slateIsTasksHash,
+    TK_slateDockHashOk: TK_slateDockHashOk,
+    TK_slateAppUrl: TK_slateAppUrl,
+    TK_slateLaunchItems: TK_slateLaunchItems,
     TK_POPOUT_DEFAULT: TK_POPOUT_DEFAULT,
     TK_POPOUT_MIN: TK_POPOUT_MIN,
     TK_POPOUT_KEY: TK_POPOUT_KEY,

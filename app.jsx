@@ -17174,6 +17174,9 @@ const USAGE_ACTION_LABELS = {
   "tasks-search": "Task searches",
   "tasks-shortcut": "Task keyboard shortcuts used",
   "tasks-popout": "Slate opened in its own window",
+  "slate-app-open": "Slate app window opened from the portal",
+  "slate-app-install": "Install Slate app clicked",
+  "slate-app-forward": "Links sent from the Slate app to a portal window",
   "tasks-bulk-complete": "Bulk: tasks completed together",
   "tasks-bulk-reopen": "Bulk: tasks reopened together",
   "tasks-bulk-delete": "Bulk: tasks deleted together",
@@ -29583,6 +29586,16 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       if (typeof TK_startDockReceiver === "function") TK_startDockReceiver();
     } catch (e) {}
   }, [tkHosts]);
+  // MGB Slate app (TK_SlateBridge.jsx): read the Slate app flag, tell the
+  // install script, and run the "mgb-slate" bridge while the app is on.
+  useEffect(() => {
+    if (!tkHosts || typeof TK_slateBoot !== "function") return undefined;
+    try {
+      return TK_slateBoot();
+    } catch (e) {
+      return undefined;
+    }
+  }, [tkHosts]);
   // "Open in Desk window" lands in this tab: the portal side of the
   // BroadcastChannel (WB_DeskApp.jsx). Staff only, never inside the window
   // and never in the Slate pop-out (it has no Desk, so it must not answer).
@@ -31159,7 +31172,7 @@ const clientLoginMode =
 // sign-in (AuthGate) with no client email form. Same rewrite trick as /login.
 // A session whose email isn't on the staff domain still goes to the client
 // gate, and AuthGate still checks the staff table, so this grants nothing.
-const staffLoginMode = /^\/staff\/?$/.test(window.location.pathname) || window.MGB_SHELL === "desk";
+const staffLoginMode = /^\/staff\/?$/.test(window.location.pathname) || /^\/slate\/?$/.test(window.location.pathname);
 
 // The bare site URL is the client front door: signed out, it shows the
 // client login (whose small "Staff? Sign in with Google" link goes to /staff). A session whose email is on the staff Workspace domain goes to the

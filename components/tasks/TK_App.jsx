@@ -41,6 +41,8 @@ function TK_App(props) {
   var bottomBar = shell && layout.bottomBar;
   var rail = layout.sidebar === "rail" && !bottomBar;
   var showPopOut = !layout.compact && !touch && !shell;
+  // The Slate app (TK_SlateBridge.jsx): "Open Slate app" replaces the pop-out.
+  var slateOn = typeof TK_useSlateAppOn === "function" ? TK_useSlateAppOn() : false;
   var lPair = React.useState(false);
   var listsOpen = lPair[0];
   var setListsOpen = lPair[1];
@@ -132,7 +134,18 @@ function TK_App(props) {
               </button>
             ) : null}
             <span className="tk-app-bar-gap" />
-            {showPopOut ? (
+            {showPopOut && slateOn && typeof TK_SlateLaunch === "function" ? (
+              <TK_SlateLaunch
+                tour="tk-popout"
+                getHash={function () {
+                  var h = "";
+                  try {
+                    h = window.location.hash || "";
+                  } catch (e) {}
+                  return /^#\/tasks(\/|\?|$)/.test(h) ? h : "#/tasks/my";
+                }}
+              />
+            ) : showPopOut ? (
               <button
                 type="button"
                 className="tk-tool-btn tk-popout-btn"

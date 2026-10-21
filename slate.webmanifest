@@ -1,0 +1,35 @@
+{
+  "id": "/slate",
+  "name": "MGB Slate",
+  "short_name": "Slate",
+  "description": "MGB Slate, the task app for MyGoodBooks staff",
+  "start_url": "/slate",
+  "scope": "/slate",
+  "display": "standalone",
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "handle_links": "preferred",
+  "background_color": "#06262D",
+  "theme_color": "#06262D",
+  "icons": [
+    {
+      "src": "/app-icons/slate-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icons/slate-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/app-icons/slate-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
