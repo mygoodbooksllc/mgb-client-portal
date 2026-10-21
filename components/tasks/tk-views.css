@@ -3500,12 +3500,13 @@ html.tk-dragging * {
   overflow-wrap: anywhere;
 }
 
-.tk-card-title a {
+a.tk-card-title {
   color: inherit;
   text-decoration: none;
+  -webkit-user-drag: none;
 }
 
-.tk-card-title a:hover {
+a.tk-card-title:hover {
   text-decoration: underline;
 }
 

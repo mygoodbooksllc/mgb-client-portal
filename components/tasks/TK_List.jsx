@@ -1175,8 +1175,9 @@ function TK_vListBody(props) {
   // Slate app P1: List | Board, remembered per person per list. Columns are
   // statuses or (project and client lists) sections; inside a column the
   // person's manual order when no column sort is set. App only, regular or full.
-  var boardLay = typeof TK_useBoardLayout === "function" && manualKind ? TK_useBoardLayout(email, "list:" + (listKey || ""), manualKind) : null;
-  var boardCan = !!boardLay && !!listKey && typeof TK_boardAllowed === "function" && TK_boardAllowed({ inApp: manualInApp, mode: manualMode && manualMode.mode, kind: manualKind });
+  // (called on every render, whatever the kind, so the hook order never changes)
+  var boardLay = typeof TK_useBoardLayout === "function" ? TK_useBoardLayout(email, "list:" + (listKey || ""), manualKind) : null;
+  var boardCan = !!boardLay && !!manualKind && !!listKey && typeof TK_boardAllowed === "function" && TK_boardAllowed({ inApp: manualInApp, mode: manualMode && manualMode.mode, kind: manualKind });
   var boardOn = boardCan && boardLay.layout === "board";
   if (boardOn) manualOn = false;
   var boardReorder = boardOn && manualCan && !sort;
@@ -1422,7 +1423,7 @@ function TK_vListBody(props) {
           <span>Manual order</span>
         </button>
       ) : null}
-      {sort && !byClient && !boardOn ? (
+      {sort && !byClient ? (
         <button
           type="button"
           className="tk-tool-btn"
@@ -1435,7 +1436,7 @@ function TK_vListBody(props) {
             }
           }}
         >
-          Group by section
+          {boardOn ? "Clear sort" : "Group by section"}
         </button>
       ) : null}
       {touch ? null : (

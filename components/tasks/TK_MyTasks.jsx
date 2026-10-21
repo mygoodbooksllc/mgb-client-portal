@@ -505,7 +505,7 @@ function TK_vMyTasksBody(props) {
       });
     });
   }
-  var boardStaff = TK_vUseStaff(false) || [];
+  var addStaff = TK_vUseStaff(false) || []; // for the group add rows and board names: the store's list, no extra fetch
   var board =
     typeof TK_useBoard === "function"
       ? TK_useBoard({
@@ -521,7 +521,7 @@ function TK_vMyTasksBody(props) {
           today: today,
           clientNames: clientNames,
           nameOf: function (e) {
-            return typeof TK_vStaffName === "function" ? TK_vStaffName(boardStaff, e) : e;
+            return typeof TK_vStaffName === "function" ? TK_vStaffName(addStaff, e) : e;
           },
           subs: subs,
           focusedId: focusedId,
@@ -585,7 +585,6 @@ function TK_vMyTasksBody(props) {
   var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
   var bulk = TK_useBulkSelect({ ids: ids, enabled: online && slateWide && !boardOn, keys: keysOn });
   var bulkStaff = TK_vUseStaff(bulk.count > 0);
-  var addStaff = TK_vUseStaff(false) || []; // for the group add rows: the store's list, no extra fetch
 
   var keys = TK_useKeys({
     ids: ids,
@@ -831,7 +830,7 @@ function TK_vMyTasksBody(props) {
         viewsMenu={
           slateApp && typeof TK_SavedViewsMenu === "function" ? (
             <TK_SavedViewsMenu
-              view={boardLay && boardLay.layout === "board" ? Object.assign({}, sv, { layout: "board" }) : sv}
+              view={boardOn ? Object.assign({}, sv, { layout: "board" }) : sv}
               onApply={function (v) {
                 // Slate app P1: the layout lives apart from the shared Slate view
                 var rest = Object.assign({}, v || {});

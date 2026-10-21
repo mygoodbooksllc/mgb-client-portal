@@ -36,7 +36,12 @@ function TK_useBoardLayout(email, scope, kind) {
   var pair = React.useState(read);
   React.useEffect(
     function () {
-      pair[1](read());
+      // keep the same object when nothing changed, so a mount (every list,
+      // flag on or off) does not cost an extra render
+      var next = read();
+      pair[1](function (c) {
+        return c && c.layout === next.layout && c.by === next.by ? c : next;
+      });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [email, scope, kind],
@@ -184,6 +189,11 @@ function TK_vBoardCard(props) {
         if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
           var dir = e.key === "ArrowLeft" ? "left" : e.key === "ArrowRight" ? "right" : e.key === "ArrowUp" ? "up" : e.key === "ArrowDown" ? "down" : "";
           if (!dir) return;
+          // the list keys' guards (menu, dialog, tour, composing), as Alt+Up/Down on rows
+          if (typeof TK_shouldHandleKey === "function" && typeof TK_vKeyCtx === "function") {
+            var probe = { target: e.target, isComposing: e.nativeEvent && e.nativeEvent.isComposing, keyCode: e.keyCode, defaultPrevented: e.defaultPrevented };
+            if (!TK_shouldHandleKey(probe, TK_vKeyCtx())) return;
+          }
           e.preventDefault();
           e.stopPropagation();
           if (props.onKeyMove) props.onKeyMove(id, dir);
@@ -196,7 +206,7 @@ function TK_vBoardCard(props) {
         }
       }}
     >
-      <a className="tk-card-title" href={TK_vTaskHref(id)} tabIndex={-1} onClick={titleClick}>
+      <a className="tk-card-title" href={TK_vTaskHref(id)} tabIndex={-1} draggable={false} onClick={titleClick}>
         {title}
       </a>
       <span className="tk-card-meta">
