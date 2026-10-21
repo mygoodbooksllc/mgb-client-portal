@@ -100,6 +100,17 @@
   --font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
+/* Lato preview (mgb_lato_preview checkbox / tk_settings.lato_enabled). Set on <html> by the
+   inline script in index.html. Headings and body become Lato; numbers stay IBM Plex Mono. */
+html[data-font="lato"] {
+  --font-heading: "Lato", system-ui, -apple-system, sans-serif;
+  --font-body: "Lato", system-ui, -apple-system, sans-serif;
+}
+html[data-font="lato"] h1,
+html[data-font="lato"] h2,
+html[data-font="lato"] h3 {
+  letter-spacing: -0.005em;
+}
 
 /* ---------------------------------------------------------------------------
    Dark mode. Dark is the product default (index.html pins data-theme before

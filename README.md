@@ -2546,3 +2546,7 @@ staff-facing changelog: add an entry with every change staff would notice.
   `node docs/staff-guide/sync.mjs > /tmp/staff-guide-sync.sql` and run that SQL in the Supabase SQL
   editor (or through the Supabase MCP `execute_sql`). It upserts every article and removes rows whose
   file was deleted; it's safe to run again. The UI is `components/staff/StaffGuide.jsx` + `staff-guide.css`.
+
+### Lato font (preview, hidden)
+
+`html[data-font="lato"]` (set by the inline script in `index.html`) swaps `--font-heading` and `--font-body` to Lato in `styles.css`; `--font-mono` (IBM Plex Mono, numbers) is unchanged, and `DailyClose.css` follows the switch because it hard-codes its fonts. Gate: `mgb_lato_classic` wins, then the per-person checkbox `mgb_lato_preview` ("Lato font preview" in Feature flags), then the firm switch `tk_settings.lato_enabled` (owner-only via `tk__owner_only_key`, `supabase/owner-only-lato-switch.sql`; cached in `mgb_lato_cache`). Lato is loaded only when on. At launch: flip the switch, add notice and What's new.

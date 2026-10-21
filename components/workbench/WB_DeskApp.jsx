@@ -9,7 +9,7 @@
 //
 //   WB_deskOpenWindow()    the pop-up launcher (reuses the window named mgb-desk)
 //   WB_deskGet()           opens /desk?install=1 in a normal tab (install page)
-//   WB_DeskMenu            the "MGB Desk app" hover menu in the portal Desk head
+//   WB_DeskMenu            the "MGB Desk" hover menu in the portal Desk head
 //   WB_DeskAppShell        the window itself (app.jsx renders it on /desk)
 //   WB_startDeskReceiver() the portal side of the BroadcastChannel "mgb-desk"
 //   WB_deskForward / WB_deskForwardChat / WB_deskDock  the window side
@@ -452,7 +452,7 @@ function WB_DeskDialog({ kind, onClose }) {
   );
 }
 
-// The "MGB Desk app" menu in the portal Desk head (opens on hover). The caller (WB_Hub) mounts it only
+// The "MGB Desk" menu in the portal Desk head (opens on hover). The caller (WB_Hub) mounts it only
 // when WB_deskAppIsOn is true and the Desk is not the phone sheet.
 function WB_DeskMenu() {
   const [dlg, setDlg] = React.useState(null);
@@ -479,7 +479,7 @@ function WB_DeskMenu() {
   return (
     <>
       <span data-tour="wb-desk-menu">
-        <TK_vMenuButton className="wb-more-btn" label={WB_DESK_APP_NAME + " app"} title={"Open or install the " + WB_DESK_APP_NAME + " app (hover to see options)"} hoverOpen={true} ariaLabel={WB_DESK_APP_NAME + " app options"} menuLabel={WB_NAME + " menu"} align="right">
+        <TK_vMenuButton className="wb-more-btn" label={WB_DESK_APP_NAME} title={"Open or install the " + WB_DESK_APP_NAME + " app (hover to see options)"} hoverOpen={true} ariaLabel={WB_DESK_APP_NAME + " options"} menuLabel={WB_NAME + " menu"} align="right">
           {(close) =>
             items.map((it) => (
               <button key={it.id} type="button" role="menuitem" className="tk-menu-item" onClick={() => run(it.id, close)}>

@@ -160,7 +160,7 @@
 //   wb-rail-add      the rail's + (quick add) at its foot
 //   wb-desk-handle   the open Desk column's width grip on its left edge
 //                    (WB_Hub.jsx), only while the Desk is open, wider than 760px
-//   wb-desk-menu     the open Desk header's MGB Desk app menu (Open MGB Desk, Get MGB Desk),
+//   wb-desk-menu     the open Desk header's MGB Desk menu (Open MGB Desk, Get MGB Desk),
 //                    only while MGB Desk is on (WB_DeskApp.jsx)
 //   wb-taskview      the task showing in the Desk (WB_Hub.jsx), only while a
 //                    task is open there (Desk on)
@@ -1111,7 +1111,7 @@ function TOUR_bookkeeperSteps(ctx) {
       },
       targets: ["wb-desk-menu"],
       title: "MGB Desk in its own window",
-      body: () => "Point at the MGB Desk app button to open MGB Desk in its own window. It stays on top of your other tabs, and the rows you click open in the portal.",
+      body: () => "Point at the MGB Desk button to open MGB Desk in its own window. It stays on top of your other tabs, and the rows you click open in the portal.",
     },
     {
       id: "done",
@@ -1229,7 +1229,7 @@ function TOUR_adminSteps(ctx) {
       },
       targets: ["wb-desk-menu"],
       title: "MGB Desk in its own window",
-      body: () => "Point at the MGB Desk app button to open MGB Desk in its own window. It stays on top of your other tabs, and the rows you click open in the portal.",
+      body: () => "Point at the MGB Desk button to open MGB Desk in its own window. It stays on top of your other tabs, and the rows you click open in the portal.",
     },
     {
       id: "done",
@@ -1286,7 +1286,7 @@ function TOUR_tempAdminSteps(ctx) {
       },
       targets: ["wb-desk-menu"],
       title: "MGB Desk in its own window",
-      body: () => "Point at the MGB Desk app button to open MGB Desk in its own window. It stays on top of your other tabs, and the rows you click open in the portal.",
+      body: () => "Point at the MGB Desk button to open MGB Desk in its own window. It stays on top of your other tabs, and the rows you click open in the portal.",
     },
     {
       id: "done",
@@ -1390,7 +1390,7 @@ function TOUR_amSteps(ctx) {
       },
       targets: ["wb-desk-menu"],
       title: "MGB Desk in its own window",
-      body: () => "Point at the MGB Desk app button to open MGB Desk in its own window. It stays on top of your other tabs, and the rows you click open in the portal.",
+      body: () => "Point at the MGB Desk button to open MGB Desk in its own window. It stays on top of your other tabs, and the rows you click open in the portal.",
     },
     {
       id: "done",

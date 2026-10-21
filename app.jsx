@@ -1010,6 +1010,21 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by the inline script in index.html (sets data-font="lato" on <html>).
+    key: "mgb_lato_preview",
+    label: "Lato font preview",
+    description:
+      "Switches the whole app to Lato (headings and body text) for you only, in this browser, while the firm-wide lato_enabled switch is off. Numbers keep their monospace font. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
+    key: "mgb_lato_classic",
+    label: "Classic fonts",
+    description:
+      "Keeps the old fonts (Bitter headings, IBM Plex Sans body) for you only, in this browser, even after the owner switches Lato on for everyone. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     key: "mgb_wb_classic",
     label: "Classic Today",
     description:
@@ -15259,6 +15274,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
             ["desk_app_enabled", "MGB Desk window on for staff", "Off (or missing, the default) hides the MGB Desk window for everyone: no Open MGB Desk or Get MGB Desk in the Desk menu, and /desk shows a short note. Needs wb_enabled on too. Owner turns it on (true) with one SQL line; read-only here. Each person can try it early with MGB Desk window preview in Feature flags. Setting it does nothing until the Desk itself is on."],
             ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar, plus the Alerts section for real admins. Each person can try it early with Sidebar preview in Feature flags. Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
+            ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can try it early with Lato font preview in Feature flags, or opt out with Classic fonts. Setting it to true changes the look for every user right away, so do it only at launch."],
             ["layout_defaults", "Sidebar defaults by role", "What each role (admin, account manager, bookkeeper, temp admin) sees in the left sidebar until they customize it. Admins edit it in Settings › Firm settings › Sidebar defaults (shown once the sidebar is on). Not set means the built-in layout."],
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
