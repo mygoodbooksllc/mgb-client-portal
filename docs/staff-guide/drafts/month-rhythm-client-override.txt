@@ -1,0 +1,14 @@
+DRAFT, not published. Staff-guide note for a client's own month rhythm (Slate month rhythm, slice 5). Publish it in the client Settings article (and the admin Settings article) when the owner turns on the month rhythm switch. Until then, nothing is visible, so the live guide is unchanged.
+
+### A client's own month rhythm
+
+Most clients follow the firm's month rhythm: Check in, Send reports and Follow up on the days set in Settings › Firm settings › Month rhythm. A client can have its own three days instead, for example when its board meets early in the month.
+
+Open the client, then Settings › Access and details. The Month rhythm row shows either "Uses the firm rhythm" with the firm days, or "Own rhythm" with the client's days.
+
+- **Admins** select Change, pick the three days, and select Save. The days must be in order (Check in first, Follow up last) and between the 1st and the 28th.
+- **Use the firm rhythm** removes the client's own days, so the client follows the firm days again.
+- **Bookkeepers** can see which days apply but cannot change them.
+- **Labels and weekends stay firm-wide.** The part names and what happens on a weekend or firm holiday always come from the firm setting.
+- **What changes:** monthly tasks made from now on for that client use its days. Tasks that already exist keep their dates. The upcoming dates on Slate › Recurring for that client show the new days too.
+- **Every change is recorded.** Clients never see this setting.

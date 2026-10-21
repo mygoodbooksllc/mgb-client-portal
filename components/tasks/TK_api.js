@@ -2173,6 +2173,27 @@ var TK_api = (function () {
     }, { where: "clientFiscalYearEnd" }).then(function (row) { return row ? row.fiscal_year_end || null : null; });
   };
 
+  // Slate month rhythm, slice 5: a client's own three days (client_profile.rhythm),
+  // or null when it uses the firm rhythm. Staff only (client_profile RLS); only
+  // read while TK_rhythmEnabled().
+  api.clientRhythm = function (clientId) {
+    if (!clientId) return Promise.resolve(null);
+    return run(function (c) {
+      return c.from("client_profile").select("rhythm").eq("client_id", String(clientId)).maybeSingle();
+    }, { where: "clientRhythm" }).then(function (row) { return row && row.rhythm != null ? row.rhythm : null; });
+  };
+
+  // Admins only (tk_set_client_rhythm refuses anyone else with tk_forbidden).
+  // parts: [{ key, day }] x3, or null to use the firm rhythm again.
+  // Resolves { client_id, rhythm }.
+  api.setClientRhythm = function (clientId, parts) {
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.rpc("tk_set_client_rhythm", { p_client_id: String(clientId), p_parts: parts == null ? null : parts });
+    }, { where: "setClientRhythm" });
+  };
+
   // "Save as template" suggestions from staff (admins resolve them).
   api.listSuggestions = function () {
     return run(function (c) {

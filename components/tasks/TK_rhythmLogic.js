@@ -231,6 +231,77 @@ function TK_rhythmIsOn(settingValue, previewOn) {
   return !!previewOn || TK_rhythmFlagValueOn(settingValue);
 }
 
+// ---- Slice 5: a client's own rhythm (client_profile.rhythm) --------------------
+// Spec: docs/slate-rhythm-slice-5.md. The override is only the three days: an
+// array [{ key, day }] x3 in part order (labels tolerated, ignored). Labels and
+// the weekend or holiday roll always come from the firm setting. SQL twins:
+// tk_client_rhythm_problem / tk_month_rhythm_merge
+// (supabase/slate-rhythm-5-client-override.sql); shared vectors in
+// TK_rhythmClient.fixtures.js.
+
+// null for no override (null / undefined) or a valid one; else the problem code,
+// checked with the firm validator (roll is not part of an override).
+function TK_clientRhythmProblem(v) {
+  if (v === null || v === undefined) return null;
+  return TK_rhythmProblem({ parts: v, roll: "next" });
+}
+
+// The rhythm a client's firm_part tasks use: client, then firm, then fail closed.
+//   firm missing or invalid -> null
+//   no override             -> the firm value as given
+//   invalid override        -> null (never quietly the firm days)
+//   otherwise               -> firm labels and roll with the client's three days
+// This is the merged value TK_resolveDue's 5th argument expects.
+function TK_rhythmForClient(firmRhythm, clientRhythm) {
+  if (TK_rhythmProblem(firmRhythm) !== null) return null;
+  if (clientRhythm === null || clientRhythm === undefined) return firmRhythm;
+  if (TK_clientRhythmProblem(clientRhythm) !== null) return null;
+  return {
+    parts: firmRhythm.parts.map(function (fp, i) {
+      var out = { key: fp.key };
+      if (fp.label !== undefined) out.label = fp.label;
+      out.day = clientRhythm[i].day;
+      return out;
+    }),
+    roll: firmRhythm.roll,
+  };
+}
+
+// The editor's three days -> { value: [{key, day}] x3 | null, errors }.
+// Same rules and messages as the firm form (TK_rhythmFromForm).
+function TK_clientRhythmFromForm(form) {
+  var f = Object.assign({}, form || {}, { roll: "next" });
+  var built = TK_rhythmFromForm(f, null);
+  if (!built.value) return { value: null, errors: built.errors };
+  return {
+    value: built.value.parts.map(function (p) { return { key: p.key, day: p.day }; }),
+    errors: {},
+  };
+}
+
+// "5th, 15th, 25th" from an override (or a merged rhythm); "" when not valid.
+function TK_clientRhythmDaysText(v) {
+  var parts = Array.isArray(v) ? v : v && Array.isArray(v.parts) ? v.parts : null;
+  if (!parts || TK_clientRhythmProblem(parts) !== null) return "";
+  return parts.map(function (p) { return TK_rhythmOrdinal(p.day); }).join(", ");
+}
+
+// The client Settings tab line.
+//   no override -> "Uses the firm rhythm (4th, 14th, 24th)"
+//   override    -> "Own rhythm: 5th, 15th, 25th"
+//   bad value   -> a plain warning (the generator skips this client's rhythm tasks)
+function TK_clientRhythmSummary(firmRhythm, clientRhythm) {
+  if (clientRhythm === null || clientRhythm === undefined) {
+    var firmDays = TK_clientRhythmDaysText(firmRhythm);
+    return firmDays ? "Uses the firm rhythm (" + firmDays + ")" : "Uses the firm rhythm";
+  }
+  // An override must be the bare array (what the server merges); any other
+  // shape fails closed there, so it is reported as not valid here too.
+  var own = TK_clientRhythmProblem(clientRhythm) === null ? TK_clientRhythmDaysText(clientRhythm) : "";
+  if (!own) return "This client's own rhythm is not valid, so its month rhythm tasks are not made. An admin can save it again or switch back to the firm rhythm.";
+  return "Own rhythm: " + own;
+}
+
 // ---- Browser helpers (not used by node tests) ----
 
 var TK_rhythmState = { loaded: false, switchValue: undefined, stored: undefined, promise: null };
@@ -403,6 +474,11 @@ if (typeof module !== "undefined" && module.exports) {
     TK_rhythmIsOn: TK_rhythmIsOn,
     TK_rhythmEnabled: TK_rhythmEnabled,
     TK_rhythmState: TK_rhythmState,
+    TK_clientRhythmProblem: TK_clientRhythmProblem,
+    TK_rhythmForClient: TK_rhythmForClient,
+    TK_clientRhythmFromForm: TK_clientRhythmFromForm,
+    TK_clientRhythmDaysText: TK_clientRhythmDaysText,
+    TK_clientRhythmSummary: TK_clientRhythmSummary,
     TK_RHYTHM_ROW_REFS: TK_RHYTHM_ROW_REFS,
     TK_REPORT_MISSING_MAX: TK_REPORT_MISSING_MAX,
     TK_rhythmRowOf: TK_rhythmRowOf,

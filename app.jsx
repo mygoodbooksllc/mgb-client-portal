@@ -1022,7 +1022,7 @@ const FEATURE_FLAGS = [
     key: "mgb_rhythm_preview",
     label: "Month rhythm preview",
     description:
-      "Turns on the Slate month rhythm work for you only, in this browser, while the firm-wide month_rhythm_enabled switch is off. Today it shows the MGB Month Rhythm templates and the A month rhythm date due rule on Slate › Recurring (admins can edit them there), the Full or Preliminary question when you mark a Send reports task done in the task details, and the Second month in a row notices in the bell. It never makes tasks for real clients: that waits for the firm switch. The page reloads when you toggle it.",
+      "Turns on the Slate month rhythm work for you only, in this browser, while the firm-wide month_rhythm_enabled switch is off. Today it shows the MGB Month Rhythm templates and the A month rhythm date due rule on Slate › Recurring (admins can edit them there), the Full or Preliminary question when you mark a Send reports task done in the task details, the Second month in a row notices in the bell, and the Month rhythm row on a client's Settings tab (Access and details), where admins can give that client its own three days. It never makes tasks for real clients: that waits for the firm switch. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -1171,6 +1171,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Slate month rhythm reports + late rule)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "supabase/slate-rhythm-4-report-state.sql: table tk_report_state (client, month, none | preliminary | full, missing labels; audit tk_report_state_audit; staff write via tk_set_report_state, clients read only tk_client_report_state) · supabase/slate-rhythm-4b-daily.sql: tk_rhythm_daily() run by the pg_cron job month-rhythm-daily (10:40 UTC) closes Follow up rows with Nothing outstanding and writes tk_rhythm_notices (Second month in a row; bell plus task_batch email only with month_rhythm_enabled on) · supabase/slate-rhythm-4c-late-exclusion.sql (live for everyone): tk_late_excused keeps waiting-on-client tasks and preliminary months out of staff_performance, client_health, digest_weekly_data and tk_on_time_stats · each file has a -tests.sql self-test that rolls back",
+  },
+  {
+    name: "Supabase SQL (Slate month rhythm per-client days)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "supabase/slate-rhythm-5-client-override.sql (self-test: slate-rhythm-5-client-override-tests.sql, rolls back): column client_profile.rhythm (null = the firm rhythm; else three {key, day}) checked by tk_client_rhythm_problem · tk_month_rhythm_merge and tk__rhythm_for_client resolve client, then firm, then nothing (fail closed) for the task run and tk__issue_period · admin-only write: trigger client_profile_rhythm_guard refuses anyone else, RPC tk_set_client_rhythm · every change in client_rhythm_audit (admins read) · clients never read client_profile · no email, no edge function",
   },
   {
     name: "Supabase SQL (Workbench)",
@@ -15378,7 +15383,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["brand_enabled", "Brand colors for everyone", "Off (or missing, the default) keeps the current colors and headings for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to the brand guide's navy and dark teal with Montserrat headings. Each person can try it early with Brand colors preview in Feature flags, or opt out with Classic colors. Setting it to true changes the look for every user right away, so do it only at launch."],
             ["hovernav_enabled", "Hover menus for everyone", "Off (or missing, the default) keeps the sidebars as they are for everyone. Owner turns it on (true) with one SQL line, never from here, to open a small menu of tabs when you point at a sidebar icon (Work, Team, HR, Finances) and to replace the gray browser tooltips with themed ones. Each person can try it early with Hover menus preview in Feature flags, or opt out with Classic menus. Setting it to true changes the sidebars for every user right away, so do it only at launch."],
             ["layout_defaults", "Sidebar defaults by role", "What each role (admin, account manager, bookkeeper, temp admin) sees in the left sidebar until they customize it. Admins edit it in Settings › Firm settings › Sidebar defaults (shown once the sidebar is on). Not set means the built-in layout."],
-            ["month_rhythm", "Month rhythm (Slate)", "The three days each month when Slate's monthly tasks come due: Check in, Send reports, Follow up, and what happens on a weekend or firm holiday. Admins edit it on Settings › Firm settings › Month rhythm (every change audited; the database refuses an invalid value). Not set means 4th, 14th, 24th, next business day."],
+            ["month_rhythm", "Month rhythm (Slate)", "The three days each month when Slate's monthly tasks come due: Check in, Send reports, Follow up, and what happens on a weekend or firm holiday. Admins edit it on Settings › Firm settings › Month rhythm (every change audited; the database refuses an invalid value). Not set means 4th, 14th, 24th, next business day. A client can have its own three days (client Settings tab, admins only); labels and the weekend rule stay firm-wide."],
             ["month_rhythm_enabled", "Month rhythm tasks on for everyone", "Off (or missing, the default): the daily task run makes nothing from the eight MGB Month Rhythm templates for real clients (test and internal clients still get them from Make due tasks now), the month-rhythm-daily job sends no emails, and Slate › Recurring hides them unless you have Month rhythm preview on. Turning it on stamps the set's live_since, so only dates from that day on are made. Owner-only; the owner turns it on (true) with one SQL line, never from here, once the monthly rhythm tasks are finished. Each person can try the work early with Month rhythm preview in Feature flags."],
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
@@ -30632,6 +30637,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 setDetailsOpen(true);
               }}
               hasPendingAccessRequests={hasPendingAccessRequests}
+              canEditRhythm={isStaffSession && !isPreviewingUser && STAFF_isRealAdmin(effectiveStaffUser)}
             />
           )}
           {/* The staff places (components/staff/StaffNav.jsx). Each

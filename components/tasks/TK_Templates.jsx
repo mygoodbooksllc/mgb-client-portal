@@ -1266,6 +1266,35 @@ function TK_tplClientPanel(props) {
   var coPair = React.useState({ forId: null, status: null });
   var optin = coPair[0].forId === clientId ? coPair[0].status : null;
   var setOptin = coPair[1];
+  // Slate rhythm slice 5: the client's own three days (client_profile.rhythm),
+  // read only while the month rhythm is on. Off: nothing is read and the firm
+  // value is used exactly as before.
+  var crPair = React.useState({ forId: null, value: null });
+  var clientOverride = props.rhythmOn && crPair[0].forId === clientId ? crPair[0].value : null;
+  var setCr = crPair[1];
+  var rhythmFor =
+    props.rhythmOn && clientOverride != null && typeof TK_rhythmForClient === "function"
+      ? TK_rhythmForClient(props.rhythm || null, clientOverride)
+      : props.rhythm;
+
+  React.useEffect(
+    function () {
+      if (!clientId || !props.rhythmOn || typeof TK_api.clientRhythm !== "function") return undefined;
+      var live = true;
+      TK_api.clientRhythm(clientId).then(
+        function (v) {
+          if (live) setCr({ forId: clientId, value: v == null ? null : v });
+        },
+        function () {
+          if (live) setCr({ forId: clientId, value: null });
+        },
+      );
+      return function () {
+        live = false;
+      };
+    },
+    [clientId, tick, props.rhythmOn],
+  );
 
   React.useEffect(
     function () {
@@ -1406,6 +1435,11 @@ function TK_tplClientPanel(props) {
           }}
         />
       ) : null}
+      {clientId && clientOverride != null && typeof TK_clientRhythmSummary === "function" ? (
+        <p className="tk-muted" id="tk-tpl-client-rhythm">
+          {TK_clientRhythmSummary(props.rhythm || null, clientOverride).replace(/\.$/, "") + ". Admins change it on the client's Settings tab."}
+        </p>
+      ) : null}
       {!clientId ? (
         <p className="tk-muted">Pick a client to see which templates reach them, when the next ones are due, and to skip or change one just for them.</p>
       ) : st.loading ? (
@@ -1429,7 +1463,7 @@ function TK_tplClientPanel(props) {
               count: 1,
               override: override,
               fye: st.fye || "12-31",
-              rhythm: props.rhythm || null,
+              rhythm: rhythmFor || null,
               // Central date; a standard-set member reaches a real client from when the set went live
               activatedOn: t.activated_at ? TK_tplActivatedOn(t, { set: setById[t.template_set_id], testClient: testClient }) || props.today : props.today,
               // P4-2: an opted-in client gets set members from its first close month on
@@ -1449,7 +1483,7 @@ function TK_tplClientPanel(props) {
                     {changed ? <span className="tk-tpl-status is-changed">Changed for this client</span> : null}
                   </div>
                   <div className="tk-tpl-meta tk-muted">
-                    {TK_tplLabelOf(TK_TPL_CADENCES, t.cadence) + " · " + TK_dueRuleText(TK_tplEffectiveRule(t, override), t.cadence, props.rhythm)}
+                    {TK_tplLabelOf(TK_TPL_CADENCES, t.cadence) + " · " + TK_dueRuleText(TK_tplEffectiveRule(t, override), t.cadence, rhythmFor)}
                   </div>
                   <div className="tk-tpl-meta">
                     {skip
@@ -1498,7 +1532,7 @@ function TK_tplClientPanel(props) {
           today={props.today}
           holidays={props.holidays}
           fye={st.fye || "12-31"}
-          rhythm={props.rhythm}
+          rhythm={rhythmFor}
           rhythmOn={props.rhythmOn}
           onClose={function () {
             setEditing(null);

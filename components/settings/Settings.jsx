@@ -1288,6 +1288,161 @@ function ST_MonthRhythmCard() {
   );
 }
 
+// Slate slice 5: a client's own month rhythm (client_profile.rhythm). One row
+// in the staff "Access and details" tab. Renders nothing until the month
+// rhythm is on (TK_rhythmEnabled: firm switch or the person's preview), so
+// with the feature off the tab is unchanged. Staff see which days apply;
+// only real admins get Change, Save and "Use the firm rhythm" (the database
+// refuses anyone else, see supabase/slate-rhythm-5-client-override.sql).
+// Labels and the weekend or holiday rule always come from the firm setting.
+const ST_CLIENT_RHYTHM_PARTS = [
+  { key: "check_in", label: "Check in" },
+  { key: "reports", label: "Send reports" },
+  { key: "follow_up", label: "Follow up" },
+];
+function ST_ClientRhythmRow({ clientId, canEdit }) {
+  const [st, setSt] = React.useState({ loaded: false });
+  const [form, setForm] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState("");
+  const [tick, setTick] = React.useState(0);
+  React.useEffect(() => {
+    let alive = true;
+    if (typeof TK_rhythmLoad !== "function" || typeof TK_api === "undefined" || !TK_api.clientRhythm) return undefined;
+    Promise.resolve(TK_rhythmLoad(tick > 0)).then((res) => {
+      if (!alive) return;
+      if (!res || !res.enabled || !(typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled())) {
+        setSt({ loaded: true, enabled: false });
+        return;
+      }
+      Promise.resolve(TK_api.clientRhythm(clientId)).then(
+        (own) => alive && setSt({ loaded: true, enabled: true, firm: res.rhythm, own: own == null ? null : own }),
+        () => alive && setSt({ loaded: true, enabled: true, failed: true, firm: res.rhythm })
+      );
+    });
+    return () => {
+      alive = false;
+    };
+  }, [clientId, tick]);
+  if (!st.loaded || !st.enabled) return null;
+  const firm = st.firm || null;
+  const summary = st.failed ? "Could not load this client's month rhythm. Try again later." : TK_clientRhythmSummary(firm, st.own);
+  const startEdit = () => {
+    setMsg("");
+    const from = TK_rhythmForClient(firm, st.own) || firm || TK_rhythmDefault();
+    const f = TK_rhythmToForm(from);
+    setForm({ check_in: f.check_in, reports: f.reports, follow_up: f.follow_up });
+  };
+  const fail = (e) => {
+    setBusy(false);
+    const text = String((e && e.message) || e);
+    const m = /tk_month_rhythm_invalid:\s*([a-z_]+)/.exec(text);
+    setMsg(m ? TK_rhythmProblemText(m[1]) : /tk_forbidden/.test(text) ? "Only admins can change this." : "Could not save. Try again.");
+  };
+  const write = (value, done) => {
+    if (busy) return;
+    setBusy(true);
+    setMsg("");
+    Promise.resolve(TK_api.setClientRhythm(clientId, value)).then(() => {
+      setBusy(false);
+      setForm(null);
+      setMsg(done);
+      setTick((t) => t + 1);
+    }, fail);
+  };
+  const built = form ? TK_clientRhythmFromForm(form) : null;
+  const errs = built ? built.errors : {};
+  const labelOf = (k) => {
+    const p = firm && TK_rhythmPart(firm, k);
+    return (p && p.label) || ST_CLIENT_RHYTHM_PARTS.find((x) => x.key === k).label;
+  };
+  return (
+    <li className="st-list-row" id="st-client-rhythm" style={form ? { flexWrap: "wrap" } : undefined}>
+      <span className="st-row-text">
+        <span className="st-row-label">Month rhythm</span>
+        <span className="st-row-sub">
+          {summary}
+          {st.failed || /\.$/.test(summary)
+            ? ""
+            : st.own != null
+              ? ". The weekend and holiday rule follows the firm setting."
+              : "."}
+          {msg ? " " + msg : ""}
+        </span>
+      </span>
+      {canEdit && !st.failed && !form && (
+        <span className="st-actions" style={{ marginTop: 0 }}>
+          <button type="button" className="btn-secondary st-btn-sm" disabled={busy} onClick={startEdit}>
+            Change
+          </button>
+          {st.own != null && (
+            <button
+              type="button"
+              className="btn-secondary st-btn-sm"
+              disabled={busy}
+              onClick={() => write(null, "Saved. This client uses the firm rhythm again.")}
+            >
+              Use the firm rhythm
+            </button>
+          )}
+        </span>
+      )}
+      {canEdit && form && (
+        <div style={{ flexBasis: "100%" }}>
+          <div className="st-rhythm-grid" style={{ marginTop: 12 }}>
+            {ST_CLIENT_RHYTHM_PARTS.map((p) => (
+              <ST_Field key={p.key} label={labelOf(p.key) + " day"}>
+                <select
+                  className="st-input"
+                  value={form[p.key]}
+                  disabled={busy}
+                  aria-invalid={!!errs[p.key]}
+                  onChange={(e) => {
+                    setMsg("");
+                    setForm(Object.assign({}, form, { [p.key]: Number(e.target.value) }));
+                  }}
+                >
+                  {ST_RHYTHM_DAYS.map((d) => (
+                    <option key={d} value={d}>
+                      {TK_rhythmOrdinal(d)}
+                    </option>
+                  ))}
+                </select>
+                {errs[p.key] && <span className="st-field-error">{errs[p.key]}</span>}
+              </ST_Field>
+            ))}
+          </div>
+          {errs.form && <p className="st-field-error">{errs.form}</p>}
+          <div className="st-actions">
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={busy || !built || !built.value}
+              onClick={() => write(built.value, "Saved. Monthly tasks made from now on use these days.")}
+            >
+              {busy ? "Saving…" : "Save"}
+            </button>
+            <button type="button" className="btn-secondary st-btn-sm" disabled={busy} onClick={() => { setForm(null); setMsg(""); }}>
+              Cancel
+            </button>
+            {st.own != null && (
+              <button
+                type="button"
+                className="btn-secondary st-btn-sm"
+                disabled={busy}
+                onClick={() => write(null, "Saved. This client uses the firm rhythm again.")}
+              >
+                Use the firm rhythm
+              </button>
+            )}
+          </div>
+          <p className="st-muted">Only admins can change this, and every change is recorded. Tasks already made keep their dates.</p>
+        </div>
+      )}
+    </li>
+  );
+}
+
 function ST_FirmSettings({ groups, isAdmin, onSelectPage, isOwner }) {
   const status = ST_useFirmStatus(!!isAdmin);
   const [openInline, setOpenInline] = React.useState(null);
@@ -1762,6 +1917,7 @@ function ST_ClientSettingsPage({
   onOpenAccess,
   onOpenDetails,
   hasPendingAccessRequests,
+  canEditRhythm, // real admin, not previewing: may change this client's month rhythm (slice 5)
 }) {
   const st = ST_useSettings();
   const s = st.settings || {};
@@ -1847,6 +2003,9 @@ function ST_ClientSettingsPage({
                     Open
                   </button>
                 </li>
+                {typeof TK_rhythmLoad === "function" && typeof TK_rhythmEnabled === "function" && (
+                  <ST_ClientRhythmRow clientId={client.id} canEdit={!!canEditRhythm} />
+                )}
               </ul>
             </ST_Card>
           )}
