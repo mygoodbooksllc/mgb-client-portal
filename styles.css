@@ -11012,44 +11012,38 @@ button.home-todo-main:hover { background: var(--surface-2); }
 }
 
 /* Brand colors preview (mgb_brand_preview checkbox; index.html sets data-brand="mgb").
+   A blend: the chrome (sidebar, rail, dark top bar) stays our near-black and fades into the
+   brand teal at the bottom; buttons, headings and surfaces use the brand guide's navy.
    Brand guide: Pantone 7546 C #243746 (primary navy), 5463 C #06262D (dark teal),
-   gradient #1F404F to #243746, 7502 C #C7AE86 (gold, already ours), Montserrat secondary.
-   Light mode swaps the near-black chrome for the brand navy; dark mode deepens to the teal. */
+   gradient #1F404F to #243746, 7502 C #C7AE86 (gold, already ours), Montserrat secondary. */
 html[data-brand="mgb"] {
   --navy: #243746;
   --navy-deep: #06262d;
+  --sidebar-bg: #05080d;
   --on-gold: #06262d;
   --font-heading: "Montserrat", "Lato", system-ui, -apple-system, sans-serif;
 }
 html[data-brand="mgb"] .sidebar,
 html[data-brand="mgb"] .staff-rail {
-  background-image: linear-gradient(180deg, #1f404f 0%, #243746 100%);
+  background-image: linear-gradient(180deg, #05080d 0%, #05080d 35%, #06262d 100%);
 }
 @media (prefers-color-scheme: dark) {
   html[data-brand="mgb"]:not([data-theme="light"]) {
     --navy-deep: #06262d;
-    --sidebar-bg: #06262d;
+    --sidebar-bg: #05080d;
     --bg: #0d1c22;
     --surface: #132a32;
     --border: #28434d;
     --accent-soft: #19333c;
   }
-  html[data-brand="mgb"]:not([data-theme="light"]) .sidebar,
-  html[data-brand="mgb"]:not([data-theme="light"]) .staff-rail {
-    background-image: none;
-  }
 }
 html[data-brand="mgb"][data-theme="dark"] {
   --navy-deep: #06262d;
-  --sidebar-bg: #06262d;
+  --sidebar-bg: #05080d;
   --bg: #0d1c22;
   --surface: #132a32;
   --border: #28434d;
   --accent-soft: #19333c;
-}
-html[data-brand="mgb"][data-theme="dark"] .sidebar,
-html[data-brand="mgb"][data-theme="dark"] .staff-rail {
-  background-image: none;
 }
 html[data-brand="mgb"] h1,
 html[data-brand="mgb"] h2,
