@@ -272,6 +272,109 @@ function TK_rhythmLoad(force) {
   return p;
 }
 
+// ---- Slice 4: report state (rows 6, 7, 8) ------------------------------------
+// Rhythm rows are found by task_templates.source_ref, never by title or id.
+var TK_RHYTHM_ROW_REFS = {
+  "month_rhythm:6_reports": "reports",
+  "month_rhythm:7_follow_up": "follow_7",
+  "month_rhythm:8_follow_up": "follow_8",
+};
+var TK_REPORT_MISSING_MAX = 30;
+var TK_REPORT_LABEL_MAX = 200;
+var TK__RH_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
+  "September", "October", "November", "December"];
+
+// "reports" | "follow_7" | "follow_8" | null, from a template row (or its source_ref).
+function TK_rhythmRowOf(tpl) {
+  var ref = tpl && typeof tpl === "object" ? tpl.source_ref : tpl;
+  return (ref && TK_RHYTHM_ROW_REFS[String(ref)]) || null;
+}
+
+// The task's books month as "YYYY-MM-01", only for month-period tasks.
+function TK_reportPeriodOf(task) {
+  if (!task || task.period_kind !== "month" || !task.period_start) return null;
+  var m = String(task.period_start).slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(m) ? m + "-01" : null;
+}
+
+// Row 6 needs the picker: rhythm on, a reports-row task with a client and a month.
+function TK_reportPickerNeeded(task, tpl, enabled) {
+  if (!enabled || !task || !task.client_id) return false;
+  if (TK_rhythmRowOf(tpl) !== "reports") return false;
+  return !!TK_reportPeriodOf(task);
+}
+
+function TK_rh__label(v) {
+  var s = String(v == null ? "" : v).replace(/\s+/g, " ").trim();
+  return s.length > TK_REPORT_LABEL_MAX ? s.slice(0, TK_REPORT_LABEL_MAX) : s;
+}
+
+// Prefill for a preliminary send: the client's open Ask client requests
+// (never legacy document requests), newest first as the server lists them.
+function TK_reportMissingPrefill(requests) {
+  var out = [];
+  var list = Array.isArray(requests) ? requests : [];
+  for (var i = 0; i < list.length && out.length < TK_REPORT_MISSING_MAX; i++) {
+    var r = list[i];
+    if (!r || r.status !== "open" || r.legacy || r.deleted_at) continue;
+    var label = TK_rh__label(r.title);
+    if (!label) continue;
+    out.push({ label: label, request_id: r.id || null });
+  }
+  return out;
+}
+
+// What the RPC gets: trimmed labels, blanks dropped, at most 30.
+function TK_reportMissingClean(items) {
+  var out = [];
+  var list = Array.isArray(items) ? items : [];
+  for (var i = 0; i < list.length && out.length < TK_REPORT_MISSING_MAX; i++) {
+    var it = list[i];
+    var label = TK_rh__label(it && typeof it === "object" ? it.label : it);
+    if (!label) continue;
+    out.push({ label: label, request_id: (it && typeof it === "object" && it.request_id) || null });
+  }
+  return out;
+}
+
+// null when the picker can save; else a plain message.
+function TK_reportPickerProblem(state, items) {
+  if (state !== "full" && state !== "preliminary") return "Pick Full or Preliminary.";
+  if (state === "preliminary" && TK_reportMissingClean(items).length === 0) {
+    return "List at least one item that is still missing.";
+  }
+  return null;
+}
+
+// "October 2026" from "2026-10-01".
+function TK_reportMonthLabel(period) {
+  var m = /^(\d{4})-(\d{2})/.exec(String(period || ""));
+  if (!m) return "";
+  var idx = Number(m[2]) - 1;
+  return idx >= 0 && idx < 12 ? TK__RH_MONTHS[idx] + " " + m[1] : "";
+}
+
+// Client portal: preliminary rows only, newest month first, plain labels.
+function TK_clientReportBadges(rows) {
+  var out = [];
+  var list = Array.isArray(rows) ? rows : [];
+  for (var i = 0; i < list.length; i++) {
+    var r = list[i];
+    if (!r || r.state !== "preliminary" || !r.period) continue;
+    var month = TK_reportMonthLabel(r.period);
+    if (!month) continue;
+    var missing = [];
+    var items = Array.isArray(r.missing) ? r.missing : [];
+    for (var j = 0; j < items.length; j++) {
+      var label = TK_rh__label(items[j] && items[j].label);
+      if (label) missing.push({ label: label, request_id: (items[j] && items[j].request_id) || null });
+    }
+    out.push({ period: String(r.period).slice(0, 10), month: month, missing: missing });
+  }
+  out.sort(function (a, b) { return a.period < b.period ? 1 : a.period > b.period ? -1 : 0; });
+  return out;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_RHYTHM_KEY: TK_RHYTHM_KEY,
@@ -300,5 +403,15 @@ if (typeof module !== "undefined" && module.exports) {
     TK_rhythmIsOn: TK_rhythmIsOn,
     TK_rhythmEnabled: TK_rhythmEnabled,
     TK_rhythmState: TK_rhythmState,
+    TK_RHYTHM_ROW_REFS: TK_RHYTHM_ROW_REFS,
+    TK_REPORT_MISSING_MAX: TK_REPORT_MISSING_MAX,
+    TK_rhythmRowOf: TK_rhythmRowOf,
+    TK_reportPeriodOf: TK_reportPeriodOf,
+    TK_reportPickerNeeded: TK_reportPickerNeeded,
+    TK_reportMissingPrefill: TK_reportMissingPrefill,
+    TK_reportMissingClean: TK_reportMissingClean,
+    TK_reportPickerProblem: TK_reportPickerProblem,
+    TK_reportMonthLabel: TK_reportMonthLabel,
+    TK_clientReportBadges: TK_clientReportBadges,
   };
 }

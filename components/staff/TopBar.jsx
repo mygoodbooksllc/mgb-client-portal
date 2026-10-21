@@ -889,6 +889,25 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       if (unsub) unsub();
     };
   }, [loadMentions, page]);
+  // Slate rhythm slice 4 (e): "second preliminary month" notices for me
+  // (tk_rhythm_notices, RLS: my own rows). Only while TK_rhythmEnabled().
+  const [rhyNotices, setRhyNotices] = useState([]);
+  const loadRhy = useCallback(() => {
+    const on = typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled();
+    if (!me || !on || typeof TK_api === "undefined" || !TK_api || typeof TK_api.listRhythmNotices !== "function") {
+      setRhyNotices((x) => (x.length ? [] : x));
+      return;
+    }
+    Promise.resolve(TK_api.listRhythmNotices()).then(
+      (rows) => setRhyNotices(Array.isArray(rows) ? rows : []),
+      () => setRhyNotices([]),
+    );
+  }, [me]);
+  useEffect(() => {
+    loadRhy();
+    const id = setInterval(() => !document.hidden && loadRhy(), TB_BELL_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [loadRhy, page]);
   const idsKey = (clients || []).map((c) => c.id).sort().join(",");
   const load = useCallback(async () => {
     const sb = window.mgbSupabase;
@@ -1000,6 +1019,21 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
         title: `Assigned to you: ${t.text}`,
         sub: [t.client_id ? nameOf(t.client_id) : "", t.due_date ? "Due " + fmtDate(t.due_date) : ""].filter(Boolean).join(" · ") || "Work › Slate",
         go: () => lkGo({ place: "work", tab: "tasks", item: "task:" + t.id }),
+      }),
+    );
+  rhyNotices
+    .filter((row) => row && row.task_id && !skipped(row.client_id))
+    .forEach((row) =>
+      out.push({
+        // "task:" prefix: follows the "Tasks assigned to me" bell setting.
+        id: "task:rhy:" + row.id,
+        at: row.created_at,
+        title: `Preliminary reports two months in a row: ${nameOf(row.client_id)}`,
+        sub: "Follow-up task is open",
+        go: () =>
+          TB_tkCanOpen()
+            ? TK_openTask(row.task_id, { from: "bell" })
+            : lkGo({ place: "tasks", tab: "my", item: "task:" + row.task_id }),
       }),
     );
   remote.blocked

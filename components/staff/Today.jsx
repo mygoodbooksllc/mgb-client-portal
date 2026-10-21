@@ -1557,8 +1557,11 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // and bills (the old Overdue tile).
   const openItems = (mine.items || []).filter(notHidden).filter((t) => !t.done && t.kind !== "note" && t.due_date);
   const dueToday = openItems.filter((t) => t.due_date === today).length;
+  // Slate rhythm s4 (owner rule): waiting on the client, or a preliminary
+  // reports month, is never late (TK_lateExcused, same as SQL).
+  const lateExcused = (t) => (typeof TK_lateExcused === "function" ? TK_lateExcused(t) : t.status === "waiting_client");
   const overdue =
-    openItems.filter((t) => t.due_date < today).length +
+    openItems.filter((t) => t.due_date < today && !lateExcused(t)).length +
     deadlines.filter((it) => it.state === "overdue").length +
     rows.now.filter((r) => r.kind === "bill").length;
 

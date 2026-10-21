@@ -1,0 +1,23 @@
+DRAFT, not published. Staff-guide note for preliminary reports and the Follow up rows (Slate month rhythm, slice 4). Add it to the Slate task-details article and the admin recurring-templates article on the day the owner turns on the month rhythm switch, together with month-rhythm-templates.txt. Until then the live guide is unchanged, because staff without Month rhythm preview see nothing new.
+
+### Sending reports: Full or Preliminary
+
+When you mark a **Send reports** task done in the task details, Slate asks how the reports went out:
+
+- **Full:** everything for the month was in.
+- **Preliminary:** you sent the reports before everything arrived. List what is still missing. The list starts with the client's open Ask client requests; remove items that do not apply or add your own.
+
+The client sees a **Preliminary** note next to that month's reports, with each missing item and a link to upload or answer it. They never see the task or your notes.
+
+When the last Follow up task for that month is done, the month counts as full and the note goes away.
+
+If you tick the task done from a list, Today or the Overview, Slate opens the task so you can answer the question first. Selecting several tasks and completing them together skips the question, so complete Send reports tasks one at a time.
+
+### Follow up (the 24th unless your firm changed the day)
+
+- **Nothing outstanding:** if a client has no open Ask client requests when the Follow up tasks come due, Slate completes them for you with the note "Nothing outstanding".
+- **Second month in a row:** if last month's reports also went out preliminary, the Follow up task says so at the top, and the client's account manager gets a notice in the bell and by email. With no account manager, admins get it. The notice follows your **Tasks assigned to me** notification setting.
+
+### Late counts
+
+A month whose reports went out preliminary does not count against anyone. Its open monthly tasks are never shown as late and do not count in on-time stats or the performance score.

@@ -337,3 +337,70 @@ function ClientNeeds({ clientId, canUpload, focusId, readOnly, onOpenDocuments }
     </div>
   );
 }
+
+/**
+ * Slate rhythm slice 4 (c): "Preliminary" badge for a month whose reports went
+ * out before everything arrived, with the missing items. Data: rpc
+ * tk_client_report_state(p_client_id) returns period, state and plain labels
+ * only (a request_id only while that request is still open). The server shows
+ * rows to clients only when month_rhythm_enabled is on (or a test client), so
+ * this renders nothing at all today. Props: clientId, canOpen (the client has
+ * the Messages tab), onOpenRequest(requestId).
+ */
+function CN_ReportStateCard({ clientId, canOpen, onOpenRequest }) {
+  const [rows, setRows] = React.useState([]);
+  React.useEffect(() => {
+    const sb = window.mgbSupabase;
+    setRows([]);
+    if (!clientId || !sb) return undefined;
+    let live = true;
+    const load = () =>
+      sb.rpc("tk_client_report_state", { p_client_id: String(clientId) }).then(
+        (res) => {
+          if (!live || res.error) return;
+          const list = typeof TK_clientReportBadges === "function" ? TK_clientReportBadges(res.data) : [];
+          setRows(list);
+        },
+        () => {},
+      );
+    load();
+    window.addEventListener(CN_EVENT, load);
+    return () => {
+      live = false;
+      window.removeEventListener(CN_EVENT, load);
+    };
+  }, [clientId]);
+  if (!rows.length) return null;
+  return (
+    <div className="cn-report-state" data-tour="client-report-state">
+      {rows.map((r) => (
+        <div className="card cn-report-card" key={r.period}>
+          <div className="cn-report-head">
+            <span className="cn-report-badge">Preliminary</span>
+            <h3 className="card-title cn-report-title">{"Preliminary reports for " + r.month}</h3>
+          </div>
+          <p className="card-subtitle cn-report-sub">
+            These reports were sent before everything arrived. We will send the full set once these come in.
+          </p>
+          {r.missing.length ? (
+            <ul className="cn-report-missing">
+              {r.missing.map((m, i) => (
+                <li key={i}>
+                  <span className="cn-report-label">{"Missing: " + m.label}</span>
+                  {m.request_id && canOpen && typeof onOpenRequest === "function" ? (
+                    <>
+                      {" "}
+                      <button type="button" className="link-btn" onClick={() => onOpenRequest(m.request_id)}>
+                        Upload or answer
+                      </button>
+                    </>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}

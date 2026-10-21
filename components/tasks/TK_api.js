@@ -26,7 +26,8 @@ var TK_TASK_COLS =
   "staff_email, created_by, visibility, source, source_ref, series_id, completed_at, status_changed_at, " +
   "status_changed_by, waiting_since, waiting_minutes, created_at, updated_at, deleted_at, " +
   "reviewer_email, send_back_count, ready_at, submitted_by, submitted_at, approved_by, approved_at, " +
-  "due_date_original, waiting_before_due_minutes, is_unassigned";
+  "due_date_original, waiting_before_due_minutes, is_unassigned, " +
+  "template_id, period_kind, period_start"; // tk rhythm s4: task month for the late rule
 
 // Raises a toast through the existing window event that ToastProvider handles.
 function TK_toast(text) {
@@ -429,7 +430,7 @@ var TK_api = (function () {
         .order("due_date", { ascending: true, nullsFirst: false })
         .limit(1000);
     }, { where: "listMine" }).then(null, function () { return []; });
-    return Promise.all([mine, open]).then(function (res) {
+    return Promise.all([mine, open, api.loadReportStates()]).then(function (res) {
       var seen = {};
       var out = [];
       (res[0] || []).concat(res[1] || []).forEach(function (r) {
@@ -446,7 +447,7 @@ var TK_api = (function () {
     var showDone = !!(opts && opts.showDone);
     var showOlder = !!(opts && opts.showOlder);
     if (!s.clientId && !s.projectId && !s.assigneeEmail && !s.parentId) return Promise.resolve([]);
-    return run(function (c) {
+    var rows = run(function (c) {
       var q = c.from("tk_tasks").select(TK_TASK_COLS);
       if (s.clientId) q = q.eq("client_id", String(s.clientId));
       if (s.projectId) q = q.eq("project_id", s.projectId);
@@ -463,8 +464,9 @@ var TK_api = (function () {
         q = q.order("due_date", { ascending: true, nullsFirst: false });
       }
       return q.limit(1000);
-    }, { where: "listScope" }).then(function (rows) {
-      return (rows || []).map(normalize);
+    }, { where: "listScope" });
+    return Promise.all([rows, api.loadReportStates()]).then(function (res) {
+      return (res[0] || []).map(normalize);
     });
   };
 
@@ -732,6 +734,20 @@ var TK_api = (function () {
     if (completing[task.id]) return completing[task.id];
     var off = requireOnline();
     if (off) return off;
+    // Slate rhythm slice 4 (b): a "Send reports" row completed from a list
+    // checkbox, Today or the Overview opens the task instead, so the drawer
+    // asks Full or Preliminary. The drawer picker passes skipReportPick.
+    // Feature off: reportPickMaybe is false and nothing changes.
+    if (done && !(opts && opts.skipReportPick) && reportPickMaybe(task, current)) {
+      return reportPickCheck(task).then(function (needs) {
+        if (!needs) return api.complete(task, Object.assign({}, opts || {}, { skipReportPick: true }));
+        TK_toast("Choose Full or Preliminary reports to finish this task.");
+        if (typeof TK_openTask === "function") {
+          try { TK_openTask(task.id, { from: "report" }); } catch (e) {}
+        }
+        return { status: current, sentForReview: false, nextId: null, reportPick: true };
+      });
+    }
 
     var p = api
       .probe()
@@ -801,6 +817,26 @@ var TK_api = (function () {
     completing[task.id] = p;
     return p;
   };
+
+  // Slate rhythm slice 4 (b): cheap sync check first (feature on, open, a
+  // client and a month period, template unknown or set), then the template's
+  // source_ref. Rows read without template_id (Today) fetch it once.
+  function reportPickMaybe(task, current) {
+    var on = false;
+    try { on = typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled() === true; } catch (e) { on = false; }
+    if (!on) return false;
+    if (current !== "todo" && current !== "in_progress" && current !== "waiting_client") return false;
+    if (!task.client_id || task.template_id === null) return false;
+    return typeof TK_reportPeriodOf === "function" && typeof TK_reportPickerNeeded === "function" && !!TK_reportPeriodOf(task);
+  }
+  function reportPickCheck(task) {
+    var idP = task.template_id !== undefined
+      ? Promise.resolve(task.template_id)
+      : api.get(task.id).then(function (t) { return t ? t.template_id || null : null; }, function () { return null; });
+    return idP
+      .then(function (id) { return id ? api.templateRef(id) : null; })
+      .then(function (tpl) { return TK_reportPickerNeeded(task, tpl, true); }, function () { return false; });
+  }
 
   // One tick through tk_bulk_complete / tk_bulk_reopen. A skip rejects with
   // code tk_skipped and .reason (the optimistic status is rolled back).
@@ -2355,6 +2391,67 @@ var TK_api = (function () {
     );
   };
 
+  // ---- Slate rhythm slice 4: report state ----------------------------------
+  // Staff read tk_report_state (RLS: clients they can reach) for the late
+  // rule (TK_lateExcused). Read straight from the client so a failure never
+  // touches the schema probe or logs; an error keeps the last cache.
+  var reportStates = { at: 0, promise: null };
+  api.loadReportStates = function (force) {
+    if (!force && reportStates.promise && Date.now() - reportStates.at < 300000) return reportStates.promise;
+    var client = db();
+    if (!client) return Promise.resolve([]);
+    reportStates.at = Date.now();
+    reportStates.promise = Promise.resolve()
+      .then(function () {
+        return client.from("tk_report_state").select("client_id, period, state").eq("state", "preliminary").limit(5000);
+      })
+      .then(function (res) {
+        if (!res || res.error || !Array.isArray(res.data)) return [];
+        if (typeof TK_setReportStates === "function") TK_setReportStates(res.data);
+        return res.data;
+      }, function () { return []; });
+    return reportStates.promise;
+  };
+
+  // Row 6: Full or Preliminary for the client's month (server checks access).
+  api.setReportState = function (clientId, period, state, missing) {
+    return rpcWrite("tk_set_report_state", {
+      p_client: String(clientId || ""), p_period: period, p_state: state, p_missing: missing || [],
+    }, "setReportState").then(function (row) {
+      api.loadReportStates(true);
+      return row;
+    });
+  };
+
+  // Client portal read: period, state and plain missing labels only.
+  api.clientReportState = function (clientId) {
+    return run(function (c) {
+      return c.rpc("tk_client_report_state", { p_client_id: String(clientId || "") });
+    }, { where: "clientReportState" }).then(function (rows) { return rows || []; });
+  };
+
+  // A template's source_ref (rhythm rows are found by it), cached per id.
+  var templateRefs = {};
+  api.templateRef = function (templateId) {
+    if (!templateId) return Promise.resolve(null);
+    if (templateRefs[templateId]) return templateRefs[templateId];
+    templateRefs[templateId] = run(function (c) {
+      return c.from("task_templates").select("id, source_ref, email_kind").eq("id", templateId).maybeSingle();
+    }, { where: "templateRef" }).then(function (row) { return row || null; }, function () {
+      delete templateRefs[templateId];
+      return null;
+    });
+    return templateRefs[templateId];
+  };
+
+  // Bell: second preliminary month notices for the signed-in person (RLS).
+  api.listRhythmNotices = function () {
+    return run(function (c) {
+      return c.from("tk_rhythm_notices").select("id, client_id, period, task_id, kind, created_at")
+        .order("created_at", { ascending: false }).limit(50);
+    }, { where: "listRhythmNotices" }).then(function (rows) { return rows || []; });
+  };
+
   // ---- Exposed for TK_sync and tests ----------------------------------------
   api.normalize = normalize;
   api._client = null; // tests inject a stub client here
@@ -2368,6 +2465,9 @@ var TK_api = (function () {
     probeState.retryTimer = null;
     completing = {};
     staffCache = null;
+    reportStates.at = 0;
+    reportStates.promise = null;
+    templateRefs = {};
   };
 
   return api;

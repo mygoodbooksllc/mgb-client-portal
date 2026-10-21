@@ -86,3 +86,16 @@
   .cn-card { padding: 10px 12px; }
   .cn-actions > * { flex: 1 1 auto; text-align: center; }
 }
+
+/* Slate rhythm slice 4 (c): Preliminary reports badge on Reports. */
+.cn-report-state { display: grid; gap: 12px; margin-bottom: 16px; }
+.cn-report-card { padding: 16px 18px; }
+.cn-report-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cn-report-title { margin: 0; }
+.cn-report-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: var(--warm-bg); color: var(--warm-text); border: 1px solid var(--warm-border);
+}
+.cn-report-sub { margin: 6px 0 0; }
+.cn-report-missing { margin: 10px 0 0; padding-left: 18px; }
+.cn-report-missing li { margin: 4px 0; }

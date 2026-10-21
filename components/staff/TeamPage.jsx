@@ -43,6 +43,8 @@ const TP_TASK_BASE_COLS =
   "id, staff_email, text, due_date, done, completed_at, client_id, priority, created_at";
 const TP_TASK_V2_COLS =
   "kind, due_at, recurrence, assignee_email, created_by, visibility, remind_at, source, source_ref";
+// Slate rhythm slice 4 (f): status and the task month for the late rule.
+const TP_TASK_S4_COLS = "status, period_kind, period_start";
 
 const TP_ymd = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -146,7 +148,10 @@ function TP_taskState(t, today, range) {
   }
   // Once late tasks count, only tasks due on or after the start date can be overdue.
   const from = typeof TK_lateCountsCache !== "undefined" ? TK_lateCountsCache.from : null;
-  return t.due_date && t.due_date < today && (!from || t.due_date >= from) ? "overdue" : "open";
+  // Slate rhythm s4 (owner rule): waiting on the client, or a preliminary
+  // reports month, is never late (same as SQL tk_late_excused).
+  const excused = typeof TK_lateExcused === "function" ? TK_lateExcused(t) : t.status === "waiting_client";
+  return t.due_date && t.due_date < today && (!from || t.due_date >= from) && !excused ? "overdue" : "open";
 }
 
 // Everything the page shows, from the raw rows. Pure, so it can be exercised
@@ -972,9 +977,14 @@ function TP_TeamPage({ clients }) {
     const missingCol = (res) =>
       res.error && typeof staffItemsApi !== "undefined" && staffItemsApi.isMissingColumnError(res.error);
     const tasksP = (async () => {
-      let res = await TP_fetchAll(taskQuery(TP_TASK_BASE_COLS + ", " + TP_TASK_V2_COLS, true));
+      let res = await TP_fetchAll(taskQuery(TP_TASK_BASE_COLS + ", " + TP_TASK_V2_COLS + ", " + TP_TASK_S4_COLS, true));
+      if (missingCol(res)) res = await TP_fetchAll(taskQuery(TP_TASK_BASE_COLS + ", " + TP_TASK_V2_COLS, true));
       if (missingCol(res)) res = await TP_fetchAll(taskQuery(TP_TASK_BASE_COLS + ", " + TP_TASK_V2_COLS, false));
       if (missingCol(res)) res = await TP_fetchAll(taskQuery(TP_TASK_BASE_COLS, false));
+      // Slate rhythm slice 4: preliminary months for TK_lateExcused. Never rejects.
+      if (typeof TK_api !== "undefined" && TK_api && typeof TK_api.loadReportStates === "function") {
+        await TK_api.loadReportStates();
+      }
       return res;
     })();
     const accessP = TP_fetchAll(() =>

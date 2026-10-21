@@ -1,0 +1,11 @@
+DRAFT, not published. The rule itself is live with slice 4 (not gated), but it changes no number today: production had 0 tasks waiting on a client and 0 preliminary months on 2026-10-21. Publish this entry in docs/staff-guide/whats-new.md (and sync staff_guide by targeted UPDATE) the first time a task waits on a client, or with the month rhythm launch, whichever comes first. Also add the short paragraph below to the task-review article (on-time section) and the my-tasks article (Waiting group).
+
+--- whats-new.md entry ---
+
+### 2026-10-21: Waiting on a client is never late
+
+A task that is waiting on a client no longer counts as late anywhere: not on Today, the Team page, Slate's Overdue group, on-time stats or the performance score. It shows in the **Waiting** group instead. The same goes for monthly tasks in a month whose reports went out preliminary. See [How do I use my Slate?](#/help/my-tasks).
+
+--- task-review / my-tasks paragraph ---
+
+**Waiting is never late.** While a task waits on the client (Ask client), it does not count as late, and it is left out of on-time stats and the performance score. Monthly tasks for a month whose reports went out preliminary are treated the same way. Once the client answers and the task is open again, the normal due date applies.

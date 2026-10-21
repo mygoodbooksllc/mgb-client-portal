@@ -296,9 +296,48 @@ function TK_isMine(task, email) {
   return TK_assigneeOf(task) === me;
 }
 
+// Slate rhythm slice 4 (f), owner rule, not gated: a task waiting on the
+// client, or a month task on a client whose month went out as preliminary
+// reports, is never late. Mirrors SQL tk_late_excused(status, client,
+// period_kind, period_start). The cache holds "client|YYYY-MM-01" keys for
+// preliminary months; staff load it from tk_report_state (TK_api). Empty
+// cache means only the waiting rule applies, which TK_isOverdue already had.
+var TK_reportStateCache = { keys: {}, loaded: false };
+
+function TK_setReportStates(rows) {
+  var keys = {};
+  var list = Array.isArray(rows) ? rows : [];
+  for (var i = 0; i < list.length; i++) {
+    var r = list[i];
+    if (!r || r.state !== "preliminary" || !r.client_id || !r.period) continue;
+    keys[String(r.client_id) + "|" + String(r.period).slice(0, 7) + "-01"] = true;
+  }
+  TK_reportStateCache.keys = keys;
+  TK_reportStateCache.loaded = true;
+  return keys;
+}
+
+// The books month a task belongs to: its period_start month when it has a
+// month period, else null (quarter, year and ad hoc tasks have no month).
+function TK_taskMonth(task) {
+  if (!task || task.period_kind !== "month" || !task.period_start) return null;
+  var m = String(task.period_start).slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(m) ? m + "-01" : null;
+}
+
+function TK_lateExcused(task, cache) {
+  if (!task) return false;
+  if (TK_effectiveStatus(task) === "waiting_client") return true;
+  var month = TK_taskMonth(task);
+  if (!month || !task.client_id) return false;
+  var keys = (cache && cache.keys) || TK_reportStateCache.keys || {};
+  return keys[String(task.client_id) + "|" + month] === true;
+}
+
 function TK_isOverdue(task, today) {
   if (!TK_isOpen(task)) return false;
   if (TK_effectiveStatus(task) === "waiting_client") return false;
+  if (TK_lateExcused(task)) return false;
   var due = task.due_date ? String(task.due_date).slice(0, 10) : "";
   if (!due) return false;
   return due < (today || TK_ymd());
@@ -386,6 +425,7 @@ function TK_groupMyTasks(tasks, today, opts) {
     var due = t.due_date ? String(t.due_date).slice(0, 10) : "";
     var d = due ? TK_dayDiff(today, due) : NaN;
     if (isNaN(d)) g.later.push(t);
+    else if (d < 0 && TK_lateExcused(t)) g.waiting.push(t);   // tk rhythm s4: never late
     else if (d < 0) g.overdue.push(t);
     else if (d === 0) (todayGroup ? g.today : g.week).push(t);
     else if (d <= TK_SOON_DAYS) g.week.push(t);
@@ -1231,6 +1271,10 @@ if (typeof module !== "undefined" && module.exports) {
     TK_assigneeOf: TK_assigneeOf,
     TK_isUnassigned: TK_isUnassigned,
     TK_isOverdue: TK_isOverdue,
+    TK_reportStateCache: TK_reportStateCache,
+    TK_setReportStates: TK_setReportStates,
+    TK_taskMonth: TK_taskMonth,
+    TK_lateExcused: TK_lateExcused,
     TK_isOldDone: TK_isOldDone,
     TK_groupMyTasks: TK_groupMyTasks,
     TK_compareTasks: TK_compareTasks,

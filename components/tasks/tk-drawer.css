@@ -1327,3 +1327,11 @@
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* Slate rhythm slice 4 (b): Full or Preliminary picker on Send reports. */
+.tk-dw-report-pick { border: 0; padding: 0; margin: 0 0 12px; }
+.tk-dw-report-opt { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; cursor: pointer; }
+.tk-dw-report-opt strong { margin-right: 6px; }
+.tk-dw-report-list { list-style: none; padding: 0; margin: 6px 0 8px; display: grid; gap: 6px; }
+.tk-dw-report-item { display: flex; gap: 6px; align-items: center; }
+.tk-dw-report-item .tk-dw-input { flex: 1; min-width: 0; }

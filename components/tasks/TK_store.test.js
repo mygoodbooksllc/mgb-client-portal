@@ -914,6 +914,95 @@ t("stop closes channels and BroadcastChannel; start is idempotent", async () => 
   done();
 });
 
+// ---- TK_api.complete: Slate rhythm slice 4 row 6 guard (review fix) ----------
+// A "Send reports" row completed outside the drawer picker opens the task
+// instead (Full or Preliminary must be asked). Feature off: unchanged.
+
+const RH = require("./TK_rhythmLogic.js");
+const TPL6 = "tpl-6-reports";
+function rhythmEnv(on, over, tplRef) {
+  const base = row(Object.assign({ client_id: "grace", period_kind: "month", period_start: "2026-09-01", template_id: TPL6 }, over || {}));
+  const opened = [];
+  const env = makeEnv({
+    rpc: (name) => {
+      if (name === "tk_schema_version") return { data: 1, error: null };
+      if (name === "tk_set_status") return { data: "done", error: null };
+      return { data: null, error: null };
+    },
+    query: (q) => {
+      if (q.table === "task_templates" && q.single === "maybeSingle") {
+        return { data: { id: TPL6, source_ref: tplRef === undefined ? "month_rhythm:6_reports" : tplRef, email_kind: "reports" }, error: null };
+      }
+      if (q.table === "staff_reminders" && q.single === "maybeSingle") {
+        return { data: Object.assign({}, base, { template_id: TPL6, status: "done", done: true }), error: null };
+      }
+      return { data: [], error: null };
+    },
+  });
+  env.ctx.TK_rhythmEnabled = () => on;
+  env.ctx.TK_reportPeriodOf = RH.TK_reportPeriodOf;
+  env.ctx.TK_reportPickerNeeded = RH.TK_reportPickerNeeded;
+  env.ctx.TK_openTask = (id, o) => opened.push({ id, from: o && o.from });
+  env.store.dispatch({ type: "me", email: ME });
+  const x = env.api.normalize(base);
+  env.store.dispatch({ type: "listLoaded", key: "mine", tasks: [x] });
+  return { env, x, opened, setStatus: () => env.counts.rpcs.filter((c) => c.name === "tk_set_status").length,
+    tplReads: () => env.counts.queries.filter((q) => q.table === "task_templates").length };
+}
+
+t("rhythm guard: row 6 from a checkbox opens the task, does not complete", async () => {
+  const { env, x, opened, setStatus } = rhythmEnv(true);
+  const r = await env.api.complete(x, { done: true });
+  assert.strictEqual(r.reportPick, true);
+  assert.strictEqual(r.status, "todo");
+  assert.strictEqual(setStatus(), 0);
+  same(opened, [{ id: x.id, from: "report" }]);
+  assert.strictEqual(env.events("mgb:toast")[0].detail.text, "Choose Full or Preliminary reports to finish this task.");
+  done();
+});
+
+t("rhythm guard: the drawer picker (skipReportPick) completes", async () => {
+  const { env, x, opened, setStatus } = rhythmEnv(true);
+  const r = await env.api.complete(x, { done: true, skipReportPick: true });
+  assert.strictEqual(r.status, "done");
+  assert.strictEqual(setStatus(), 1);
+  assert.strictEqual(opened.length, 0);
+  done();
+});
+
+t("rhythm guard: feature off reads no template and completes as before", async () => {
+  const { env, x, opened, setStatus, tplReads } = rhythmEnv(false);
+  const r = await env.api.complete(x, { done: true });
+  assert.strictEqual(r.status, "done");
+  assert.strictEqual(setStatus(), 1);
+  assert.strictEqual(tplReads(), 0);
+  assert.strictEqual(opened.length, 0);
+  done();
+});
+
+t("rhythm guard: other templates, no client, no month or no template complete", async () => {
+  for (const [over, ref] of [[{}, "month_rhythm:7_follow_up"], [{ client_id: null }, undefined],
+    [{ period_kind: "quarter" }, undefined], [{ template_id: null }, undefined]]) {
+    const { env, x, opened, setStatus } = rhythmEnv(true, over, ref);
+    const r = await env.api.complete(x, { done: true });
+    assert.strictEqual(r.status, "done", JSON.stringify(over));
+    assert.strictEqual(setStatus(), 1);
+    assert.strictEqual(opened.length, 0);
+  }
+  done();
+});
+
+t("rhythm guard: a Today row without template_id looks it up", async () => {
+  const { env, x, opened, setStatus } = rhythmEnv(true);
+  const today = Object.assign({}, x);
+  delete today.template_id;
+  const r = await env.api.complete(today, { done: true });
+  assert.strictEqual(r.reportPick, true);
+  assert.strictEqual(setStatus(), 0);
+  assert.strictEqual(opened.length, 1);
+  done();
+});
+
 // ---- TK_api.complete (2.2) ---------------------------------------------------
 
 function completeEnv(answer) {

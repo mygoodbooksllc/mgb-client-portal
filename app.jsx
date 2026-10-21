@@ -1022,7 +1022,7 @@ const FEATURE_FLAGS = [
     key: "mgb_rhythm_preview",
     label: "Month rhythm preview",
     description:
-      "Turns on the Slate month rhythm work for you only, in this browser, while the firm-wide month_rhythm_enabled switch is off. Today it shows the MGB Month Rhythm templates and the A month rhythm date due rule on Slate › Recurring (admins can edit them there). It never makes tasks for real clients: that waits for the firm switch. The page reloads when you toggle it.",
+      "Turns on the Slate month rhythm work for you only, in this browser, while the firm-wide month_rhythm_enabled switch is off. Today it shows the MGB Month Rhythm templates and the A month rhythm date due rule on Slate › Recurring (admins can edit them there), the Full or Preliminary question when you mark a Send reports task done in the task details, and the Second month in a row notices in the bell. It never makes tasks for real clients: that waits for the firm switch. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -1150,6 +1150,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Slate month rhythm templates)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "supabase/slate-rhythm-3-templates.sql (self-test: slate-rhythm-3-templates-tests.sql, rolls back): new columns task_templates.email_kind (request | reports | maintenance, for the email drafts that come later) and task_templates.description (copied onto each task), tk_template_sets.gate_key (standard_set_live by default; the new MGB Month Rhythm set uses month_rhythm_enabled) · seeds the eight monthly firm_part templates (source_ref month_rhythm:1_check_in to month_rhythm:8_follow_up, unique per set, so a re-run adds nothing) · tk__generate gates each set by its own gate_key (named test and internal clients pass) · tk__issue_period writes the part label to tasks.section and the template description · tk_save_template saves description · tk_settings_set_live_since stamps only the sets with that key · tk_close_optin_status leaves rhythm templates out of the close overlap count while the switch is off · nothing visible and no tasks for real clients until month_rhythm_enabled is on",
+  },
+  {
+    name: "Supabase SQL (Slate month rhythm reports + late rule)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "supabase/slate-rhythm-4-report-state.sql: table tk_report_state (client, month, none | preliminary | full, missing labels; audit tk_report_state_audit; staff write via tk_set_report_state, clients read only tk_client_report_state) · supabase/slate-rhythm-4b-daily.sql: tk_rhythm_daily() run by the pg_cron job month-rhythm-daily (10:40 UTC) closes Follow up rows with Nothing outstanding and writes tk_rhythm_notices (Second month in a row; bell plus task_batch email only with month_rhythm_enabled on) · supabase/slate-rhythm-4c-late-exclusion.sql (live for everyone): tk_late_excused keeps waiting-on-client tasks and preliminary months out of staff_performance, client_health, digest_weekly_data and tk_on_time_stats · each file has a -tests.sql self-test that rolls back",
   },
   {
     name: "Supabase SQL (Workbench)",
@@ -15356,7 +15361,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can try it early with Lato font preview in Feature flags, or opt out with Classic fonts. Setting it to true changes the look for every user right away, so do it only at launch."],
             ["layout_defaults", "Sidebar defaults by role", "What each role (admin, account manager, bookkeeper, temp admin) sees in the left sidebar until they customize it. Admins edit it in Settings › Firm settings › Sidebar defaults (shown once the sidebar is on). Not set means the built-in layout."],
             ["month_rhythm", "Month rhythm (Slate)", "The three days each month when Slate's monthly tasks come due: Check in, Send reports, Follow up, and what happens on a weekend or firm holiday. Admins edit it on Settings › Firm settings › Month rhythm (every change audited; the database refuses an invalid value). Not set means 4th, 14th, 24th, next business day."],
-            ["month_rhythm_enabled", "Month rhythm tasks on for everyone", "Off (or missing, the default): the daily task run makes nothing from the eight MGB Month Rhythm templates for real clients (test and internal clients still get them from Make due tasks now), and Slate › Recurring hides them unless you have Month rhythm preview on. Turning it on stamps the set's live_since, so only dates from that day on are made. Owner-only; the owner turns it on (true) with one SQL line, never from here, once the monthly rhythm tasks are finished. Each person can try the work early with Month rhythm preview in Feature flags."],
+            ["month_rhythm_enabled", "Month rhythm tasks on for everyone", "Off (or missing, the default): the daily task run makes nothing from the eight MGB Month Rhythm templates for real clients (test and internal clients still get them from Make due tasks now), the month-rhythm-daily job sends no emails, and Slate › Recurring hides them unless you have Month rhythm preview on. Turning it on stamps the set's live_since, so only dates from that day on are made. Owner-only; the owner turns it on (true) with one SQL line, never from here, once the monthly rhythm tasks are finished. Each person can try the work early with Month rhythm preview in Feature flags."],
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
             ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Slate › Recurring › One client; off by default. Works while the standard close set is off."],
@@ -19498,7 +19503,8 @@ const STAFF_ITEM_V2_FIELDS = [
 // Tasks module Phase 1 columns (supabase/tasks-module-v1.sql). Read and
 // written only while staffItemsApi.tkCols is true; the first missing-column
 // error turns it off for the session (never `legacy`, which is the v2 flag).
-const STAFF_ITEM_TK_READ_COLS = ["status", "deleted_at", "project_id", "section", "review_required", "updated_at"];
+// period_kind, period_start: slate rhythm s4, the task month for the late rule (TK_lateExcused).
+const STAFF_ITEM_TK_READ_COLS = ["status", "deleted_at", "project_id", "section", "review_required", "updated_at", "period_kind", "period_start"];
 const STAFF_ITEM_TK_WRITE_FIELDS = [
   "status",
   "project_id",
@@ -19663,6 +19669,11 @@ const staffItemsApi = {
         .or(`staff_email.eq.${q},assignee_email.eq.${q},visibility.eq.shared`)
         .is("deleted_at", null)
         .order("due_date", { ascending: true, nullsFirst: false });
+      // Slate rhythm slice 4: preliminary months for the late rule
+      // (TK_lateExcused), so Today and the badges match Slate. Never rejects.
+      if (!error && typeof TK_api !== "undefined" && TK_api && typeof TK_api.loadReportStates === "function") {
+        await TK_api.loadReportStates();
+      }
       if (!error) return { data: data.map(normalizeStaffItem), error: null };
       if (!this.isMissingColumnError(error)) return { data: null, error };
       this.tkCols = false;
@@ -30540,7 +30551,21 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 />
               )
             ) : (
-              <ReportsPage client={scopedClient} />
+              <>
+                {/* Slate rhythm slice 4 (c): Preliminary reports badge; the
+                    server returns nothing until month_rhythm_enabled is on. */}
+                {typeof CN_ReportStateCard === "function" && (
+                  <CN_ReportStateCard
+                    clientId={client.id}
+                    canOpen={access.tabs.has("messages")}
+                    onOpenRequest={(rid) => {
+                      setClientSub({ clientId: selectedClientId, page: "messages", sub: "requests", focus: rid || null });
+                      setPage("messages");
+                    }}
+                  />
+                )}
+                <ReportsPage client={scopedClient} />
+              </>
             ))}
           {/* Settings (components/settings/Settings.jsx). The Plans page
               ("enterprise-upgrade") is client Settings' Plan tab now. */}

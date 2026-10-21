@@ -235,6 +235,9 @@ function TK_onTimeEligible(task) {
 // Approval time is what counts: a send-back is fine if approval lands in time.
 function TK_onTimeOutcome(task, nowMs) {
   if (!TK_onTimeEligible(task)) return null;
+  // Slate rhythm s4 (owner rule): waiting on the client, or a preliminary
+  // reports month, never counts (SQL tk_on_time_stats drops them the same way).
+  if (typeof TK_lateExcused === "function" && TK_lateExcused(task)) return null;
   var now = typeof nowMs === "number" ? nowMs : Date.now();
   var dl = TK_effectiveDeadline(task, now);
   if (isNaN(dl)) return null;

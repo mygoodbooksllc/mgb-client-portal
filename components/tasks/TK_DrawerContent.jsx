@@ -109,6 +109,140 @@ function TK_dwSendBack(props) {
   );
 }
 
+// Slate rhythm slice 4 (b): completing a "Send reports" row asks whether the
+// reports went out full or preliminary. Preliminary needs the missing items,
+// prefilled from the client's open Ask client requests and editable. Only
+// shown while TK_rhythmEnabled() (see TK_reportPickerNeeded).
+function TK_dwReportState(props) {
+  var p = props;
+  var statePair = React.useState("");
+  var state = statePair[0];
+  var setState = statePair[1];
+  var itemsPair = React.useState(null);
+  var items = itemsPair[0];
+  var setItems = itemsPair[1];
+  var triedPair = React.useState(false);
+  var tried = triedPair[0];
+  var setTried = triedPair[1];
+  var busyPair = React.useState(false);
+  var busy = busyPair[0];
+  var setBusy = busyPair[1];
+  React.useEffect(function () {
+    var live = true;
+    var api = TK_dwApi();
+    if (!api || typeof api.listClientRequests !== "function") {
+      setItems([]);
+      return undefined;
+    }
+    // The client's open requests, not only ones linked to this task.
+    if (!p.clientId) {
+      setItems([]);
+      return undefined;
+    }
+    api.listClientRequests(null, p.clientId).then(
+      function (rows) { if (live) setItems(TK_reportMissingPrefill(rows)); },
+      function () { if (live) setItems([]); },
+    );
+    return function () { live = false; };
+  }, [p.taskId, p.clientId]);
+  if (typeof ModalShell !== "function") return null;
+  var list = items || [];
+  var problem = TK_reportPickerProblem(state, list);
+  var setItem = function (i, label) {
+    setItems(list.map(function (it, j) { return j === i ? { label: label, request_id: it.request_id || null } : it; }));
+  };
+  var removeItem = function (i) { setItems(list.filter(function (_, j) { return j !== i; })); };
+  var addItem = function () {
+    if (list.length >= TK_REPORT_MISSING_MAX) return;
+    setItems(list.concat([{ label: "", request_id: null }]));
+  };
+  var submit = function () {
+    if (problem || busy) {
+      setTried(true);
+      return;
+    }
+    setBusy(true);
+    Promise.resolve(p.onConfirm(state, state === "preliminary" ? TK_reportMissingClean(list) : [])).then(
+      function () { setBusy(false); },
+      function () { setBusy(false); },
+    );
+  };
+  var month = TK_reportMonthLabel(p.period);
+  return TK_dwPortal(
+    <ModalShell onClose={p.onCancel} labelledBy="tk-dw-report-title" className="tk-dw-modal">
+      <div className="modal-header">
+        <h3 className="card-title" id="tk-dw-report-title" style={{ margin: 0 }}>
+          {"Reports for " + (month || "this month")}
+        </h3>
+        <button type="button" className="modal-close" onClick={p.onCancel} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div className="modal-body">
+        <fieldset className="tk-dw-report-pick">
+          <legend className="tk-dw-label">How did the reports go out?</legend>
+          <label className="tk-dw-report-opt">
+            <input type="radio" name="tk-dw-report-state" value="full" checked={state === "full"}
+              onChange={function () { setState("full"); }} />
+            <span><strong>Full</strong> Everything for the month was in.</span>
+          </label>
+          <label className="tk-dw-report-opt">
+            <input type="radio" name="tk-dw-report-state" value="preliminary" checked={state === "preliminary"}
+              onChange={function () { setState("preliminary"); }} />
+            <span><strong>Preliminary</strong> Sent before everything arrived.</span>
+          </label>
+        </fieldset>
+        {state === "preliminary" && (
+          <div className="tk-dw-report-missing">
+            <p className="tk-dw-label" id="tk-dw-report-missing-label">Still missing</p>
+            {items === null ? (
+              <p className="tk-dw-hint">Loading open requests…</p>
+            ) : (
+              <ul className="tk-dw-report-list" aria-labelledby="tk-dw-report-missing-label">
+                {list.map(function (it, i) {
+                  return (
+                    <li key={i} className="tk-dw-report-item">
+                      <input
+                        type="text"
+                        className="tk-dw-input"
+                        maxLength={200}
+                        aria-label={"Missing item " + (i + 1)}
+                        value={it.label}
+                        onChange={function (e) { setItem(i, e.target.value); }}
+                      />
+                      <button type="button" className="btn-secondary btn-sm" onClick={function () { removeItem(i); }}
+                        aria-label={"Remove missing item " + (i + 1)}>
+                        Remove
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {list.length < TK_REPORT_MISSING_MAX && (
+              <button type="button" className="btn-secondary btn-sm" onClick={addItem}>
+                Add item
+              </button>
+            )}
+            <p className="tk-dw-hint">The client sees these items next to the reports, with a link to upload.</p>
+          </div>
+        )}
+        {tried && problem && (
+          <p role="alert" className="tk-dw-hint tk-field-error">{problem}</p>
+        )}
+      </div>
+      <div className="modal-footer">
+        <button type="button" className="btn-secondary" onClick={p.onCancel}>
+          Cancel
+        </button>
+        <button type="button" className="btn-primary" onClick={submit} disabled={busy}>
+          Mark done
+        </button>
+      </div>
+    </ModalShell>,
+  );
+}
+
 // The review strip (tasks p2 s3). In review: who reviews it, how long it has
 // waited, and Approve / Send back (an admin who isn't the assignee or the
 // submitter) or Take back (the assignee or submitter). Before review, admins
@@ -699,7 +833,7 @@ function TK_DrawerContent(props) {
   var sopPair = React.useState(false);
   var sopOpen = sopPair[0];
   var setSopOpen = sopPair[1];
-  var modalPair = React.useState(null); // "delete" | "sendback" | "keys"
+  var modalPair = React.useState(null); // "delete" | "sendback" | "keys" | "report"
   var modal = modalPair[0];
   var setModal = modalPair[1];
   var titlePair = React.useState("");
@@ -832,6 +966,24 @@ function TK_DrawerContent(props) {
     if (p.focusField === "assignee" && load === "ok" && assigneeRef.current) assigneeRef.current.focus();
   }, [p.focusField, load, taskId]);
 
+  // ---- Slate rhythm slice 4 (b): which rhythm row this task is (by source_ref)
+  var rhythmOn = typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled();
+  var templateId = task ? task.template_id || null : null;
+  var rhythmTplPair = React.useState(null);
+  var rhythmTpl = rhythmTplPair[0];
+  var setRhythmTpl = rhythmTplPair[1];
+  React.useEffect(function () {
+    setRhythmTpl(null);
+    var api = TK_dwApi();
+    if (!rhythmOn || !templateId || !api || typeof api.templateRef !== "function") return undefined;
+    var live = true;
+    api.templateRef(templateId).then(function (row) { if (live) setRhythmTpl(row); }, function () {});
+    return function () { live = false; };
+  }, [rhythmOn, templateId]);
+  var needsReportPick = function (t) {
+    return typeof TK_reportPickerNeeded === "function" && TK_reportPickerNeeded(t, rhythmTpl, rhythmOn);
+  };
+
   // ---- permissions
   var projectList = Array.isArray(projects) ? projects : [];
   var project = projectId ? projectList.filter(function (x) { return x && x.id === projectId; })[0] || null : null;
@@ -903,6 +1055,10 @@ function TK_DrawerContent(props) {
         return;
       }
     }
+    if (status === "done" && needsReportPick(t)) {
+      setModal("report");
+      return;
+    }
     if (status === "done") {
       api.complete(t, { done: true, isAdmin: isAdmin }).catch(TK_dwSaveError);
       return;
@@ -914,6 +1070,10 @@ function TK_DrawerContent(props) {
     var t = taskRef.current;
     var api = TK_dwApi();
     if (!t || !api || readOnly) return;
+    if (TK_dwIsOpen(t) && TK_dwEffectiveStatus(t) !== "ready_for_review" && needsReportPick(t)) {
+      setModal("report");
+      return;
+    }
     api.complete(t, { done: TK_dwIsOpen(t), isAdmin: isAdmin }).catch(TK_dwSaveError);
   };
 
@@ -1791,6 +1951,23 @@ function TK_DrawerContent(props) {
             setModal(null);
             var api = TK_dwApi();
             if (api && task && typeof api.sendBack === "function") api.sendBack(task.id, note).catch(TK_dwReviewError);
+          }}
+        />
+      )}
+      {modal === "report" && task && (
+        <TK_dwReportState
+          taskId={task.id}
+          clientId={task.client_id || null}
+          period={TK_reportPeriodOf(task)}
+          onCancel={function () { setModal(null); }}
+          onConfirm={function (state, missing) {
+            var api = TK_dwApi();
+            var t = taskRef.current;
+            if (!api || !t || typeof api.setReportState !== "function") return null;
+            return api.setReportState(t.client_id, TK_reportPeriodOf(t), state, missing).then(function () {
+              setModal(null);
+              return api.complete(t, { done: true, isAdmin: isAdmin, skipReportPick: true });
+            }).catch(TK_dwSaveError);
           }}
         />
       )}
