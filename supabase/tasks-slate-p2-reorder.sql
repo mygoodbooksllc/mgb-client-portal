@@ -3,6 +3,13 @@
 --
 -- Applied to production 2026-10-21 (migration tasks_slate_p2_reorder).
 --
+-- RETIRED the same day by tasks-slate-p2-fixes.sql: sort_key is shared, so
+-- this would have changed other people's portal order. Execute on
+-- tk_reorder is revoked from authenticated (the function is kept, not
+-- dropped); manual order now lives per person in tk_manual_order through
+-- tk_manual_reorder. No row ever got a sort_key from it (0 keyed rows in
+-- production when it was retired). Kept below as the record of what ran.
+--
 -- Additive only. One new RPC, public.tk_reorder. No new column: the
 -- numeric staff_reminders.sort_key (tasks-module-v1.sql) already drives
 -- the base order in TK_sortTasks (keyed rows first, low to high, then the

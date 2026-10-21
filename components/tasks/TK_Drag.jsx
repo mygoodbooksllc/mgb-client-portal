@@ -10,7 +10,9 @@
 // TK_useRowDrag with its columns as groups.
 //
 // Pure rules (key between neighbors, drop plans, Alt+arrow targets) live in
-// TK_viewLogic.js (TK_manual*); the server side is tk_reorder.
+// TK_viewLogic.js (TK_manual*); the server side is tk_manual_reorder
+// (supabase/tasks-slate-p2-fixes.sql). The order is per person
+// (tk_manual_order) and never touches the shared staff_reminders.sort_key.
 // ----------------------------------------------------------------------------
 
 var TK_DRAG_THRESHOLD = 4; // px before a press on the handle becomes a drag
@@ -309,32 +311,104 @@ function TK_useManualAnnouncer() {
   return { el: el, say: say };
 }
 
-// Runs a plan: optimistic move in the store, tk_reorder, rollback + toast on
-// an error. ctx: { sectionOf(groupKey) -> section name or null, say(text),
+// ---- The person's own manual order (tk_manual_order) ----------------------
+// One keys map { taskId: key } per scope ("my", "list:<listKey>"), shared by
+// every view of that scope in this window. It is never written to the task
+// store or to staff_reminders.sort_key, so the portal never sees it.
+var TK__manualCache = {}; // scope -> keys map
+var TK__manualVer = {}; // scope -> bumps on every local change
+var TK__manualSubs = {}; // scope -> [fn(keys)]
+
+function TK__manualSet(scope, keys) {
+  TK__manualCache[scope] = keys || {};
+  TK__manualVer[scope] = (TK__manualVer[scope] || 0) + 1;
+  (TK__manualSubs[scope] || []).slice().forEach(function (fn) {
+    try {
+      fn(TK__manualCache[scope]);
+    } catch (e) {}
+  });
+}
+
+function TK__manualReload(scope) {
+  if (!scope || typeof TK_api === "undefined" || !TK_api || typeof TK_api.manualOrderLoad !== "function") return Promise.resolve(null);
+  var ver = TK__manualVer[scope] || 0;
+  return TK_api.manualOrderLoad(scope).then(
+    function (keys) {
+      // a move made while this was loading wins; its own reply brings the keys
+      if ((TK__manualVer[scope] || 0) === ver) TK__manualSet(scope, keys || {});
+      return keys;
+    },
+    function () {
+      return null;
+    },
+  );
+}
+
+// The keys map for scope while enabled (an empty map otherwise). Loads once
+// per scope per window and follows local moves.
+function TK_useManualOrder(scope, enabled) {
+  var on = !!(enabled && scope);
+  var pair = React.useState(function () {
+    return { scope: scope, keys: (on && TK__manualCache[scope]) || {} };
+  });
+  React.useEffect(
+    function () {
+      if (!on) return undefined;
+      var alive = true;
+      var fn = function (keys) {
+        if (alive) pair[1]({ scope: scope, keys: keys || {} });
+      };
+      (TK__manualSubs[scope] = TK__manualSubs[scope] || []).push(fn);
+      if (TK__manualCache[scope]) fn(TK__manualCache[scope]);
+      else TK__manualReload(scope);
+      return function () {
+        alive = false;
+        var list = TK__manualSubs[scope] || [];
+        var i = list.indexOf(fn);
+        if (i >= 0) list.splice(i, 1);
+      };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [on, scope],
+  );
+  if (!on) return {};
+  return pair[0].scope === scope ? pair[0].keys : TK__manualCache[scope] || {};
+}
+
+// Runs a plan: optimistic move in the person's keys map (and the task store
+// for a section change), tk_manual_reorder, rollback + toast on an error.
+// ctx: { scope, sectionOf(groupKey) -> section name or null, say(text),
 // labelOf(groupKey) }.
 function TK_manualMove(plan, ctx) {
-  if (!plan || typeof TK_api === "undefined" || !TK_api || typeof TK_api.reorder !== "function") return Promise.resolve(null);
   var c = ctx || {};
-  var p = TK_manualPatches(plan);
+  if (!plan || !c.scope || typeof TK_api === "undefined" || !TK_api || typeof TK_api.manualReorder !== "function") return Promise.resolve(null);
+  var scope = c.scope;
+  var prev = TK__manualCache[scope] || {};
+  var p = TK_manualPatches(plan, prev);
+  TK__manualSet(scope, TK_manualApply(prev, plan.id, p));
   var move = {
+    scope: scope,
     id: plan.id,
     beforeId: plan.before ? plan.before.id : null,
     afterId: plan.after ? plan.after.id : null,
     orderIds: plan.order.map(function (t) { return t.id; }),
-    key: p.key,
-    rows: p.rows,
     setSection: !!plan.crossGroup,
     section: plan.crossGroup && c.sectionOf ? c.sectionOf(plan.groupKey) : null,
   };
   if (c.say) c.say(TK_manualAnnounce(plan, c.labelOf ? c.labelOf(plan.groupKey) : ""));
-  return TK_api.reorder(move).then(
+  return TK_api.manualReorder(move).then(
     function (r) {
+      TK__manualSet(scope, TK_manualApply(TK__manualCache[scope], plan.id, { key: r.key, rows: r.rows }));
+      // rows the server skipped keep no key there: take its copy
+      if (r.skipped > 0) TK__manualReload(scope);
       try {
         if (typeof TK_vTrack === "function") TK_vTrack("tasks-reorder");
       } catch (e) {}
       return r;
     },
     function (e) {
+      TK__manualSet(scope, prev);
+      TK__manualReload(scope);
       if (c.say) c.say("Couldn't move the task. It is back where it was.");
       if (typeof TK_vToast === "function") TK_vToast(typeof TK_vErrText === "function" ? TK_vErrText(e) : "Couldn't move the task.");
       return null;

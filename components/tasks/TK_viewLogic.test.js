@@ -1897,29 +1897,67 @@ t("sliverKey: s, x, Enter; modifiers and repeats are not keys", () => {
 });
 
 // ---- Slate app P2: manual order ----
-const mk = (id, k) => ({ id, sort_key: k == null ? null : k, text: id, created_at: "2026-10-0" + (id.charCodeAt(0) % 9 + 1) + "T00:00:00Z" });
-t("manual key: between neighbors, top, bottom, mirrors tk_reorder", () => {
-  assert.strictEqual(L.TK_manualKeyBetween(null, null), 1024);
-  assert.strictEqual(L.TK_manualKeyBetween(null, mk("a", 1024)), 0);
-  assert.strictEqual(L.TK_manualKeyBetween(null, mk("a", null)), 1024);
-  assert.strictEqual(L.TK_manualKeyBetween(mk("a", 1024), null), 2048);
-  assert.strictEqual(L.TK_manualKeyBetween(mk("a", 1024), mk("b", null)), 2048);
-  assert.strictEqual(L.TK_manualKeyBetween(mk("a", 1024), mk("b", 2048)), 1536);
-  assert.strictEqual(L.TK_manualKeyBetween(mk("a", null), mk("b", 2048)), null, "no key above: renumber");
-  assert.strictEqual(L.TK_manualKeyBetween(mk("a", 1536), mk("b", 1536.0000001)), null, "too close: renumber");
-  assert.strictEqual(L.TK_manualKeyBetween(mk("a", 3000), mk("b", 2000)), null, "out of order: renumber");
-  assert.strictEqual(L.TK_manualKeyBetween(mk("a", "1024"), mk("b", "2048")), 1536, "numeric strings read as numbers");
-  assert.strictEqual(L.TK_manualNeedsRenorm(mk("a", null), null), true);
-  assert.strictEqual(L.TK_manualNeedsRenorm(mk("a", 1), null), false);
+// mk(id, k): a task whose manual key (in the person's keys map, not on the
+// task) is k. KM(...tasks or arrays) builds that keys map.
+const mk = (id, k) => ({ id, mkKey: k == null ? null : k, text: id, created_at: "2026-10-0" + (id.charCodeAt(0) % 9 + 1) + "T00:00:00Z" });
+const KM = (...xs) => {
+  const m = {};
+  xs.flat(2).forEach((x) => {
+    if (x && x.tasks) x.tasks.forEach((tt) => { if (tt.mkKey != null) m[tt.id] = tt.mkKey; });
+    else if (x && x.mkKey != null) m[x.id] = x.mkKey;
+  });
+  return m;
+};
+const kb = (a, b) => L.TK_manualKeyBetween(a, b, KM(a, b));
+t("manual key: between neighbors, top, bottom, mirrors tk_manual_reorder", () => {
+  assert.strictEqual(kb(null, null), 1024);
+  assert.strictEqual(kb(null, mk("a", 1024)), 0);
+  assert.strictEqual(kb(null, mk("a", null)), 1024);
+  assert.strictEqual(kb(mk("a", 1024), null), 2048);
+  assert.strictEqual(kb(mk("a", 1024), mk("b", null)), 2048);
+  assert.strictEqual(kb(mk("a", 1024), mk("b", 2048)), 1536);
+  assert.strictEqual(kb(mk("a", null), mk("b", 2048)), null, "no key above: renumber");
+  assert.strictEqual(kb(mk("a", 1536), mk("b", 1536.0000001)), null, "too close: renumber");
+  assert.strictEqual(kb(mk("a", 3000), mk("b", 2000)), null, "out of order: renumber");
+  assert.strictEqual(kb(mk("a", "1024"), mk("b", "2048")), 1536, "numeric strings read as numbers");
+  assert.strictEqual(L.TK_manualNeedsRenorm(mk("a", null), null, {}), true);
+  assert.strictEqual(L.TK_manualNeedsRenorm(mk("a", 1), null, { a: 1 }), false);
+});
+t("manual key: per person, the shared sort_key is never read", () => {
+  const shared = { id: "a", sort_key: 5 };
+  assert.strictEqual(L.TK_manualKeyOf(shared, {}), null, "a task's own sort_key is ignored");
+  assert.strictEqual(L.TK_manualKeyOf(shared), null, "no keys map: no key");
+  assert.strictEqual(L.TK_manualKeyOf(shared, { a: 7 }), 7);
+  assert.strictEqual(L.TK_manualKeyOf(shared, { a: "x" }), null);
+  assert.strictEqual(L.TK_manualKeyOf(shared, { a: Infinity }), null);
+  assert.strictEqual(L.TK_manualKeyBetween({ id: "a", sort_key: 1 }, null, {}), null, "unkeyed for this person: renumber");
+  const s = L.TK_manualSortGroups([{ key: "A", tasks: [{ id: "p", sort_key: 1 }, { id: "q", sort_key: 2 }] }], { q: 1 });
+  assert.deepStrictEqual(s[0].tasks.map((x) => x.id), ["q", "p"]);
+});
+t("manual scope, apply, rows", () => {
+  assert.strictEqual(L.TK_manualScopeFor("my", null), "my");
+  assert.strictEqual(L.TK_manualScopeFor("project", "project:7f2c"), "list:project:7f2c");
+  assert.strictEqual(L.TK_manualScopeFor("client", "client:basic-test"), "list:client:basic-test");
+  assert.strictEqual(L.TK_manualScopeFor("project", null), null);
+  assert.strictEqual(L.TK_manualScopeFor("project", "project:a b"), null, "bad characters");
+  assert.strictEqual(L.TK_manualScopeFor("project", "clientcd:1"), null, "unknown list kind");
+  assert.strictEqual(L.TK_manualScopeFor("project", "project:" + "a".repeat(121)), null, "too long");
+  const base = { a: 1024 };
+  const next = L.TK_manualApply(base, "m", { key: 2048, rows: { b: 3072 } });
+  assert.deepStrictEqual(next, { a: 1024, m: 2048, b: 3072 });
+  assert.deepStrictEqual(base, { a: 1024 }, "the old map is untouched (rollback keeps it)");
+  assert.deepStrictEqual(L.TK_manualApply(null, "m", null), {});
+  assert.deepStrictEqual(L.TK_manualKeysFromRows([{ task_id: "a", sort_key: "1024" }, { task_id: "b", sort_key: null }, null, { task_id: "c", sort_key: "x" }]), { a: 1024 });
 });
 t("manual renumber: through the moved row and the last keyed row only", () => {
-  const r = L.TK_manualRenormKeys([mk("t1", 1024), mk("t4", null), mk("t2", null), mk("t3", null)], "t4");
+  const rn = (list, id) => L.TK_manualRenormKeys(list, id, KM(list));
+  const r = rn([mk("t1", 1024), mk("t4", null), mk("t2", null), mk("t3", null)], "t4");
   assert.strictEqual(r.key, 2048);
   assert.deepStrictEqual(r.rows, {}, "t1 already 1024; t2 and t3 stay unkeyed");
-  const r2 = L.TK_manualRenormKeys([mk("a", 5), mk("m", null), mk("b", 5.0000001), mk("c", null)], "m");
+  const r2 = rn([mk("a", 5), mk("m", null), mk("b", 5.0000001), mk("c", null)], "m");
   assert.strictEqual(r2.key, 2048);
   assert.deepStrictEqual(r2.rows, { a: 1024, b: 3072 });
-  const r3 = L.TK_manualRenormKeys([mk("a", null), mk("b", null), mk("m", null)], "m");
+  const r3 = rn([mk("a", null), mk("b", null), mk("m", null)], "m");
   assert.deepStrictEqual(r3, { key: 3072, rows: { a: 1024, b: 2048 } });
 });
 t("manual order: which views allow it", () => {
@@ -1990,16 +2028,18 @@ t("manual Alt+arrow target", () => {
   assert.strictEqual(L.TK_manualKeyTarget(G(), "a2", 0), null);
 });
 t("manual patches, sorting, announce, pref", () => {
-  const p = L.TK_manualPatches(L.TK_manualDropPlan(G(), "a3", "A", 1));
+  const p = L.TK_manualPatches(L.TK_manualDropPlan(G(), "a3", "A", 1), KM(G()));
   assert.deepStrictEqual(p, { key: 1536, rows: {}, renorm: false });
   const flat = [{ key: "A", tasks: [mk("x", null), mk("y", null), mk("z", null)] }];
-  const r = L.TK_manualPatches(L.TK_manualDropPlan(flat, "z", "A", 1));
+  const r = L.TK_manualPatches(L.TK_manualDropPlan(flat, "z", "A", 1), KM(flat));
   assert.strictEqual(r.renorm, true);
   assert.strictEqual(r.key, 2048);
   assert.deepStrictEqual(r.rows, { x: 1024 });
   assert.strictEqual(L.TK_manualPatches(null), null);
-  const s = L.TK_manualSortGroups([{ key: "A", label: "L", tasks: [mk("p", null), mk("q", 5), mk("r", 1)] }]);
-  assert.deepStrictEqual(s[0].tasks.map((x) => x.id), ["r", "q", "p"]);
+  const sg = [{ key: "A", label: "L", tasks: [mk("p", null), mk("q", 5), mk("r", 1), mk("o", null)] }];
+  const s = L.TK_manualSortGroups(sg, KM(sg));
+  assert.deepStrictEqual(s[0].tasks.map((x) => x.id), ["r", "q", "p", "o"], "keyed first, then the incoming order");
+  assert.notStrictEqual(s[0], sg[0], "a copy, not the input group");
   assert.strictEqual(s[0].label, "L");
   assert.strictEqual(L.TK_manualAnnounce(L.TK_manualDropPlan(G(), "a3", "A", 0), "Alpha"), "Moved to position 1 of 3 in Alpha.");
   assert.strictEqual(L.TK_manualAnnounce(null), "");

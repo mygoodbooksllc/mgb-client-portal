@@ -2381,48 +2381,66 @@ if (typeof module !== "undefined" && module.exports) {
 
 // ---- Slate app P2: manual order (drag reorder) -------------------------------
 // Kept in its own block (other slices edit this file). Pure helpers only; the
-// drag and key wiring lives in TK_Drag.jsx. The server twin is tk_reorder in
-// supabase/tasks-slate-p2-reorder.sql: TK_manualKeyBetween and
-// TK_manualRenormKeys must give the same numbers it does.
+// drag and key wiring lives in TK_Drag.jsx. The server twin is
+// tk_manual_reorder in supabase/tasks-slate-p2-fixes.sql: TK_manualKeyBetween
+// and TK_manualRenormKeys must give the same numbers it does.
+//
+// Manual order is PER PERSON: the keys live in tk_manual_order (owner, scope,
+// task) and reach these helpers as a keys map { taskId: key }. They never
+// read or write the shared staff_reminders.sort_key, so a previewer's drag
+// never changes anyone's portal order.
 var TK_MANUAL_STEP = 1024;
 var TK_MANUAL_MIN_GAP = 0.000001;
 var TK_MANUAL_PREF_KEY = "mgb_tk_manual_v1";
 var TK_MANUAL_KINDS = ["my", "project", "client", "person"];
+var TK_MANUAL_SCOPE_RE = /^(my|list:(project|client|person):[A-Za-z0-9_.@+-]{1,120})$/;
 
-function TK_manualKeyOf(t) {
-  if (!t || t.sort_key == null || t.sort_key === "") return null;
-  var n = Number(t.sort_key);
-  return isNaN(n) ? null : n;
+// The tk_manual_order scope for a view: "my" or "list:<listKey>"; null when
+// the key would not pass the server check.
+function TK_manualScopeFor(kind, listKey) {
+  var s = kind === "my" ? "my" : listKey ? "list:" + listKey : "";
+  return TK_MANUAL_SCOPE_RE.test(s) ? s : null;
+}
+
+// t's key in keys ({ taskId: key }), or null. The task's own sort_key is
+// ignored on purpose.
+function TK_manualKeyOf(t, keys) {
+  if (!t || t.id == null || !keys || typeof keys !== "object") return null;
+  if (!Object.prototype.hasOwnProperty.call(keys, t.id)) return null;
+  var v = keys[t.id];
+  if (v == null || v === "") return null;
+  var n = Number(v);
+  return isFinite(n) ? n : null;
 }
 
 // The key for a row dropped between before and after (tasks or null).
 // null = no room: renumber the group.
-function TK_manualKeyBetween(before, after) {
-  var ka = TK_manualKeyOf(after);
+function TK_manualKeyBetween(before, after, keys) {
+  var ka = TK_manualKeyOf(after, keys);
   if (!before) return after && ka != null ? ka - TK_MANUAL_STEP : TK_MANUAL_STEP;
-  var kb = TK_manualKeyOf(before);
+  var kb = TK_manualKeyOf(before, keys);
   if (kb == null) return null;
   if (!after || ka == null) return kb + TK_MANUAL_STEP;
   if (kb < ka && ka - kb > TK_MANUAL_MIN_GAP) return (kb + ka) / 2;
   return null;
 }
 
-function TK_manualNeedsRenorm(before, after) {
-  return TK_manualKeyBetween(before, after) == null;
+function TK_manualNeedsRenorm(before, after, keys) {
+  return TK_manualKeyBetween(before, after, keys) == null;
 }
 
 // The renumber the server does: order = the group's tasks after the move.
 // Rows from the top through the moved row, and through the last row that
 // already has a key, get 1024, 2048, ... Returns { key, rows: {id: key} }
 // where rows holds only the other rows whose key changes.
-function TK_manualRenormKeys(order, movedId) {
+function TK_manualRenormKeys(order, movedId, keys) {
   var list = Array.isArray(order) ? order : [];
   var pos = -1;
   var cut = -1;
   list.forEach(function (t, i) {
     if (!t) return;
     if (t.id === movedId) pos = i;
-    else if (TK_manualKeyOf(t) != null) cut = i;
+    else if (TK_manualKeyOf(t, keys) != null) cut = i;
   });
   cut = Math.max(cut, pos);
   var out = { key: pos >= 0 ? TK_MANUAL_STEP * (pos + 1) : null, rows: {} };
@@ -2430,8 +2448,32 @@ function TK_manualRenormKeys(order, movedId) {
     var t = list[i];
     if (!t || t.id === movedId) continue;
     var k = TK_MANUAL_STEP * (i + 1);
-    if (TK_manualKeyOf(t) !== k) out.rows[t.id] = k;
+    if (TK_manualKeyOf(t, keys) !== k) out.rows[t.id] = k;
   }
+  return out;
+}
+
+// A new keys map with a move's patches applied (the moved row's key and any
+// renumbered rows). keys itself is not changed.
+function TK_manualApply(keys, id, patches) {
+  var out = {};
+  var src = keys && typeof keys === "object" ? keys : {};
+  for (var k in src) if (Object.prototype.hasOwnProperty.call(src, k)) out[k] = src[k];
+  if (!patches) return out;
+  var rows = patches.rows || {};
+  for (var r in rows) if (Object.prototype.hasOwnProperty.call(rows, r)) out[r] = rows[r];
+  if (id != null && patches.key != null) out[id] = patches.key;
+  return out;
+}
+
+// tk_manual_order rows [{ task_id, sort_key }] as a keys map.
+function TK_manualKeysFromRows(rows) {
+  var out = {};
+  (Array.isArray(rows) ? rows : []).forEach(function (r) {
+    if (!r || r.task_id == null || r.sort_key == null) return;
+    var n = Number(r.sort_key);
+    if (isFinite(n)) out[String(r.task_id)] = n;
+  });
   return out;
 }
 
@@ -2520,21 +2562,33 @@ function TK_manualKeyTarget(groups, id, dir, opts) {
 
 // What the store should change for a plan: { key, rows: {id: key}, renorm }.
 // rows holds the other renumbered rows (empty when the key fits).
-function TK_manualPatches(plan) {
+function TK_manualPatches(plan, keys) {
   if (!plan) return null;
-  var k = TK_manualKeyBetween(plan.before, plan.after);
+  var k = TK_manualKeyBetween(plan.before, plan.after, keys);
   if (k != null) return { key: k, rows: {}, renorm: false };
-  var r = TK_manualRenormKeys(plan.order, plan.id);
+  var r = TK_manualRenormKeys(plan.order, plan.id, keys);
   return { key: r.key, rows: r.rows, renorm: true };
 }
 
-// Each group's tasks in manual order (sort_key first, then the usual order).
-function TK_manualSortGroups(groups) {
+// Each group's tasks in the person's manual order: rows with a key first (low
+// to high), then the rest in the order they came in (stable).
+function TK_manualSortGroups(groups, keys) {
   return (Array.isArray(groups) ? groups : []).map(function (g) {
     if (!g || !Array.isArray(g.tasks)) return g;
     var out = {};
     for (var k in g) if (Object.prototype.hasOwnProperty.call(g, k)) out[k] = g[k];
-    out.tasks = TK_sortTasks(g.tasks, null);
+    out.tasks = g.tasks
+      .map(function (t, i) {
+        return { t: t, i: i, k: TK_manualKeyOf(t, keys) };
+      })
+      .sort(function (a, b) {
+        if (a.k != null && b.k != null && a.k !== b.k) return a.k - b.k;
+        if ((a.k == null) !== (b.k == null)) return a.k == null ? 1 : -1;
+        return a.i - b.i;
+      })
+      .map(function (x) {
+        return x.t;
+      });
     return out;
   });
 }
@@ -2570,6 +2624,9 @@ if (typeof module !== "undefined" && module.exports) {
     TK_MANUAL_STEP: TK_MANUAL_STEP,
     TK_MANUAL_MIN_GAP: TK_MANUAL_MIN_GAP,
     TK_MANUAL_PREF_KEY: TK_MANUAL_PREF_KEY,
+    TK_manualScopeFor: TK_manualScopeFor,
+    TK_manualApply: TK_manualApply,
+    TK_manualKeysFromRows: TK_manualKeysFromRows,
     TK_manualKeyOf: TK_manualKeyOf,
     TK_manualKeyBetween: TK_manualKeyBetween,
     TK_manualNeedsRenorm: TK_manualNeedsRenorm,

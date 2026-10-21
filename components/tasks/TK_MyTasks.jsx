@@ -458,6 +458,7 @@ function TK_vMyTasksBody(props) {
   var view = built ? built.groups : TK_myGroupsView(groups, { collapsed: collapsed, showDone: prefs.showDone });
   // Slate app P2: manual order (drag, Alt+Up / Alt+Down) within each group.
   // App only, regular or full width, and no other sort; off on the portal page.
+  // The order is the person's own (tk_manual_order), never the shared sort_key.
   var manualMode = typeof TK_useSlateMode === "function" ? TK_useSlateMode() : null;
   var manualPair = typeof TK_useManualPref === "function" ? TK_useManualPref("my") : [false, function () {}];
   var manualCan =
@@ -465,7 +466,8 @@ function TK_vMyTasksBody(props) {
     !embedded &&
     TK_manualOrderAllowed({ inApp: slateApp, mode: manualMode && manualMode.mode, kind: "my", sort: null, readOnly: !online });
   var manualOn = manualCan && manualPair[0] && !(sv.sort && sv.sort.col);
-  if (manualOn && typeof TK_manualSortGroups === "function") view = TK_manualSortGroups(view);
+  var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder("my", manualOn) : {};
+  if (manualOn && typeof TK_manualSortGroups === "function") view = TK_manualSortGroups(view, manualKeys);
   // Only a quick chip can empty a list that has tasks (the client filter has
   // its own empty copy), so "No tasks match this view" shows only then.
   var chipEmptied = !!(sv && sv.chip) && TK_myGroupsView(groups, { showDone: prefs.showDone }).length > 0;
@@ -479,6 +481,7 @@ function TK_vMyTasksBody(props) {
   var manualRun = function (plan) {
     if (!plan || typeof TK_manualMove !== "function") return;
     TK_manualMove(plan, {
+      scope: "my",
       labelOf: function (k) {
         for (var i = 0; i < view.length; i++) if (view[i].key === k) return view[i].label;
         return "";

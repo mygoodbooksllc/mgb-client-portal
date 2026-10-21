@@ -1159,6 +1159,21 @@ function TK_vListBody(props) {
     : sort
     ? [{ key: "\u0000flat", name: "", tasks: sorted }]
     : TK_groupBySection(sorted, { kind: route.view === "project" ? "project" : "client", sections: project ? project.sections : [] });
+  // Slate app P2: manual order (drag, Alt+Up / Alt+Down). App only, regular
+  // or full width, no column sort; off on the portal page. The order is the
+  // person's own (tk_manual_order), never the shared sort_key.
+  var manualInApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
+  var manualMode = typeof TK_useSlateMode === "function" ? TK_useSlateMode() : null;
+  var manualKind = route.view === "project" || route.view === "client" || route.view === "person" ? route.view : null;
+  var manualPair = typeof TK_useManualPref === "function" ? TK_useManualPref("list:" + (listKey || "")) : [false, function () {}];
+  var manualScope = typeof TK_manualScopeFor === "function" ? TK_manualScopeFor(manualKind, listKey) : null;
+  var manualCan =
+    typeof TK_manualOrderAllowed === "function" &&
+    !!manualScope &&
+    TK_manualOrderAllowed({ inApp: manualInApp, mode: manualMode && manualMode.mode, kind: manualKind, sort: null, readOnly: archived || !online });
+  var manualOn = manualCan && manualPair[0] && !sort;
+  var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder(manualScope, manualOn) : {};
+  if (manualOn && typeof TK_manualSortGroups === "function") groups = TK_manualSortGroups(groups, manualKeys);
   // Subtasks open inline under their parent; one in the same group as its
   // parent is shown there, not as its own row.
   var subs = TK_vUseSubtasks(all);
@@ -1244,17 +1259,7 @@ function TK_vListBody(props) {
     quickAdd: archived ? {} : quickAddDetail,
   });
 
-  // Slate app P2: manual order (drag, Alt+Up / Alt+Down). App only, regular
-  // or full width, no column sort; off on the portal page.
-  var manualInApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
-  var manualMode = typeof TK_useSlateMode === "function" ? TK_useSlateMode() : null;
-  var manualKind = route.view === "project" || route.view === "client" || route.view === "person" ? route.view : null;
-  var manualPair = typeof TK_useManualPref === "function" ? TK_useManualPref("list:" + (listKey || "")) : [false, function () {}];
-  var manualCan =
-    typeof TK_manualOrderAllowed === "function" &&
-    !!listKey &&
-    TK_manualOrderAllowed({ inApp: manualInApp, mode: manualMode && manualMode.mode, kind: manualKind, sort: null, readOnly: readOnly });
-  var manualOn = manualCan && manualPair[0] && !sort;
+  // Slate app P2 (continued): drag and keys for the manual order set up above.
   var manualCross = manualOn && typeof TK_manualCrossGroup === "function" && TK_manualCrossGroup(manualKind) && !byClient;
   var manualGroups = groups.map(function (g) {
     return { key: g.key, label: g.name, tasks: g.tasks, collapsed: !!collapsed[g.key] };
@@ -1276,6 +1281,7 @@ function TK_vListBody(props) {
       return;
     }
     TK_manualMove(plan, {
+      scope: manualScope,
       sectionOf: manualSection,
       labelOf: function (k) {
         for (var i = 0; i < manualGroups.length; i++) if (manualGroups[i].key === k) return manualGroups[i].label;
@@ -1293,7 +1299,7 @@ function TK_vListBody(props) {
 
   var clickSort = function (col) {
     var next = TK_toggleSort(sort, col);
-    if (next && manualPair[0]) manualPair[1](false);
+    if (next && manualCan && manualPair[0]) manualPair[1](false);
     setSort(next);
     if (listKey) {
       var allSorts = TK_vLsGet(TK_vSORT_KEY, {}) || {};
