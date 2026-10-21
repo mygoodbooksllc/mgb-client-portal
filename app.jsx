@@ -27625,6 +27625,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // which rows get READ (assigned clients, that person's own reminders)
   // change.
   const [impersonating, setImpersonating] = useState(null);
+  // MGB Desk in its own window (/desk, ?shell=desk): only the Desk, no rail,
+  // top bar, tour, tips or notices. Signed-in staff, not viewing as someone.
+  // Everything else (signed out, client, flags off) is handled by
+  // WB_DeskAppShell's own plan or falls back to the normal portal.
+  const deskShell = !!(
+    window.MGB_SHELL === "desk" &&
+    staffUser &&
+    !clientPortalUser &&
+    !impersonating &&
+    typeof WB_DeskAppShell === "function"
+  );
   const effectiveStaffUser = impersonating || staffUser;
 
   const startImpersonating = (row) => {
@@ -28476,6 +28487,23 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       : null;
     if (!supabase || effectivePage === "usage-stats") return;
     if (!actorEmail) return;
+    if (deskShell) {
+      // The Desk window logs one row per open, under its own page name.
+      supabase
+        .from("usage_events")
+        .insert({
+          actor_email: actorEmail,
+          actor_role: role,
+          client_id: null,
+          page: "desk-app",
+          tab: null,
+          device: MGB_deviceKind(),
+        })
+        .then(({ error }) => {
+          if (error) console.warn("Couldn't log usage event:", error.message);
+        });
+      return;
+    }
     const usagePlaceAll = CLIENT_placeOf(effectivePage);
     const usagePlace = usagePlaceAll && usagePlaceAll.tabs ? usagePlaceAll : null;
     CLIENT_rememberTab(effectivePage);
@@ -28609,6 +28637,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     !!staffUser &&
     !clientPortalUser &&
     !impersonating &&
+    !deskShell &&
     viewAsUserId === BOOKKEEPER_VIEW &&
     !NON_CLIENT_PAGES.has(effectivePage);
   const appTimeClientId = client ? client.id : null;
@@ -29362,9 +29391,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       if (typeof TK_startDockReceiver === "function") TK_startDockReceiver();
     } catch (e) {}
   }, [tkHosts]);
-  // A client never gets the Tasks shell: clear the flag.
+  // "Open in Desk window" lands in this tab: the portal side of the
+  // BroadcastChannel (WB_DeskApp.jsx). Staff only, never inside the window.
   useEffect(() => {
-    if (!clientPortalUser || window.MGB_SHELL !== "tasks") return;
+    if (!tkHosts || deskShell) return;
+    try {
+      if (typeof WB_startDeskReceiver === "function") WB_startDeskReceiver();
+    } catch (e) {}
+  }, [tkHosts, deskShell]);
+  // A client never gets the Tasks or Desk shell: clear the flag.
+  useEffect(() => {
+    if (!clientPortalUser || (window.MGB_SHELL !== "tasks" && window.MGB_SHELL !== "desk")) return;
     try {
       sessionStorage.removeItem("mgb_shell_v1");
     } catch (e) {}
@@ -29374,6 +29411,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // Community · Overview · MyGoodBooks" on a client's — so a row of open
   // tabs reads at a glance and history entries have names.
   useEffect(() => {
+    if (deskShell) return; // the Desk window sets its own title
     try {
       // Staff call client-settings "Client setup" (D13); clients keep Settings.
       const pageTitle =
@@ -29384,7 +29422,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         ? [pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ")
         : [client && client.name, pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ");
     } catch (e) {}
-  }, [effectivePage, onStaffPage, client && client.name, staffClientTabs]);
+  }, [effectivePage, onStaffPage, client && client.name, staffClientTabs, deskShell]);
   // --- In-client tab row hooks (TABS-SPEC section 0: all new App hooks
   // live here, after staffClientTabs and before the early return). ---
   // Badge counts for the tab row and the Overview strip (ClientTabCounts.jsx).
@@ -29402,7 +29440,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const wbDeskMounts = !!(
     staffUser &&
     typeof WB_deskMounts === "function" &&
-    WB_deskMounts({ showStaffRail, tkShell, previewing: isPreviewingUser, impersonating, email: staffUser.email })
+    WB_deskMounts({ showStaffRail, tkShell, deskShell, previewing: isPreviewingUser, impersonating, email: staffUser.email })
   );
   const wbDeskLive = typeof WB_useDeskLive === "function" ? WB_useDeskLive(wbDeskMounts) : false;
   // R2: live in any mode (phones too). While it is, a client's tasks open in
@@ -29459,6 +29497,59 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   }, [effectivePage, settingsTab, isStaffSession, isPreviewingUser, effectiveStaffUser]);
   // A bookkeeper with a real (successful, non-null) assignment fetch but
   // zero checked clients — the opt-in default from staff-client-access.sql.
+  // The Desk window: just the Desk and the task drawers it opens. One early
+  // return after every hook, so the rail, sidebar, tour, tips, notices, chat
+  // bubble and page drop never mount in it.
+  if (deskShell) {
+    return (
+      <ToastProvider>
+        <WB_DeskAppShell
+          me={String(staffUser.email).toLowerCase()}
+          isAdmin={staffUser.role === "admin"}
+          clients={visibleClients}
+          currentClientId={null}
+          page="today"
+          messagesUnread={staffMessagesUnread}
+          chatClientId={null}
+          clientCounts={null}
+          pageClient={null}
+          staffUser={staffUser}
+          canManageTemplates={staffIsAdmin}
+          canCreateTemplates={staffUser.role === "admin"}
+          onOpenTemplates={() => {
+            window.location.hash = "#/tasks/templates";
+          }}
+        />
+        {typeof TK_DrawerHost === "function" && (
+          <TK_DrawerHost
+            staffUser={staffUser}
+            clients={visibleClients}
+            isAdmin={staffIsAdmin}
+            canManageTemplates={staffIsAdmin}
+            canCreateTemplates={staffUser.role === "admin"}
+            onOpenTemplates={() => {
+              window.location.hash = "#/tasks/templates";
+            }}
+          />
+        )}
+        {typeof TK_ClientDrawerHost === "function" && (
+          <TK_ClientDrawerHost
+            staffUser={staffUser}
+            clients={visibleClients}
+            isAdmin={staffIsAdmin}
+            openClientId={null}
+            lastClientId={lastOpenedClientId}
+            page="today"
+            available={true}
+            deskOn={true}
+          />
+        )}
+        {typeof TK_QuickAddHost === "function" && (
+          <TK_QuickAddHost staffUser={staffUser} clients={visibleClients} currentClientId={null} />
+        )}
+      </ToastProvider>
+    );
+  }
   // Nothing below this point has a sensible client to show, so stop here
   // rather than let baseClient's CLIENTS[0] fallback silently show data
   // nobody granted them. Firm-wide places (Today, Inbox, Team, Settings,
@@ -30871,7 +30962,7 @@ const clientLoginMode =
 // sign-in (AuthGate) with no client email form. Same rewrite trick as /login.
 // A session whose email isn't on the staff domain still goes to the client
 // gate, and AuthGate still checks the staff table, so this grants nothing.
-const staffLoginMode = /^\/staff\/?$/.test(window.location.pathname);
+const staffLoginMode = /^\/staff\/?$/.test(window.location.pathname) || window.MGB_SHELL === "desk";
 
 // The bare site URL is the client front door: signed out, it shows the
 // client login (whose small "Staff? Sign in with Google" link goes to /staff). A session whose email is on the staff Workspace domain goes to the
