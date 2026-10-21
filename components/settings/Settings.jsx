@@ -875,7 +875,8 @@ function ST_ProfilePhoto({ staffUser, prof, name, readOnly }) {
           {statusText}
         </span>
       </div>
-      {open && pickerReady && (
+      {open && pickerReady && ReactDOM.createPortal(
+        // On the page body so no card or stacking layer around the profile form can paint over the dialog.
         <ModalShell onClose={() => setOpen(false)} labelledBy="st-photo-title" className="modal-panel-wide">
           <div className="modal-header">
             <h3 className="card-title" id="st-photo-title" style={{ margin: 0 }}>
@@ -895,7 +896,8 @@ function ST_ProfilePhoto({ staffUser, prof, name, readOnly }) {
               }}
             />
           </div>
-        </ModalShell>
+        </ModalShell>,
+        document.body
       )}
     </div>
   );

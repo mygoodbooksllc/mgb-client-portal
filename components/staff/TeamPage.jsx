@@ -583,7 +583,8 @@ function TP_useFeedbackNew(enabled) {
 // that exist, as above.
 function TP_HrNavBadge({ expanded }) {
   const reviews = TP_useReviewsDue();
-  const handbook = TP_useHandbookDue();
+  // TP_useHandbookDue returns { n, sign, approve }; adding the object to a number printed "0[object Object]".
+  const handbook = TP_useHandbookDue().n || 0;
   const n = reviews + handbook;
   if (!n) return null;
   const parts = [];
