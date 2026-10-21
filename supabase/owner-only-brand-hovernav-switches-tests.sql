@@ -45,9 +45,10 @@ select pg_temp.ok(not public.tk__owner_only_key('month_rhythm') and not public.t
                   and not public.tk__owner_only_key('brand'),
   'other keys stay admin-writable');
 
--- 2. Nothing is switched on: both rows are missing (off for everyone)
-select pg_temp.ok(not exists (select 1 from tk_settings where key in ('brand_enabled', 'hovernav_enabled')),
-  'neither switch has a row (both off)');
+-- 2. The predicate only (the switches themselves may have rows by now)
+select pg_temp.ok(public.tk__owner_only_key('brand_enabled') and public.tk__owner_only_key('hovernav_enabled'),
+  'both switch keys are owner-only (predicate; rows may exist)');
+insert into t_ctx select 'switch_rows', count(*)::text from tk_settings where key in ('brand_enabled', 'hovernav_enabled');
 
 -- 3. A non-owner admin cannot set either switch, insert or update
 insert into t_ctx
@@ -61,8 +62,8 @@ select pg_temp.expect_err($q$insert into tk_settings (key, value) values ('brand
   'tk_owner_only', 'a non-owner admin cannot turn Brand colors on');
 select pg_temp.expect_err($q$insert into tk_settings (key, value) values ('hovernav_enabled', 'true')$q$,
   'tk_owner_only', 'a non-owner admin cannot turn Hover menus on');
-select pg_temp.ok(not exists (select 1 from tk_settings where key in ('brand_enabled', 'hovernav_enabled')),
-  'refused writes left no row');
+select pg_temp.ok((select count(*) from tk_settings where key in ('brand_enabled', 'hovernav_enabled'))::text = pg_temp.ctx('switch_rows'),
+  'refused writes changed no row');
 
 select pg_temp.as_user(null);
 select 'owner-only-brand-hovernav-switches self-test passed' as result;

@@ -5,7 +5,7 @@ audience: staff
 keywords: [whats new, what changed, new look, new layout, desk, new today, left sidebar, sidebar, pinned, recent clients, customize, gear, pin a client, star, lato, font, fonts, classic fonts, brand colors, colors, navy, teal, montserrat, classic colors, hover menus, menus open on hover, flyout, classic menus, press d, d key, tour, take the tour, new look tour, rerun the tour, question mark menu, switch back, go back to the old look]
 sort: 33
 ---
-Four things changed together, and you can take a short tour of them: **the Desk and the new Today**, **the left sidebar**, **a new font (Lato)**, **brand colors**, and **menus that open when you point at them**. Open the tour any time from **?** → **New: The Desk, a left sidebar and a new look**, or from **What's new**.
+Five things changed together, and you can take a short tour of them: **the Desk and the new Today**, **the left sidebar**, **a new font (Lato)**, **brand colors**, and **menus that open when you point at them**. Open the tour any time from **?** → **New: The Desk, a left sidebar and a new look**, or from **What's new**.
 
 ### The Desk and the new Today
 **Today** now shows one **Do next** card, and the **Desk** (press **D** anywhere) holds the full list of everything that needs you. See [How do I use the Desk?](#/help/workbench). The old Today is still there if you want it: click **?** on the **Do next** card and pick **Use classic Today in this browser**.
@@ -17,7 +17,7 @@ Under the places in the left rail you now see your **Pinned** clients and your *
 The whole app now uses the **Lato** font, and the colors follow the MyGoodBooks brand (navy and teal, with **Montserrat** for big headings). Nothing moved; it just looks like us.
 
 ### Menus that open when you point at them
-On a computer, menus in the left rail open as soon as you point at them, and hovering over an icon shows a short label. Click still works exactly as before. On a phone or tablet nothing changes.
+On a computer, menus in the left rail open as soon as you point at them, and hovering over an icon shows a short label. On windows 761px or wider, menus open on icons that have tabs (the native gray tooltips are now themed). Click still works exactly as before. On a phone or tablet nothing changes.
 
 ### Going back to the old look
 - **Today:** **?** on the **Do next** card → **Use classic Today in this browser**.

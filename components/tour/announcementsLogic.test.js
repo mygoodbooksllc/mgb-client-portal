@@ -494,4 +494,25 @@ t("registry: new-look-and-layout is one combined staff notice for the five launc
   assert.ok(/Classic Today/.test(text) && /Classic fonts/.test(text) && /Customize/.test(text) && /press D/i.test(text));
 });
 
+t("registry: new-look-and-layout ready check (caches, Classic opt-outs, no Lato)", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "new-look-and-layout");
+  const setWin = (m) => {
+    global.window = { localStorage: { getItem: (k) => (k in m ? m[k] : null) } };
+  };
+  try {
+    setWin({ mgb_brand_classic: "1", mgb_hovernav_classic: "1" });
+    assert.strictEqual(a.ready(), true, "Classic on both is ready");
+    setWin({ mgb_brand_classic: "1", mgb_hovernav_cache: "1" });
+    assert.strictEqual(a.ready(), true, "Classic brand plus hover cache is ready");
+    setWin({ mgb_brand_cache: "1" });
+    assert.strictEqual(a.ready(), false, "hover cache missing is not ready");
+    setWin({ mgb_hovernav_cache: "1" });
+    assert.strictEqual(a.ready(), false, "brand cache missing is not ready");
+    setWin({ mgb_brand_cache: "1", mgb_hovernav_cache: "1" });
+    assert.strictEqual(a.ready(), true, "both caches set is ready without the Lato cache");
+  } finally {
+    delete global.window;
+  }
+});
+
 console.log("announcementsLogic: " + n + " checks passed");

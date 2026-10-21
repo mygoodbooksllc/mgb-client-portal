@@ -56,13 +56,17 @@ function ANN_deskDocked() {
 }
 
 // True once the owner has switched the look and layout launch on for everyone:
-// the Lato, Brand colors and Hover menus firm switches (the last ones to go
-// live) are cached by index.html's inline script after its first read.
-// Someone on a Classic option still counts, so they hear about it too.
+// the Brand colors and Hover menus firm switches (the last ones to go live) are
+// cached by index.html's inline script after its first read. Lato is already
+// live, so it is not checked. Someone on a Classic option never refreshes that
+// option's cache, so their Classic opt-out key (mgb_brand_classic or
+// mgb_hovernav_classic) counts as satisfying its own part; they hear about it too.
 function ANN_launchOn() {
   try {
     var ls = window.localStorage;
-    return ls.getItem("mgb_lato_cache") === "1" && ls.getItem("mgb_brand_cache") === "1" && ls.getItem("mgb_hovernav_cache") === "1";
+    var brand = ls.getItem("mgb_brand_classic") === "1" || ls.getItem("mgb_brand_cache") === "1";
+    var hover = ls.getItem("mgb_hovernav_classic") === "1" || ls.getItem("mgb_hovernav_cache") === "1";
+    return brand && hover;
   } catch (e) {
     return false;
   }
