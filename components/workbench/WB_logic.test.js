@@ -1210,4 +1210,118 @@ t("WB_deskClosedShow: the When closed choices", () => {
   assert.deepStrictEqual(L.WB_DESK_CLOSED, ["both", "rail", "bar", "neither"]);
 });
 
+// ---- MGB Desk window (spec-mgb-desk-app) ----
+t("WB_deskAppIsOn: Desk off always false; preview or firm switch turns it on", () => {
+  const F = L.WB_deskAppIsOn;
+  assert.strictEqual(F(true, "1", false), false);
+  assert.strictEqual(F(true, true, false), false);
+  assert.strictEqual(F(undefined, "1", true), true);
+  assert.strictEqual(F(undefined, true, true), true);
+  [true, "true", 1, { on: true }].forEach((v) => assert.strictEqual(F(v, null, true), true));
+  [undefined, null, false, "off", "on", 0, "", { on: false }].forEach((v) => assert.strictEqual(F(v, null, true), false));
+  // Same reading as wb_enabled: "on" is not on.
+  assert.strictEqual(F("on", null, true), L.WB_flagValueOn("on"));
+});
+
+t("WB_deskShellPlan: every branch", () => {
+  const P = L.WB_deskShellPlan;
+  const ok = { shell: "desk", signedIn: true, isStaff: true, flagsKnown: true, appOn: true };
+  assert.strictEqual(P({ shell: "", pathname: "/" }), "none");
+  assert.strictEqual(P({}), "none");
+  assert.strictEqual(P({ pathname: "/desk" }), "signin");
+  assert.strictEqual(P({ shell: "desk" }), "signin");
+  assert.strictEqual(P(Object.assign({}, ok, { signedIn: false })), "signin");
+  assert.strictEqual(P(Object.assign({}, ok, { isStaff: false, isClient: true })), "client");
+  assert.strictEqual(P(Object.assign({}, ok, { isStaff: false })), "client");
+  assert.strictEqual(P(Object.assign({}, ok, { isClient: true })), "client");
+  assert.strictEqual(P(Object.assign({}, ok, { impersonating: true })), "none");
+  assert.strictEqual(P(Object.assign({}, ok, { mobile: true })), "phone");
+  assert.strictEqual(P(Object.assign({}, ok, { mobile: true, flagsKnown: false })), "phone");
+  assert.strictEqual(P(Object.assign({}, ok, { flagsKnown: false })), "wait");
+  assert.strictEqual(P(Object.assign({}, ok, { appOn: false })), "off");
+  assert.strictEqual(P(ok), "desk");
+  assert.strictEqual(P(Object.assign({}, ok, { shell: "", pathname: "/desk/" })), "desk");
+});
+
+t("WB_deskWinSize: default, saved, clamp, minimum, junk", () => {
+  const S = L.WB_deskWinSize;
+  const scr = { availWidth: 1440, availHeight: 900, availLeft: 0, availTop: 25 };
+  assert.deepStrictEqual(S(null, scr), { w: 420, h: 760, left: 1440 - 420 - 24, top: 65 });
+  assert.deepStrictEqual(S({ w: 500, h: 600 }, scr), { w: 500, h: 600, left: 916, top: 65 });
+  assert.deepStrictEqual(S({ w: 5000, h: 5000 }, scr), { w: 1440, h: 900, left: 0, top: 25 });
+  assert.deepStrictEqual(S({ w: 100, h: 100 }, scr), { w: 360, h: 480, left: 1056, top: 65 });
+  ["junk", 12, [], { w: "x", h: null }, { w: -4, h: 0 }].forEach((j) => {
+    const z = S(j, scr);
+    assert.strictEqual(z.w, 420);
+    assert.strictEqual(z.h, 760);
+  });
+  // A screen smaller than the minimum still wins.
+  const tiny = S(null, { availWidth: 300, availHeight: 400, availLeft: 0, availTop: 0 });
+  assert.strictEqual(tiny.w, 300);
+  assert.strictEqual(tiny.h, 400);
+  assert.strictEqual(tiny.left, 0);
+  // No screen info: default size, no crash.
+  assert.strictEqual(S(null, null).w, 420);
+});
+
+t("WB_deskWinFeatures: popup, width, height, left, top", () => {
+  const f = L.WB_deskWinFeatures({ w: 420, h: 760, left: 996, top: 65 });
+  assert.strictEqual(f, "popup,width=420,height=760,left=996,top=65");
+  assert.ok(/^popup,/.test(L.WB_deskWinFeatures()));
+});
+
+t("WB_deskLaunchItems: labels and hidden items", () => {
+  const I = (o) => L.WB_deskLaunchItems(o).map((x) => x.label);
+  assert.deepStrictEqual(I({ canInstall: true }), ["Open MGB Desk", "Get MGB Desk", "Help"]);
+  assert.deepStrictEqual(I({ canInstall: false }), ["Open MGB Desk", "Help"]);
+  assert.deepStrictEqual(I({ installed: true, canInstall: true }), ["Open MGB Desk", "Help"]);
+  assert.deepStrictEqual(L.WB_deskLaunchItems({ installed: true }).map((x) => x.id), ["open-app", "help"]);
+  assert.deepStrictEqual(L.WB_deskLaunchItems({ canInstall: true }).map((x) => x.id), ["open", "get", "help"]);
+  assert.deepStrictEqual(I({ canInstall: true, standalone: true }), ["Open MGB Desk", "Get MGB Desk", "Help"]);
+  assert.deepStrictEqual(I({ canInstall: true, mobile: true }), []);
+  assert.deepStrictEqual(I({ canInstall: true, narrow: true }), []);
+  assert.deepStrictEqual(I(undefined), ["Open MGB Desk", "Help"]);
+});
+
+t("WB_deskForwardOk: plain app hashes only", () => {
+  const K = L.WB_deskForwardOk;
+  assert.strictEqual(K("#/clients/12/chat"), true);
+  assert.strictEqual(K("#/help/workbench"), true);
+  ["javascript:alert(1)", "https://evil", "#//x", "", "#", "#/a b", "#/<x>", 5, null, undefined, {}, "#/" + "a".repeat(300)].forEach((v) =>
+    assert.strictEqual(K(v), false, String(v))
+  );
+  assert.strictEqual(K("#/" + "a".repeat(298)), true);
+  // Real LK_href output shapes: item=kind:id, encoded ids, month, client.
+  assert.strictEqual(K("#/client/ab-12/inbox?item=request:9f%2Fx&month=2026-09"), true);
+  assert.strictEqual(K("#/work/tasks?item=task:abc123"), true);
+  assert.strictEqual(K("#/tasks/c/Ab%2Fc"), true);
+  assert.strictEqual(K("#/today?client=a%40b.co"), true);
+});
+
+t("WB_deskDockPick: none, one, several", () => {
+  const D = L.WB_deskDockPick;
+  assert.strictEqual(D([]), null);
+  assert.strictEqual(D(undefined), null);
+  assert.strictEqual(D([{ from: "a", focusedAt: 5, visible: false }]), "a");
+  assert.strictEqual(D([{ from: "a", focusedAt: 9, visible: false }, { from: "b", focusedAt: 1, visible: true }]), "b");
+  assert.strictEqual(D([{ from: "a", focusedAt: 3, visible: true }, { from: "b", focusedAt: 8, visible: true }]), "b");
+  assert.strictEqual(D([{ from: "a", focusedAt: 3 }, { from: "b", focusedAt: 8 }, { from: "c", focusedAt: 2 }]), "b");
+  assert.strictEqual(D([null, {}, { from: "z" }]), "z");
+});
+
+t("WB_deskMounts: the desk shell never mounts the docked column", () => {
+  const base = { showStaffRail: true, email: "a@b.co" };
+  assert.strictEqual(L.WB_deskMounts(base), true);
+  assert.strictEqual(L.WB_deskMounts(Object.assign({}, base, { deskShell: true })), false);
+  assert.strictEqual(L.WB_deskMounts(Object.assign({}, base, { tkShell: true })), false);
+});
+
+t("MGB Desk keys", () => {
+  assert.strictEqual(L.WB_DESK_WIN_KEY, "mgb_desk_win_v1");
+  assert.strictEqual(L.WB_DESK_INSTALLED_KEY, "mgb_desk_installed_v1");
+  assert.strictEqual(L.WB_DESK_APP_PREVIEW, "mgb_desk_app_preview");
+  assert.strictEqual(L.WB_HUB_WIN_KEY, "mgb_wb_hub_win");
+  assert.strictEqual(L.WB_DESK_APP_NAME, "MGB Desk");
+});
+
 console.log("WB_logic: " + n + " checks passed");

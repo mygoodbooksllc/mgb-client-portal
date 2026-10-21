@@ -1374,6 +1374,8 @@ function WB_deskF6Target(o) {
 function WB_deskMounts(o) {
   var x = o || {};
   if (!x.showStaffRail || x.tkShell || x.previewing || x.impersonating) return false;
+  // The own-window MGB Desk renders the Desk itself, never the docked column.
+  if (x.deskShell) return false;
   return !!String(x.email || "").trim();
 }
 // Live = mounted, the switch on, and the hub table present. The chat bubble
@@ -1654,6 +1656,111 @@ function WB_deskClosedShow(choice, mode) {
   return { rail: c === "both" || c === "rail", bar: c === "both" || c === "bar" };
 }
 
+// ---- MGB Desk in its own window (spec-mgb-desk-app) ------------------------
+var WB_DESK_APP_NAME = "MGB Desk";
+var WB_DESK_WIN_KEY = "mgb_desk_win_v1";
+var WB_DESK_INSTALLED_KEY = "mgb_desk_installed_v1";
+var WB_DESK_APP_PREVIEW = "mgb_desk_app_preview";
+var WB_HUB_WIN_KEY = "mgb_wb_hub_win";
+var WB_DESK_WIN_DEFAULT = { w: 420, h: 760 };
+var WB_DESK_WIN_MIN = { w: 360, h: 480 };
+
+// Three layers, one helper: the Desk itself must be live, then the person's
+// preview checkbox or the firm switch (tk_settings.desk_app_enabled). Reads
+// the setting exactly like wb_enabled: true, "true", 1 or {on:true}, not "on".
+function WB_deskAppIsOn(settingValue, preview, deskOn) {
+  if (!deskOn) return false;
+  if (preview === "1" || preview === true) return true;
+  return WB_flagValueOn(settingValue);
+}
+
+// Which screen the desk shell shows. Pure so app.jsx only switches on it.
+//   none: not the desk shell   signin: staff sign-in   client: clear the flag
+//   wait: flags loading        off / phone: not-on panel   desk: the Desk
+function WB_deskShellPlan(o) {
+  var x = o || {};
+  var isDesk = x.shell === "desk" || /^\/desk\/?$/.test(String(x.pathname || ""));
+  if (!isDesk) return "none";
+  if (!x.signedIn) return "signin";
+  if (x.impersonating) return "none";
+  if (x.isClient || !x.isStaff) return "client";
+  if (x.mobile) return "phone";
+  if (!x.flagsKnown) return "wait";
+  if (!x.appOn) return "off";
+  return "desk";
+}
+
+function WB__num(v) {
+  var n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return isFinite(n) && n > 0 ? Math.round(n) : null;
+}
+
+// Popup size and place. saved = {w,h} from mgb_desk_win_v1 (junk is ignored);
+// scr = { availWidth, availHeight, availLeft, availTop }. Opens at the right
+// edge, 24px in and 40px down; a screen smaller than the minimum still wins.
+function WB_deskWinSize(saved, scr) {
+  var s = scr || {};
+  var maxW = WB__num(s.availWidth) || Infinity;
+  var maxH = WB__num(s.availHeight) || Infinity;
+  var left0 = typeof s.availLeft === "number" && isFinite(s.availLeft) ? s.availLeft : 0;
+  var top0 = typeof s.availTop === "number" && isFinite(s.availTop) ? s.availTop : 0;
+  var w = saved && typeof saved === "object" ? WB__num(saved.w) : null;
+  var h = saved && typeof saved === "object" ? WB__num(saved.h) : null;
+  if (w == null || h == null) {
+    w = WB_DESK_WIN_DEFAULT.w;
+    h = WB_DESK_WIN_DEFAULT.h;
+  }
+  w = Math.min(Math.max(WB_DESK_WIN_MIN.w, w), maxW);
+  h = Math.min(Math.max(WB_DESK_WIN_MIN.h, h), maxH);
+  var left = maxW === Infinity ? 0 : Math.max(left0, left0 + maxW - w - 24);
+  var top = maxH === Infinity ? 0 : top0 + Math.max(0, Math.min(40, maxH - h));
+  return { w: w, h: h, left: left, top: top };
+}
+function WB_deskWinFeatures(size) {
+  var z = size || WB_deskWinSize(null, null);
+  return "popup,width=" + z.w + ",height=" + z.h + ",left=" + (z.left || 0) + ",top=" + (z.top || 0);
+}
+
+// The Desk menu's launch items. o: { installed, canInstall, standalone,
+// mobile, narrow }. Phones and narrow windows get none (the Desk is a sheet).
+// Before install: Open (popup) and Get; after: the one Open (the dialog).
+function WB_deskLaunchItems(o) {
+  var x = o || {};
+  if (x.mobile || x.narrow) return [];
+  var out = [];
+  if (x.installed) out.push({ id: "open-app", label: "Open " + WB_DESK_APP_NAME });
+  else {
+    out.push({ id: "open", label: "Open " + WB_DESK_APP_NAME });
+    if (x.canInstall) out.push({ id: "get", label: "Get " + WB_DESK_APP_NAME });
+  }
+  out.push({ id: "help", label: "Help" });
+  return out;
+}
+
+// A hash the Desk window may ask a portal to show: "#/..." with a short,
+// plain set of characters (encodeURIComponent output, "?", "=", "&", ":").
+function WB_deskForwardOk(hash) {
+  if (typeof hash !== "string" || hash.length > 300) return false;
+  return /^#\/[A-Za-z0-9/_\-?=&.%:~!*()]*$/.test(hash) && hash.indexOf("//") < 0;
+}
+
+// Which portal answers a Dock back or a forwarded row. replies = [{from,
+// focusedAt, visible}]: a visible portal first, then the latest focus.
+function WB_deskDockPick(replies) {
+  var best = null;
+  (Array.isArray(replies) ? replies : []).forEach(function (r) {
+    if (!r || !r.from) return;
+    var at = Number(r.focusedAt) || 0;
+    if (
+      !best ||
+      (!!r.visible && !best.visible) ||
+      (!!r.visible === !!best.visible && at > best.at)
+    )
+      best = { from: r.from, visible: !!r.visible, at: at };
+  });
+  return best ? best.from : null;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     WORKBENCH_NAME: WORKBENCH_NAME,
@@ -1785,5 +1892,19 @@ if (typeof module !== "undefined" && module.exports) {
     WB_periodLabel: WB_periodLabel,
     WB_flagValueOn: WB_flagValueOn,
     WB_isOn: WB_isOn,
+    WB_DESK_APP_NAME: WB_DESK_APP_NAME,
+    WB_DESK_WIN_KEY: WB_DESK_WIN_KEY,
+    WB_DESK_INSTALLED_KEY: WB_DESK_INSTALLED_KEY,
+    WB_DESK_APP_PREVIEW: WB_DESK_APP_PREVIEW,
+    WB_HUB_WIN_KEY: WB_HUB_WIN_KEY,
+    WB_DESK_WIN_DEFAULT: WB_DESK_WIN_DEFAULT,
+    WB_DESK_WIN_MIN: WB_DESK_WIN_MIN,
+    WB_deskAppIsOn: WB_deskAppIsOn,
+    WB_deskShellPlan: WB_deskShellPlan,
+    WB_deskWinSize: WB_deskWinSize,
+    WB_deskWinFeatures: WB_deskWinFeatures,
+    WB_deskLaunchItems: WB_deskLaunchItems,
+    WB_deskForwardOk: WB_deskForwardOk,
+    WB_deskDockPick: WB_deskDockPick,
   };
 }
