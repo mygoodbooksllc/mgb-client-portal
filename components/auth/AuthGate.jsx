@@ -28,7 +28,11 @@
         // "Internal" for mygoodbooks.org, so anyone outside the domain
         // gets rejected by Google before ever reaching this app — this
         // `staff` table check is the second, narrower gate on top of that.
-        hd: "mygoodbooks.org",
+        // Supabase only forwards extra Google params via queryParams.
+        // select_account always shows Google's account chooser, so signing
+        // out and back in as someone else works on a shared browser instead
+        // of Google silently re-using the account that is still signed in.
+        queryParams: { hd: "mygoodbooks.org", prompt: "select_account" },
         // Return to whichever host started sign-in (prod, a Vercel
         // preview, or localhost). Supabase only honors hosts on its
         // Redirect URLs allow-list and falls back to the Site URL otherwise.
