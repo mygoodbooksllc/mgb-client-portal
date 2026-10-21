@@ -9,6 +9,10 @@
 //   in mgb_tk_view_v1. Loading shows 6 skeleton rows, an error shows the retry,
 //   offline shows the banner over the cached rows, and a missing schema shows
 //   the setup card.
+//   Rhythm slice 0: TK_SlateViewBar under the toolbar (Group by Due date,
+//   Client, Part of month or Status; Sort chips; quick chips Mine today and
+//   Waiting on client; Reset view), saved per person in mgb_tk_slate_view_v1
+//   (TK_vUseSlateView). The Desk's Slate tab uses the same bar.
 // ----------------------------------------------------------------------------
 
 var TK_vGROUPS_KEY = "mgb_tk_groups_v1";
@@ -49,6 +53,127 @@ function TK_vGroupBySwitch(props) {
         <option value="client">Client</option>
       </select>
     </label>
+  );
+}
+
+// ---- Slate view control (month rhythm slice 0) ----------------------------------
+// Group by, Sort chips, quick chips and Reset, saved per person in this
+// browser (TK_slateViewKey). scope "desk" is the Desk's Slate tab, which keeps
+// its own view. The Slate page falls back to the old Due date | Client choice
+// and keeps writing it, so an earlier choice is never lost.
+function TK_vUseSlateView(email, scope) {
+  var desk = scope === "desk";
+  var key = typeof TK_slateViewKey === "function" ? TK_slateViewKey(email, scope) : null;
+  var legacyKey = desk ? null : typeof TK_groupByKey === "function" ? TK_groupByKey(email) : TK_vGROUPBY_KEY + ":" + (email || "");
+  var read = function () {
+    var saved = key ? TK_vLsGet(key, null) : null;
+    var legacy = legacyKey ? TK_vLsGet(legacyKey, null) : null;
+    if (typeof TK_slateViewRead === "function") return TK_slateViewRead(saved, legacy);
+    return { groupBy: legacy === "client" ? "client" : "due", sort: null, chip: "" };
+  };
+  var pair = React.useState(read);
+  var set = function (patch) {
+    pair[1](function (cur) {
+      var merged = Object.assign({}, cur, patch || {});
+      var n = typeof TK_normalizeSlateView === "function" ? TK_normalizeSlateView(merged) : merged;
+      if (key) TK_vLsSet(key, n);
+      if (legacyKey && (n.groupBy === "due" || n.groupBy === "client")) TK_vLsSet(legacyKey, n.groupBy);
+      return n;
+    });
+  };
+  var reset = function () {
+    set({ groupBy: "due", sort: null, chip: "" });
+  };
+  return [pair[0], set, reset];
+}
+
+// props: view, onChange(patch), onReset(), compact (the Desk tab),
+// groupTour (data-tour of the Group by select; the Desk passes its own so a
+// tip never finds two targets).
+function TK_SlateViewBar(props) {
+  var v = props.view || { groupBy: "due", sort: null, chip: "" };
+  var groups = typeof TK_SLATE_GROUPS !== "undefined" ? TK_SLATE_GROUPS : [{ key: "due", label: "Due date" }, { key: "client", label: "Client" }];
+  var sorts = typeof TK_SLATE_SORTS !== "undefined" ? TK_SLATE_SORTS : [];
+  var chips = typeof TK_SLATE_CHIPS !== "undefined" ? TK_SLATE_CHIPS : [];
+  var isDefault = typeof TK_isDefaultSlateView === "function" ? TK_isDefaultSlateView(v) : v.groupBy === "due" && !v.sort && !v.chip;
+  var sortDir = function (col) {
+    return v.sort && v.sort.col === col ? v.sort.dir : "";
+  };
+  return (
+    <div className={"tk-slate-viewbar" + (props.compact ? " is-compact" : "")} role="group" aria-label="Slate view" data-tour={props.barTour || undefined}>
+      <label className="tk-select-wrap tk-groupby" data-tour={props.groupTour === undefined ? "tk-groupby" : props.groupTour || undefined}>
+        <span className="tk-groupby-label">Group by</span>
+        <select
+          className="tk-select"
+          value={v.groupBy}
+          aria-label="Group by"
+          onChange={function (e) {
+            props.onChange({ groupBy: e.target.value });
+          }}
+        >
+          {groups.map(function (g) {
+            return (
+              <option key={g.key} value={g.key}>
+                {g.label}
+              </option>
+            );
+          })}
+        </select>
+      </label>
+      {chips.length ? (
+        <span className="tk-sv-set" role="group" aria-label="Quick views" data-tour={props.compact ? undefined : "tk-slate-chips"}>
+          {chips.map(function (c) {
+            var on = v.chip === c.key;
+            return (
+              <button
+                key={c.key}
+                type="button"
+                className={"tk-filter-chip tk-sv-chip" + (on ? " is-on" : "")}
+                aria-pressed={on ? "true" : "false"}
+                onClick={function () {
+                  props.onChange({ chip: on ? "" : c.key });
+                }}
+              >
+                {c.label}
+              </button>
+            );
+          })}
+        </span>
+      ) : null}
+      {sorts.length ? (
+        <span className="tk-sv-set" role="group" aria-label="Sort" data-tour={props.compact ? undefined : "tk-slate-sort"}>
+          <span className="tk-groupby-label" aria-hidden="true">
+            Sort
+          </span>
+          {sorts.map(function (s) {
+            var dir = sortDir(s.col);
+            var label = s.label + (dir === "asc" ? ", ascending" : dir === "desc" ? ", descending" : "");
+            return (
+              <button
+                key={s.col}
+                type="button"
+                className={"tk-filter-chip tk-sv-chip" + (dir ? " is-on" : "")}
+                aria-pressed={dir ? "true" : "false"}
+                aria-label={"Sort by " + label}
+                title={dir === "desc" ? "Click to go back to the default order" : dir === "asc" ? "Click for descending" : "Click to sort"}
+                onClick={function () {
+                  var next = typeof TK_toggleSort === "function" ? TK_toggleSort(v.sort, s.col) : null;
+                  props.onChange({ sort: next });
+                }}
+              >
+                {s.label}
+                {dir ? <span aria-hidden="true">{dir === "asc" ? " ↑" : " ↓"}</span> : null}
+              </button>
+            );
+          })}
+        </span>
+      ) : null}
+      {isDefault ? null : (
+        <button type="button" className="tk-link-btn tk-sv-reset" onClick={props.onReset}>
+          Reset view
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -291,16 +416,29 @@ function TK_vMyTasksBody(props) {
       })
     : all;
   var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(tasks, today, groupOpts) : {};
-  var gbPair = TK_vUseGroupBy(email);
-  var groupBy = gbPair[0];
-  var byClient = groupBy === "client" && typeof TK_groupByClient === "function";
-  var view = byClient
-    ? TK_groupByClient(TK_flattenMyGroups(groups, { showDone: prefs.showDone }), {
-        clients: props.clients || [],
-        collapsed: collapsed,
-        flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
-      })
-    : TK_myGroupsView(groups, { collapsed: collapsed, showDone: prefs.showDone });
+  // Rhythm slice 0: Group by (Due date, Client, Part of month, Status), Sort
+  // chips and quick chips, saved per person. Nothing chosen builds the groups
+  // exactly as before (TK_slateBuildView's default path is TK_myGroupsView).
+  var svPair = TK_vUseSlateView(email);
+  var sv = svPair[0];
+  var groupBy = sv.groupBy;
+  var built =
+    typeof TK_slateBuildView === "function"
+      ? TK_slateBuildView(groups, sv, {
+          collapsed: collapsed,
+          showDone: prefs.showDone,
+          email: email,
+          today: today,
+          clients: props.clients || [],
+          flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
+        })
+      : null;
+  var byDue = built ? built.byDue : true;
+  var byClient = !byDue && groupBy === "client";
+  var view = built ? built.groups : TK_myGroupsView(groups, { collapsed: collapsed, showDone: prefs.showDone });
+  // Only a quick chip can empty a list that has tasks (the client filter has
+  // its own empty copy), so "No tasks match this view" shows only then.
+  var chipEmptied = !!(sv && sv.chip) && TK_myGroupsView(groups, { showDone: prefs.showDone }).length > 0;
   // Subtasks open inline under their parent (a subtask whose parent is in the
   // same group is shown there, not as its own row).
   var subs = TK_vUseSubtasks(tasks);
@@ -389,7 +527,16 @@ function TK_vMyTasksBody(props) {
   var body;
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (err) body = <TK_vErrorState onRetry={list.reload} />;
-  else if (!view.length) {
+  else if (!view.length && chipEmptied) {
+    body = (
+      <div className="tk-empty">
+        <p>No tasks match this view.</p>
+        <button type="button" className="btn-secondary" onClick={svPair[2]}>
+          Reset view
+        </button>
+      </div>
+    );
+  } else if (!view.length) {
     body = (
       <div className="tk-empty">
         <p>{clientFilter ? TK_vCopy("emptyList") : touch ? TK_vCopy("emptyMineTouch") : TK_vCopy("emptyMine")}</p>
@@ -403,7 +550,7 @@ function TK_vMyTasksBody(props) {
           return (
             <section
               key={g.key}
-              className={"tk-group " + (byClient ? "tk-group-client" : "tk-group-" + g.key) + (g.collapsed ? " is-collapsed" : "")}
+              className={"tk-group " + (byClient ? "tk-group-client" : byDue ? "tk-group-" + g.key : "tk-group-" + groupBy) + (g.collapsed ? " is-collapsed" : "")}
               aria-labelledby={gid}
               data-tour={g.key === "unassigned" ? "tk-unassigned-group" : undefined}
             >
@@ -429,7 +576,7 @@ function TK_vMyTasksBody(props) {
                     var tour = !firstRowDone;
                     firstRowDone = true;
                     // S8b: an Unassigned row is claimed first, then worked.
-                    var un = byClient ? !t.assignee_email && !t.done : g.key === "unassigned";
+                    var un = !byDue ? !t.assignee_email && !t.done : g.key === "unassigned";
                     var claimTour = un && !firstClaimDone;
                     if (un) firstClaimDone = true;
                     return (
@@ -528,7 +675,6 @@ function TK_vMyTasksBody(props) {
               </select>
             </label>
           ) : null}
-          <TK_vGroupBySwitch value={groupBy} onChange={gbPair[1]} />
           <TK_vSwitch
             checked={prefs.showDone}
             label="Show done"
@@ -566,6 +712,7 @@ function TK_vMyTasksBody(props) {
           )}
         </div>
       </div>
+      <TK_SlateViewBar view={sv} onChange={svPair[1]} onReset={svPair[2]} />
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
       <TK_BulkBar select={bulk} tasksById={byId} staff={bulkStaff} projects={projects} readOnly={!online} />

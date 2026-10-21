@@ -1001,4 +1001,154 @@ t("bulkDuePatch", () => {
   assert.strictEqual(L.TK_bulkDuePatch("nope", 1), null);
 });
 
+// ---- Slate view: Group by, Sort, quick chips, saved view (rhythm slice 0) ----------
+{
+  const LG = require("./TK_logic.js");
+  const TODAY = "2026-10-21";
+  const ME = "me@example.com";
+  const mk = (id, o) => Object.assign({ id, text: "Task " + id, status: "todo", assignee_email: ME, staff_email: ME, priority: "normal", created_at: "2026-10-01T00:00:00Z" }, o || {});
+  const tasks = [
+    mk("a", { due_date: "2026-10-18", client_id: "c2", section: "Send reports", priority: "low" }),
+    mk("b", { due_date: "2026-10-21", client_id: "c1", section: "check in" }),
+    mk("c", { due_date: "2026-10-24", client_id: "c1", section: "Follow up", text: "Alpha" }),
+    mk("d", { due_date: "2026-12-01", client_id: "c2", section: "Monthly", priority: "high" }),
+    mk("e", { due_date: "2026-10-10", client_id: "c1", status: "waiting_client", section: "Check in" }),
+    mk("f", { due_date: "2026-10-20", client_id: "c1", status: "done", done: true, completed_at: "2026-10-20T10:00:00Z" }),
+    mk("g", { due_date: "2026-10-19", client_id: "c3", assignee_email: null, staff_email: ME }),
+    mk("h", { due_date: null, client_id: null, section: "Zebra" }),
+    mk("i", { due_date: "2026-10-21", client_id: "c2", status: "in_progress", template_id: "tpl1" }),
+  ];
+  const clients = [{ id: "c1", name: "Beta Co" }, { id: "c2", name: "Acme" }, { id: "c3", name: "Test Co", testOnly: true }];
+  const groups = LG.TK_groupMyTasks(tasks, TODAY, { email: ME, todayGroup: true });
+  const ids = (gs) => gs.map((g) => [g.key, g.tasks.map((x) => x.id)]);
+
+  t("slate view normalize and read", () => {
+    assert.deepStrictEqual(L.TK_normalizeSlateView(null), { groupBy: "due", sort: null, chip: "" });
+    assert.deepStrictEqual(L.TK_normalizeSlateView({ groupBy: "nope", sort: { col: "assignee" }, chip: "x" }), { groupBy: "due", sort: null, chip: "" });
+    assert.deepStrictEqual(L.TK_normalizeSlateView({ groupBy: "part", sort: { col: "priority", dir: "desc" }, chip: "waiting" }), { groupBy: "part", sort: { col: "priority", dir: "desc" }, chip: "waiting" });
+    assert.deepStrictEqual(L.TK_normalizeSlateView({ sort: { col: "due", dir: "weird" } }).sort, { col: "due", dir: "asc" });
+    assert.deepStrictEqual(L.TK_slateViewRead(null, "client"), { groupBy: "client", sort: null, chip: "" });
+    assert.deepStrictEqual(L.TK_slateViewRead(null, null), { groupBy: "due", sort: null, chip: "" });
+    assert.deepStrictEqual(L.TK_slateViewRead({ groupBy: "status" }, "client").groupBy, "status", "a saved view wins over the old choice");
+    assert.deepStrictEqual(L.TK_slateViewRead([], "client").groupBy, "client");
+    assert.ok(L.TK_isDefaultSlateView({}));
+    assert.ok(!L.TK_isDefaultSlateView({ chip: "waiting" }));
+    assert.ok(!L.TK_isDefaultSlateView({ groupBy: "client" }));
+    assert.ok(!L.TK_isDefaultSlateView({ sort: { col: "due" } }));
+  });
+
+  t("slate view keys share the mgb_tk_ prefix", () => {
+    assert.strictEqual(L.TK_slateViewKey("Me@Example.com"), "mgb_tk_slate_view_v1:me@example.com");
+    assert.strictEqual(L.TK_slateViewKey(ME, "desk"), "mgb_tk_slate_view_v1:desk:me@example.com");
+    assert.ok(L.TK_slateViewKey(ME).startsWith("mgb_tk_"));
+    // every sort chip is a real sort column
+    L.TK_SLATE_SORTS.forEach((s) => assert.ok(L.TK_SORT_COLS.indexOf(s.col) >= 0, s.col));
+  });
+
+  t("default view is exactly TK_myGroupsView", () => {
+    const col = { later: true };
+    [true, false].forEach((showDone) => {
+      const want = L.TK_myGroupsView(groups, { collapsed: col, showDone });
+      const got = L.TK_slateBuildView(groups, null, { collapsed: col, showDone, email: ME, today: TODAY, clients });
+      assert.deepStrictEqual(got.groups, want);
+      assert.strictEqual(got.byDue, true);
+    });
+  });
+
+  t("client with no chip or sort is exactly the old client path", () => {
+    const want = L.TK_groupByClient(L.TK_flattenMyGroups(groups, { showDone: true }), { clients, collapsed: {}, flagOf: undefined });
+    const got = L.TK_slateBuildView(groups, { groupBy: "client" }, { collapsed: {}, showDone: true, clients });
+    assert.deepStrictEqual(got.groups, want);
+    assert.strictEqual(got.byDue, false);
+  });
+
+  t("chip Mine today: mine, open, not waiting, due today or earlier", () => {
+    const got = L.TK_slateApplyChip(tasks, "mine_today", { email: ME, today: TODAY }).map((x) => x.id);
+    assert.deepStrictEqual(got, ["a", "b", "i"]);
+    assert.ok(!L.TK_slateChipMatch(tasks[4], "mine_today", { email: ME, today: TODAY }), "waiting never counts as today's work");
+    assert.ok(!L.TK_slateChipMatch(tasks[1], "mine_today", { email: "", today: TODAY }), "no email, no match");
+    assert.ok(!L.TK_slateChipMatch(tasks[1], "mine_today", { email: ME }), "no today, no match");
+  });
+
+  t("chip Waiting on client: status waiting_client", () => {
+    assert.deepStrictEqual(L.TK_slateApplyChip(tasks, "waiting", {}).map((x) => x.id), ["e"]);
+    assert.strictEqual(L.TK_slateApplyChip(tasks, "", {}), tasks, "no chip: same array");
+    assert.strictEqual(L.TK_slateApplyChip(tasks, "bogus", {}), tasks);
+  });
+
+  t("chip inside the due grouping drops empty groups", () => {
+    const got = L.TK_slateBuildView(groups, { chip: "mine_today" }, { showDone: true, email: ME, today: TODAY });
+    assert.deepStrictEqual(ids(got.groups), [["overdue", ["a"]], ["today", ["b", "i"]]]);
+    const w = L.TK_slateBuildView(groups, { chip: "waiting", groupBy: "client" }, { showDone: true, clients });
+    assert.deepStrictEqual(ids(w.groups), [["client:c1", ["e"]]]);
+  });
+
+  t("part of month: rhythm order, then sections, then No part", () => {
+    const got = L.TK_groupByPart(tasks, { templates: { tpl1: { section: "Send reports" } } });
+    assert.deepStrictEqual(ids(got), [
+      ["part:check in", ["b", "e"]],
+      ["part:send reports", ["a", "i"]],
+      ["part:follow up", ["c"]],
+      ["part:monthly", ["d"]],
+      ["part:zebra", ["h"]],
+      [L.TK_NO_PART_KEY, ["f", "g"]],
+    ]);
+    assert.strictEqual(got[0].label, "Check in", "the rhythm's own spelling wins");
+    assert.strictEqual(got[got.length - 1].label, "No part");
+    // without the template lookup the template task falls to No part
+    const bare = L.TK_groupByPart(tasks, {});
+    assert.deepStrictEqual(bare[bare.length - 1].tasks.map((x) => x.id), ["f", "g", "i"]);
+    // a firm's own parts list
+    const own = L.TK_groupByPart(tasks, { parts: ["Follow up", "Check in"] });
+    assert.deepStrictEqual(own.slice(0, 2).map((g) => g.key), ["part:follow up", "part:check in"]);
+    assert.strictEqual(L.TK_rhythmPartOf({ section: "  ", template_id: "x" }, { templateSectionOf: () => " Follow up " }), "Follow up");
+    assert.strictEqual(L.TK_rhythmPartOf(null), "");
+    assert.deepStrictEqual(L.TK_groupByPart([], {}), []);
+    assert.strictEqual(L.TK_groupByPart(tasks, { collapsed: { "part:follow up": true } })[2].collapsed, true);
+  });
+
+  t("status grouping: workflow order, Done folded", () => {
+    const got = L.TK_groupByStatus(tasks, {});
+    assert.deepStrictEqual(got.map((g) => g.key), ["status:todo", "status:in_progress", "status:waiting_client", "status:done"]);
+    assert.deepStrictEqual(got.map((g) => g.label), ["To do", "In progress", "Waiting on client", "Done"]);
+    assert.strictEqual(got[3].collapsed, true);
+    assert.strictEqual(got[0].collapsed, false);
+    assert.strictEqual(L.TK_groupByStatus(tasks, { collapsed: { "status:done": false } })[3].collapsed, false);
+  });
+
+  t("sort inside groups; no sort returns the same groups", () => {
+    const base = L.TK_slateBuildView(groups, { groupBy: "client" }, { showDone: false, clients });
+    const same = L.TK_slateSortWithin(base.groups, null);
+    assert.strictEqual(same, base.groups);
+    const byName = L.TK_slateBuildView(groups, { groupBy: "client", sort: { col: "task", dir: "asc" } }, { showDone: false, clients });
+    const c1 = byName.groups.filter((g) => g.key === "client:c1")[0];
+    assert.deepStrictEqual(c1.tasks.map((x) => x.id), ["c", "b", "e"]);
+    const pri = L.TK_slateBuildView(groups, { groupBy: "status", sort: { col: "priority", dir: "asc" } }, { showDone: false });
+    // high first, then normal in the default order (due date, undated last), low last
+    assert.deepStrictEqual(pri.groups[0].tasks.map((x) => x.id), ["d", "g", "b", "c", "h", "a"]);
+    const desc = L.TK_slateBuildView(groups, { groupBy: "status", sort: { col: "priority", dir: "desc" } }, { showDone: false });
+    assert.strictEqual(desc.groups[0].tasks[0].id, "a", "descending puts low first");
+  });
+
+  t("skipUnassigned (Desk) leaves Unassigned out of every grouping", () => {
+    ["due", "client", "part", "status"].forEach((gb) => {
+      const got = L.TK_slateBuildView(groups, { groupBy: gb }, { showDone: false, skipUnassigned: true, clients });
+      got.groups.forEach((g) => g.tasks.forEach((x) => assert.notStrictEqual(x.id, "g", gb)));
+    });
+    // default + skipUnassigned equals TK_myGroupsView without the unassigned group
+    const g2 = Object.assign({}, groups, { unassigned: [] });
+    assert.deepStrictEqual(L.TK_slateBuildView(groups, null, { showDone: false, skipUnassigned: true }).groups, L.TK_myGroupsView(g2, { showDone: false }));
+  });
+
+  t("bulk ids walk every grouping", () => {
+    ["due", "client", "part", "status"].forEach((gb) => {
+      const got = L.TK_slateBuildView(groups, { groupBy: gb }, { showDone: true, clients, collapsed: {} });
+      const walk = L.TK_focusIds(got.groups);
+      assert.ok(walk.length > 0, gb);
+      const sel = L.TK_selToggle(L.TK_selEmpty(), walk[0], walk, false);
+      assert.deepStrictEqual(L.TK_selOnList(sel, walk), [String(walk[0])], gb);
+    });
+  });
+}
+
 console.log(n + " checks passed");

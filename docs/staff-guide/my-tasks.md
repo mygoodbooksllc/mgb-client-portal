@@ -2,7 +2,7 @@
 title: How do I use my Slate?
 section: Daily work
 audience: staff
-keywords: [task in the desk, desk client tab, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, select many, bulk, multi-select, undo, ctrl z, v, select a task, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import, slate, my slate]
+keywords: [task in the desk, desk client tab, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, select many, bulk, multi-select, undo, ctrl z, v, select a task, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import, slate, my slate, view bar, sort, sort chips, quick chips, mine today, part of month, group by status, group by part, reset view, check in, send reports, follow up]
 sort: 110
 ---
 **Slate** is where your tasks live (it was called Tasks). Its home page is one list of everything assigned to you, across every client and project. Open it from the **Slate** button in the top bar (`#/tasks/my`), or from **Work › Slate** (`#/work/tasks`), which shows the same list inside Work. The Slate page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
@@ -33,9 +33,20 @@ Every row shows the same few things, and you can change most of them without ope
 
 Each picker is a small menu: arrow keys move, **Enter** picks, **Esc** closes. If you can't edit a task (view-only, or it's waiting for review), the cells are plain text. The list keys (**j**, **k**, **x**, **s**, **a**) work as before.
 
-### Group by client
+### Group by, sort and quick chips
 
-The toolbar's **Sort by** switch changes **Due date** (the groups above) to **Client**. Your tasks are then grouped one client at a time, clients A to Z, with **No client** after them and test and internal clients last (tagged **Test** or **Internal**). Inside a client the most urgent task comes first, and **Show done** still applies. The client filter still works. The portal remembers your choice, per person, in this browser. An admin's switch on a person's list under **People** is remembered separately from the one on Slate.
+A small bar above the list changes how Slate is laid out. Nothing changes until you pick something.
+
+- **Group by**: **Due date** (the groups above, the default), **Client**, **Part of month** or **Status**.
+  - **Client** lists your tasks one client at a time, clients A to Z, with **No client** after them and test and internal clients last (tagged **Test** or **Internal**). Inside a client the most urgent task comes first.
+  - **Part of month** groups by the part of the monthly rhythm a task belongs to: **Check in**, **Send reports**, **Follow up**, then any other section names, then **No part**. It uses the task's section; a task with no section goes under **No part**.
+  - **Status** groups by **To do**, **In progress**, **Waiting on client** and so on. **Done** starts folded.
+- **Sort**: **Due**, **Priority**, **Status** or **Name**. Click once for ascending, again for descending, a third time to go back to the normal order. Sorting happens inside each group.
+- **Mine today**: only your own tasks due today or earlier that aren't done or waiting on a client.
+- **Waiting on client**: only tasks waiting on a client. These never count against you.
+- **Reset view** shows once you've changed anything and puts everything back to the default.
+
+**Show done** and the client filter still apply. Select and the bulk bar work in every grouping. The portal remembers your view, per person, in this browser. The Desk's **Slate** tab has the same bar and remembers its own view; its count on the tab doesn't change with the view. An admin's switch on a person's list under **People** is still **Default** or **Client**, remembered separately.
 
 The toolbar has **Add task**, a client filter (**All clients**, or one client), **Show done** and, once Show done is on, **Show older**. Done tasks finished more than 12 months ago stay hidden unless you turn on **Show older**. Nothing is deleted.
 

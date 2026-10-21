@@ -119,7 +119,12 @@
 //   tk-recurring-nav the sidebar's Recurring item (TK_Sidebar.jsx), same widths
 //   tk-manage-nav    the sidebar's Manage projects item (admins; TK_Sidebar.jsx)
 //   tk-manage-head   Tasks › Manage projects' heading (TK_ManageProjects.jsx)
-//   tk-groupby       the Group by switch in My Tasks' toolbar (TK_MyTasks.jsx)
+//   tk-groupby       the Group by select in My Tasks' view bar (TK_SlateViewBar,
+//                    TK_MyTasks.jsx; also a person's list switch). The Desk
+//                    Slate tab's bar uses wb-slate-view instead.
+//   tk-slate-chips   the view bar's quick chips (Mine today, Waiting on client),
+//   tk-slate-sort    and its Sort chips; Slate page only (not the Desk's
+//                    compact bar), used by the slate-view-bar announcement
 //   tk-subtoggle     a task row's subtasks arrow and count (TK_TaskRow.jsx), only
 //                    when a visible task has subtasks (the first one is found)
 //   tk-select        a task row's select checkbox (TK_TaskRow.jsx), only once

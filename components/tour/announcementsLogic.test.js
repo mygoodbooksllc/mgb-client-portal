@@ -431,4 +431,22 @@ t("registry: tasks-field-grid is an admin and bookkeeper notice ending on the ta
   assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
 });
 
+t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view bar", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "slate-view-bar");
+  assert.ok(a);
+  assert.strictEqual(a.ready, undefined);
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  assert.strictEqual(a.hash, "#/tasks/my");
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-groupby", "ann-chips", "ann-sort"]);
+  assert.deepStrictEqual(steps[1].targets, ["tk-groupby"]);
+  assert.strictEqual(steps[2].targets[0], "tk-slate-chips");
+  assert.strictEqual(steps[3].targets[0], "tk-slate-sort");
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
+  assert.ok(!/colour|!/i.test(text));
+  // The newest by date, so it is picked first for a person with nothing answered.
+  const newest = ANN_REGISTRY.reduce((m, x) => (x.date > m ? x.date : m), "");
+  assert.strictEqual(a.date, newest);
+});
+
 console.log("announcementsLogic: " + n + " checks passed");

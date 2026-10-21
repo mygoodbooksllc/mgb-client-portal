@@ -425,7 +425,7 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "tasks",
     target: "tk-groupby",
     snug: true,
-    text: "Group by Client lists your tasks one client at a time instead of by due date. The portal remembers your choice.",
+    text: "Group by lists your tasks by due date, client, part of the month or status. Sort and quick chips sit beside it, and the portal remembers your view.",
     slug: "my-tasks",
     ready: () => !!document.querySelector('[data-tour="tk-groupby"]'),
   },

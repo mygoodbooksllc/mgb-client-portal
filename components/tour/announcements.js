@@ -1305,6 +1305,51 @@ var ANN_REGISTRY = [
       ),
     ],
   },
+  {
+    // Rhythm slice 0: not preview-gated, so it announces at ship.
+    id: "slate-view-bar",
+    date: "2026-10-21",
+    title: "Group, sort and filter Slate",
+    summary:
+      "Slate has a new bar above the list: Group by due date, client, part of the month or status, Sort chips, and quick chips for Mine today and Waiting on client. Your view is remembered.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Slate, your way",
+        body: () =>
+          "A small bar above your Slate list changes how it is laid out. Nothing changes until you pick something. About a minute.",
+      },
+      {
+        id: "ann-groupby",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tk-groupby"],
+        wait: true,
+        title: "Group by",
+        body: () =>
+          "Due date is the list you know. Client lists one client at a time, Part of month groups by Check in, Send reports and Follow up, and Status groups by To do, In progress, Waiting on client and the rest.",
+      },
+      {
+        id: "ann-chips",
+        targets: ["tk-slate-chips", "tk-groupby"],
+        wait: true,
+        title: "Quick chips",
+        body: () =>
+          "Mine today shows only your own tasks due today or earlier that are not done or waiting on a client. Waiting on client shows only the tasks waiting on a client. Click a chip again to turn it off.",
+      },
+      {
+        id: "ann-sort",
+        targets: ["tk-slate-sort", "tk-groupby"],
+        wait: true,
+        title: "Sort and Reset view",
+        body: () =>
+          "Sort orders tasks inside each group: click once for ascending, again for descending, a third time for the normal order. Reset view puts everything back. The Desk's Slate tab has the same bar and keeps its own view.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

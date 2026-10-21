@@ -805,7 +805,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   - **Version:** `MGB_VERSION` `2026-10-11b`, "Tasks: client task strip and panel, t shortcut, Follow my
     client".
   - Local storage (all cleared by Developer Tools › Reset local state, which takes every
-    `mgb_` key): `mgb_tk_groups_v1`, `mgb_tk_view_v1`, `mgb_tk_groupby_v1:<email>`, `mgb_tk_groupby_v1:person:<email>`, `mgb_tk_sort_v1`, `mgb_tk_popout_v1`, `mgb_tk_follow_v1`.
+    `mgb_` key): `mgb_tk_groups_v1`, `mgb_tk_view_v1`, `mgb_tk_groupby_v1:<email>`, `mgb_tk_groupby_v1:person:<email>`, `mgb_tk_slate_view_v1:<email>`, `mgb_tk_slate_view_v1:desk:<email>`, `mgb_tk_sort_v1`, `mgb_tk_popout_v1`, `mgb_tk_follow_v1`.
     In `sessionStorage`, per tab and ending with it: the shell flag `mgb_shell_v1` and
     `mgb_tk_keys_used_v1` (`TK_keys.jsx`).
   - Guide articles: `my-tasks`, `task-details`, `task-lists-and-projects`, `tasks-own-window`, `client-tasks-drawer`.
@@ -1945,6 +1945,21 @@ Team Reviews files.
     RPC, which lets the owner back in; restore into a taken name is `tk_restore_name_taken`;
     `tk_import_asana_apply` / `tk_import_assign_team` skip trashed projects. A person's list keeps its
     own Group by choice in `mgb_tk_groupby_v1:person:<email>` (`TK_groupByKey`).
+  - **Slate view bar** (2026-10-21, `MGB_VERSION` `2026-10-21b`, not preview-gated; spec
+    `docs/slate-rhythm-slice-0.md`): `TK_SlateViewBar` in `TK_MyTasks.jsx` replaces My Tasks' Group by switch
+    with **Group by** Due date | Client | Part of month | Status, **Sort** chips (Due, Priority, Status, Name;
+    asc, desc, off, sorting inside each group), quick chips **Mine today** and **Waiting on client**
+    (`status = 'waiting_client'`), and **Reset view**. Pure logic in `TK_viewLogic.js`
+    (`TK_slateBuildView`, `TK_normalizeSlateView`, `TK_slateApplyChip`, `TK_rhythmPartOf`,
+    `TK_groupByPart`, `TK_groupByStatus`, `TK_slateSortWithin`), tested in `TK_viewLogic.test.js`; the
+    default view is exactly `TK_myGroupsView`. Saved per person in `mgb_tk_slate_view_v1:<email>` (falls
+    back to `mgb_tk_groupby_v1:<email>`, which is still written for Due date and Client). Part of month uses
+    the task's `section`, else its template's section (ready for slice 3), else **No part**. The Desk Slate tab
+    (`WB_HubTasks.jsx`) shows the same bar (`data-tour` `wb-slate-view`) saved in
+    `mgb_tk_slate_view_v1:desk:<email>`; its tab count always uses the default grouping, and
+    `WB_hubTaskGroups(view, cap, {anyKey})` lets non-due groups through. The person list switch is unchanged.
+    Launch notice and tour: `slate-view-bar` in `announcements.js` (targets `tk-groupby`, `tk-slate-chips`,
+    `tk-slate-sort`).
   - Known gaps: a project owner who isn't an admin can trash from the project header (and Undo from the
     toast) but can't see or restore it afterward (Manage projects is admin only); `tk_can_see_project` still resolves for
     admins on a trashed project (its tasks stay hidden).

@@ -464,14 +464,18 @@ var WB_HUB_TASK_CAP = 200; // rows shown before "Show all on Slate"
 // to me (no Done, no Unassigned), then at most `cap` tasks in order. Each
 // group keeps its full count in `total`. Returns
 // { groups, total, shown, more } where total counts every open task.
-function WB_hubTaskGroups(view, cap) {
+// opts.anyKey (rhythm slice 0): the Slate view control grouped by Client, Part
+// of month or Status, so any group key is drawn (the caller has already left
+// Done and Unassigned out). Without it the whitelist applies as before.
+function WB_hubTaskGroups(view, cap, opts) {
   var max = cap == null ? WB_HUB_TASK_CAP : Math.max(0, Math.floor(Number(cap)) || 0);
+  var anyKey = !!(opts && opts.anyKey);
   var groups = [];
   var total = 0;
   var shown = 0;
   var expanded = 0;
   (Array.isArray(view) ? view : []).forEach(function (g) {
-    if (!g || WB_HUB_TASK_GROUPS.indexOf(g.key) < 0 || !Array.isArray(g.tasks) || !g.tasks.length) return;
+    if (!g || (!anyKey && WB_HUB_TASK_GROUPS.indexOf(g.key) < 0) || !Array.isArray(g.tasks) || !g.tasks.length) return;
     total += g.tasks.length;
     // A folded group draws no rows, so it neither uses the cap nor counts as "more".
     var tasks = [];

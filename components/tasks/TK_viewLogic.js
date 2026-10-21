@@ -1248,6 +1248,249 @@ function TK_bulkDuePatch(choice, value) {
   return null;
 }
 
+// ---- Slate view: Group by, Sort, quick chips, saved view (month rhythm slice 0) ----
+// One control on the Slate page and on the Desk's Slate tab. With nothing
+// chosen the list is built exactly as before (TK_slateBuildView's default
+// path is TK_myGroupsView). The view is saved per person in this browser.
+
+var TK_SLATE_GROUPS = [
+  { key: "due", label: "Due date" },
+  { key: "client", label: "Client" },
+  { key: "part", label: "Part of month" },
+  { key: "status", label: "Status" },
+];
+
+// Sort chips: a subset of TK_SORT_COLS, sorted inside each group.
+var TK_SLATE_SORTS = [
+  { col: "due", label: "Due" },
+  { col: "priority", label: "Priority" },
+  { col: "status", label: "Status" },
+  { col: "task", label: "Name" },
+];
+
+var TK_SLATE_CHIPS = [
+  { key: "mine_today", label: "Mine today" },
+  { key: "waiting", label: "Waiting on client" },
+];
+
+// The month rhythm's part labels, in rhythm order (docs/slate-month-rhythm.md).
+// A later slice passes the firm's own list (tk_settings month_rhythm).
+var TK_RHYTHM_PARTS_DEFAULT = ["Check in", "Send reports", "Follow up"];
+var TK_SLATE_VIEW_KEY = "mgb_tk_slate_view_v1";
+var TK_NO_PART_KEY = "part:__none__";
+
+var TK_vSTATUS_LABEL_FALLBACK = {
+  todo: "To do",
+  in_progress: "In progress",
+  waiting_client: "Waiting on client",
+  ready_for_review: "Ready for review",
+  done: "Done",
+};
+
+function TK_vInList(list, field, v) {
+  for (var i = 0; i < list.length; i++) if (list[i][field] === v) return true;
+  return false;
+}
+
+// "mgb_tk_slate_view_v1:<email>" (the Slate page) or "...:desk:<email>" (the
+// Desk's Slate tab). Each place keeps its own view.
+function TK_slateViewKey(email, scope) {
+  return TK_SLATE_VIEW_KEY + ":" + (scope === "desk" ? "desk:" : "") + TK_vLower(email);
+}
+
+// Any value in, a valid view out: { groupBy, sort: { col, dir } | null, chip }.
+function TK_normalizeSlateView(raw) {
+  var r = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+  var groupBy = TK_vInList(TK_SLATE_GROUPS, "key", r.groupBy) ? r.groupBy : "due";
+  var s = r.sort && typeof r.sort === "object" ? r.sort : null;
+  var sort = s && TK_vInList(TK_SLATE_SORTS, "col", s.col) ? { col: s.col, dir: s.dir === "desc" ? "desc" : "asc" } : null;
+  var chip = TK_vInList(TK_SLATE_CHIPS, "key", r.chip) ? r.chip : "";
+  return { groupBy: groupBy, sort: sort, chip: chip };
+}
+
+// saved: the stored view (or null). legacyGroupBy: the old Due date | Client
+// choice (mgb_tk_groupby_v1), used only when nothing new is saved.
+function TK_slateViewRead(saved, legacyGroupBy) {
+  if (saved && typeof saved === "object" && !Array.isArray(saved)) return TK_normalizeSlateView(saved);
+  return TK_normalizeSlateView({ groupBy: legacyGroupBy === "client" ? "client" : "due" });
+}
+
+function TK_isDefaultSlateView(v) {
+  var n = TK_normalizeSlateView(v);
+  return n.groupBy === "due" && !n.sort && !n.chip;
+}
+
+// ctx: { email, today }. "mine_today": assigned to me, not done, not waiting
+// on the client (waiting never counts against the bookkeeper), due today or
+// earlier. "waiting": status waiting_client (Ask client sets it on send).
+function TK_slateChipMatch(t, chip, ctx) {
+  if (!t) return false;
+  if (!chip) return true;
+  var st = TK_vStatus(t);
+  if (chip === "waiting") return st === "waiting_client";
+  if (chip === "mine_today") {
+    var c = ctx || {};
+    var me = TK_vLower(c.email);
+    if (!me || TK_vLower(t.assignee_email) !== me) return false;
+    if (st === "done" || st === "waiting_client") return false;
+    var due = t.due_date ? String(t.due_date).slice(0, 10) : "";
+    var today = c.today ? String(c.today).slice(0, 10) : "";
+    if (!due || !today) return false;
+    return due <= today;
+  }
+  return true;
+}
+
+// The same array back when no chip is on.
+function TK_slateApplyChip(tasks, chip, ctx) {
+  var list = Array.isArray(tasks) ? tasks : [];
+  if (!chip || !TK_vInList(TK_SLATE_CHIPS, "key", chip)) return list;
+  return list.filter(function (t) {
+    return TK_slateChipMatch(t, chip, ctx);
+  });
+}
+
+// A task's part of the month: its own section, else its template's section
+// (opts.templateSectionOf(template_id) or opts.templates { id: { section } }),
+// else "".
+function TK_rhythmPartOf(t, opts) {
+  if (!t) return "";
+  var own = t.section != null ? String(t.section).trim() : "";
+  if (own) return own;
+  var o = opts || {};
+  var tid = t.template_id != null ? String(t.template_id) : "";
+  if (!tid) return "";
+  var s = null;
+  if (typeof o.templateSectionOf === "function") s = o.templateSectionOf(tid);
+  else if (o.templates && typeof o.templates === "object" && o.templates[tid]) s = o.templates[tid].section;
+  return s != null ? String(s).trim() : "";
+}
+
+// Groups by part of month. Order: the rhythm parts (opts.parts, default
+// TK_RHYTHM_PARTS_DEFAULT) in rhythm order, then other sections
+// (TK_CLIENT_SECTION_ORDER first, then A to Z), then "No part". Case-insensitive
+// (one group per part). Empty groups never appear; task order inside a group
+// is the input order. Returns [{ key, name, label, tasks, collapsed }].
+function TK_groupByPart(tasks, opts) {
+  var o = opts || {};
+  var col = o.collapsed || {};
+  var parts = Array.isArray(o.parts) && o.parts.length ? o.parts : TK_RHYTHM_PARTS_DEFAULT;
+  var partLower = parts.map(function (p) {
+    return TK_vLower(String(p == null ? "" : p).trim());
+  });
+  var order = typeof TK_CLIENT_SECTION_ORDER !== "undefined" && Array.isArray(TK_CLIENT_SECTION_ORDER) ? TK_CLIENT_SECTION_ORDER : TK_vCLIENT_ORDER;
+  var orderLower = order.map(function (s) {
+    return s.toLowerCase();
+  });
+  var by = {};
+  var seen = [];
+  (Array.isArray(tasks) ? tasks : []).forEach(function (t) {
+    if (!t) return;
+    var name = TK_rhythmPartOf(t, o);
+    var low = name.toLowerCase();
+    var key = low ? "part:" + low : TK_NO_PART_KEY;
+    if (!by[key]) {
+      var pi = low ? partLower.indexOf(low) : -1;
+      var label = pi >= 0 ? String(parts[pi]).trim() : name || "No part";
+      by[key] = { key: key, name: label, label: label, tasks: [], collapsed: Object.prototype.hasOwnProperty.call(col, key) ? !!col[key] : false, _low: low };
+      seen.push(key);
+    }
+    by[key].tasks.push(t);
+  });
+  function rank(g) {
+    if (!g._low) return [3, 0];
+    var pi = partLower.indexOf(g._low);
+    if (pi >= 0) return [0, pi];
+    var si = orderLower.indexOf(g._low);
+    if (si >= 0) return [1, si];
+    return [2, 0];
+  }
+  return seen
+    .map(function (k) {
+      return by[k];
+    })
+    .sort(function (a, b) {
+      var ra = rank(a);
+      var rb = rank(b);
+      if (ra[0] !== rb[0]) return ra[0] - rb[0];
+      if (ra[1] !== rb[1]) return ra[1] - rb[1];
+      return a._low < b._low ? -1 : a._low > b._low ? 1 : 0;
+    })
+    .map(function (g) {
+      return { key: g.key, name: g.name, label: g.label, tasks: g.tasks, collapsed: g.collapsed };
+    });
+}
+
+// Groups by status in workflow order. Done is folded unless opened.
+function TK_groupByStatus(tasks, opts) {
+  var o = opts || {};
+  var col = o.collapsed || {};
+  var labels = typeof TK_STATUS_LABELS !== "undefined" && TK_STATUS_LABELS ? TK_STATUS_LABELS : TK_vSTATUS_LABEL_FALLBACK;
+  var by = {};
+  (Array.isArray(tasks) ? tasks : []).forEach(function (t) {
+    if (!t) return;
+    var st = TK_vStatus(t);
+    (by[st] = by[st] || []).push(t);
+  });
+  var out = [];
+  TK_vSTATUS_ORDER.forEach(function (st) {
+    if (!by[st] || !by[st].length) return;
+    var key = "status:" + st;
+    var label = labels[st] || TK_vSTATUS_LABEL_FALLBACK[st];
+    out.push({ key: key, name: label, label: label, tasks: by[st], collapsed: Object.prototype.hasOwnProperty.call(col, key) ? !!col[key] : st === "done" });
+  });
+  return out;
+}
+
+// Sorts inside each group. No sort: the same groups back (same objects).
+function TK_slateSortWithin(groups, sort, opts) {
+  var list = Array.isArray(groups) ? groups : [];
+  if (!sort || !TK_vInList(TK_SLATE_SORTS, "col", sort.col)) return list;
+  return list.map(function (g) {
+    if (!g || !Array.isArray(g.tasks)) return g;
+    var out = {};
+    for (var k in g) if (Object.prototype.hasOwnProperty.call(g, k)) out[k] = g[k];
+    out.tasks = TK_sortTasks(g.tasks, sort, opts);
+    return out;
+  });
+}
+
+// groups: TK_groupMyTasks output. view: a saved view. ctx: { collapsed,
+// showDone, email, today, clients, flagOf, parts, templates,
+// templateSectionOf, nameOf, skipUnassigned }.
+// Returns { groups, byDue }. With the default view this is exactly
+// TK_myGroupsView(groups, { collapsed, showDone }); Client with no chip and
+// no sort is exactly the old client path.
+function TK_slateBuildView(groups, view, ctx) {
+  var v = TK_normalizeSlateView(view);
+  var c = ctx || {};
+  var g = groups || {};
+  var collapsed = c.collapsed || {};
+  if (v.chip) {
+    var fg = {};
+    for (var k in g) {
+      if (!Object.prototype.hasOwnProperty.call(g, k)) continue;
+      fg[k] = Array.isArray(g[k]) ? TK_slateApplyChip(g[k], v.chip, c) : g[k];
+    }
+    g = fg;
+  }
+  if (c.skipUnassigned && g.unassigned) {
+    var sg = {};
+    for (var k2 in g) if (Object.prototype.hasOwnProperty.call(g, k2) && k2 !== "unassigned") sg[k2] = g[k2];
+    g = sg;
+  }
+  var out;
+  if (v.groupBy === "due") {
+    out = TK_myGroupsView(g, { collapsed: collapsed, showDone: c.showDone });
+  } else {
+    var flat = TK_flattenMyGroups(g, { showDone: c.showDone });
+    if (v.groupBy === "client") out = TK_groupByClient(flat, { clients: c.clients || [], collapsed: collapsed, flagOf: c.flagOf });
+    else if (v.groupBy === "part") out = TK_groupByPart(flat, { collapsed: collapsed, parts: c.parts, templates: c.templates, templateSectionOf: c.templateSectionOf });
+    else out = TK_groupByStatus(flat, { collapsed: collapsed });
+  }
+  return { groups: TK_slateSortWithin(out, v.sort, { nameOf: c.nameOf }), byDue: v.groupBy === "due" };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_POPOUT_DEFAULT: TK_POPOUT_DEFAULT,
@@ -1325,5 +1568,22 @@ if (typeof module !== "undefined" && module.exports) {
     TK_skipGroups: TK_skipGroups,
     TK_isUndoKey: TK_isUndoKey,
     TK_bulkDuePatch: TK_bulkDuePatch,
+    TK_SLATE_GROUPS: TK_SLATE_GROUPS,
+    TK_SLATE_SORTS: TK_SLATE_SORTS,
+    TK_SLATE_CHIPS: TK_SLATE_CHIPS,
+    TK_RHYTHM_PARTS_DEFAULT: TK_RHYTHM_PARTS_DEFAULT,
+    TK_SLATE_VIEW_KEY: TK_SLATE_VIEW_KEY,
+    TK_NO_PART_KEY: TK_NO_PART_KEY,
+    TK_slateViewKey: TK_slateViewKey,
+    TK_normalizeSlateView: TK_normalizeSlateView,
+    TK_slateViewRead: TK_slateViewRead,
+    TK_isDefaultSlateView: TK_isDefaultSlateView,
+    TK_slateChipMatch: TK_slateChipMatch,
+    TK_slateApplyChip: TK_slateApplyChip,
+    TK_rhythmPartOf: TK_rhythmPartOf,
+    TK_groupByPart: TK_groupByPart,
+    TK_groupByStatus: TK_groupByStatus,
+    TK_slateSortWithin: TK_slateSortWithin,
+    TK_slateBuildView: TK_slateBuildView,
   };
 }

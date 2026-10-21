@@ -16,6 +16,9 @@
 // Unassigned and Done never show here. At most WB_HUB_TASK_CAP rows draw, then
 // "Show all on My Tasks". Collapsed groups live in the hub state (saved with
 // it), not in My Tasks' own key.
+// Rhythm slice 0: the Slate view bar (TK_SlateViewBar) sits above the groups,
+// saved per person under mgb_tk_slate_view_v1:desk:<email>. Nothing chosen
+// keeps the default groups above; the tab count always uses them.
 //
 // Browser file; loads after WB_Hub.jsx. Uses TK_* globals at render time only.
 // ----------------------------------------------------------------------------
@@ -26,6 +29,12 @@ function WB_hubNames(list) {
     if (c && c.id != null && c.name) out[String(c.id)] = c.name;
   });
   return out;
+}
+
+// Stand-in for TK_vUseSlateView when the Slate files are older than this one:
+// no view control, the default groups.
+function WB_hubNoSlateView() {
+  return [null, function () {}, function () {}];
 }
 
 function WB_HubTasks(props) {
@@ -70,6 +79,12 @@ function WB_HubTasksBody(props) {
   var focusPair = React.useState(null);
   var focusedId = focusPair[0];
   var setFocusedId = focusPair[1];
+  // Rhythm slice 0: the same Group by / Sort / quick chips control as the
+  // Slate page, saved per person for the Desk (its own key). Client, Part of
+  // month and Status folds live here only; the hub state keeps its due groups.
+  var useSv = typeof TK_vUseSlateView === "function" ? TK_vUseSlateView : WB_hubNoSlateView;
+  var svPair = useSv(email, "desk");
+  var localColPair = React.useState({});
 
   var loader = function () {
     if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.listMine !== "function") return Promise.resolve([]);
@@ -147,7 +162,37 @@ function WB_HubTasksBody(props) {
   var view = TK_myGroupsView(groups, { collapsed: props.collapsed || {}, showDone: false });
   var subs = TK_vUseSubtasks(all);
   if (typeof TK_subNestGroups === "function") view = TK_subNestGroups(view, subs.kidsOf);
-  var shown = WB_hubTaskGroups(view, WB_HUB_TASK_CAP);
+  var baseShown = WB_hubTaskGroups(view, WB_HUB_TASK_CAP);
+  var sv = svPair[0];
+  var custom = !!sv && typeof TK_slateBuildView === "function" && typeof TK_isDefaultSlateView === "function" && !TK_isDefaultSlateView(sv);
+  var dueGroups = !custom || sv.groupBy === "due";
+  var shown = baseShown;
+  if (custom) {
+    var built = TK_slateBuildView(groups, sv, {
+      collapsed: dueGroups ? props.collapsed || {} : localColPair[0],
+      showDone: false,
+      skipUnassigned: true,
+      email: email,
+      today: today,
+      clients: props.clients || [],
+      flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
+    });
+    var cview = built.groups;
+    if (typeof TK_subNestGroups === "function") cview = TK_subNestGroups(cview, subs.kidsOf);
+    shown = WB_hubTaskGroups(cview, WB_HUB_TASK_CAP, dueGroups ? undefined : { anyKey: true });
+  }
+  var byClientGroups = custom && sv.groupBy === "client";
+  var collapseGroup = function (key, isCollapsed) {
+    if (dueGroups) {
+      if (props.onCollapse) props.onCollapse(key, isCollapsed);
+      return;
+    }
+    localColPair[1](function (c) {
+      var n = Object.assign({}, c);
+      n[key] = isCollapsed;
+      return n;
+    });
+  };
   var ids = [];
   shown.groups.forEach(function (g) {
     g.tasks.forEach(function (t) {
@@ -162,7 +207,8 @@ function WB_HubTasksBody(props) {
   var err = list.error && !all.length ? list.error : null;
   var onCount = props.onCount;
   var onReady = props.onReady;
-  var total = shown.total;
+  // The tab count always uses the default groups, so a chip never changes it.
+  var total = baseShown.total;
   var settled = loaded;
   React.useEffect(
     function () {
@@ -251,7 +297,16 @@ function WB_HubTasksBody(props) {
   var body;
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (err) body = <TK_vErrorState onRetry={list.reload} />;
-  else if (!shown.groups.length) {
+  else if (!shown.groups.length && custom && baseShown.total > 0) {
+    body = (
+      <div className="wb-filtered-empty" role="status">
+        <p>No tasks match this view.</p>
+        <button type="button" className="btn-secondary" onClick={svPair[2]}>
+          Reset view
+        </button>
+      </div>
+    );
+  } else if (!shown.groups.length) {
     body = (
       <p className="wb-filtered-empty" role="status">
         Nothing assigned to you right now.
@@ -261,16 +316,16 @@ function WB_HubTasksBody(props) {
     body = (
       <div className="tk-groups wb-hub-groups">
         {shown.groups.map(function (g) {
-          var gid = "wb-hub-group-" + g.key;
+          var gid = "wb-hub-group-" + String(g.key).replace(/[^a-zA-Z0-9_-]/g, "_");
           return (
-            <section key={g.key} className={"tk-group tk-group-" + g.key + (g.collapsed ? " is-collapsed" : "")} aria-labelledby={gid}>
+            <section key={g.key} className={"tk-group tk-group-" + (dueGroups ? g.key : sv.groupBy) + (g.collapsed ? " is-collapsed" : "")} aria-labelledby={gid}>
               <h3 className="tk-group-head" id={gid}>
                 <button
                   type="button"
                   className="tk-group-btn"
                   aria-expanded={g.collapsed ? "false" : "true"}
                   onClick={function () {
-                    if (props.onCollapse) props.onCollapse(g.key, !g.collapsed);
+                    collapseGroup(g.key, !g.collapsed);
                   }}
                 >
                   <TK_vIcon name="chevron" size={14} className="tk-chev" />
@@ -290,7 +345,7 @@ function WB_HubTasksBody(props) {
                         projectName={t.project_id ? projectNames[t.project_id] || "" : ""}
                         projectColor={t.project_id && typeof TK_projectColorById === "function" ? TK_projectColorById(projects, t.project_id) : ""}
                         subs={subs}
-                        showClient
+                        showClient={!byClientGroups}
                         focused={rovingId === t.id}
                         checklist={counts[t.id] || null}
                         isAdmin={isAdmin}
@@ -330,6 +385,7 @@ function WB_HubTasksBody(props) {
           </button>
         </div>
       ) : null}
+      {sv && typeof TK_SlateViewBar === "function" ? <TK_SlateViewBar view={sv} onChange={svPair[1]} onReset={svPair[2]} compact groupTour={null} barTour="wb-slate-view" /> : null}
       {body}
       {shown.more > 0 ? (
         <p className="wb-later">

@@ -2249,6 +2249,41 @@ li.tk-empty-inline {
   white-space: nowrap;
 }
 
+/* Slate view control: Group by, quick chips, Sort chips, Reset (rhythm slice 0).
+   The same bar on the Slate page and the Desk's Slate tab (.is-compact). */
+
+.tk-slate-viewbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+
+.tk-slate-viewbar.is-compact {
+  gap: 6px 10px;
+  margin: 0 0 8px;
+}
+
+.tk-sv-set {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tk-sv-chip.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.tk-sv-reset {
+  font-size: 12.5px;
+}
+
 .tk-group-flag {
   padding: 1px 8px;
   border-radius: 999px;

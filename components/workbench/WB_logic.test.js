@@ -539,6 +539,14 @@ t("hub: My tasks groups drop Done and Unassigned and cap the rows", () => {
   assert.strictEqual(big.shown, 200);
   assert.strictEqual(big.more, 50);
   assert.deepStrictEqual(L.WB_hubTaskGroups(null), { groups: [], total: 0, shown: 0, more: 0 });
+  // rhythm slice 0: anyKey draws Client / Part / Status groups; without it they drop
+  const other = [g("client:c1", 2), g("part:check in", 3), g("status:todo", 1, true)];
+  assert.deepStrictEqual(L.WB_hubTaskGroups(other, 100).groups, []);
+  const any = L.WB_hubTaskGroups(other, 4, { anyKey: true });
+  assert.deepStrictEqual(any.groups.map((x) => x.key), ["client:c1", "part:check in", "status:todo"]);
+  assert.deepStrictEqual(any.groups.map((x) => x.tasks.length), [2, 2, 0]);
+  assert.strictEqual(any.more, 1);
+  assert.deepStrictEqual(L.WB_hubTaskGroups(view, 100, {}), r, "no anyKey: unchanged");
 });
 
 t("WB_hubShouldReload: once per distinct missing set", () => {

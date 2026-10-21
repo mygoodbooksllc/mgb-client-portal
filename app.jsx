@@ -13902,7 +13902,8 @@ function resettableLocalStorageKeys() {
     // switcher, inbox context, the Desk's mgb_wb_hub:<email>,
     // mgb_wb_pins:<email> and its width mgb_wb_desk:<email>, and the staff
     // sidebar choice mgb_rail_expanded:<email>, and the L1 left sidebar's
-    // mgb_nav_prefs:<email> and mgb_nav_on_cache). Feature flags are kept on purpose, including
+    // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
+    // mgb_tk_slate_view_v1:<email> / :desk:<email>). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
     // mgb_wb_classic, mgb_desk_app_preview, mgb_nav_preview, and at launch
     // mgb_nav_classic). The MGB Desk window's own
