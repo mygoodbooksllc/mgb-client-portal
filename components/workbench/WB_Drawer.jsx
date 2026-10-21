@@ -375,18 +375,7 @@ function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
 // R2 adds staffUser and the template props (canManageTemplates,
 // canCreateTemplates, onOpenTemplates), passed through to the task view's
 // TK_DrawerContent exactly as app.jsx passes them to TK_DrawerHost.
-// variant="window" (MGB Desk in its own window, WB_DeskApp.jsx): the same
-// Desk, but rendered in place and always open: no rail, no info bar, no width
-// grip, no html classes or variables, no D key, no sheet layout. Closing does
-// nothing (the store's forceOpen) and "close" steps act as "list". onCount(n)
-// reports the item count (the window title).
-function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread, chatClientId, clientCounts, pageClient, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates, variant, onCount }) {
-  const isWin = variant === "window";
-  const winInit = React.useRef(false);
-  if (isWin && !winInit.current) {
-    winInit.current = true;
-    WB_store.setOptions({ hubKeyBase: WB_HUB_WIN_KEY, forceOpen: true });
-  }
+function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread, chatClientId, clientCounts, pageClient, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates }) {
   const on = WB_useSwitch();
   const s = WB_useStore(me, isAdmin, on);
   const open = s.drawerOpen;
@@ -394,20 +383,17 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   const barRef = React.useRef(null);
   const railRef = React.useRef(null);
   const live = on && s.status !== "missing" && !!me;
-  const deskMode = WB_useDeskMode();
-  const mode = isWin ? "window" : deskMode;
+  const mode = WB_useDeskMode();
   const sheet = mode === "sheet";
   // Shared with WB_useHubKeys / WB_useHubLayers: the mode, where focus is,
   // and the drag (so Esc can cancel it).
   const deskRef = React.useRef({ mode: mode, zone: "page", dragging: false, cancel: null });
   deskRef.current.mode = mode;
-  deskRef.current.variant = isWin ? "window" : "";
   // Where the Desk renders: undefined until the first layout pass (nothing
   // yet, before paint), then the div at the end of .app-shell, or null to
-  // render in place (always, in the window).
-  const [host, setHost] = React.useState(isWin ? null : undefined);
+  // render in place.
+  const [host, setHost] = React.useState(undefined);
   React.useLayoutEffect(() => {
-    if (isWin) return undefined;
     const el = WB__deskHost();
     setHost(el);
     return () => {
@@ -428,9 +414,6 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   const view = React.useMemo(() => WB_build(s.rows, { today, now, chip }), [s.rows, today, chip, open, tick]);
   const allView = React.useMemo(() => (chip === "all" ? view : WB_build(s.rows, { today, now, chip: "all" })), [view, s.rows, today, chip, tick]);
   const count = allView.counts.all;
-  React.useEffect(() => {
-    if (isWin && typeof onCount === "function") onCount(count);
-  }, [count, isWin]);
   const mentions = WB_useBellMentions();
   const doneToday = WB_useDoneToday(me, today, live);
 
@@ -441,7 +424,6 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   const [vw, setVw] = React.useState(() => (typeof window !== "undefined" ? window.innerWidth || 0 : 0));
   const [top, setTop] = React.useState(0);
   React.useEffect(() => {
-    if (isWin) return undefined; // no rail to measure, no page to make room on
     const el = document.documentElement;
     el.classList.toggle("wb-drawer-on", live);
     if (!live) {
@@ -521,7 +503,6 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   // and the page makes room), wb-desk-overlay, wb-desk-open. Skipped mid-drag:
   // the drag's paint writes the width itself.
   React.useLayoutEffect(() => {
-    if (isWin) return undefined; // the window never writes the page's variables
     const el = document.documentElement;
     if (!live) {
       // The Desk switched off (or the store went missing): nothing may keep
@@ -580,7 +561,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   const [commits, setCommits] = React.useState(0);
   React.useLayoutEffect(() => {
     // After a drag ends without a width change, put the saved width back.
-    if (isWin || !live || deskRef.current.dragging) return;
+    if (!live || deskRef.current.dragging) return;
     const L = layoutRef.current;
     paint(L.w);
     const el = document.documentElement;
@@ -871,9 +852,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   // The ladder's task-view steps (WB_useHubKeys, the Back button, the
   // content's own close): pop to the previous task, back to the list, or
   // close the Desk.
-  const drillStep = (stepIn) => {
-    // The window has no closed state to go back to: "close" is "list".
-    const step = isWin && stepIn === "close" ? "list" : stepIn;
+  const drillStep = (step) => {
     if (step === "pop") {
       WB_store.drillBack();
       return;
@@ -908,7 +887,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   // the layout); an overlay or the phone sheet closes, unless it opened
   // just now (the click that opened it also navigated).
   React.useEffect(() => {
-    if (!open || isWin) return undefined; // the window's own hash catch-all is in WB_DeskApp.jsx
+    if (!open) return undefined;
     const onHash = () => {
       const step = WB_deskNavStep({ layout: layoutRef.current.mode, msSinceOpen: Date.now() - openedAt.current });
       if (step === "close") WB_store.setDrawerOpen(false);
@@ -1078,7 +1057,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
 
   const desk = (
     <>
-      {!isWin && <button
+      <button
         ref={barRef}
         type="button"
         className={"wb-bar wb-infobar" + (open ? " is-open" : "") + (progress.late ? " has-late" : "")}
@@ -1124,8 +1103,8 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
         <span className="wb-bar-hint" aria-hidden="true">
           <kbd className="wb-bar-kbd">D</kbd> {open ? "to close" : "to open"}
         </span>
-      </button>}
-      {!isWin && !sheet && !open && (
+      </button>
+      {!sheet && !open && (
         <div ref={railRef} className="wb-rail-wrap">
           <WB_DeskRail
             counts={railCounts}
@@ -1154,10 +1133,8 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
           currentClientId={currentClientId}
           page={page}
           mode={mode}
-          layout={isWin ? "window" : layout.mode}
-          handle={isWin ? null : handle}
-          variant={variant}
-          deskMenu={!isWin && s.appOn && !sheet && typeof WB_DeskMenu === "function" ? <WB_DeskMenu /> : null}
+          layout={layout.mode}
+          handle={handle}
           drill={drillStack}
           deskRef={deskRef}
           onDrillStep={drillStep}
@@ -1178,7 +1155,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
 
   return (
     <>
-      {host === undefined && !isWin ? null : host && typeof ReactDOM !== "undefined" && ReactDOM.createPortal ? ReactDOM.createPortal(desk, host) : desk}
+      {host === undefined ? null : host && typeof ReactDOM !== "undefined" && ReactDOM.createPortal ? ReactDOM.createPortal(desk, host) : desk}
       <WB_UndoBar />
     </>
   );

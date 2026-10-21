@@ -994,14 +994,6 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
-    // Read by WB_deskAppIsOn (components/workbench/WB_logic.js).
-    key: "mgb_desk_app_preview",
-    label: "MGB Desk window preview",
-    description:
-      "Shows the MGB Desk window for you only, in this browser, while the firm-wide desk_app_enabled switch is off: the Desk menu gets Open MGB Desk (a pop-up window that stays on top of your other tabs) and Get MGB Desk (install it as its own app, Chrome or Edge on a computer). Needs the Desk itself on for you (Desk preview or the firm switch). The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
     // Read by TK_slateAppIsOn (components/tasks/TK_viewLogic.js) through TK_slateFlag (TK_store.js).
     key: "mgb_slate_app_preview",
     label: "Slate app preview",
@@ -1092,7 +1084,7 @@ const INFRA_LINKS = [
   {
     name: "Vercel",
     url: "https://vercel.com/dashboard",
-    note: "Deploys app.mygoodbooks.org from main · /desk is a rewrite to index.html and desk.webmanifest is served by vercel.json (MGB Desk window) · credentials: 1Password vault “MGB Infra”",
+    note: "Deploys app.mygoodbooks.org from main · /desk redirects to /slate (vercel.json) · credentials: 1Password vault “MGB Infra”",
   },
   {
     name: "Google Cloud (OAuth)",
@@ -13993,10 +13985,8 @@ function resettableLocalStorageKeys() {
     // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
     // mgb_tk_slate_view_v1:<email> / :desk:<email>). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
-    // mgb_wb_classic, mgb_desk_app_preview, mgb_nav_preview, mgb_rhythm_preview, mgb_slate_app_preview, and at launch
-    // mgb_slate_classic, mgb_nav_classic). The MGB Desk window's own
-    // keys (mgb_desk_win_v1 size, mgb_desk_installed_v1, mgb_wb_hub_win:<email>)
-    // are cleared like any other saved screen.
+    // mgb_wb_classic, mgb_nav_preview, mgb_rhythm_preview, mgb_slate_app_preview, and at launch
+    // mgb_slate_classic, mgb_nav_classic).
     return Object.keys(localStorage).filter(
       (k) =>
         (k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_")) &&
@@ -15361,7 +15351,6 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["ooo_auto_apply", "Time off hands tasks to backups", "Off (false or not set, the default): only the manual Hand my tasks to backups button moves tasks. Set to true and the tk-ooo-daily cron (11:00 UTC) also moves open tasks due during someone's time off to each client's backup on their first day off (never re-taking a task someone handed back). Handing back after the time off always runs."],
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
-            ["desk_app_enabled", "MGB Desk window on for staff", "Off (or missing, the default) hides the MGB Desk window for everyone: no Open MGB Desk or Get MGB Desk in the Desk menu, and /desk shows a short note. Needs wb_enabled on too. Owner turns it on (true) with one SQL line; read-only here. Each person can try it early with MGB Desk window preview in Feature flags. Setting it does nothing until the Desk itself is on."],
             ["slate_app_enabled", "Slate app on for staff", "Off (or missing, the default) keeps Slate as it is for everyone: Open in own window opens the same small window and nothing new shows. Owner turns it on (true) with one SQL line, never from here, to give every staff member the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app). Read-only here. Each person can try it early with Slate app preview in Feature flags."],
             ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar, plus the Alerts section for real admins. Each person can try it early with Sidebar preview in Feature flags. Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
             ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can try it early with Lato font preview in Feature flags, or opt out with Classic fonts. Setting it to true changes the look for every user right away, so do it only at launch."],
@@ -27817,17 +27806,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // which rows get READ (assigned clients, that person's own reminders)
   // change.
   const [impersonating, setImpersonating] = useState(null);
-  // MGB Desk in its own window (/desk, ?shell=desk): only the Desk, no rail,
-  // top bar, tour, tips or notices. Signed-in staff, not viewing as someone.
-  // Everything else (signed out, client, flags off) is handled by
-  // WB_DeskAppShell's own plan or falls back to the normal portal.
-  const deskShell = !!(
-    window.MGB_SHELL === "desk" &&
-    staffUser &&
-    !clientPortalUser &&
-    !impersonating &&
-    typeof WB_DeskAppShell === "function"
-  );
   const effectiveStaffUser = impersonating || staffUser;
 
   const startImpersonating = (row) => {
@@ -28679,26 +28657,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       : null;
     if (!supabase || effectivePage === "usage-stats") return;
     if (!actorEmail) return;
-    if (deskShell) {
-      // The Desk window logs one row per open, under its own page name.
-      // effectivePage changes inside the window (link catch-all), so guard it.
-      if (window.__mgbDeskUsageLogged) return;
-      window.__mgbDeskUsageLogged = true;
-      supabase
-        .from("usage_events")
-        .insert({
-          actor_email: actorEmail,
-          actor_role: role,
-          client_id: null,
-          page: "desk-app",
-          tab: null,
-          device: MGB_deviceKind(),
-        })
-        .then(({ error }) => {
-          if (error) console.warn("Couldn't log usage event:", error.message);
-        });
-      return;
-    }
     const usagePlaceAll = CLIENT_placeOf(effectivePage);
     const usagePlace = usagePlaceAll && usagePlaceAll.tabs ? usagePlaceAll : null;
     CLIENT_rememberTab(effectivePage);
@@ -28832,7 +28790,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     !!staffUser &&
     !clientPortalUser &&
     !impersonating &&
-    !deskShell &&
     viewAsUserId === BOOKKEEPER_VIEW &&
     !NON_CLIENT_PAGES.has(effectivePage);
   const appTimeClientId = client ? client.id : null;
@@ -29596,15 +29553,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       return undefined;
     }
   }, [tkHosts]);
-  // "Open in Desk window" lands in this tab: the portal side of the
-  // BroadcastChannel (WB_DeskApp.jsx). Staff only, never inside the window
-  // and never in the Slate pop-out (it has no Desk, so it must not answer).
-  useEffect(() => {
-    if (!tkHosts || deskShell || window.MGB_SHELL === "tasks") return;
-    try {
-      if (typeof WB_startDeskReceiver === "function") WB_startDeskReceiver();
-    } catch (e) {}
-  }, [tkHosts, deskShell]);
   // A client never gets the Tasks or Desk shell: clear the flag.
   useEffect(() => {
     if (!clientPortalUser || (window.MGB_SHELL !== "tasks" && window.MGB_SHELL !== "desk")) return;
@@ -29617,7 +29565,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // Community · Overview · MyGoodBooks" on a client's — so a row of open
   // tabs reads at a glance and history entries have names.
   useEffect(() => {
-    if (deskShell) return; // the Desk window sets its own title
     try {
       // Staff call client-settings "Client setup" (D13); clients keep Settings.
       const pageTitle =
@@ -29628,7 +29575,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         ? [pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ")
         : [client && client.name, pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ");
     } catch (e) {}
-  }, [effectivePage, onStaffPage, client && client.name, staffClientTabs, deskShell]);
+  }, [effectivePage, onStaffPage, client && client.name, staffClientTabs]);
   // --- In-client tab row hooks (TABS-SPEC section 0: all new App hooks
   // live here, after staffClientTabs and before the early return). ---
   // Badge counts for the tab row and the Overview strip (ClientTabCounts.jsx).
@@ -29646,7 +29593,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const wbDeskMounts = !!(
     staffUser &&
     typeof WB_deskMounts === "function" &&
-    WB_deskMounts({ showStaffRail, tkShell, deskShell, previewing: isPreviewingUser, impersonating, email: staffUser.email })
+    WB_deskMounts({ showStaffRail, tkShell, previewing: isPreviewingUser, impersonating, email: staffUser.email })
   );
   const wbDeskLive = typeof WB_useDeskLive === "function" ? WB_useDeskLive(wbDeskMounts) : false;
   // R2: live in any mode (phones too). While it is, a client's tasks open in
@@ -29703,59 +29650,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   }, [effectivePage, settingsTab, isStaffSession, isPreviewingUser, effectiveStaffUser]);
   // A bookkeeper with a real (successful, non-null) assignment fetch but
   // zero checked clients — the opt-in default from staff-client-access.sql.
-  // The Desk window: just the Desk and the task drawers it opens. One early
-  // return after every hook, so the rail, sidebar, tour, tips, notices, chat
-  // bubble and page drop never mount in it.
-  if (deskShell) {
-    return (
-      <ToastProvider>
-        <WB_DeskAppShell
-          me={String(staffUser.email).toLowerCase()}
-          isAdmin={staffUser.role === "admin"}
-          clients={visibleClients}
-          currentClientId={null}
-          page="today"
-          messagesUnread={staffMessagesUnread}
-          chatClientId={null}
-          clientCounts={null}
-          pageClient={null}
-          staffUser={staffUser}
-          canManageTemplates={staffIsAdmin}
-          canCreateTemplates={staffUser.role === "admin"}
-          onOpenTemplates={() => {
-            window.location.hash = "#/tasks/templates";
-          }}
-        />
-        {typeof TK_DrawerHost === "function" && (
-          <TK_DrawerHost
-            staffUser={staffUser}
-            clients={visibleClients}
-            isAdmin={staffIsAdmin}
-            canManageTemplates={staffIsAdmin}
-            canCreateTemplates={staffUser.role === "admin"}
-            onOpenTemplates={() => {
-              window.location.hash = "#/tasks/templates";
-            }}
-          />
-        )}
-        {typeof TK_ClientDrawerHost === "function" && (
-          <TK_ClientDrawerHost
-            staffUser={staffUser}
-            clients={visibleClients}
-            isAdmin={staffIsAdmin}
-            openClientId={null}
-            lastClientId={lastOpenedClientId}
-            page="today"
-            available={true}
-            deskOn={true}
-          />
-        )}
-        {typeof TK_QuickAddHost === "function" && (
-          <TK_QuickAddHost staffUser={staffUser} clients={visibleClients} currentClientId={null} />
-        )}
-      </ToastProvider>
-    );
-  }
   // Nothing below this point has a sensible client to show, so stop here
   // rather than let baseClient's CLIENTS[0] fallback silently show data
   // nobody granted them. Firm-wide places (Today, Inbox, Team, Settings,
