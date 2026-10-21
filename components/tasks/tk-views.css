@@ -3119,3 +3119,120 @@ body:has(.ltip-ring.ltip-on) .tk-row .tk-sel {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Slate app P3: saved views menu and bulk Status / Priority / Section.
+   Shown only inside the Slate app. Edit controls (.tk-p3-edit) are hidden in
+   the compact and sliver sizes (S3 adds .tk-m-* classes to .tk-app.is-shell);
+   those sizes are read-only.
+   --------------------------------------------------------------------------- */
+
+.tk-p3-views {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.tk-p3-vlist {
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+}
+
+.tk-p3-vrow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tk-p3-vapply {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tk-p3-vapply.is-on {
+  font-weight: 600;
+}
+
+.tk-p3-vmark {
+  flex: none;
+  width: 14px;
+  text-align: center;
+  color: var(--accent);
+}
+
+.tk-p3-vtools,
+.tk-p3-vtools-set {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding-right: 6px;
+}
+
+.tk-p3-vtool {
+  font-size: 12.5px;
+  min-height: 28px;
+}
+
+.tk-p3-vnew {
+  margin-top: 2px;
+  padding-top: 2px;
+  border-top: 1px solid var(--border);
+}
+
+.tk-p3-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 41;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 240px;
+  max-width: calc(100vw - 32px);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-hover);
+}
+
+.tk-p3-panel-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.tk-p3-panel-q {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.tk-p3-panel-err {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--bad);
+}
+
+.tk-p3-panel-btns {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.tk-bulk-set {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tk-m-compact .tk-p3-edit,
+.tk-m-sliver .tk-p3-edit {
+  display: none !important;
+}

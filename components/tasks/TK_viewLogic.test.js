@@ -1562,4 +1562,276 @@ t("Slate app bridge constants", () => {
   assert.strictEqual(L.TK_SLATE_APP_NAME, "MGB Slate");
 });
 
+// ---- Slate app P3: named saved views ---------------------------------------------
+t("view name: trims and collapses white space", () => {
+  assert.strictEqual(L.TK_cleanViewName("  Waiting   on \t clients "), "Waiting on clients");
+  assert.strictEqual(L.TK_cleanViewName(null), "");
+});
+t("view name: valid name returns the cleaned name", () => {
+  const r = L.TK_validateViewName("  Due   soon ", []);
+  assert.deepStrictEqual(r, { ok: true, name: "Due soon" });
+});
+t("view name: empty and blank refused", () => {
+  assert.strictEqual(L.TK_validateViewName("", []).error, "empty");
+  assert.strictEqual(L.TK_validateViewName("   ", []).error, "empty");
+  assert.strictEqual(L.TK_validateViewName(undefined, []).error, "empty");
+});
+t("view name: 60 ok, 61 too long", () => {
+  assert.strictEqual(L.TK_validateViewName("x".repeat(60), []).ok, true);
+  const r = L.TK_validateViewName("x".repeat(61), []);
+  assert.strictEqual(r.error, "too_long");
+  assert.ok(r.text.length > 0);
+});
+t("view name: length counts after cleaning", () => {
+  assert.strictEqual(L.TK_validateViewName("  " + "x".repeat(60) + "   ", []).ok, true);
+});
+t("view name: Default is reserved in any case", () => {
+  assert.strictEqual(L.TK_validateViewName("Default", []).error, "reserved");
+  assert.strictEqual(L.TK_validateViewName(" default ", []).error, "reserved");
+});
+t("view name: duplicate ignores case and spacing", () => {
+  const rows = [{ id: "a", name: "Mine due soon" }, { id: "b", name: "Other" }];
+  assert.strictEqual(L.TK_validateViewName("MINE  DUE soon", rows).error, "duplicate");
+  assert.strictEqual(L.TK_validateViewName("Brand new", rows).ok, true);
+});
+t("view name: renaming a view to its own name is fine, to another's is not", () => {
+  const rows = [{ id: "a", name: "Mine" }, { id: "b", name: "Other" }];
+  assert.strictEqual(L.TK_validateViewName("mine", rows, "a").ok, true);
+  assert.strictEqual(L.TK_validateViewName("other", rows, "a").error, "duplicate");
+});
+t("view name: the Default entry in the list is not a duplicate source", () => {
+  const rows = [{ id: "__default__", name: "Default", isDefault: true }];
+  assert.strictEqual(L.TK_validateViewName("Default", rows).error, "reserved");
+  assert.strictEqual(L.TK_validateViewName("Other", rows).ok, true);
+});
+t("view name: error texts exist for every code and a fallback", () => {
+  ["empty", "too_long", "reserved", "duplicate", "too_many"].forEach((c) => assert.ok(L.TK_viewNameErrorText(c).length > 5, c));
+  assert.ok(L.TK_viewNameErrorText("zzz").length > 5);
+  assert.ok(!/colour/i.test(JSON.stringify(L.TK_VIEW_NAME_ERRORS)));
+});
+t("saved views: the cap is 30 saved rows, Default does not count", () => {
+  const rows = [];
+  for (let i = 0; i < 29; i++) rows.push({ id: "r" + i, name: "V" + i });
+  assert.strictEqual(L.TK_canAddSavedView(rows), true);
+  rows.push({ id: "r29", name: "V29" });
+  assert.strictEqual(L.TK_SAVED_VIEW_MAX, 30);
+  assert.strictEqual(L.TK_canAddSavedView(rows), false);
+  const merged = L.TK_mergeSavedViews(rows, null);
+  assert.strictEqual(merged.length, 31);
+  assert.strictEqual(L.TK_canAddSavedView(merged), false);
+  assert.strictEqual(L.TK_canAddSavedView(merged.slice(0, 30)), true);
+  assert.strictEqual(L.TK_canAddSavedView(null), true);
+});
+t("saved views: next position follows the highest", () => {
+  assert.strictEqual(L.TK_nextViewPosition([]), 1);
+  assert.strictEqual(L.TK_nextViewPosition([{ position: 3 }, { position: 7 }, { position: "2" }]), 8);
+  assert.strictEqual(L.TK_nextViewPosition(null), 1);
+});
+t("saved views: Default first, then position, created, name", () => {
+  const rows = [
+    { id: "c", name: "Zed", position: 2, created_at: "2026-10-01T00:00:00Z", view: { groupBy: "client" } },
+    { id: "a", name: "alpha", position: 1, created_at: "2026-10-02T00:00:00Z", view: { groupBy: "status" } },
+    { id: "b", name: "Beta", position: 2, created_at: "2026-10-01T00:00:00Z", view: {} },
+    { id: "d", name: "Aardvark", position: 2, created_at: "2026-10-01T00:00:00Z", view: null },
+  ];
+  const m = L.TK_mergeSavedViews(rows, { groupBy: "part", chip: "waiting" });
+  assert.deepStrictEqual(m.map((e) => e.id), ["__default__", "a", "d", "b", "c"]);
+  assert.strictEqual(m[0].isDefault, true);
+  assert.strictEqual(m[0].name, "Default");
+  assert.deepStrictEqual(m[0].view, { groupBy: "part", sort: null, chip: "waiting" });
+});
+t("saved views: every view is normalized, junk rows dropped", () => {
+  const m = L.TK_mergeSavedViews(
+    [
+      { id: "x", name: "Bad", view: { groupBy: "nope", sort: { col: "zzz" }, chip: "nope" } },
+      { id: null, name: "No id", view: {} },
+      { id: "y", name: "   ", view: {} },
+      null,
+    ],
+    undefined
+  );
+  assert.strictEqual(m.length, 2);
+  assert.deepStrictEqual(m[1].view, { groupBy: "due", sort: null, chip: "" });
+  assert.deepStrictEqual(m[0].view, { groupBy: "due", sort: null, chip: "" });
+  assert.strictEqual(L.TK_mergeSavedViews(null, null).length, 1);
+});
+t("saved views: same-view compares normalized shape", () => {
+  assert.strictEqual(L.TK_sameSlateView({ groupBy: "due" }, null), true);
+  assert.strictEqual(L.TK_sameSlateView({ groupBy: "client" }, { groupBy: "due" }), false);
+  assert.strictEqual(L.TK_sameSlateView({ sort: { col: "due", dir: "asc" } }, { sort: { col: "due" } }), true);
+  assert.strictEqual(L.TK_sameSlateView({ sort: { col: "due", dir: "desc" } }, { sort: { col: "due", dir: "asc" } }), false);
+  assert.strictEqual(L.TK_sameSlateView({ chip: "waiting" }, {}), false);
+});
+t("saved views: active entry is the match, a saved view beats Default", () => {
+  const m = L.TK_mergeSavedViews([{ id: "s1", name: "Mine", position: 1, view: { groupBy: "client" } }, { id: "s2", name: "Same as default", position: 2, view: {} }], null);
+  assert.strictEqual(L.TK_activeSavedViewId(m, { groupBy: "client" }), "s1");
+  assert.strictEqual(L.TK_activeSavedViewId(m, {}), "s2");
+  assert.strictEqual(L.TK_activeSavedViewId(m, { groupBy: "status" }), null);
+  const only = L.TK_mergeSavedViews([], { groupBy: "client" });
+  assert.strictEqual(L.TK_activeSavedViewId(only, { groupBy: "client" }), "__default__");
+  assert.strictEqual(L.TK_activeSavedViewId(null, {}), null);
+});
+t("saved views: server errors map to codes", () => {
+  assert.strictEqual(L.TK_savedViewErrorCode({ message: 'duplicate key value violates unique constraint "tk_saved_views_owner_scope_name_uq"' }), "duplicate");
+  assert.strictEqual(L.TK_savedViewErrorCode({ message: "tk_too_many_views" }), "too_many");
+  assert.strictEqual(L.TK_savedViewErrorCode({ message: "tk_name_reserved" }), "reserved");
+  assert.strictEqual(L.TK_savedViewErrorCode({ message: 'violates check constraint "tk_saved_views_name_check"' }), "empty");
+  assert.strictEqual(L.TK_savedViewErrorCode(new Error("boom")), "");
+  assert.strictEqual(L.TK_savedViewErrorCode(null), "");
+});
+
+t("default view: a stored baseline wins", () => {
+  const rows = [{ id: "a", name: "A", view: { groupBy: "client" } }];
+  assert.deepStrictEqual(L.TK_resolveDefaultView({ groupBy: "status", chip: "waiting" }, { groupBy: "client" }, rows), { groupBy: "status", sort: null, chip: "waiting" });
+});
+t("default view: with no baseline it is the live older view", () => {
+  assert.deepStrictEqual(L.TK_resolveDefaultView(null, { groupBy: "part" }, []), { groupBy: "part", sort: null, chip: "" });
+  assert.deepStrictEqual(L.TK_resolveDefaultView(undefined, { groupBy: "part" }, [{ id: "a", name: "A", view: { groupBy: "client" } }]), { groupBy: "part", sort: null, chip: "" });
+});
+t("default view: with no baseline and a named view showing, it is the plain default", () => {
+  assert.deepStrictEqual(L.TK_resolveDefaultView(null, { groupBy: "client" }, [{ id: "a", name: "A", view: { groupBy: "client" } }]), { groupBy: "due", sort: null, chip: "" });
+});
+t("default view: baseline key is per person and scope", () => {
+  assert.strictEqual(L.TK_slateBaselineKey("A@B.com", "slate"), "mgb_tk_slate_base_v1:a@b.com");
+  assert.strictEqual(L.TK_slateBaselineKey("A@B.com", "desk"), "mgb_tk_slate_base_v1:desk:a@b.com");
+  assert.notStrictEqual(L.TK_slateBaselineKey("a@b.com"), L.TK_slateViewKey("a@b.com"));
+});
+
+// ---- Slate app P3: bulk Status, Priority, Section ------------------------------------
+const bt = (id, o) => Object.assign({ id: id, status: "todo", priority: "normal", project_id: null, section: null }, o || {});
+t("bulk routes: Done is the Complete path, open statuses are set_status", () => {
+  assert.deepStrictEqual(L.TK_bulkStatusRoute("done"), { kind: "complete", patch: null });
+  assert.deepStrictEqual(L.TK_bulkStatusRoute("in_progress"), { kind: "set_status", patch: { status: "in_progress" } });
+  assert.deepStrictEqual(L.TK_bulkStatusRoute("waiting_client"), { kind: "set_status", patch: { status: "waiting_client" } });
+  assert.deepStrictEqual(L.TK_bulkStatusRoute("todo"), { kind: "set_status", patch: { status: "todo" } });
+});
+t("bulk routes: Ready for review and junk are not bulk statuses", () => {
+  assert.strictEqual(L.TK_bulkStatusRoute("ready_for_review"), null);
+  assert.strictEqual(L.TK_bulkStatusRoute(""), null);
+  assert.strictEqual(L.TK_bulkStatusRoute(null), null);
+  assert.deepStrictEqual(L.TK_BULK_STATUS_CHOICES.map((c) => c.value), ["todo", "in_progress", "waiting_client", "done"]);
+});
+t("bulk routes: priorities are the schema's three", () => {
+  assert.deepStrictEqual(L.TK_BULK_PRIORITY_CHOICES.map((c) => c.value), ["high", "normal", "low"]);
+  ["high", "normal", "low"].forEach((p) => assert.deepStrictEqual(L.TK_bulkPriorityRoute(p), { kind: "set_priority", patch: { priority: p } }));
+  assert.strictEqual(L.TK_bulkPriorityRoute("urgent"), null);
+  assert.strictEqual(L.TK_bulkPriorityRoute(""), null);
+});
+t("bulk routes: section name trimmed, null clears, junk refused", () => {
+  assert.deepStrictEqual(L.TK_bulkSectionRoute(" Alpha "), { kind: "set_section", patch: { section: "Alpha" } });
+  assert.deepStrictEqual(L.TK_bulkSectionRoute(null), { kind: "set_section", patch: { section: null } });
+  assert.deepStrictEqual(L.TK_bulkSectionRoute(""), { kind: "set_section", patch: { section: null } });
+  assert.strictEqual(L.TK_bulkSectionRoute("   "), null);
+  assert.strictEqual(L.TK_bulkSectionRoute("x".repeat(61)), null);
+  assert.strictEqual(L.TK_bulkSectionRoute(5), null);
+});
+t("same project: all in one project", () => {
+  assert.deepStrictEqual(L.TK_bulkSameProject([bt("1", { project_id: "p" }), bt("2", { project_id: "p" })]), { ok: true, projectId: "p", why: "" });
+});
+t("same project: mixed, none, empty", () => {
+  assert.strictEqual(L.TK_bulkSameProject([bt("1", { project_id: "p" }), bt("2", { project_id: "q" })]).why, "mixed");
+  assert.strictEqual(L.TK_bulkSameProject([bt("1", { project_id: "p" }), bt("2")]).why, "none");
+  assert.strictEqual(L.TK_bulkSameProject([bt("1")]).why, "none");
+  assert.strictEqual(L.TK_bulkSameProject([]).why, "empty");
+  assert.strictEqual(L.TK_bulkSameProject(null).ok, false);
+});
+t("section choices: that project's list, trimmed, deduped, in order", () => {
+  const projects = [{ id: "p", sections: ["Alpha", " Beta ", "alpha", "", null, "Gamma"] }, { id: "q", sections: ["Other"] }];
+  assert.deepStrictEqual(L.TK_bulkSectionChoices([bt("1", { project_id: "p" })], projects), ["Alpha", "Beta", "Gamma"]);
+  assert.deepStrictEqual(L.TK_bulkSectionChoices([bt("1", { project_id: "p" })], { p: projects[0] }), ["Alpha", "Beta", "Gamma"]);
+});
+t("section choices: none for mixed projects, no project or an unknown project", () => {
+  const projects = [{ id: "p", sections: ["A"] }, { id: "q", sections: ["B"] }];
+  assert.deepStrictEqual(L.TK_bulkSectionChoices([bt("1", { project_id: "p" }), bt("2", { project_id: "q" })], projects), []);
+  assert.deepStrictEqual(L.TK_bulkSectionChoices([bt("1")], projects), []);
+  assert.deepStrictEqual(L.TK_bulkSectionChoices([bt("1", { project_id: "zzz" })], projects), []);
+  assert.deepStrictEqual(L.TK_bulkSectionChoices([bt("1", { project_id: "p" })], null), []);
+});
+t("offer: status and priority whenever something is selected", () => {
+  const o = L.TK_bulkSetOffer([bt("1")], []);
+  assert.strictEqual(o.status, true);
+  assert.strictEqual(o.priority, true);
+  assert.strictEqual(o.section, false);
+  assert.strictEqual(o.sectionWhy, "none");
+  const e = L.TK_bulkSetOffer([], []);
+  assert.strictEqual(e.status, false);
+  assert.strictEqual(e.priority, false);
+});
+t("offer: section only for one shared project with sections", () => {
+  const projects = [{ id: "p", sections: ["A", "B"] }, { id: "q", sections: [] }];
+  const one = L.TK_bulkSetOffer([bt("1", { project_id: "p" }), bt("2", { project_id: "p" })], projects);
+  assert.strictEqual(one.section, true);
+  assert.deepStrictEqual(one.sections, ["A", "B"]);
+  assert.strictEqual(one.sectionWhy, "");
+  const mixed = L.TK_bulkSetOffer([bt("1", { project_id: "p" }), bt("2", { project_id: "q" })], projects);
+  assert.strictEqual(mixed.section, false);
+  assert.strictEqual(mixed.sectionWhy, "mixed");
+  const empty = L.TK_bulkSetOffer([bt("1", { project_id: "q" })], projects);
+  assert.strictEqual(empty.section, false);
+  const clearOnly = L.TK_bulkSetOffer([bt("1", { project_id: "q", section: "Old" })], projects);
+  assert.strictEqual(clearOnly.section, true);
+});
+t("plan: open statuses skip done, in review and same-status tasks", () => {
+  const tasks = [bt("a"), bt("b", { status: "in_progress" }), bt("c", { status: "done" }), bt("d", { status: "ready_for_review" }), bt("e", { done: true, status: undefined })];
+  const plan = L.TK_bulkSetPlan("set_status", { status: "in_progress" }, tasks, []);
+  assert.deepStrictEqual(plan.ok, ["a"]);
+  const by = {};
+  plan.skipped.forEach((s) => (by[s.id] = s.reason));
+  assert.deepStrictEqual(by, { b: "no_change", c: "done_use_reopen", d: "in_review", e: "done_use_reopen" });
+});
+t("plan: Done skips only tasks already done (review gate is the server's)", () => {
+  const plan = L.TK_bulkSetPlan("complete", null, [bt("a"), bt("b", { status: "done" }), bt("c", { status: "ready_for_review" })], []);
+  assert.deepStrictEqual(plan.ok, ["a", "c"]);
+  assert.deepStrictEqual(plan.skipped, [{ id: "b", reason: "already_done" }]);
+});
+t("plan: priority skips tasks already at that priority", () => {
+  const plan = L.TK_bulkSetPlan("set_priority", { priority: "high" }, [bt("a"), bt("b", { priority: "high" }), bt("c", { priority: undefined })], []);
+  assert.deepStrictEqual(plan.ok, ["a", "c"]);
+  assert.deepStrictEqual(plan.skipped, [{ id: "b", reason: "no_change" }]);
+  const normal = L.TK_bulkSetPlan("set_priority", { priority: "normal" }, [bt("c", { priority: undefined })], []);
+  assert.deepStrictEqual(normal.skipped, [{ id: "c", reason: "no_change" }]);
+});
+t("plan: section matches without regard to case, skips missing and same", () => {
+  const projects = [{ id: "p", sections: ["Alpha", "Beta"] }];
+  const tasks = [bt("a", { project_id: "p" }), bt("b", { project_id: "p", section: "Alpha" }), bt("c", { project_id: "p", section: "Beta" })];
+  const plan = L.TK_bulkSetPlan("set_section", { section: "alpha" }, tasks, projects);
+  assert.deepStrictEqual(plan.ok, ["a", "c"]);
+  assert.deepStrictEqual(plan.skipped, [{ id: "b", reason: "no_change" }]);
+  const missing = L.TK_bulkSetPlan("set_section", { section: "Nope" }, tasks, projects);
+  assert.deepStrictEqual(missing.skipped.map((s) => s.reason), ["section_missing", "section_missing", "section_missing"]);
+});
+t("plan: section across projects skips everything with a reason", () => {
+  const projects = [{ id: "p", sections: ["A"] }, { id: "q", sections: ["A"] }];
+  const plan = L.TK_bulkSetPlan("set_section", { section: "A" }, [bt("a", { project_id: "p" }), bt("b", { project_id: "q" })], projects);
+  assert.deepStrictEqual(plan.ok, []);
+  assert.strictEqual(plan.skipped.length, 2);
+});
+t("plan: no project is no_project, null clears, nothing to clear is no_change", () => {
+  const projects = [{ id: "p", sections: ["A"] }];
+  const plan = L.TK_bulkSetPlan("set_section", { section: "A" }, [bt("a", { project_id: "p" }), bt("b")], projects);
+  assert.strictEqual(plan.skipped.length, 2);
+  const only = L.TK_bulkSetPlan("set_section", { section: "A" }, [bt("b")], projects);
+  assert.deepStrictEqual(only.skipped, [{ id: "b", reason: "no_project" }]);
+  const clear = L.TK_bulkSetPlan("set_section", { section: null }, [bt("a", { project_id: "p", section: "A" }), bt("b")], projects);
+  assert.deepStrictEqual(clear.ok, ["a"]);
+  assert.deepStrictEqual(clear.skipped, [{ id: "b", reason: "no_change" }]);
+});
+t("plan: unknown kind skips with error", () => {
+  assert.deepStrictEqual(L.TK_bulkSetPlan("zzz", {}, [bt("a")], []).skipped, [{ id: "a", reason: "error" }]);
+});
+t("reasons: new codes have text; summary verbs for the new kinds", () => {
+  ["done_use_reopen", "no_project", "section_missing"].forEach((c) => {
+    assert.notStrictEqual(L.TK_bulkReasonText(c), L.TK_BULK_REASONS.error, c);
+  });
+  assert.strictEqual(L.TK_bulkSummary("set_priority", { done: ["a", "b"], skipped: [] }), "2 tasks updated.");
+  assert.strictEqual(L.TK_bulkSummary("set_section", { done: ["a"], skipped: [{ id: "b", reason: "no_change" }] }), "1 moved, 1 skipped.");
+  assert.strictEqual(L.TK_bulkSummary("set_status", { done: [], skipped: [{ id: "b", reason: "in_review" }] }), "Nothing changed: 1 skipped.");
+});
+t("skip groups: new reasons group like the rest", () => {
+  const g = L.TK_skipGroups([{ id: "1", reason: "no_project" }, { id: "2", reason: "no_project" }, { id: "3", reason: "section_missing" }], (id) => "T" + id);
+  assert.strictEqual(g[0].reason, "no_project");
+  assert.strictEqual(g[0].items.length, 2);
+  assert.strictEqual(g[0].text, "It isn't in a project.");
+});
+
 console.log(n + " checks passed");

@@ -88,7 +88,8 @@ function TK_vUseSlateView(email, scope) {
 }
 
 // props: view, onChange(patch), onReset(), compact (the Desk tab),
-// groupTour (data-tour of the Group by select; the Desk passes its own so a
+// viewsMenu (Slate app P3: the named saved views menu, passed only inside the
+// Slate app), groupTour (data-tour of the Group by select; the Desk passes its own so a
 // tip never finds two targets).
 function TK_SlateViewBar(props) {
   var v = props.view || { groupBy: "due", sort: null, chip: "" };
@@ -101,6 +102,7 @@ function TK_SlateViewBar(props) {
   };
   return (
     <div className={"tk-slate-viewbar" + (props.compact ? " is-compact" : "")} role="group" aria-label="Slate view" data-tour={props.barTour || undefined}>
+      {props.viewsMenu || null}
       <label className="tk-select-wrap tk-groupby" data-tour={props.groupTour === undefined ? "tk-groupby" : props.groupTour || undefined}>
         <span className="tk-groupby-label">Group by</span>
         <select
@@ -421,6 +423,8 @@ function TK_vMyTasksBody(props) {
   // exactly as before (TK_slateBuildView's default path is TK_myGroupsView).
   var svPair = TK_vUseSlateView(email);
   var sv = svPair[0];
+  // Slate app P3: named saved views, only inside the Slate app.
+  var slateApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
   var groupBy = sv.groupBy;
   var built =
     typeof TK_slateBuildView === "function"
@@ -715,7 +719,12 @@ function TK_vMyTasksBody(props) {
           )}
         </div>
       </div>
-      <TK_SlateViewBar view={sv} onChange={svPair[1]} onReset={svPair[2]} />
+      <TK_SlateViewBar
+        view={sv}
+        onChange={svPair[1]}
+        onReset={svPair[2]}
+        viewsMenu={slateApp && typeof TK_SavedViewsMenu === "function" ? <TK_SavedViewsMenu view={sv} onApply={svPair[1]} email={email} scope="slate" /> : null}
+      />
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
       <TK_BulkBar select={bulk} tasksById={byId} staff={bulkStaff} projects={projects} readOnly={!online} />

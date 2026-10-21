@@ -23,6 +23,8 @@
 //                                         TK_slateSizePreset, TK_slateDeepHref (and the app minimum in TK_popOutSize)
 //   Slate app bridge (S2)                 TK_slateForwardOk, TK_slateDockPick, TK_slateIsTasksHash,
 //                                         TK_slateDockHashOk, TK_slateAppUrl, TK_slateLaunchItems
+//   Slate app P3 (preview)                TK_validateViewName, TK_mergeSavedViews, TK_activeSavedViewId (named saved views);
+//                                         TK_bulkSetOffer, TK_bulkSetPlan, TK_bulkSameProject (bulk Status, Priority, Section)
 //
 // TK_logic.js loads first, so TK_compareTasks, TK_isOldDone and
 // TK_CLIENT_SECTION_ORDER are used when they exist. Under node (where only
@@ -1142,6 +1144,10 @@ var TK_BULK_REASONS = {
   has_open_requests: "It has open client requests.",
   bad_transition: "Its status can't change that way.",
   changed_since: "It changed after your action.",
+  // Slate app P3 (tk_bulk_set)
+  done_use_reopen: "It's done. Reopen it first.",
+  no_project: "It isn't in a project.",
+  section_missing: "Its project has no section by that name.",
   error: "Something went wrong with this one.",
 };
 
@@ -1157,6 +1163,9 @@ var TK_BULK_VERBS = {
   reassign: "reassigned",
   move_project: "moved",
   set_due: "rescheduled",
+  set_status: "updated",
+  set_priority: "updated",
+  set_section: "moved",
 };
 
 function TK__tasks(n) {
@@ -1260,6 +1269,147 @@ function TK_bulkDuePatch(choice, value) {
   return null;
 }
 
+// ---- Slate app P3: bulk Status, Priority and Section (app only) ----
+// The portal bar never offers these. Status: Done goes through the same Complete
+// path as the Complete button (review gate, recurring roll-forward); the three
+// open statuses go through tk_bulk_set, which runs tk_set_status per task.
+// Ready for review is not bulk-settable (it notifies reviewers). Section: only
+// when every selected task is in one project, from that project's own list.
+
+var TK_BULK_STATUS_CHOICES = [
+  { value: "todo", label: "To do" },
+  { value: "in_progress", label: "In progress" },
+  { value: "waiting_client", label: "Waiting on client" },
+  { value: "done", label: "Done" },
+];
+var TK_BULK_PRIORITY_CHOICES = [
+  { value: "high", label: "High" },
+  { value: "normal", label: "Normal" },
+  { value: "low", label: "Low" },
+];
+var TK_BULK_SECTION_MAX = 60;
+
+// -> { kind, patch } for TK_api.bulkRun, or null for a value that is not offered.
+function TK_bulkStatusRoute(value) {
+  if (value === "done") return { kind: "complete", patch: null };
+  if (value === "todo" || value === "in_progress" || value === "waiting_client") return { kind: "set_status", patch: { status: value } };
+  return null;
+}
+
+function TK_bulkPriorityRoute(value) {
+  return value === "high" || value === "normal" || value === "low" ? { kind: "set_priority", patch: { priority: value } } : null;
+}
+
+// value null / "" clears the section; a string must be 1-60 characters.
+function TK_bulkSectionRoute(value) {
+  if (value == null || value === "") return { kind: "set_section", patch: { section: null } };
+  if (typeof value !== "string") return null;
+  var v = value.trim();
+  if (!v || v.length > TK_BULK_SECTION_MAX) return null;
+  return { kind: "set_section", patch: { section: v } };
+}
+
+// One project shared by every selected task. why: "empty" (nothing selected),
+// "none" (some task has no project), "mixed" (more than one project).
+function TK_bulkSameProject(tasks) {
+  var list = (Array.isArray(tasks) ? tasks : []).filter(Boolean);
+  if (!list.length) return { ok: false, projectId: null, why: "empty" };
+  var id = null;
+  for (var i = 0; i < list.length; i++) {
+    var pid = list[i].project_id == null || list[i].project_id === "" ? null : String(list[i].project_id);
+    if (!pid) return { ok: false, projectId: null, why: "none" };
+    if (id === null) id = pid;
+    else if (id !== pid) return { ok: false, projectId: null, why: "mixed" };
+  }
+  return { ok: true, projectId: id, why: "" };
+}
+
+function TK_vProjectOf(projects, id) {
+  if (!projects || id == null) return null;
+  if (Array.isArray(projects)) {
+    for (var i = 0; i < projects.length; i++) if (projects[i] && String(projects[i].id) === String(id)) return projects[i];
+    return null;
+  }
+  return projects[id] || null;
+}
+
+// The sections the picker offers: that project's own list, trimmed and
+// de-duplicated (without regard to case), in the project's order.
+function TK_bulkSectionChoices(tasks, projects) {
+  var same = TK_bulkSameProject(tasks);
+  if (!same.ok) return [];
+  var p = TK_vProjectOf(projects, same.projectId);
+  var seen = {};
+  var out = [];
+  (p && Array.isArray(p.sections) ? p.sections : []).forEach(function (x) {
+    var v = x == null ? "" : String(x).trim();
+    if (!v || seen[v.toLowerCase()]) return;
+    seen[v.toLowerCase()] = 1;
+    out.push(v);
+  });
+  return out;
+}
+
+// What the bar offers for this selection. Status and Priority whenever
+// something is selected; Section only for a single shared project, and only
+// when there is a section to pick or one to clear.
+function TK_bulkSetOffer(tasks, projects) {
+  var list = (Array.isArray(tasks) ? tasks : []).filter(Boolean);
+  var same = TK_bulkSameProject(list);
+  var sections = TK_bulkSectionChoices(list, projects);
+  var anyHas = list.some(function (t) { return t.section != null && String(t.section) !== ""; });
+  return {
+    status: list.length > 0,
+    priority: list.length > 0,
+    section: same.ok && (sections.length > 0 || anyHas),
+    sectionWhy: same.ok ? "" : same.why,
+    sections: sections,
+  };
+}
+
+// What the server will most likely do with each selected task, for the
+// confirmation label. The server still decides.
+// kind: complete | set_status | set_priority | set_section.
+// -> { ok: [id], skipped: [{ id, reason }] }
+function TK_bulkSetPlan(kind, patch, tasks, projects) {
+  var out = { ok: [], skipped: [] };
+  var p = patch || {};
+  var list = (Array.isArray(tasks) ? tasks : []).filter(Boolean);
+  var sections = kind === "set_section" ? TK_bulkSectionChoices(list, projects) : [];
+  list.forEach(function (t) {
+    var id = String(t.id);
+    var st = TK_vStatus(t);
+    var reason = "";
+    if (kind === "complete") {
+      if (st === "done") reason = "already_done";
+    } else if (kind === "set_status") {
+      if (st === "done") reason = "done_use_reopen";
+      else if (st === "ready_for_review") reason = "in_review";
+      else if (st === p.status) reason = "no_change";
+    } else if (kind === "set_priority") {
+      if ((t.priority || "normal") === p.priority) reason = "no_change";
+    } else if (kind === "set_section") {
+      var cur = t.section == null || t.section === "" ? null : String(t.section);
+      if (p.section == null) {
+        if (cur === null) reason = "no_change";
+      } else if (!t.project_id) {
+        reason = "no_project";
+      } else {
+        var want = String(p.section).trim().toLowerCase();
+        var match = null;
+        sections.forEach(function (x) { if (match === null && x.toLowerCase() === want) match = x; });
+        if (match === null) reason = "section_missing";
+        else if (cur === match) reason = "no_change";
+      }
+    } else {
+      reason = "error";
+    }
+    if (reason) out.skipped.push({ id: id, reason: reason });
+    else out.ok.push(id);
+  });
+  return out;
+}
+
 // ---- Slate view: Group by, Sort, quick chips, saved view (month rhythm slice 0) ----
 // One control on the Slate page and on the Desk's Slate tab. With nothing
 // chosen the list is built exactly as before (TK_slateBuildView's default
@@ -1330,6 +1480,150 @@ function TK_slateViewRead(saved, legacyGroupBy) {
 function TK_isDefaultSlateView(v) {
   var n = TK_normalizeSlateView(v);
   return n.groupBy === "due" && !n.sort && !n.chip;
+}
+
+// ---- Slate app P3: named saved views (tk_saved_views, app only) ----
+// Many named views per person per scope, stored on the server. The older single
+// view (this browser's localStorage) stays as the built-in "Default" entry.
+
+var TK_SAVED_VIEW_MAX = 30;
+var TK_SAVED_VIEW_NAME_MAX = 60;
+var TK_SAVED_VIEW_DEFAULT_ID = "__default__";
+var TK_SAVED_VIEW_DEFAULT_NAME = "Default";
+
+var TK_VIEW_NAME_ERRORS = {
+  empty: "Give the view a name.",
+  too_long: "Keep the name to 60 characters or fewer.",
+  reserved: "Default is the built-in view. Pick another name.",
+  duplicate: "You already have a view with that name.",
+  too_many: "You can keep up to 30 saved views. Delete one first.",
+};
+
+function TK_viewNameErrorText(code) {
+  return Object.prototype.hasOwnProperty.call(TK_VIEW_NAME_ERRORS, code) ? TK_VIEW_NAME_ERRORS[code] : "Couldn't save that view. Try again.";
+}
+
+// Trim and collapse runs of white space, the way the server stores it.
+function TK_cleanViewName(raw) {
+  return (raw == null ? "" : String(raw)).replace(/\s+/g, " ").trim();
+}
+
+// existing: the saved rows ({ id, name }). exceptId: the row being renamed.
+// -> { ok: true, name } or { ok: false, error, text }
+function TK_validateViewName(raw, existing, exceptId) {
+  var name = TK_cleanViewName(raw);
+  var fail = function (code) { return { ok: false, error: code, text: TK_viewNameErrorText(code) }; };
+  if (!name) return fail("empty");
+  if (name.length > TK_SAVED_VIEW_NAME_MAX) return fail("too_long");
+  var low = name.toLowerCase();
+  if (low === TK_SAVED_VIEW_DEFAULT_NAME.toLowerCase()) return fail("reserved");
+  var rows = Array.isArray(existing) ? existing : [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (!r || r.isDefault) continue;
+    if (exceptId != null && String(r.id) === String(exceptId)) continue;
+    if (TK_cleanViewName(r.name).toLowerCase() === low) return fail("duplicate");
+  }
+  return { ok: true, name: name };
+}
+
+// Saved rows only (the Default entry does not count toward the 30).
+function TK_canAddSavedView(rows) {
+  var n = (Array.isArray(rows) ? rows : []).filter(function (r) { return r && !r.isDefault; }).length;
+  return n < TK_SAVED_VIEW_MAX;
+}
+
+function TK_nextViewPosition(rows) {
+  var max = 0;
+  (Array.isArray(rows) ? rows : []).forEach(function (r) {
+    var p = r && typeof r.position === "number" ? r.position : parseInt(r && r.position, 10);
+    if (p > max) max = p;
+  });
+  return max + 1;
+}
+
+// The Default entry first (the legacy view, or its baseline), then the saved
+// rows by position, oldest first, then name. Every view is normalized.
+// -> [{ id, name, view, isDefault, position }]
+function TK_mergeSavedViews(rows, defaultView) {
+  var saved = (Array.isArray(rows) ? rows : [])
+    .filter(function (r) { return r && r.id != null && TK_cleanViewName(r.name); })
+    .map(function (r) {
+      var pos = typeof r.position === "number" ? r.position : parseInt(r.position, 10);
+      return {
+        id: String(r.id),
+        name: TK_cleanViewName(r.name),
+        view: TK_normalizeSlateView(r.view),
+        isDefault: false,
+        position: isNaN(pos) ? 0 : pos,
+        created: r.created_at ? String(r.created_at) : "",
+      };
+    })
+    .sort(function (a, b) {
+      if (a.position !== b.position) return a.position - b.position;
+      if (a.created !== b.created) return a.created < b.created ? -1 : 1;
+      var an = a.name.toLowerCase();
+      var bn = b.name.toLowerCase();
+      if (an !== bn) return an < bn ? -1 : 1;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
+  var def = { id: TK_SAVED_VIEW_DEFAULT_ID, name: TK_SAVED_VIEW_DEFAULT_NAME, view: TK_normalizeSlateView(defaultView), isDefault: true, position: 0, created: "" };
+  return [def].concat(saved).map(function (e) {
+    return { id: e.id, name: e.name, view: e.view, isDefault: e.isDefault, position: e.position };
+  });
+}
+
+function TK_sameSlateView(a, b) {
+  var x = TK_normalizeSlateView(a);
+  var y = TK_normalizeSlateView(b);
+  return x.groupBy === y.groupBy && x.chip === y.chip &&
+    (x.sort ? x.sort.col + ":" + x.sort.dir : "") === (y.sort ? y.sort.col + ":" + y.sort.dir : "");
+}
+
+// The entry the current view matches, so the menu can mark it. A saved view
+// wins over Default when both match. null when none does.
+function TK_activeSavedViewId(merged, current) {
+  var list = Array.isArray(merged) ? merged : [];
+  var def = null;
+  for (var i = 0; i < list.length; i++) {
+    if (!TK_sameSlateView(list[i].view, current)) continue;
+    if (list[i].isDefault) def = list[i];
+    else return list[i].id;
+  }
+  return def ? def.id : null;
+}
+
+// The built-in "Default" entry is the person's older single view (this
+// browser). That view auto-saves, so before the first named view is applied the
+// app keeps a baseline copy of it under this key (never the server).
+var TK_SLATE_BASE_KEY = "mgb_tk_slate_base_v1";
+
+function TK_slateBaselineKey(email, scope) {
+  return TK_SLATE_BASE_KEY + ":" + (scope === "desk" ? "desk:" : "") + TK_vLower(email);
+}
+
+// What the Default entry applies. stored: the baseline copy (or null).
+// current: the live local view. rows: the saved named rows. With no baseline
+// the older view is whatever is live, unless that is just a named view being
+// shown (then Default is the plain default view).
+function TK_resolveDefaultView(stored, current, rows) {
+  if (stored && typeof stored === "object" && !Array.isArray(stored)) return TK_normalizeSlateView(stored);
+  var cur = TK_normalizeSlateView(current);
+  var list = Array.isArray(rows) ? rows : [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i] && TK_sameSlateView(list[i].view, cur)) return TK_normalizeSlateView(null);
+  }
+  return cur;
+}
+
+// Server error text -> a name-error code, for a friendly message.
+function TK_savedViewErrorCode(err) {
+  var m = String((err && (err.message || err.details || err.hint)) || err || "");
+  if (m.indexOf("tk_saved_views_owner_scope_name_uq") >= 0) return "duplicate";
+  if (m.indexOf("tk_too_many_views") >= 0) return "too_many";
+  if (m.indexOf("tk_name_reserved") >= 0) return "reserved";
+  if (m.indexOf("tk_saved_views_name_check") >= 0) return m.indexOf("character") >= 0 ? "too_long" : "empty";
+  return "";
 }
 
 // ctx: { email, today }. "mine_today": assigned to me, not done, not waiting
@@ -1936,6 +2230,31 @@ if (typeof module !== "undefined" && module.exports) {
     TK_skipGroups: TK_skipGroups,
     TK_isUndoKey: TK_isUndoKey,
     TK_bulkDuePatch: TK_bulkDuePatch,
+    TK_BULK_STATUS_CHOICES: TK_BULK_STATUS_CHOICES,
+    TK_BULK_PRIORITY_CHOICES: TK_BULK_PRIORITY_CHOICES,
+    TK_bulkStatusRoute: TK_bulkStatusRoute,
+    TK_bulkPriorityRoute: TK_bulkPriorityRoute,
+    TK_bulkSectionRoute: TK_bulkSectionRoute,
+    TK_bulkSameProject: TK_bulkSameProject,
+    TK_bulkSectionChoices: TK_bulkSectionChoices,
+    TK_bulkSetOffer: TK_bulkSetOffer,
+    TK_bulkSetPlan: TK_bulkSetPlan,
+    TK_SAVED_VIEW_MAX: TK_SAVED_VIEW_MAX,
+    TK_SAVED_VIEW_NAME_MAX: TK_SAVED_VIEW_NAME_MAX,
+    TK_SAVED_VIEW_DEFAULT_ID: TK_SAVED_VIEW_DEFAULT_ID,
+    TK_VIEW_NAME_ERRORS: TK_VIEW_NAME_ERRORS,
+    TK_viewNameErrorText: TK_viewNameErrorText,
+    TK_cleanViewName: TK_cleanViewName,
+    TK_validateViewName: TK_validateViewName,
+    TK_canAddSavedView: TK_canAddSavedView,
+    TK_nextViewPosition: TK_nextViewPosition,
+    TK_mergeSavedViews: TK_mergeSavedViews,
+    TK_sameSlateView: TK_sameSlateView,
+    TK_activeSavedViewId: TK_activeSavedViewId,
+    TK_savedViewErrorCode: TK_savedViewErrorCode,
+    TK_SLATE_BASE_KEY: TK_SLATE_BASE_KEY,
+    TK_slateBaselineKey: TK_slateBaselineKey,
+    TK_resolveDefaultView: TK_resolveDefaultView,
     TK_SLATE_GROUPS: TK_SLATE_GROUPS,
     TK_SLATE_SORTS: TK_SLATE_SORTS,
     TK_SLATE_CHIPS: TK_SLATE_CHIPS,

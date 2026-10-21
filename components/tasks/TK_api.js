@@ -1045,13 +1045,32 @@ var TK_api = (function () {
     });
   };
 
-  // hint: { ids, spawned } to re-read afterwards (the op's rows).
+  // Slate app P3: bulk Status / Priority / Section. patch: exactly one of
+  // { status: todo | in_progress | waiting_client } { priority } { section }
+  // (null clears). Done is not a value here: it goes through bulkComplete.
+  // The server logs these in tk_field_ops, so their undo is tk_undo_fields.
+  api.bulkSet = function (ids, patch) {
+    var list = idList(ids);
+    var p = {};
+    var src = patch || {};
+    ["status", "priority", "section"].forEach(function (k) {
+      if (Object.prototype.hasOwnProperty.call(src, k)) p[k] = src[k];
+    });
+    if (Object.keys(p).length !== 1) return Promise.reject(errOf("tk_bad_patch", "One change at a time.", { reason: "tk_bad_patch" }));
+    return bulkRpc("tk_bulk_set", { p_ids: list, p_patch: p, p_today: todayYmd() }, "bulkSet").then(function (r) {
+      return refreshMany(list).then(function () { return r; });
+    });
+  };
+
+  // hint: { ids, spawned } to re-read afterwards (the op's rows). hint.fields
+  // marks an op from bulkSet (undone with tk_undo_fields).
   api.undo = function (opId, hint) {
     var off = requireOnline();
     if (off) return off;
     if (!opId) return Promise.reject(errOf("tk_not_found", "Nothing to undo"));
+    var fieldsOp = !!(hint && hint.fields);
     return run(function (c) {
-      return c.rpc("tk_undo", { p_op: opId });
+      return c.rpc(fieldsOp ? "tk_undo_fields" : "tk_undo", { p_op: opId });
     }, { where: "undo" }).then(function (d) {
       var x = parseJson(d);
       var res = {
@@ -1108,7 +1127,7 @@ var TK_api = (function () {
     var live = {
       key: key,
       opId: r.opId,
-      hint: { ids: arr(hint && hint.ids), spawned: arr(hint && hint.spawned).concat(arr(r.spawned)) },
+      hint: { ids: arr(hint && hint.ids), spawned: arr(hint && hint.spawned).concat(arr(r.spawned)), fields: !!(hint && hint.fields) },
       until: Date.now() + UNDO_MS,
     };
     undoState.live = live;
@@ -1174,16 +1193,20 @@ var TK_api = (function () {
   };
 
   // Run a bulk action from the bar and toast its summary with Undo.
-  // kind: complete | reopen | delete | reassign | move_project | set_due.
+  // kind: complete | reopen | delete | reassign | move_project | set_due, and
+  // (Slate app P3) set_status | set_priority | set_section.
+  var FIELD_KINDS = { set_status: 1, set_priority: 1, set_section: 1 };
   api.bulkRun = function (kind, ids, patch) {
     var list = idList(ids);
+    var isField = Object.prototype.hasOwnProperty.call(FIELD_KINDS, kind);
     var call =
       kind === "complete" ? api.bulkComplete(list)
       : kind === "reopen" ? api.bulkReopen(list)
       : kind === "delete" ? api.bulkDelete(list)
+      : isField ? api.bulkSet(list, patch)
       : api.bulkUpdate(list, patch);
     return call.then(function (r) {
-      api.offerUndo(summaryText(kind, r), r, { ids: list });
+      api.offerUndo(summaryText(kind, r), r, isField ? { ids: list, fields: true } : { ids: list });
       return r;
     });
   };
@@ -2081,6 +2104,49 @@ var TK_api = (function () {
     return run(function (c) {
       return c.from("tk_settings").upsert({ key: key, value: value }, { onConflict: "key" });
     }, { where: "setSetting" });
+  };
+
+  // ---- Slate app P3: named saved views (supabase/tasks-slate-p3-views-bulk.sql) ----
+  // Many named views per person per scope; RLS shows a person only their own.
+  // The owner is stamped by the server, never sent. Used by TK_SavedViews.jsx.
+  var VIEW_COLS = "id, scope, name, view, position, created_at, updated_at";
+
+  api.savedViewsList = function (scope) {
+    var sc = scope || "slate";
+    return run(function (c) {
+      return c.from("tk_saved_views").select(VIEW_COLS).eq("scope", sc).order("position", { ascending: true }).order("created_at", { ascending: true });
+    }, { where: "savedViewsList" }).then(function (rows) { return arr(rows); });
+  };
+
+  api.savedViewCreate = function (scope, name, view, position) {
+    var off = requireOnline();
+    if (off) return off;
+    var row = { scope: scope || "slate", name: name, view: view || {}, position: position || 0 };
+    return run(function (c) {
+      return c.from("tk_saved_views").insert(row).select(VIEW_COLS).single();
+    }, { where: "savedViewCreate" });
+  };
+
+  // patch: any of { name, view, position }.
+  api.savedViewUpdate = function (id, patch) {
+    var off = requireOnline();
+    if (off) return off;
+    var src = patch || {};
+    var p = {};
+    ["name", "view", "position"].forEach(function (k) {
+      if (Object.prototype.hasOwnProperty.call(src, k)) p[k] = src[k];
+    });
+    return run(function (c) {
+      return c.from("tk_saved_views").update(p).eq("id", id).select(VIEW_COLS).single();
+    }, { where: "savedViewUpdate" });
+  };
+
+  api.savedViewDelete = function (id) {
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.from("tk_saved_views").delete().eq("id", id);
+    }, { where: "savedViewDelete" }).then(function () { return true; });
   };
 
   // Grace period for late tasks (supabase/tasks-grace-period.sql). The date

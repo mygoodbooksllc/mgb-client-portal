@@ -15,6 +15,14 @@
 // call, one Undo toast), then clears the selection. Rows the server skipped
 // (in review, waiting on the client, no access …) are never silent: the bar
 // stays up with an "N skipped" button that lists them by reason.
+//
+// Slate app P3: inside the Slate app only, the bar also has Status, Priority
+// and Section. Done goes through Complete (review gate, recurring); the other
+// statuses, priority and section go through tk_bulk_set (kinds set_status,
+// set_priority, set_section) with the same one Undo. Section is offered only
+// when every selected task is in one project, from that project's sections.
+// The controls carry class tk-p3-edit and are hidden in the compact and
+// sliver sizes, which are read-only.
 // ----------------------------------------------------------------------------
 
 // opts: { ids: the rows on screen, in focus order (collapsed groups and
@@ -206,6 +214,9 @@ function TK_BulkBar(props) {
   var setPickDate = dPair[1];
   var showDate = pickDate !== "";
 
+  // Slate app P3: Status, Priority and Section, only inside the Slate app.
+  var inApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
+
   var count = select.count || 0;
   // A new selection replaces the last skipped report.
   React.useEffect(
@@ -232,6 +243,7 @@ function TK_BulkBar(props) {
     .filter(Boolean);
   var counts = TK_bulkCounts(tasks);
   var off = busy || !!props.readOnly;
+  var offer = inApp && typeof TK_bulkSetOffer === "function" ? TK_bulkSetOffer(tasks, props.projects) : null;
 
   var run = function (kind, patch) {
     if (off || !ids.length) return;
@@ -433,6 +445,86 @@ function TK_BulkBar(props) {
               })}
             </select>
           </label>
+          {offer ? (
+            <span className="tk-bulk-set tk-p3-edit" role="group" aria-label="Change status, priority or section">
+              <label className="tk-bulk-pick">
+                <span className="tk-sr">Set status</span>
+                <select
+                  className="tk-select"
+                  value=""
+                  disabled={off}
+                  title="Done follows the usual Complete rules: tasks in review or waiting on the client are skipped."
+                  onChange={function (e) {
+                    var r = TK_bulkStatusRoute(e.target.value);
+                    if (r) run(r.kind, r.patch);
+                  }}
+                >
+                  <option value="">Status…</option>
+                  {TK_BULK_STATUS_CHOICES.map(function (c) {
+                    return (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label className="tk-bulk-pick">
+                <span className="tk-sr">Set priority</span>
+                <select
+                  className="tk-select"
+                  value=""
+                  disabled={off}
+                  onChange={function (e) {
+                    var r = TK_bulkPriorityRoute(e.target.value);
+                    if (r) run(r.kind, r.patch);
+                  }}
+                >
+                  <option value="">Priority…</option>
+                  {TK_BULK_PRIORITY_CHOICES.map(function (c) {
+                    return (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label className="tk-bulk-pick">
+                <span className="tk-sr">Set section</span>
+                <select
+                  className="tk-select"
+                  value=""
+                  disabled={off || !offer.section}
+                  title={
+                    offer.section
+                      ? undefined
+                      : offer.sectionWhy === "mixed"
+                        ? "Section needs every selected task to be in the same project."
+                        : offer.sectionWhy === "none"
+                          ? "Section needs tasks that are in a project."
+                          : "This project has no sections yet."
+                  }
+                  onChange={function (e) {
+                    var v = e.target.value;
+                    if (!v) return;
+                    var r = TK_bulkSectionRoute(v === "__none" ? null : v);
+                    if (r) run(r.kind, r.patch);
+                  }}
+                >
+                  <option value="">Section…</option>
+                  {offer.section ? <option value="__none">No section</option> : null}
+                  {offer.sections.map(function (name) {
+                    return (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+            </span>
+          ) : null}
           {showDate ? (
             <span className="tk-bulk-date">
               <label>
