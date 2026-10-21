@@ -1100,7 +1100,7 @@ const INFRA_LINKS = [
   {
     name: "Vercel",
     url: "https://vercel.com/dashboard",
-    note: "Deploys app.mygoodbooks.org from main · /desk redirects to /slate (vercel.json) · credentials: 1Password vault “MGB Infra”",
+    note: "Deploys app.mygoodbooks.org from main · /slate rewrite + slate.webmanifest for the Slate app (vercel.json); /desk redirects to /slate (the MGB Desk window is gone) · credentials: 1Password vault “MGB Infra”",
   },
   {
     name: "Google Cloud (OAuth)",
@@ -14012,7 +14012,12 @@ function resettableLocalStorageKeys() {
     // mgb_tk_slate_view_v1:<email> / :desk:<email>). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
     // mgb_wb_classic, mgb_nav_preview, mgb_rhythm_preview, mgb_slate_app_preview, and at launch
-    // mgb_slate_classic, mgb_nav_classic).
+    // mgb_slate_classic, mgb_nav_classic). The Slate app's own keys (all start with mgb_ so Reset local state
+    // clears them; none holds anything but a per-browser convenience): mgb_slate_app_preview (a flag, kept),
+    // mgb_slate_classic (opt-out, added at launch), mgb_slate_installed_v1 (set when the app is installed),
+    // mgb_tk_slate_base_v1 (the Default saved-view baseline), mgb_tk_manual_v1 (Manual order on or off per list),
+    // mgb_tk_layout_v1 (List or Board per list, P1), and sessionStorage mgb_slate_size_miss_v1 (size presets hidden
+    // this session after a resize miss; sessionStorage is not touched by Reset).
     return Object.keys(localStorage).filter(
       (k) =>
         (k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_")) &&
@@ -17168,12 +17173,13 @@ const USAGE_ACTION_LABELS = {
   "nav-reset": "Left sidebar reset to the role default",
   "nav-defaults-save": "Sidebar defaults saved for a role (admin)",
   "nav-widen": "Left sidebar width changed",
-  "desk-app-open": "MGB Desk window opened from the portal",
-  "desk-app-focus": "MGB Desk window brought to the front",
-  "desk-app-get": "Get MGB Desk (install) clicked",
-  "desk-app-install": "MGB Desk installed as an app",
-  "desk-app-dock": "Dock back from the MGB Desk window",
-  "desk-app-forward": "Links sent from the MGB Desk window to a portal tab",
+  // Retired 2026-10-21 (the MGB Desk window was deleted in Slate app S5): kept so old counts keep their names.
+  "desk-app-open": "MGB Desk window opened from the portal (retired)",
+  "desk-app-focus": "MGB Desk window brought to the front (retired)",
+  "desk-app-get": "Get MGB Desk (install) clicked (retired)",
+  "desk-app-install": "MGB Desk installed as an app (retired)",
+  "desk-app-dock": "Dock back from the MGB Desk window (retired)",
+  "desk-app-forward": "Links sent from the MGB Desk window to a portal tab (retired)",
   "palette-open": "Search opened (Ctrl+K / ⌘K)",
   "guide-search": "Guide searches",
   "guide-miss": "Guide searches with no result",
@@ -17197,6 +17203,8 @@ const USAGE_ACTION_LABELS = {
   "slate-app-open": "Slate app window opened from the portal",
   "slate-app-install": "Install Slate app clicked",
   "slate-app-forward": "Links sent from the Slate app to a portal window",
+  "slate-app-size": "Slate app: size preset clicked (Sliver, List, Full page)",
+  "slate-app-mode": "Slate app: window size mode changed (sliver, compact, regular, full)",
   "slate-sliver-start": "Slate app sliver: Start clicked",
   "slate-sliver-done": "Slate app sliver: Done clicked",
   "tasks-bulk-complete": "Bulk: tasks completed together",
@@ -26613,8 +26621,10 @@ function loadReferralPromo() {
 }
 
 const PAGE_META = {
-  // Label only (Usage Stats): the MGB Desk window (/desk).
-  "desk-app": { title: "MGB Desk window", subtitle: "The Desk in its own window" },
+  // Label only (Usage Stats): the retired MGB Desk window (/desk, deleted in Slate app S5; /desk now redirects to /slate).
+  "desk-app": { title: "MGB Desk window (retired)", subtitle: "The Desk in its own window" },
+  // Label only (Usage Stats): the Slate app (/slate), preview.
+  "slate-app": { title: "Slate app", subtitle: "Slate as its own app (preview)" },
   dashboard: {
     title: "Home",
     subtitle: "What needs you, and where things stand",

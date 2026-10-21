@@ -2,12 +2,12 @@
 title: How do I use the Desk?
 section: Getting started
 audience: staff
-keywords: [mgb desk, desk window, own window, pop-up window, popup, open mgb desk, dock back, blocked pop-up, workbench, desk, tasks open in the desk, task in the desk, back to desk, back button, f6, move between desk and page, esc goes back, drill in, slate, the desk, slate tab, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, right column, right side, rail, desk rail, info bar, bottom bar, right now, right now card, glance, waiting counts, page client, oldest wait, clean slate, late, done today, next up, qbo sync, chat bubble, messages icon, mentions, press d, d key, w key, resize, resize the desk, desk width, wider, narrower, drag the left edge, page stays usable, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
+keywords: [workbench, desk, tasks open in the desk, task in the desk, back to desk, back button, f6, move between desk and page, esc goes back, drill in, slate, the desk, slate tab, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, right column, right side, rail, desk rail, info bar, bottom bar, right now, right now card, glance, waiting counts, page client, oldest wait, clean slate, late, done today, next up, qbo sync, chat bubble, messages icon, mentions, press d, d key, w key, resize, resize the desk, desk width, wider, narrower, drag the left edge, page stays usable, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
 sort: 41
 ---
 The **Desk** (it was called the Workbench) sits on the right of every staff page, with an info bar along the bottom. Press **D** anywhere to open it (**W** no longer does): one list of everything that needs you, in order, with tabs for your **Inbox**, your **Slate** (it was called Tasks) and one **Client**. **Today** (the first place in the left rail; the address stays `#/today`) keeps its name and shows only the top of that list as a **Do next** card (always your own items, even while an admin has **Everyone** picked here); the full list stays here and in **Slate**.
 
-The Desk and the new Today are on for the whole team (since October 21). See [What's on my Today page?](#/help/home-page) and [What changed: the Desk, left sidebar and new look](#/help/new-look-and-sidebar). **MGB Desk** (the Desk in its own window, below) follows that same switch plus a switch of its own, so it shows up only once the owner turns it on.
+The Desk and the new Today are on for the whole team (since October 21). See [What's on my Today page?](#/help/home-page) and [What changed: the Desk, left sidebar and new look](#/help/new-look-and-sidebar).
 
 ### The four counts
 
@@ -147,20 +147,12 @@ Click **?** on Today's Do next card and pick **Keyboard shortcuts**. They work w
 
 Admins get **Mine** and **Everyone** next to the chips. **Everyone** shows every staff member's items, with whose each one is. Your choice is remembered.
 
-### Use MGB Desk in its own window
+### Want your list in a small window?
 
-**MGB Desk** is the Desk in a small window of its own that stays on top of your other tabs, so your list is always in view while you work in a client's books. It is on a computer only, and shows once the owner turns it on.
-
-1. Open the **Desk** menu and click **Open MGB Desk**. A window opens with your Inbox, Slate and Client tabs.
-2. Drag its edges to make it the size you like. It opens at that size next time.
-3. Click a row and the work opens in the portal tab you already have (it never takes over the small window). A task or a message thread you open from the window stays in the window as a drawer.
-4. Click **Dock back** to close the window and put the Desk back on the right of the portal.
-
-Open MGB Desk again while it is open and the same window comes to the front, never a second one. **Menu** at the top right has **Open full portal** and **Help**.
+The Desk lives on the right of the portal. For a small window of your own beside QuickBooks or on a second screen, use Slate's own window instead: see [Can I keep Slate in its own window?](#/help/tasks-own-window).
 
 ### Troubleshooting
 
-- **Blocked pop-up.** Your browser may ask before it lets the window open. Click the small blocked-window icon at the right end of the address bar, choose **Always allow pop-ups from app.mygoodbooks.org**, then click **Open MGB Desk** again.
 - **Something I expected isn't there.** The Desk and Today's Do next card only show clients you can open, and tasks waiting on the client stay on Slate. Check **Snoozed** too.
 - **It says Couldn't refresh.** Click **Retry**. The last list stays on screen meanwhile. **Offline** means your connection dropped; it refreshes when you're back.
 - **I'd rather have the old Today.** Click **?** on Today's Do next card and pick **Use classic Today in this browser**. Today then has **Switch back to the new Today** at the top. It only changes this browser. (Admins: it's also **Classic Today** under Dev Tools › Feature flags.)

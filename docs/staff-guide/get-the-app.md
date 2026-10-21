@@ -2,7 +2,7 @@
 title: How do I install MyGoodBooks as an app?
 section: Getting started
 audience: staff
-keywords: [install mgb desk, get mgb desk, mgb desk app, second app, install banner, install, app, desktop app, computer, chrome, edge, install icon, address bar, pwa, window, start menu, dock, get the app, phone, iphone, android, website, uninstall]
+keywords: [install banner, install, app, desktop app, computer, chrome, edge, install icon, address bar, pwa, window, start menu, dock, get the app, phone, iphone, android, website, uninstall]
 sort: 25
 ---
 On your computer you can install MyGoodBooks as an app. It opens in its own window with no browser tabs, and gets its own icon in your Start menu, Launchpad or Applications folder. It's the same portal. Only signed-in staff are offered the install.
@@ -33,17 +33,5 @@ The code only works if you've signed in to the portal with Google at least once.
 ### Troubleshooting
 
 - **I don't see the install icon.** Sign in first and use Chrome or Edge on a computer. It doesn't show if the app is already installed (you'll see an *Open in app* icon instead).
+- **I installed MGB Desk during the preview.** That preview window is gone: the Desk itself is on the right of the portal (press **D**). Remove the old app the same way: open its **⋮** (Chrome) or **…** (Edge) menu and choose **Uninstall MGB Desk**.
 - **I want to remove it.** In Chrome's app window, open the **⋮** menu and choose **Uninstall MyGoodBooks**. In Edge's app window, open the **…** menu, then **App settings**, then **Uninstall**. You can also go to `chrome://apps` or `edge://apps`, right-click MyGoodBooks and choose to remove it.
-
-### Install MGB Desk
-
-**MGB Desk** is the Desk in its own window, and you can install it as a second app next to MyGoodBooks. It has its own icon, so you can open it from the Dock or Start menu without opening the portal first. It shows once the owner turns it on, in Chrome or Edge on a computer.
-
-1. Open the **Desk** menu and click **Download MGB Desk**, or open **Open MGB Desk** and use the **Install** banner at the top of the window.
-2. Click **Install** and confirm.
-3. Next time, open **MGB Desk** from the Start menu (Windows) or Launchpad or Applications (Mac), or pin it to your taskbar or Dock.
-
-It is separate from the MyGoodBooks app: installing one doesn't install the other, and you can have both open at once. Rows you click in MGB Desk open in the portal.
-
-- **No install button.** Use Chrome or Edge on a computer and sign in first. If you only see **Open MGB Desk**, the owner hasn't turned the installable version on for you yet.
-- **Already installed.** The menu then shows only **Open MGB Desk**, which opens the app. To remove it, open the **⋮** (Chrome) or **…** (Edge) menu in the MGB Desk window and choose **Uninstall MGB Desk**.

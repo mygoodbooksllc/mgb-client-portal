@@ -1,0 +1,19 @@
+DRAFT - not live until the owner flips tk_settings.slate_app_enabled. Not published: nothing here is in docs/staff-guide/whats-new.md or the guide table.
+
+AT LAUNCH: paste the entry below at the top of docs/staff-guide/whats-new.md (under the intro, with the launch date in place of DATE), update the article keywords, sync with a targeted guide SQL (upserts only), and add the announcement entry from drafts/tour-slate-app.md. Also replace tasks-own-window.md with drafts/staff-guide-slate-app.md. Owner decides the wording of the next-visit notice (the one-sentence summary at the end of this file).
+
+--- whats-new.md entry ---
+
+### DATE: Slate is now its own app
+
+- **Open Slate app.** On the Slate page and on the Desk's **Slate** tab, **Open Slate app** opens Slate in a window of its own. It replaces **Open in own window**. The portal never opens it for you, and Slate inside the portal works as before.
+- **Install it.** **Install Slate app** adds Slate to your Dock or Start menu in Chrome or Edge on a computer, as a second app next to MyGoodBooks.
+- **Four sizes.** Shrink the window to a **sliver** with just your current task and **Start** and **Done**, a **compact** list, a **regular** list with a rail, or a **full** page with a detail pane. The **Sliver**, **List** and **Full page** buttons jump to a size.
+- **Shape your work.** In the app: named **Views** you can save and switch, bulk **Status**, **Priority** and **Section**, **Manual order** by dragging rows (or Alt+Up and Alt+Down), and a **List | Board** switch with columns by status or section.
+- **Links open in the portal.** A client page, chat or file opens in your portal window and the app stays put.
+
+See [How do I use the Slate app?](#/help/tasks-own-window) and [How do I install MyGoodBooks as an app?](#/help/get-the-app).
+
+--- next-visit notice (one sentence; announcements.js summary) ---
+
+Slate can now open as its own app: a sliver with your current task, a full page with a detail pane, and views, bulk edits, manual order and a board for shaping your work. Look for Open Slate app on the Slate page.

@@ -1438,8 +1438,12 @@ function TOUR_tasksSteps() {
       // the page yet; wait keeps the step (centered if it never shows).
       wait: true,
       title: "Its own window",
+      // With the Slate app on for this person (preview flag or firm switch;
+      // TK_slateAppOn in TK_SlateBridge.jsx) the same button reads Open Slate app.
       body: () =>
-        "Open in own window puts Slate in a slim window beside your work. Dock in portal brings it back here.",
+        typeof TK_slateAppOn === "function" && TK_slateAppOn()
+          ? "Open Slate app opens Slate as its own app, with its own window and icon, beside your work. Links you click there open in this portal window."
+          : "Open in own window puts Slate in a slim window beside your work. Dock in portal brings it back here.",
     },
     {
       id: "tk-client",

@@ -529,7 +529,11 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "tasks",
     target: "tk-popout",
     snug: true,
-    text: "Open in own window keeps Slate in a slim window beside your work. Dock in portal brings it back.",
+    // With the Slate app on for this person the button reads Open Slate app (TK_slateAppOn, TK_SlateBridge.jsx).
+    text: () =>
+      typeof TK_slateAppOn === "function" && TK_slateAppOn()
+        ? "Open Slate app opens Slate as its own app beside your work. Links you click there open in this portal window."
+        : "Open in own window keeps Slate in a slim window beside your work. Dock in portal brings it back.",
     slug: "tasks-own-window",
     ready: () => !TIPS_touch(),
   },
