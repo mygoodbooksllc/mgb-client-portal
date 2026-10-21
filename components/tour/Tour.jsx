@@ -160,6 +160,8 @@
 //   wb-rail-add      the rail's + (quick add) at its foot
 //   wb-desk-handle   the open Desk column's width grip on its left edge
 //                    (WB_Hub.jsx), only while the Desk is open, wider than 760px
+//   wb-desk-menu     the open Desk header's More menu (Open MGB Desk, Get MGB Desk),
+//                    only while MGB Desk is on (WB_DeskApp.jsx)
 //   wb-taskview      the task showing in the Desk (WB_Hub.jsx), only while a
 //                    task is open there (Desk on)
 //   wb-back          its Back button at the top left of the task
@@ -1097,6 +1099,21 @@ function TOUR_bookkeeperSteps(ctx) {
     TOUR_searchStep(today),
     TOUR_helpStep(),
     {
+      // MGB Desk in its own window: only once it is on for this person and the
+      // Desk is open (the menu lives in the open Desk's header).
+      id: "desk-window",
+      when: () => {
+        try {
+          return typeof WB_store !== "undefined" && !!WB_store.getState().appOn;
+        } catch (e) {
+          return false;
+        }
+      },
+      targets: ["wb-desk-menu"],
+      title: "MGB Desk in its own window",
+      body: () => "Open MGB Desk in its own window from this menu. It stays on top of your other tabs, and the rows you click open in the portal.",
+    },
+    {
       id: "done",
       title: "You're ready",
       body: () =>
@@ -1200,6 +1217,21 @@ function TOUR_adminSteps(ctx) {
         "Today covers every client you can open, and admins can open them all: access and upgrade requests under Waiting on others, clients needing attention, and birthdays and work anniversaries a week ahead in This week, which also lists pricing milestones to review.",
     },
     {
+      // MGB Desk in its own window: only once it is on for this person and the
+      // Desk is open (the menu lives in the open Desk's header).
+      id: "desk-window",
+      when: () => {
+        try {
+          return typeof WB_store !== "undefined" && !!WB_store.getState().appOn;
+        } catch (e) {
+          return false;
+        }
+      },
+      targets: ["wb-desk-menu"],
+      title: "MGB Desk in its own window",
+      body: () => "Open MGB Desk in its own window from this menu. It stays on top of your other tabs, and the rows you click open in the portal.",
+    },
+    {
       id: "done",
       title: "That's the admin side",
       body: () =>
@@ -1240,6 +1272,21 @@ function TOUR_tempAdminSteps(ctx) {
       press: true,
       title: "Settings › Firm settings",
       body: () => "Task templates (read-only), Client roster, Usage stats and Developer tools.",
+    },
+    {
+      // MGB Desk in its own window: only once it is on for this person and the
+      // Desk is open (the menu lives in the open Desk's header).
+      id: "desk-window",
+      when: () => {
+        try {
+          return typeof WB_store !== "undefined" && !!WB_store.getState().appOn;
+        } catch (e) {
+          return false;
+        }
+      },
+      targets: ["wb-desk-menu"],
+      title: "MGB Desk in its own window",
+      body: () => "Open MGB Desk in its own window from this menu. It stays on top of your other tabs, and the rows you click open in the portal.",
     },
     {
       id: "done",
@@ -1329,6 +1376,21 @@ function TOUR_amSteps(ctx) {
       title: "New clients",
       body: () =>
         "A new client starts in Firm settings › Client roster: name, type, plan, bookkeeper and account manager. Then set their hours budget and confirm their pricing milestone on their Milestone tab.",
+    },
+    {
+      // MGB Desk in its own window: only once it is on for this person and the
+      // Desk is open (the menu lives in the open Desk's header).
+      id: "desk-window",
+      when: () => {
+        try {
+          return typeof WB_store !== "undefined" && !!WB_store.getState().appOn;
+        } catch (e) {
+          return false;
+        }
+      },
+      targets: ["wb-desk-menu"],
+      title: "MGB Desk in its own window",
+      body: () => "Open MGB Desk in its own window from this menu. It stays on top of your other tabs, and the rows you click open in the portal.",
     },
     {
       id: "done",

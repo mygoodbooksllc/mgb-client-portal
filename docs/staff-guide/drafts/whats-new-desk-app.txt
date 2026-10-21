@@ -1,0 +1,7 @@
+DRAFT, not published. Paste at the top of docs/staff-guide/whats-new.md (under the intro) when the owner flips tk_settings.desk_app_enabled. Launch-kit step: also add the next-visit notice and tour step.
+
+### DATE: MGB Desk can open in its own window
+
+- **Open MGB Desk.** In the **Desk** menu, **Open MGB Desk** opens your list in a small window that stays on top of your other tabs. Drag it to the size you like.
+- **Rows open in the portal.** Click a row and the work opens in the portal tab you already have. **Dock back** closes the window and puts the Desk back on the right.
+- **Install it.** **Get MGB Desk** installs the window as its own app, with its own icon, in Chrome or Edge on a computer. See [How do I use the Desk?](#/help/workbench) and [How do I install MyGoodBooks as an app?](#/help/get-the-app).
