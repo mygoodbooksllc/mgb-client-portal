@@ -169,7 +169,35 @@ end $$;
 select pg_temp.as_user(pg_temp.ctx('a1'));
 delete from tk_saved_views where name = 'Renamed' and owner_email = pg_temp.ctx('a1');
 select pg_temp.ok(not exists (select 1 from tk_saved_views where name = 'Renamed' and owner_email = pg_temp.ctx('a1')), 'owner deletes their own view');
+-- p3 fixes: 120 per person across every scope (slate 29 + desk 1 exist)
+insert into tk_saved_views (scope, name, view) select 'desk', 'Cap ' || g, '{}' from generate_series(1, 29) g;
+insert into tk_saved_views (scope, name, view) select 'scope_c', 'Cap ' || g, '{}' from generate_series(1, 30) g;
+insert into tk_saved_views (scope, name, view) select 'scope_d', 'Cap ' || g, '{}' from generate_series(1, 30) g;
+insert into tk_saved_views (scope, name, view) values ('scope_e', 'The 120th', '{}');
+select pg_temp.expect_err($$insert into tk_saved_views (scope, name, view) values ('scope_e', 'The 121st', '{}')$$,
+                          'tk_too_many_views', 'p3 fixes: the 121st view across scopes is refused');
 select pg_temp.as_user(null);
+
+-- p3 fixes: a signed-in person who is not staff (a client) gets nothing
+select pg_temp.as_user('p3-self-test-client@example.invalid');
+select pg_temp.expect_err($$select public.tk_bulk_set(array[gen_random_uuid()], '{"priority":"low"}')$$, 'tk_forbidden', 'p3 fixes: a non-staff caller cannot bulk set');
+select pg_temp.expect_err($$select public.tk_undo_fields(gen_random_uuid())$$, 'tk_forbidden', 'p3 fixes: a non-staff caller cannot undo');
+select pg_temp.as_user(null);
+do $$
+declare v_ok boolean := false; v_n bigint;
+begin
+  perform set_config('request.jwt.claims', json_build_object('sub', gen_random_uuid(), 'email', 'p3-self-test-client@example.invalid',
+                     'role', 'authenticated', 'app_metadata', json_build_object('provider', 'google'))::text, true);
+  set local role authenticated;
+  select count(*) into v_n from public.tk_saved_views;
+  begin
+    insert into public.tk_saved_views (scope, name, view) values ('slate', 'Client view', '{}');
+  exception when insufficient_privilege then v_ok := true;
+  end;
+  reset role;
+  if v_n <> 0 or not v_ok then raise exception 'SELF-TEST FAILED: a non-staff caller read (%) or wrote saved views', v_n; end if;
+  raise notice 'ok: p3 fixes: a non-staff caller cannot read or write saved views';
+end $$;
 
 -- 2. Bulk setup ----------------------------------------------------------------
 select pg_temp.as_user(pg_temp.ctx('a1'));

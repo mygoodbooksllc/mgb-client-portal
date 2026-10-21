@@ -54,6 +54,17 @@ function TK_SavedViewsMenu(props) {
   });
   var base = bPair[0];
   var setBase = bPair[1];
+  // Re-read the baseline when the person (or scope) changes, e.g. the email
+  // arriving after the first render, so Default never shows a stale copy.
+  var keyRef = React.useRef(baseKey);
+  React.useEffect(
+    function () {
+      if (keyRef.current === baseKey) return;
+      keyRef.current = baseKey;
+      setBase(TK_vLsGet(baseKey, null));
+    },
+    [baseKey],
+  );
   var pPair = React.useState(null); // { mode: "new" | "rename" | "delete", id, name }
   var panel = pPair[0];
   var setPanel = pPair[1];
