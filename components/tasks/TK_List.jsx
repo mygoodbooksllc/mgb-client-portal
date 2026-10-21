@@ -345,6 +345,9 @@ function TK_vSectionsModal(props) {
   var ePair = React.useState("");
   var err = ePair[0];
   var setErr = ePair[1];
+  // Slate app compact: read-only with "Make the window wider to edit".
+  var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
+  var RO = typeof TK_SlateReadOnly === "function" ? TK_SlateReadOnly : React.Fragment;
   var setAt = function (i, v) {
     var n = rows.slice();
     n[i] = v;
@@ -366,7 +369,7 @@ function TK_vSectionsModal(props) {
   };
   var save = function (e) {
     if (e) e.preventDefault();
-    if (busy) return;
+    if (busy || !slateWide) return;
     var clean = typeof TK_parseSectionsText === "function" ? TK_parseSectionsText(rows.join("\n")) : rows.filter(Boolean);
     setBusy(true);
     setErr("");
@@ -394,6 +397,7 @@ function TK_vSectionsModal(props) {
         </div>
         <div className="modal-body tk-form">
           <p className="tk-muted tk-form-note">Tasks keep their section name. A task in a section you remove shows under its old name until you move it.</p>
+          <RO>
           <ol className="tk-section-list">
             {rows.map(function (r, i) {
               return (
@@ -454,6 +458,7 @@ function TK_vSectionsModal(props) {
             <TK_vIcon name="plus" size={14} />
             <span>Add section</span>
           </button>
+          </RO>
           {err ? (
             <p className="tk-field-error" role="alert">
               {err}
@@ -464,7 +469,7 @@ function TK_vSectionsModal(props) {
           <button type="button" className="btn-secondary" onClick={props.onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary" disabled={busy}>
+          <button type="submit" className="btn-primary" disabled={busy || !slateWide}>
             {busy ? "Saving…" : "Save sections"}
           </button>
         </div>
@@ -1057,7 +1062,7 @@ function TK_vListBody(props) {
   var isAdmin = !!props.isAdmin;
   var today = TK_vToday();
   var width = TK_vUseWidth();
-  var phone = width <= 760;
+  var phone = typeof TK_useSlatePhone === "function" ? TK_useSlatePhone(width) : width <= 760;
   var online = TK_vUseOnline();
   var touch = TK_vUseTouch();
   var staff = TK_vUseStaff(true);
@@ -1210,17 +1215,20 @@ function TK_vListBody(props) {
 
   // P4-3: multi-select (schema 12+ only; v / Shift+V, checkbox, Shift+click).
   // Only rows on screen stay selected (a collapsed section drops out).
+  // Slate app full mode: the task sits in the pane, so the list keeps its keys.
+  var keysOn = typeof TK_useListKeysOn === "function" ? TK_useListKeysOn(drawerId) : !drawerId;
+  var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
   var bulk = TK_useBulkSelect({
     ids: ids,
-    enabled: !readOnly,
-    keys: !drawerId,
+    enabled: !readOnly && slateWide,
+    keys: keysOn,
   });
 
   var keys = TK_useKeys({
     ids: ids,
     focusedId: focusedId,
     setFocusedId: setFocusedId,
-    enabled: !drawerId,
+    enabled: keysOn,
     onSelect: bulk.ready ? bulk.toggle : undefined,
     onOpen: function (id) {
       TK_vOpenTask(id, { from: "keys" });
@@ -1545,9 +1553,13 @@ function TK_vSearchBody(props) {
   var drawerId = TK_vUseStore(function (s) {
     return s ? s.drawerId : null;
   });
-  var qPair = React.useState("");
+  // The Slate app bar's search box hands its words over (TK_SlateModes.jsx).
+  var qPair = React.useState(typeof TK_slateTakeSearch === "function" ? TK_slateTakeSearch : "");
   var q = qPair[0];
   var setQ = qPair[1];
+  React.useEffect(function () {
+    return typeof TK_slateOnSearch === "function" ? TK_slateOnSearch(setQ) : undefined;
+  }, []);
   var rPair = React.useState({ q: "", rows: [], loading: false, error: null });
   var res = rPair[0];
   var setRes = rPair[1];
@@ -1639,11 +1651,13 @@ function TK_vSearchBody(props) {
     if (p && p.id) projectNames[p.id] = p.name || "";
   });
 
+  // Slate app full mode: the task sits in the pane, so the list keeps its keys.
+  var keysOn = typeof TK_useListKeysOn === "function" ? TK_useListKeysOn(drawerId) : !drawerId;
   var keys = TK_useKeys({
     ids: ids,
     focusedId: focusedId,
     setFocusedId: setFocusedId,
-    enabled: !drawerId,
+    enabled: keysOn,
     onOpen: function (id) {
       TK_vOpenTask(id, { from: "search" });
     },

@@ -1,0 +1,237 @@
+/* ---------------------------------------------------------------------------
+   tk-slate.css — the Slate app's size modes (S3). Contract: TK_SlateModes.jsx.
+   Every rule keys off .tk-m-* on .tk-app.is-shell, html.tk-slate-m-* or
+   @container slate, all set only inside the Slate app, so the portal page
+   and the app-off shell never match anything here.
+   Old width @media rules elsewhere are guarded with
+   :where(html:not(.tk-slate-wide)); new width rules that can match inside
+   the shell need the same guard.
+   --------------------------------------------------------------------------- */
+
+.tk-app.is-shell.tk-m-sliver,
+.tk-app.is-shell.tk-m-compact,
+.tk-app.is-shell.tk-m-regular,
+.tk-app.is-shell.tk-m-full {
+  container: slate / inline-size;
+}
+
+/* ---- regular: a 220px rail ------------------------------------------------- */
+
+.tk-app.is-shell.tk-m-regular > .tk-app-rail {
+  flex-basis: 220px;
+  width: 220px;
+}
+
+/* ---- full: rail | list | detail pane --------------------------------------- */
+
+.tk-app.is-shell.tk-m-full {
+  display: grid;
+  /* The list's 480px floor gives way just above the 1100px edge (and the
+     1084px hysteresis floor), so the three columns never overflow. */
+  grid-template-columns: 240px minmax(min(480px, calc(100% - 240px - 400px - 32px)), 1fr) clamp(400px, 34%, 600px);
+  gap: 16px;
+  align-items: start;
+}
+
+.tk-app.is-shell.tk-m-full > .tk-app-rail {
+  width: auto;
+  min-width: 0;
+}
+
+.tk-app.is-shell.tk-m-full > .tk-app-main {
+  min-width: 0;
+}
+
+.tk-slate-pane {
+  position: sticky;
+  top: calc(var(--tk-sticky-top, 0px) + 8px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: calc(100vh - var(--tk-sticky-top, 0px) - 32px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.tk-slate-pane-empty {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.tk-slate-pane-empty p {
+  margin: 0;
+}
+
+.tk-slate-pane-empty p:first-child {
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.tk-slate-pane-slot {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tk-slate-pane-slot:not(:empty) {
+  flex: 1 1 auto;
+}
+
+.tk-slate-pane-task {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  outline: none;
+  animation: tk-slate-pane-in 120ms ease-out;
+}
+
+.tk-slate-pane-task:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.tk-slate-pane-task .tk-dwc {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@keyframes tk-slate-pane-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-slate-pane-task {
+    animation: none;
+  }
+}
+
+/* ---- sliver: the list stays mounted, hidden; S4 fills the slot -------------- */
+
+.tk-app.is-shell.tk-m-sliver > .tk-app-rail,
+.tk-app.is-shell.tk-m-sliver > .tk-app-main {
+  display: none;
+}
+
+.tk-app.is-shell.tk-m-sliver {
+  padding: 8px;
+}
+
+.tk-sliver-slot {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  outline: none;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.tk-sliver-slot p {
+  margin: 0;
+}
+
+.tk-app.is-shell.tk-shape-strip .tk-sliver-slot {
+  flex-direction: row;
+  align-items: center;
+}
+
+/* ---- compact: read-only Templates, Manage and Sections ---------------------- */
+
+fieldset.tk-slate-ro {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tk-slate-wider {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.tk-slate-wider > span {
+  flex: 1 1 auto;
+}
+
+/* ---- the bar: search box, + Add, size buttons ------------------------------- */
+
+.tk-slate-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--referral-border);
+  border-radius: 8px;
+  color: var(--sidebar-text);
+}
+
+.tk-slate-search:focus-within {
+  border-color: var(--sidebar-text-muted);
+}
+
+.tk-slate-search-input {
+  width: clamp(120px, 18vw, 240px);
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--sidebar-text-active);
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+
+.tk-slate-search-input::placeholder {
+  color: var(--sidebar-text-muted);
+}
+
+.tk-slate-sizes {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.tk-slate-size {
+  padding: 0 8px;
+  font-size: 12.5px;
+}
+
+html.tk-slate-m-compact .tk-sbar-add span,
+html.tk-slate-m-sliver .tk-sbar-add span {
+  display: none;
+}
+
+/* A sliver strip has no room for the bar's extras. */
+html.tk-slate-m-sliver .tk-sbar-follow-wrap,
+html.tk-slate-m-sliver .tk-sbar-dock {
+  display: none;
+}

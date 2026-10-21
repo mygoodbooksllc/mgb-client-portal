@@ -1134,57 +1134,58 @@
   .tk-dw .tcl-panel { margin-left: 0; }
 }
 
+/* Slate app S3: guarded off the app's regular and full modes (TK_SlateModes.jsx). */
 @media (max-width: 760px) {
-  .tk-dw {
+  :where(html:not(.tk-slate-wide)) .tk-dw {
     width: 100vw;
     border-left: 0;
   }
 
-  .tk-dw-scrim { background: transparent; }
+  :where(html:not(.tk-slate-wide)) .tk-dw-scrim { background: transparent; }
 
-  body.tk-drawer-open { overflow: hidden; }
+  :where(html:not(.tk-slate-wide)) body.tk-drawer-open { overflow: hidden; }
 
-  .tk-dw-head { padding: 10px 16px; }
-  .tk-dw-body { padding: 12px 16px 20px; }
-  .tk-dw-foot { padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); }
-  .tk-dw-sop { padding: 10px 16px 16px; }
+  :where(html:not(.tk-slate-wide)) .tk-dw-head { padding: 10px 16px; }
+  :where(html:not(.tk-slate-wide)) .tk-dw-body { padding: 12px 16px 20px; }
+  :where(html:not(.tk-slate-wide)) .tk-dw-foot { padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); }
+  :where(html:not(.tk-slate-wide)) .tk-dw-sop { padding: 10px 16px 16px; }
 
-  .tk-dw-fields {
+  :where(html:not(.tk-slate-wide)) .tk-dw-fields {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
   }
 
-  .tk-dw-label { padding-top: 8px; }
-  .tk-dw-fields .tk-dw-value { margin-bottom: 4px; }
-  .tk-dw-grid { gap: 4px; }
-  .tk-dw-gf > .tk-dw-label { flex-basis: 96px; }
+  :where(html:not(.tk-slate-wide)) .tk-dw-label { padding-top: 8px; }
+  :where(html:not(.tk-slate-wide)) .tk-dw-fields .tk-dw-value { margin-bottom: 4px; }
+  :where(html:not(.tk-slate-wide)) .tk-dw-grid { gap: 4px; }
+  :where(html:not(.tk-slate-wide)) .tk-dw-gf > .tk-dw-label { flex-basis: 96px; }
 
-  .tk-dw-icon-btn,
-  .tk-dw-tab,
-  .tk-qa-token-x,
-  .tk-qa-suggest-opt,
-  .tk-qa-suggest-skip,
-  .tk-dw-menu-item {
+  :where(html:not(.tk-slate-wide)) .tk-dw-icon-btn,
+  :where(html:not(.tk-slate-wide)) .tk-dw-tab,
+  :where(html:not(.tk-slate-wide)) .tk-qa-token-x,
+  :where(html:not(.tk-slate-wide)) .tk-qa-suggest-opt,
+  :where(html:not(.tk-slate-wide)) .tk-qa-suggest-skip,
+  :where(html:not(.tk-slate-wide)) .tk-dw-menu-item {
     min-width: 40px;
     min-height: 40px;
   }
 
-  .tk-dw-input,
-  .tk-dw-select,
-  .tk-dw-textarea,
-  .tk-dw-btn-sm,
-  .tk-dw-check {
+  :where(html:not(.tk-slate-wide)) .tk-dw-input,
+  :where(html:not(.tk-slate-wide)) .tk-dw-select,
+  :where(html:not(.tk-slate-wide)) .tk-dw-textarea,
+  :where(html:not(.tk-slate-wide)) .tk-dw-btn-sm,
+  :where(html:not(.tk-slate-wide)) .tk-dw-check {
     min-height: 40px;
     font-size: 16px; /* keeps iOS from zooming into the field */
   }
 
-  .tk-dw-tab { flex: 1 1 0; }
+  :where(html:not(.tk-slate-wide)) .tk-dw-tab { flex: 1 1 0; }
 
-  .tk-cm-hint { display: none; }
+  :where(html:not(.tk-slate-wide)) .tk-cm-hint { display: none; }
 
-  .modal-overlay:has(> .modal-panel.tk-qa) { padding: 0; }
+  :where(html:not(.tk-slate-wide)) .modal-overlay:has(> .modal-panel.tk-qa) { padding: 0; }
 
-  .modal-panel.tk-qa {
+  :where(html:not(.tk-slate-wide)) .modal-panel.tk-qa {
     max-width: none;
     width: 100%;
     height: 100%;
@@ -1193,16 +1194,16 @@
     padding: 16px;
   }
 
-  .tk-qa-fields { grid-template-columns: minmax(0, 1fr); }
+  :where(html:not(.tk-slate-wide)) .tk-qa-fields { grid-template-columns: minmax(0, 1fr); }
 
-  .tk-qa-foot {
+  :where(html:not(.tk-slate-wide)) .tk-qa-foot {
     flex-wrap: wrap;
     margin-top: auto;
     padding-top: 12px;
   }
 
-  .tk-qa-foot .btn-primary,
-  .tk-qa-foot .btn-secondary {
+  :where(html:not(.tk-slate-wide)) .tk-qa-foot .btn-primary,
+  :where(html:not(.tk-slate-wide)) .tk-qa-foot .btn-secondary {
     flex: 1 1 auto;
     min-height: 44px;
   }

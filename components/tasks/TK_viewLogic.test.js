@@ -1494,6 +1494,68 @@ t("slateLaunchItems: open, install, installed, phone", () => {
   assert.deepStrictEqual(I({ canInstall: true, mobile: true }), []);
   assert.deepStrictEqual(I(undefined), ["open:Open Slate app"]);
 });
+t("slateTaskHost: pane in full, drawer in compact and regular, none in a sliver", () => {
+  assert.strictEqual(L.TK_slateTaskHost("full"), "pane");
+  assert.strictEqual(L.TK_slateTaskHost("regular"), "drawer");
+  assert.strictEqual(L.TK_slateTaskHost("compact"), "drawer");
+  assert.strictEqual(L.TK_slateTaskHost("sliver"), "none");
+  assert.strictEqual(L.TK_slateTaskHost(undefined), "drawer");
+  assert.strictEqual(L.TK_slateTaskHost("big"), "drawer");
+  // one owner per mode, never two
+  ["sliver", "compact", "regular", "full"].forEach((m) => {
+    const h = L.TK_slateTaskHost(m);
+    assert.ok(["pane", "drawer", "none"].indexOf(h) >= 0);
+  });
+});
+t("slateLayout per mode", () => {
+  const f = L.TK_slateLayout("full", false);
+  assert.deepStrictEqual(f, { mode: "full", rail: true, railW: 240, bottomBar: false, compact: false, canEdit: true, pane: true, list: true });
+  const r = L.TK_slateLayout("regular", true);
+  assert.deepStrictEqual(r, { mode: "regular", rail: true, railW: 220, bottomBar: false, compact: false, canEdit: true, pane: false, list: true });
+  const c = L.TK_slateLayout("compact", true);
+  assert.deepStrictEqual(c, { mode: "compact", rail: false, railW: 0, bottomBar: true, compact: true, canEdit: false, pane: false, list: true });
+  assert.strictEqual(L.TK_slateLayout("compact", false).bottomBar, false);
+  const s = L.TK_slateLayout("sliver", true);
+  assert.strictEqual(s.list, false);
+  assert.strictEqual(s.bottomBar, false);
+  assert.strictEqual(s.canEdit, false);
+  assert.strictEqual(L.TK_slateLayout("nope").mode, "compact");
+});
+t("slateModeClasses", () => {
+  assert.strictEqual(L.TK_slateModeClasses({ mode: "full", shape: null }), "tk-m-full");
+  assert.strictEqual(L.TK_slateModeClasses({ mode: "sliver", shape: "strip" }), "tk-m-sliver tk-shape-strip");
+  assert.strictEqual(L.TK_slateModeClasses({ mode: "sliver", shape: "column" }), "tk-m-sliver tk-shape-column");
+  assert.strictEqual(L.TK_slateModeClasses({ mode: "sliver", shape: "x" }), "tk-m-sliver");
+  assert.strictEqual(L.TK_slateModeClasses({ mode: "regular", shape: "strip" }), "tk-m-regular");
+  assert.strictEqual(L.TK_slateModeClasses(null), "tk-m-compact");
+  assert.strictEqual(L.TK_slateModeClasses(L.TK_slateMode(1200, 800)), "tk-m-full");
+});
+t("slatePresetsAllowed: popup or installed app only", () => {
+  assert.strictEqual(L.TK_slatePresetsAllowed({ hasOpener: true }), true);
+  assert.strictEqual(L.TK_slatePresetsAllowed({ standalone: true }), true);
+  assert.strictEqual(L.TK_slatePresetsAllowed({ name: "mgb-tasks" }), true);
+  assert.strictEqual(L.TK_slatePresetsAllowed({ name: "other" }), false);
+  assert.strictEqual(L.TK_slatePresetsAllowed({}), false);
+  assert.strictEqual(L.TK_slatePresetsAllowed(), false);
+});
+t("slateSizeHit: within 4px both ways", () => {
+  const want = { innerW: 440, innerH: 800 };
+  assert.strictEqual(L.TK_slateSizeHit(want, { w: 440, h: 800 }), true);
+  assert.strictEqual(L.TK_slateSizeHit(want, { w: 444, h: 796 }), true);
+  assert.strictEqual(L.TK_slateSizeHit(want, { w: 445, h: 800 }), false);
+  assert.strictEqual(L.TK_slateSizeHit(want, { w: 440, h: 790 }), false);
+  assert.strictEqual(L.TK_slateSizeHit(want, { w: 450, h: 800 }, 10), true);
+  assert.strictEqual(L.TK_slateSizeHit(null, { w: 1, h: 1 }), false);
+  assert.strictEqual(L.TK_slateSizeHit(want, { w: NaN, h: 800 }), false);
+  assert.strictEqual(L.TK_slateSizeHit(want, null), false);
+});
+t("slatePresetPlace", () => {
+  assert.strictEqual(L.TK_slatePresetPlace("full"), "bar");
+  assert.strictEqual(L.TK_slatePresetPlace("regular"), "bar");
+  assert.strictEqual(L.TK_slatePresetPlace("compact"), "menu");
+  assert.strictEqual(L.TK_slatePresetPlace("sliver"), "none");
+  assert.strictEqual(L.TK_slatePresetPlace(), "none");
+});
 t("Slate app bridge constants", () => {
   assert.strictEqual(L.TK_SLATE_CHANNEL, "mgb-slate");
   assert.strictEqual(L.TK_SLATE_INSTALLED_KEY, "mgb_slate_installed_v1");

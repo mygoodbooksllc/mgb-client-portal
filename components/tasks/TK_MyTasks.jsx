@@ -480,7 +480,10 @@ function TK_vMyTasksBody(props) {
   // P4-3: multi-select (schema 12+ only; v / Shift+V, checkbox, Shift+click).
   // Only rows on screen stay selected (a collapsed group or hidden done
   // tasks drop out), so Delete or Reassign never touch a row you can't see.
-  var bulk = TK_useBulkSelect({ ids: ids, enabled: online, keys: !drawerId });
+  // Slate app full mode: the task sits in the pane, so the list keeps its keys.
+  var keysOn = typeof TK_useListKeysOn === "function" ? TK_useListKeysOn(drawerId) : !drawerId;
+  var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
+  var bulk = TK_useBulkSelect({ ids: ids, enabled: online && slateWide, keys: keysOn });
   var bulkStaff = TK_vUseStaff(bulk.count > 0);
   var addStaff = TK_vUseStaff(false) || []; // for the group add rows: the store's list, no extra fetch
 
@@ -488,7 +491,7 @@ function TK_vMyTasksBody(props) {
     ids: ids,
     focusedId: focusedId,
     setFocusedId: setFocusedId,
-    enabled: !drawerId,
+    enabled: keysOn,
     onSelect: bulk.ready ? bulk.toggle : undefined,
     onOpen: function (id) {
       TK_vOpenTask(id, { from: "keys" });

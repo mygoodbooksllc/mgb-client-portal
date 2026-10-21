@@ -62,7 +62,7 @@ function TK_ClientHeader(props) {
   var id = client && client.id != null ? String(client.id) : "";
   var enc = encodeURIComponent(id);
   var width = TK_vUseWidth();
-  var phone = width <= 760;
+  var phone = typeof TK_useSlatePhone === "function" ? TK_useSlatePhone(width) : width <= 760;
 
   var hPair = React.useState(null);
   var header = hPair[0];

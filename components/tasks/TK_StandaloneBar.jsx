@@ -10,6 +10,10 @@
 //   "Help". Inside the Slate app (TK_slateInApp, TK_SlateBridge.jsx) Dock,
 //   Open full portal and Help go to a portal window over the "mgb-slate"
 //   channel instead, and the install strip shows on /slate?install=1.
+//   The app's size modes (TK_SlateModes.jsx) shape the bar: compact has the
+//   logo, a search button, + Add and a menu (Follow my client, the size
+//   presets, Dock in portal, Open full portal, Help); regular and full add a
+//   search box, the size buttons, the Follow switch and the Dock button.
 //   While mounted it adds body.tk-shell (which hides the
 //   chat button) and, when the window has an opener, remembers its size in
 //   mgb_tk_popout_v1 (debounced 500 ms).
@@ -158,11 +162,18 @@ function TK_StandaloneBar(props) {
   var staffUser = props.staffUser || {};
   var width = TK_vUseWidth();
   var touch = TK_vUseTouch();
-  var phone = width <= 760;
   var info = TK_vOpenerInfo();
   var showDock = info.hasOpener || !touch;
   var name = staffUser.name || staffUser.full_name || staffUser.email || "";
   var inApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
+  // Size mode (app only; null on the portal page and with the app off).
+  var smNow = typeof TK_useSlateMode === "function" ? TK_useSlateMode() : null;
+  var slm = inApp ? smNow : null;
+  var slWide = !!slm && (slm.mode === "regular" || slm.mode === "full");
+  var presets = typeof TK_useSlatePresets === "function" ? TK_useSlatePresets() : { ok: false };
+  var route = TK_useRoute();
+  var phone = slm ? !slWide : width <= 760;
+  var followInMenu = touch || (!!slm && !slWide);
 
   // Follow my client: the list follows the client open in the portal window.
   var fPair = React.useState(function () {
@@ -294,20 +305,40 @@ function TK_StandaloneBar(props) {
         {follow.liveText}
       </span>
       <div className="tk-sbar-actions">
-        <a
-          className="tk-sbar-btn"
-          href="#/tasks/search"
-          aria-label="Search tasks"
-          title="Search tasks"
-          onClick={function (e) {
-            if (!TK_vPlainClick(e)) return;
-            e.preventDefault();
-            TK_navigate({ view: "search" });
-          }}
-        >
-          <TK_vIcon name="search" size={18} />
-        </a>
-        {touch ? null : (
+        {slWide && typeof TK_SlateSearchBox === "function" ? (
+          <TK_SlateSearchBox />
+        ) : (
+          <a
+            className="tk-sbar-btn"
+            href="#/tasks/search"
+            aria-label="Search tasks"
+            title="Search tasks"
+            onClick={function (e) {
+              if (!TK_vPlainClick(e)) return;
+              e.preventDefault();
+              TK_navigate({ view: "search" });
+            }}
+          >
+            <TK_vIcon name="search" size={18} />
+          </a>
+        )}
+        {slm ? (
+          <button
+            type="button"
+            className="tk-sbar-btn tk-sbar-add"
+            title="Add a task"
+            onClick={function () {
+              try {
+                window.dispatchEvent(new CustomEvent("tk:quick-add", { detail: typeof TK_vQuickAddFor === "function" ? TK_vQuickAddFor(route) : {} }));
+              } catch (e) {}
+            }}
+          >
+            <TK_vIcon name="plus" size={17} />
+            <span>Add</span>
+          </button>
+        ) : null}
+        {slWide && typeof TK_SlateSizeButtons === "function" ? <TK_SlateSizeButtons /> : null}
+        {followInMenu ? null : (
           <span className="tk-sbar-follow-wrap" title="Show the tasks for the client open in your portal window">
             <TK_vSwitch className="tk-sbar-follow" label="Follow my client" checked={followOn} onChange={setFollow} />
           </span>
@@ -328,7 +359,7 @@ function TK_StandaloneBar(props) {
         >
           {function (close) {
             var items = [];
-            if (showDock && phone) {
+            if (showDock && phone && !slm) {
               items.push(
                 <button
                   key="dock"
@@ -344,7 +375,7 @@ function TK_StandaloneBar(props) {
                 </button>,
               );
             }
-            if (touch) {
+            if (followInMenu) {
               items.push(
                 <button
                   key="follow"
@@ -358,6 +389,40 @@ function TK_StandaloneBar(props) {
                   }}
                 >
                   Follow my client
+                </button>,
+              );
+            }
+            if (slm && !slWide && presets.ok && typeof TK_SLATE_PRESET_ITEMS !== "undefined") {
+              TK_SLATE_PRESET_ITEMS.forEach(function (it) {
+                items.push(
+                  <button
+                    key={"size-" + it.id}
+                    type="button"
+                    role="menuitem"
+                    className="tk-menu-item"
+                    onClick={function () {
+                      close();
+                      presets.apply(it.id);
+                    }}
+                  >
+                    {"Size: " + it.label}
+                  </button>,
+                );
+              });
+            }
+            if (showDock && phone && slm) {
+              items.push(
+                <button
+                  key="dock"
+                  type="button"
+                  role="menuitem"
+                  className="tk-menu-item"
+                  onClick={function () {
+                    close();
+                    dock();
+                  }}
+                >
+                  Dock in portal
                 </button>,
               );
             }

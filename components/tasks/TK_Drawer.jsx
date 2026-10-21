@@ -228,6 +228,9 @@ function TK_dwFocusables(root) {
 }
 
 function TK_dwIsPhone() {
+  // Inside the Slate app the size mode decides (compact = phone style).
+  var sp = typeof TK_slatePhoneNow === "function" ? TK_slatePhoneNow() : null;
+  if (sp !== null) return sp;
   try {
     return !!(window.matchMedia && window.matchMedia("(max-width: 760px)").matches);
   } catch (e) {
@@ -573,7 +576,30 @@ function TK_DrawerHost(props) {
     LK_useArrival(live ? { place: "work", tab: "tasks", kinds: ["task", "view"], staff: true } : null, ready, onArrive);
   }
 
+  // Inside the Slate app: full mode shows the task in the pane (portaled
+  // into its slot, still owned here), a sliver shows none. Elsewhere "drawer".
+  var slateHost = typeof TK_useSlateTaskHost === "function" ? TK_useSlateTaskHost() : "drawer";
+  var slatePane = typeof TK_useSlatePaneEl === "function" ? TK_useSlatePaneEl() : null;
+
   if (!drawerId || schema !== "ok") return null;
+  if (slateHost === "none") return null;
+  if (slateHost === "pane") {
+    if (!slatePane || typeof TK_SlatePaneTask !== "function") return null;
+    return ReactDOM.createPortal(
+      <TK_SlatePaneTask
+        taskId={drawerId}
+        onClose={close}
+        focusField={focusField}
+        staffUser={p.staffUser}
+        clients={p.clients}
+        isAdmin={p.isAdmin}
+        canManageTemplates={p.canManageTemplates}
+        canCreateTemplates={p.canCreateTemplates}
+        onOpenTemplates={p.onOpenTemplates}
+      />,
+      slatePane,
+    );
+  }
   return (
     <TK_Drawer
       taskId={drawerId}

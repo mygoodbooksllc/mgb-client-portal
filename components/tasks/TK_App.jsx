@@ -8,6 +8,10 @@
 //   replaces the sidebar button. The header has "Open in own window"
 //   (data-tour tk-popout), hidden when compact, on touch-primary devices and
 //   inside the shell.
+//   Inside the Slate app (TK_SlateModes.jsx) the size mode replaces
+//   TK_shellLayout: tk-m-<mode> on the root, a 220px rail in regular, the
+//   detail pane (TK_SlatePane) in full, the sliver slot in a sliver, and
+//   Templates and Manage read-only in compact.
 //   Schema missing (Row 11.5): the setup card, and a tasks arrival
 //   (#/tasks/...?item=task:<id>) forwards to Work › Tasks with LK_go so the
 //   legacy page opens the item.
@@ -38,8 +42,15 @@ function TK_App(props) {
   var width = TK_vUseWidth();
   var touch = TK_vUseTouch();
   var layout = TK_shellLayout(width, touch);
-  var bottomBar = shell && layout.bottomBar;
-  var rail = layout.sidebar === "rail" && !bottomBar;
+  // Inside the Slate app the size mode (TK_SlateModes.jsx) replaces
+  // TK_shellLayout; slm stays null on the portal page and with the app off.
+  var sm = typeof TK_useSlateMode === "function" ? TK_useSlateMode() : null;
+  var slm = shell ? sm : null;
+  var sl = slm && typeof TK_slateLayout === "function" ? TK_slateLayout(slm.mode, touch) : null;
+  var obsRef = typeof TK_useSlateModeObserver === "function" ? TK_useSlateModeObserver(!!slm) : null;
+  var bottomBar = sl ? sl.bottomBar : shell && layout.bottomBar;
+  var rail = sl ? sl.rail : layout.sidebar === "rail" && !bottomBar;
+  var compactNow = sl ? sl.compact : layout.compact;
   var showPopOut = !layout.compact && !touch && !shell;
   // The Slate app (TK_SlateBridge.jsx): "Open Slate app" replaces the pop-out.
   var slateOn = typeof TK_useSlateAppOn === "function" ? TK_useSlateAppOn() : false;
@@ -76,7 +87,7 @@ function TK_App(props) {
 
   if (schema === "missing") {
     return (
-      <div className={"tk-app" + (shell ? " is-shell" : "")}>
+      <div className={"tk-app" + (shell ? " is-shell" : "") + (slm ? " " + TK_slateModeClasses(slm) : "")} ref={obsRef || undefined}>
         <TK_SetupCard />
       </div>
     );
@@ -91,6 +102,10 @@ function TK_App(props) {
   else if (route.view === "waiting") main = <TK_WaitingList staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "templates") main = <TK_Templates staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "manage") main = <TK_ManageProjects staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  // Compact in the app: Templates and Manage are read-only with a note.
+  if (slm && (route.view === "templates" || route.view === "manage") && typeof TK_SlateReadOnly === "function") {
+    main = <TK_SlateReadOnly>{main}</TK_SlateReadOnly>;
+  }
   else if (route.view === "client" || route.view === "project" || route.view === "person") {
     main = <TK_List route={route} staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   } else {
@@ -114,10 +129,15 @@ function TK_App(props) {
 
   var needBar = !rail && !bottomBar;
   return (
-    <div className={"tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (layout.compact ? " is-compact" : "")}>
+    <div
+      className={
+        "tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (compactNow ? " is-compact" : "") + (slm ? " " + TK_slateModeClasses(slm) : "")
+      }
+      ref={obsRef || undefined}
+    >
       <h1 className="tk-sr">Slate</h1>
       {rail ? <aside className="tk-app-rail">{sidebar}</aside> : null}
-      <div className="tk-app-main">
+      <div className="tk-app-main" tabIndex={slm ? -1 : undefined}>
         {needBar || showPopOut ? (
           <div className="tk-app-bar">
             {needBar ? (
@@ -167,6 +187,8 @@ function TK_App(props) {
         ) : null}
         {main}
       </div>
+      {slm && slm.mode === "full" && typeof TK_SlatePane === "function" ? <TK_SlatePane view={route.view} /> : null}
+      {slm && slm.mode === "sliver" && typeof TK_SlateSliverSlot === "function" ? <TK_SlateSliverSlot shape={slm.shape} /> : null}
 
       {listsOpen && !rail ? (
         <TK_vModal

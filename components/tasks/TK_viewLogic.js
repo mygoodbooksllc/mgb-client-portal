@@ -1768,6 +1768,82 @@ function TK_slateLaunchItems(o) {
   return out;
 }
 
+// ---- Slate app: what each size mode shows (S3, spec 3.3) ------------------------
+// Only the Slate app (TK_slateInApp) uses these; the portal page keeps
+// TK_shellLayout.
+
+// Who owns the open task (TK_store drawerId) in a mode: "pane" (full: the
+// detail pane beside the list), "drawer" (compact and regular: today's right
+// drawer, which covers the window in compact) or "none" (sliver: nothing
+// shows it; the id is kept, so growing the window shows it again). Anything
+// else (no mode yet) is "drawer", the old behavior.
+function TK_slateTaskHost(mode) {
+  if (mode === "full") return "pane";
+  if (mode === "sliver") return "none";
+  return "drawer";
+}
+
+// The layout for a mode. touch: a touch-primary pointer (TK_isTouchPrimary).
+//   rail       TK_Sidebar as a rail (regular 220px, full 240px; railW)
+//   bottomBar  the bottom bar (compact on a touch screen only)
+//   compact    the phone-style list (sliver and compact)
+//   canEdit    Templates, Manage, Sections and bulk are editable
+//   pane       the detail pane column (full only)
+//   list       the list shows at all (false in a sliver: S4 fills the slot)
+// Bad modes fall back to compact.
+function TK_slateLayout(mode, touch) {
+  var m = TK_SLATE_MODES.indexOf(mode) >= 0 ? mode : "compact";
+  var wide = m === "regular" || m === "full";
+  return {
+    mode: m,
+    rail: wide,
+    railW: m === "full" ? 240 : m === "regular" ? 220 : 0,
+    bottomBar: m === "compact" && !!touch,
+    compact: !wide,
+    canEdit: wide,
+    pane: m === "full",
+    list: m !== "sliver",
+  };
+}
+
+// The classes for .tk-app.is-shell: "tk-m-<mode>", plus "tk-shape-<shape>"
+// for a sliver. Bad input gives "tk-m-compact".
+function TK_slateModeClasses(m) {
+  var mode = m && TK_SLATE_MODES.indexOf(m.mode) >= 0 ? m.mode : "compact";
+  var out = "tk-m-" + mode;
+  if (mode === "sliver" && (m.shape === "strip" || m.shape === "column")) out += " tk-shape-" + m.shape;
+  return out;
+}
+
+// Size presets only where resizeTo can work: a popup (it has an opener or is
+// named "mgb-tasks", the TK_popOut window name) or the installed app
+// (display-mode standalone). o: { hasOpener, standalone, name }.
+function TK_slatePresetsAllowed(o) {
+  var x = o || {};
+  return !!x.hasOpener || !!x.standalone || x.name === "mgb-tasks";
+}
+
+// Did a preset land? want: TK_slateSizePreset's result ({ innerW, innerH });
+// got: { w, h } (window.innerWidth, innerHeight) a frame later. Within tol
+// (default 4px) both ways. Bad input is a miss.
+function TK_slateSizeHit(want, got, tol) {
+  var t = typeof tol === "number" && isFinite(tol) && tol >= 0 ? tol : 4;
+  if (!want || !got) return false;
+  var vals = [want.innerW, want.innerH, got.w, got.h];
+  for (var i = 0; i < vals.length; i++) {
+    if (typeof vals[i] !== "number" || !isFinite(vals[i])) return false;
+  }
+  return Math.abs(got.w - want.innerW) <= t && Math.abs(got.h - want.innerH) <= t;
+}
+
+// The size preset buttons in the bar: in regular and full (the menu holds
+// them in compact). Never in a sliver.
+function TK_slatePresetPlace(mode) {
+  if (mode === "regular" || mode === "full") return "bar";
+  if (mode === "compact") return "menu";
+  return "none";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_SLATE_APP_NAME: TK_SLATE_APP_NAME,
@@ -1779,6 +1855,12 @@ if (typeof module !== "undefined" && module.exports) {
     TK_slateDockHashOk: TK_slateDockHashOk,
     TK_slateAppUrl: TK_slateAppUrl,
     TK_slateLaunchItems: TK_slateLaunchItems,
+    TK_slateTaskHost: TK_slateTaskHost,
+    TK_slateLayout: TK_slateLayout,
+    TK_slateModeClasses: TK_slateModeClasses,
+    TK_slatePresetsAllowed: TK_slatePresetsAllowed,
+    TK_slateSizeHit: TK_slateSizeHit,
+    TK_slatePresetPlace: TK_slatePresetPlace,
     TK_POPOUT_DEFAULT: TK_POPOUT_DEFAULT,
     TK_POPOUT_MIN: TK_POPOUT_MIN,
     TK_POPOUT_KEY: TK_POPOUT_KEY,

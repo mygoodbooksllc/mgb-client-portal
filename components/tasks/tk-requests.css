@@ -173,9 +173,10 @@
 .tk-wt-open { font-weight: 600; text-align: left; }
 .tk-wt-task { color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
 
+/* Slate app S3: guarded off the app's regular and full modes (TK_SlateModes.jsx). */
 @media (max-width: 760px) {
-  .tk-ask-kinds { grid-template-columns: minmax(0, 1fr); }
-  .tk-cr-addcontact { grid-template-columns: minmax(0, 1fr); }
+  :where(html:not(.tk-slate-wide)) .tk-ask-kinds { grid-template-columns: minmax(0, 1fr); }
+  :where(html:not(.tk-slate-wide)) .tk-cr-addcontact { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---- Client contacts in the client tasks drawer (TK_ClientContacts.jsx, S6) ---- */
