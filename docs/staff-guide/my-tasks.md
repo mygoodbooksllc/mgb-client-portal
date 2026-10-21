@@ -37,9 +37,9 @@ Each picker is a small menu: arrow keys move, **Enter** picks, **Esc** closes. I
 
 A small bar above the list changes how Slate is laid out. Nothing changes until you pick something.
 
-- **Group by**: **Due date** (the groups above, the default), **Client**, **Part of month** or **Status**.
+- **Group by**: **Due date** (the groups above, the default), **Client**, **Rhythm step** or **Status**.
   - **Client** lists your tasks one client at a time, clients A to Z, with **No client** after them and test and internal clients last (tagged **Test** or **Internal**). Inside a client the most urgent task comes first.
-  - **Part of month** groups by the part of the monthly rhythm a task belongs to: **Check in**, **Send reports**, **Follow up**, then any other section names, then **No part**. It uses the task's section; a task with no section goes under **No part**.
+  - **Rhythm step** groups by the part of the monthly rhythm a task belongs to: **Check in**, **Send reports**, **Follow up**, then any other section names, then **No part**. It uses the task's section; a task with no section goes under **No part**.
   - **Status** groups by **To do**, **In progress**, **Waiting on client** and so on. **Done** starts folded.
 - **Sort**: **Due**, **Priority**, **Status** or **Name**. Click once for ascending, again for descending, a third time to go back to the normal order. Sorting happens inside each group.
 - **Mine today**: only your own tasks due today or earlier that aren't done or waiting on a client.

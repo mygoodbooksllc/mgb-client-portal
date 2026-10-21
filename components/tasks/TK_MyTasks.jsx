@@ -10,7 +10,7 @@
 //   offline shows the banner over the cached rows, and a missing schema shows
 //   the setup card.
 //   Rhythm slice 0: TK_SlateViewBar under the toolbar (Group by Due date,
-//   Client, Part of month or Status; Sort chips; quick chips Mine today and
+//   Client, Rhythm step or Status; Sort chips; quick chips Mine today and
 //   Waiting on client; Reset view), saved per person in mgb_tk_slate_view_v1
 //   (TK_vUseSlateView). The Desk's Slate tab uses the same bar.
 // ----------------------------------------------------------------------------
@@ -434,7 +434,7 @@ function TK_vMyTasksBody(props) {
       })
     : all;
   var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(tasks, today, groupOpts) : {};
-  // Rhythm slice 0: Group by (Due date, Client, Part of month, Status), Sort
+  // Rhythm slice 0: Group by (Due date, Client, Rhythm step, Status), Sort
   // chips and quick chips, saved per person. Nothing chosen builds the groups
   // exactly as before (TK_slateBuildView's default path is TK_myGroupsView).
   var svPair = TK_vUseSlateView(email);

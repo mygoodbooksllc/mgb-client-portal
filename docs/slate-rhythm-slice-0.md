@@ -7,8 +7,8 @@ a plain improvement to the Slate list (#/tasks/my) and the Desk's Slate tab.
 
 One control, the same on the Slate page and on the Desk's Slate tab:
 
-- **Group by**: Due date (default, today's groups), Client, Part of month, Status.
-  - Part of month groups by the task's section. The month rhythm parts come first, in rhythm
+- **Group by**: Due date (default, today's groups), Client, Rhythm step, Status.
+  - Rhythm step groups by the task's section. The month rhythm parts come first, in rhythm
     order (Check in, Send reports, Follow up), then any other section (Weekly, Monthly, ...
     first, then A to Z), then **No part**. Slice 3 seeds the monthly templates with these
     sections, so the eight tasks per client land under their part. A later slice can pass the
@@ -74,7 +74,7 @@ as before. The Desk tab has no bulk bar today; that does not change.
 - Fixed: the Slate page showed "No tasks match this view" with Reset view whenever a non-default
   view was empty, including a legacy Client view with the client filter on. It now shows only when a
   quick chip empties a list that has tasks; otherwise the old empty copy shows.
-- Fixed: the guide said Part of month falls back to the template's section; My Tasks and the Desk
+- Fixed: the guide said Rhythm step falls back to the template's section; My Tasks and the Desk
   don't pass templates yet, so the guide now says a task with no section goes under No part.
 - Launch kit: announcement `slate-view-bar` (2026-10-21, admin + bookkeeper, `#/tasks/my`, not gated)
   with four steps on `tk-groupby`, `tk-slate-chips` and `tk-slate-sort` (Slate page only; the Desk's

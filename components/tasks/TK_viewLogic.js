@@ -1418,7 +1418,7 @@ function TK_bulkSetPlan(kind, patch, tasks, projects) {
 var TK_SLATE_GROUPS = [
   { key: "due", label: "Due date" },
   { key: "client", label: "Client" },
-  { key: "part", label: "Part of month" },
+  { key: "part", label: "Rhythm step" },
   { key: "status", label: "Status" },
 ];
 
@@ -1672,7 +1672,7 @@ function TK_rhythmPartOf(t, opts) {
   return s != null ? String(s).trim() : "";
 }
 
-// Groups by part of month. Order: the rhythm parts (opts.parts, default
+// Groups by rhythm step. Order: the rhythm parts (opts.parts, default
 // TK_RHYTHM_PARTS_DEFAULT) in rhythm order, then other sections
 // (TK_CLIENT_SECTION_ORDER first, then A to Z), then "No part". Case-insensitive
 // (one group per part). Empty groups never appear; task order inside a group
