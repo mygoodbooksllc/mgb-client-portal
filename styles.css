@@ -5822,11 +5822,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
   text-align: center;
 }
 
+/* Same wordmark as the sidebar and sign-in header: Lato 900, tight tracking. */
 .boot-splash-mark {
-  font-family: var(--font-heading, Georgia, serif);
-  font-weight: 800;
-  font-size: 22px;
-  letter-spacing: 0.01em;
+  font-family: "Lato", var(--font-body, system-ui, sans-serif);
+  font-weight: 900;
+  font-size: 26px;
+  letter-spacing: -0.01em;
   color: var(--ink-strong);
 }
 
@@ -11117,7 +11118,4 @@ html[data-brand="mgb"] h3 {
    where it meets the rail, to near-black on the right). The loading splash stays Lato. */
 html[data-brand="mgb"] .wb-bar {
   background-image: linear-gradient(90deg, #06262d 0%, #05080d 100%);
-}
-html[data-brand="mgb"] .boot-splash-mark {
-  font-family: "Lato", var(--font-body, system-ui, sans-serif);
 }
