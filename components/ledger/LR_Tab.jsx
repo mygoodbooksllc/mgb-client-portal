@@ -1369,6 +1369,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       {flagsCard}
       <div className="lr-grid">
         <LR_ReconPanel recon={run ? run.recon : null} hasData={!!run} />
+        <LR_RollForwardPanel rollfwd={run ? run.rollfwd : null} hasData={!!run} />
         <LR_ComparePanel
           rows={compare}
           ym={ym}

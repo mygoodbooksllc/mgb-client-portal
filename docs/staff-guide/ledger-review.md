@@ -42,6 +42,14 @@ What you can do with a flag:
 
 An asked question can show the amount and the question text in the email. It never shows our fees, rates or margins.
 
+### Roll-forward
+
+Under **Reconciliation** there is a **Roll-forward** panel. For each bank, credit card and loan account it shows the month you're reviewing as a tie out: the **beginning balance**, plus **money in** and minus **money out** (grouped by transaction type, biggest first), equals the **ending balance**. Credit cards call these **Charges** and **Payments and credits**; loans call them **Increases** and **Payments**. If the pull starts partway through the month, the beginning balance says what date it is as of.
+
+It then checks that ending balance against the running balance QuickBooks reports on the account's last line of the month. If they match to the cent, the account says **Ties**. If not, the account opens by itself with **Doesn't tie** and the unexplained difference. Nothing is adjusted to make it work, so the difference is real: look for a line that's missing from the pull, was edited after it, or sits in another month. If QuickBooks didn't send running balances for an account, the activity is still listed but there is no check. When QuickBooks sends cleared status, each account also shows how many lines in the month aren't reconciled yet and their total.
+
+The panel is for looking only. A balance that doesn't tie doesn't create a flag.
+
 ### Month swing
 
 **Month swing** is a low priority flag on an income or expense account whose total for the month is very different from usual. It compares the month you're reviewing with the average of the up to three months just before it, using the ledger lines in the pull. A month the pull covers but the account has nothing in counts as zero.

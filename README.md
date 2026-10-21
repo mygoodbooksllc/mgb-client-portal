@@ -1178,6 +1178,13 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   chip with the set-aside list on the client tab (`LR_Panels.jsx` `LR_DupModeBar`). Upkeep: launch
   announcement `dup-smart`, guide `ledger-review`, `staff-settings`, `audit-log`, `whats-new`,
   `MGB_VERSION` `2026-10-17e`; `AuditLog.jsx` label and filter group.
+- **Roll-forward panel (added 2026-10-21; spec `docs/gl-review-spec.md`):** `GLR_checks.rollForward`
+  (also `runChecks(...).rollfwd`) and `LR_RollForwardPanel` in `LR_Panels.jsx`, rendered under
+  Reconciliation in `LR_Tab.jsx` and `LR_ReviewFile.jsx`. Per bank/card/loan account for the reviewed
+  month: beginning + money in - money out = ending, footed to QuickBooks' running balance (`bal`) in
+  integer cents; a miss shows the difference, never a plug, and creates no flag. Tests
+  `tests/ledger/rollforward.test.js`. Upkeep: guide `ledger-review`, `whats-new`, `MGB_VERSION`
+  `2026-10-21w`; no launch announcement (a panel inside an existing tab).
 - **Month swing (added 2026-10-19; spec `docs/gl-review-spec.md` Phase 2 checks):** the `swing` flag
   (low, key `acct:<acct_id>:<YYYY-MM>`; `GLR_checks.swingHits`, thresholds `T.swing*` in `GLR_config.js`).
   For each income/expense account it compares the reviewed month's net total with the average of the up

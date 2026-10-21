@@ -396,6 +396,137 @@ function LR_ReconPanel({ recon, hasData, headingId }) {
   );
 }
 
+// Roll-forward per bank, card and loan account (GLR_checks.rollForward):
+// beginning + money in - money out = ending, footed against QuickBooks.
+// Display only; a difference is shown, never plugged and never flagged.
+function LR_RollForwardPanel({ rollfwd, hasData, headingId }) {
+  const hid = headingId || "lr-rollfwd-h";
+  let body;
+  if (!hasData) {
+    body = <p className="card-subtitle">Pull the ledger to see each account's balance tie out for the month.</p>;
+  } else if (!rollfwd || !rollfwd.available) {
+    body = <p className="card-subtitle">No bank, credit card or loan accounts in this ledger.</p>;
+  } else {
+    const kindLabel = (k) => (k === "bank" ? "Bank" : k === "card" ? "Credit card" : "Loan");
+    const labels = (k) =>
+      k === "card" ? ["Charges", "Payments and credits"] : k === "loan" ? ["Increases", "Payments"] : ["Money in", "Money out"];
+    const groupRows = (groups, prefix) =>
+      groups.map((g) => (
+        <tr key={prefix + g.type}>
+          <th scope="row" className="lr-rf-indent">
+            {g.type}
+            <span className="lr-kind">
+              {g.count} {g.count === 1 ? "line" : "lines"}
+            </span>
+          </th>
+          <td className="lr-num">{LR_money(Math.abs(g.total))}</td>
+        </tr>
+      ));
+    body = (
+      <>
+        <p className="card-subtitle">
+          {GLR_config.monthLabel(rollfwd.period)}: where each balance started, what moved, and whether it ends where QuickBooks says.
+        </p>
+        {rollfwd.accounts.map((a) => {
+          const fails = a.foot_ok === false;
+          return (
+            <details className={"lr-rf" + (fails ? " is-fail" : "")} key={(a.acct_id || "") + a.acct} open={fails || undefined}>
+              <summary>
+                <span className="lr-rf-head">
+                  <span className="lr-rf-name">
+                    {a.acct}
+                    <span className="lr-kind">
+                      {kindLabel(a.kind)}
+                      {a.pass_through ? " · pass-through" : ""}
+                    </span>
+                  </span>
+                  {fails && <span className="lr-kind is-warn">Doesn't tie: off by {LR_money(a.diff)}</span>}
+                  {a.foot_ok === true && <span className="lr-rf-ok">Ties</span>}
+                  {a.no_balance && <span className="lr-kind">No balances</span>}
+                </span>
+              </summary>
+              {a.no_balance && (
+                <p className="card-subtitle">QuickBooks didn't send running balances for this account, so the tie out can't be checked. The activity is below.</p>
+              )}
+              {!a.line_count && !a.no_balance && <p className="card-subtitle">No activity.</p>}
+              <div className="lr-table-wrap">
+                <table className="lr-table">
+                  <caption className="lr-sr">
+                    {a.acct} roll-forward for {GLR_config.monthLabel(rollfwd.period)}
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Line</th>
+                      <th scope="col" className="lr-num">
+                        Amount
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <th scope="row">
+                        Beginning balance
+                        {a.beginning_date && rollfwd.period && a.beginning_date > rollfwd.period + "-01" ? ` (as of ${LR_usDate(a.beginning_date)})` : ""}
+                      </th>
+                      <td className="lr-num">{a.beginning == null ? "—" : LR_money(a.beginning)}</td>
+                    </tr>
+                    {a.in_groups.length > 0 && (
+                      <tr>
+                        <th scope="row">+ {labels(a.kind)[0]}</th>
+                        <td className="lr-num">{LR_money(a.total_in)}</td>
+                      </tr>
+                    )}
+                    {groupRows(a.in_groups, "i")}
+                    {a.out_groups.length > 0 && (
+                      <tr>
+                        <th scope="row">− {labels(a.kind)[1]}</th>
+                        <td className="lr-num">{LR_money(Math.abs(a.total_out))}</td>
+                      </tr>
+                    )}
+                    {groupRows(a.out_groups, "o")}
+                    <tr className="lr-rf-total">
+                      <th scope="row">= Ending balance (computed)</th>
+                      <td className="lr-num">{a.ending_computed == null ? "—" : LR_money(a.ending_computed)}</td>
+                    </tr>
+                    {!a.no_balance && (
+                      <tr>
+                        <th scope="row">Ending balance in QuickBooks</th>
+                        <td className="lr-num">{a.ending_qbo == null ? "—" : LR_money(a.ending_qbo)}</td>
+                      </tr>
+                    )}
+                    {a.open_count != null && (
+                      <tr>
+                        <th scope="row">Of which not yet reconciled</th>
+                        <td className="lr-num">
+                          {a.open_count} {a.open_count === 1 ? "line" : "lines"}, {LR_money(a.open_total)}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {fails && (
+                <p className="lr-alert" role="note">
+                  Doesn't tie. QuickBooks ends {LR_money(a.ending_qbo)}, the activity adds up to {LR_money(a.ending_computed)}, a difference of {LR_money(a.diff)}.
+                </p>
+              )}
+              {a.foot_ok === true && <p className="lr-good">Ties to QuickBooks to the cent.</p>}
+            </details>
+          );
+        })}
+      </>
+    );
+  }
+  return (
+    <section className="card lr-panel" aria-labelledby={hid}>
+      <h3 className="card-title" id={hid}>
+        Roll-forward
+      </h3>
+      {body}
+    </section>
+  );
+}
+
 // Bars for one account's months, with the average as a dashed line. The
 // table beside it carries the same numbers, so the chart is labeled as an
 // image with a one-line summary.

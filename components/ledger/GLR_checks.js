@@ -2,9 +2,10 @@
 // GLR_checks: the Ledger review checks (spec 7 "Phase 1 checks", Bailley's
 // standard in PLAN.md) over normalized lines from GLR_parse.
 //
-//   runChecks(lines, ctx) -> { flags, suppressed, passThrough, recon, lines,
+//   runChecks(lines, ctx) -> { flags, suppressed, passThrough, recon, rollfwd, lines,
 //     dupMode, dupSetAside (Smart: lines Strict would flag but Smart set aside) }
 //   reconciliation(lines, ctx) -> the Reconciliation panel data
+//   rollForward(lines, ctx) -> the Roll-forward panel data (runChecks .rollfwd)
 //   holdingTotals(lines, { period }) -> Uncategorized / Ask My Accountant $
 //   toUpsertRows(flags) -> jsonb rows for gl_review_upsert_flags
 //   flagKey(type, line, extra) -> the spec 4.1 txn_key
@@ -117,6 +118,107 @@
       banks_clean: banksClean,
       loan_issue: accounts.some(function (a) { return a.loan_uncleared && !a.pass_through; }),
     };
+  }
+
+  // ---- Roll-forward panel. For each bank, card and loan account: beginning
+  // balance + money in - money out = ending, footed against the running
+  // balance (bal) QuickBooks reports on the account's last line of the month.
+  // Signs are as carried on the lines (amt/cents) and as QuickBooks reports bal;
+  // nothing is flipped and a difference is shown, never plugged. Integer cents.
+  function rollForward(lines, ctx) {
+    ctx = ctx || {};
+    var L = ctx._prepared ? lines : R.applyAccountTypes(lines || [], ctx.rules);
+    var pt = ctx._pt || R.passThrough(L, ctx.rules);
+    var period = ctx.reviewPeriod || latestMonth(L);
+    var through = period ? C.monthEnd(period) : null;
+    var first = period ? period + "-01" : null;
+    var cleared = !!ctx.clearedAvailable;
+    var byAcct = groupBy(L.filter(function (l) {
+      return (isBank(l) || l.acct_type === "Credit Card" || isLoanAccount(l)) && (!through || l.date <= through);
+    }), R.acctKey);
+    var cents = function (v) { return C.toCents(v); };
+    var accounts = [];
+    byAcct.forEach(function (list) {
+      var f = list[0];
+      var allSeq = list.every(function (l) { return typeof l.seq === "number" && isFinite(l.seq); });
+      var sorted = list.map(function (l, i) { return { l: l, i: i }; }).sort(function (x, y) {
+        if (allSeq) return x.l.seq - y.l.seq || x.i - y.i;
+        return x.l.date < y.l.date ? -1 : x.l.date > y.l.date ? 1 : x.i - y.i;
+      }).map(function (o) { return o.l; });
+      // Sign: QuickBooks keeps bal in the account's natural sign, while debit/credit
+      // files carry amt = debit - credit. Pick the sign that makes consecutive bal
+      // changes equal the line amounts; default +1.
+      var plus = 0, minus = 0;
+      for (var k = 1; k < sorted.length; k++) {
+        var p0 = sorted[k - 1], p1 = sorted[k];
+        if (p0.bal == null || p1.bal == null || !p1.cents) continue;
+        var dB = cents(p1.bal) - cents(p0.bal);
+        if (dB === p1.cents) plus++; else if (dB === -p1.cents) minus++;
+      }
+      var sg = minus > plus ? -1 : 1;
+      var sc = function (l) { return sg * l.cents; };
+      var before = [], inM = [];
+      sorted.forEach(function (l) {
+        if (first && l.date < first) before.push(l);
+        else if (!period || C.ym(l.date) === period) inM.push(l);
+      });
+      var hasBal = function (l) { return l && l.bal != null && isFinite(l.bal); };
+      var noBalance = false;
+      var begC = null, begDate = null;
+      if (before.length) {
+        var lb = before[before.length - 1];
+        if (hasBal(lb)) begC = cents(lb.bal); else noBalance = true;
+      } else if (inM.length) {
+        if (hasBal(inM[0])) { begC = cents(inM[0].bal) - sc(inM[0]); begDate = inM[0].date; } else noBalance = true;
+      } else noBalance = true;
+      var qboC = null;
+      if (inM.length) {
+        var le = inM[inM.length - 1];
+        if (hasBal(le)) qboC = cents(le.bal); else noBalance = true;
+      } else qboC = begC;
+      var grp = function (xs) {
+        var m = new Map();
+        xs.forEach(function (l) {
+          var t = l.type || "Other";
+          var g = m.get(t) || { type: t, count: 0, c: 0 };
+          g.count++; g.c += sc(l); m.set(t, g);
+        });
+        var out = [];
+        m.forEach(function (g) { out.push({ type: g.type, count: g.count, total: g.c / 100, _c: g.c }); });
+        out.sort(function (a, b) { return abs(b._c) - abs(a._c) || String(a.type).localeCompare(String(b.type)); });
+        out.forEach(function (g) { delete g._c; });
+        return out;
+      };
+      var ins = inM.filter(function (l) { return sc(l) > 0; });
+      var outs = inM.filter(function (l) { return sc(l) < 0; });
+      var sumC = function (xs) { return xs.reduce(function (s, l) { return s + sc(l); }, 0); };
+      var inC = sumC(ins), outC = sumC(outs);
+      var compC = begC == null ? null : begC + inC + outC;
+      var diffC = (compC == null || qboC == null) ? null : qboC - compC;
+      var open = cleared ? inM.filter(function (l) { return l.cleared !== "R"; }) : null;
+      accounts.push({
+        acct: f.acct, acct_id: f.acct_id,
+        kind: isBank(f) ? "bank" : f.acct_type === "Credit Card" ? "card" : "loan",
+        pass_through: pt.has(f),
+        beginning: begC == null ? null : begC / 100,
+        beginning_date: begDate,
+        sign: sg,
+        in_groups: grp(ins), out_groups: grp(outs),
+        total_in: inC / 100, total_out: outC / 100,
+        line_count: inM.length,
+        ending_computed: compC == null ? null : compC / 100,
+        ending_qbo: qboC == null ? null : qboC / 100,
+        diff: diffC == null ? null : diffC / 100,
+        diff_cents: diffC,
+        foot_ok: diffC == null ? null : diffC === 0,
+        no_balance: noBalance,
+        open_count: open ? open.length : null,
+        open_total: open ? sumC(open) / 100 : null,
+      });
+    });
+    var order = { bank: 0, card: 1, loan: 2 };
+    accounts.sort(function (x, y) { return order[x.kind] - order[y.kind] || String(x.acct).localeCompare(String(y.acct), undefined, { numeric: true }); });
+    return { available: accounts.length > 0, period: period, through: through, accounts: accounts };
   }
 
   function latestMonth(lines) {
@@ -469,6 +571,7 @@
     var L = R.applyAccountTypes((lines || []).filter(function (l) { return l && l.date; }), ctx.rules);
     var pt = R.passThrough(L, ctx.rules);
     var recon = reconciliation(L, Object.assign({}, ctx, { _prepared: true, _pt: pt }));
+    var rollfwd = rollForward(L, Object.assign({}, ctx, { _prepared: true, _pt: pt }));
     var dupInfo = { mode: ctx.dupMode === "smart" ? "smart" : "strict", flagged: {}, aside: [] };
     var hits = collectHits(L, ctx, pt, recon, dupInfo);
     var flags = ctx.dedupe === false
@@ -493,7 +596,7 @@
       asideSeen[x.key] = true;
       aside.push(x);
     });
-    return { flags: sortFlags(kept), suppressed: suppressed, passThrough: pt.accounts, recon: recon, lines: L,
+    return { flags: sortFlags(kept), suppressed: suppressed, passThrough: pt.accounts, recon: recon, rollfwd: rollfwd, lines: L,
       dupMode: dupInfo.mode, dupSetAside: aside };
   }
 
@@ -518,6 +621,7 @@
   return {
     runChecks: runChecks,
     reconciliation: reconciliation,
+    rollForward: rollForward,
     holdingTotals: holdingTotals,
     flagKey: flagKey,
     countByType: countByType,

@@ -278,6 +278,7 @@ function LR_ReviewFilePage({ staffUser }) {
 
       <div className="lr-grid">
         <LR_ReconPanel recon={run ? run.recon : null} hasData={!!run} headingId="lrf-recon-h" />
+        <LR_RollForwardPanel rollfwd={run ? run.rollfwd : null} hasData={!!run} headingId="lrf-rollfwd-h" />
         <LR_ComparePanel
           rows={compare}
           ym={ym}
