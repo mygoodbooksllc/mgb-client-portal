@@ -315,20 +315,82 @@
       })();
     </script>
     <script>
-      // Brand colors preview (mgb_brand_preview checkbox, per person only, no firm
-      // switch): sets data-brand="mgb" on <html> (styles.css swaps in the brand
+      // Brand colors and Hover menus. Same pattern as Lato above. Brand colors:
+      // Classic (mgb_brand_classic) wins, then the person's checkbox
+      // (mgb_brand_preview), then the firm switch tk_settings.brand_enabled
+      // (cached in mgb_brand_cache after the first read), else the old look.
+      // When on it sets data-brand="mgb" on <html> (styles.css swaps in the brand
       // guide's navy/teal and Montserrat headings) and loads Montserrat only then.
+      // Hover menus: this script only caches the firm switch
+      // tk_settings.hovernav_enabled in mgb_hovernav_cache and announces a change
+      // (window event "mgb:hovernav"); the one place that decides is HN_on() in
+      // components/staff/HoverNav.jsx. Code never writes either switch.
       (function () {
-        try {
-          if (window.localStorage.getItem("mgb_brand_preview") !== "1") return;
-        } catch (e) {
-          return;
+        var ls = function (k) {
+          try {
+            return window.localStorage.getItem(k);
+          } catch (e) {
+            return null;
+          }
+        };
+        var lsSet = function (k, v) {
+          try {
+            if (v == null) window.localStorage.removeItem(k);
+            else window.localStorage.setItem(k, v);
+          } catch (e) {}
+        };
+        var applied = false;
+        function applyBrand(on) {
+          if (!on) {
+            document.documentElement.removeAttribute("data-brand");
+            return;
+          }
+          document.documentElement.setAttribute("data-brand", "mgb");
+          if (applied) return;
+          applied = true;
+          var l = document.createElement("link");
+          l.rel = "stylesheet";
+          l.href = "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap";
+          document.head.appendChild(l);
         }
-        document.documentElement.setAttribute("data-brand", "mgb");
-        var l = document.createElement("link");
-        l.rel = "stylesheet";
-        l.href = "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap";
-        document.head.appendChild(l);
+        var brandClassic = ls("mgb_brand_classic") === "1";
+        var hoverClassic = ls("mgb_hovernav_classic") === "1";
+        applyBrand(!brandClassic && (ls("mgb_brand_preview") === "1" || ls("mgb_brand_cache") === "1"));
+        if (brandClassic && hoverClassic) return;
+        var isOn = function (v) {
+          return v === true || v === "true" || v === 1 || (!!v && typeof v === "object" && v.on === true);
+        };
+        var tries = 0;
+        var t = setInterval(function () {
+          var c = window.mgbSupabase;
+          if (!c) {
+            if (++tries > 60) clearInterval(t);
+            return;
+          }
+          clearInterval(t);
+          try {
+            c.from("tk_settings")
+              .select("key,value")
+              .in("key", ["brand_enabled", "hovernav_enabled"])
+              .then(function (res) {
+                if (!res || res.error) return;
+                var vals = {};
+                (res.data || []).forEach(function (r) {
+                  vals[r.key] = r.value;
+                });
+                var brandOn = isOn(vals.brand_enabled);
+                lsSet("mgb_brand_cache", brandOn ? "1" : null);
+                if (!brandClassic) applyBrand(brandOn || ls("mgb_brand_preview") === "1");
+                var hoverBefore = ls("mgb_hovernav_cache");
+                lsSet("mgb_hovernav_cache", isOn(vals.hovernav_enabled) ? "1" : null);
+                if (ls("mgb_hovernav_cache") !== hoverBefore) {
+                  try {
+                    window.dispatchEvent(new Event("mgb:hovernav"));
+                  } catch (e) {}
+                }
+              }, function () {});
+          } catch (e) {}
+        }, 500);
       })();
     </script>
     <!-- One request for the whole app. Bitter / IBM Plex Sans / IBM Plex Mono are

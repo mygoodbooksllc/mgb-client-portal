@@ -1030,7 +1030,7 @@ const FEATURE_FLAGS = [
     key: "mgb_brand_preview",
     label: "Brand colors preview",
     description:
-      "Tries the brand guide's colors for you only, in this browser: navy #243746 and dark teal #06262D in place of the near-black, gold unchanged, Montserrat headings. No firm-wide switch yet. The page reloads when you toggle it.",
+      "Tries the brand guide's colors for you only, in this browser: navy #243746 and dark teal #06262D in place of the near-black, gold unchanged, Montserrat headings. For you only, while the firm-wide brand_enabled switch is off. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -1038,7 +1038,7 @@ const FEATURE_FLAGS = [
     key: "mgb_hovernav_preview",
     label: "Hover menus preview",
     description:
-      "Pointing at a sidebar icon with tabs (Work, Team, HR, Finances) opens a small menu of clickable tabs beside it, and gray browser tooltips become themed ones. For you only, in this browser. The page reloads when you toggle it.",
+      "Pointing at a sidebar icon with tabs (Work, Team, HR, Finances) opens a small menu of clickable tabs beside it, and gray browser tooltips become themed ones. For you only, in this browser, while the firm-wide hovernav_enabled switch is off. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -1046,6 +1046,22 @@ const FEATURE_FLAGS = [
     label: "Classic fonts",
     description:
       "Keeps the old fonts (Bitter headings, IBM Plex Sans body) for you only, in this browser, even after the owner switches Lato on for everyone. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
+    // Read by the inline script in index.html (wins over the preview and the firm switch).
+    key: "mgb_brand_classic",
+    label: "Classic colors",
+    description:
+      "Keeps the old colors and headings for you only, in this browser, even after the owner switches the brand colors on for everyone. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
+    // Read by HN_on (components/staff/HoverNav.jsx).
+    key: "mgb_hovernav_classic",
+    label: "Classic menus",
+    description:
+      "Turns the hover menus off for you only, in this browser, even after the owner switches them on for everyone: pointing at a sidebar icon opens nothing and the gray browser tooltips come back. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -15359,6 +15375,8 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["slate_app_enabled", "Slate app on for staff", "Off (or missing, the default) keeps Slate as it is for everyone: Open in own window opens the same small window and nothing new shows. Owner turns it on (true) with one SQL line, never from here, to give every staff member the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app). Read-only here. Each person can try it early with Slate app preview in Feature flags."],
             ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar, plus the Alerts section for real admins. Each person can try it early with Sidebar preview in Feature flags. Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
             ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can try it early with Lato font preview in Feature flags, or opt out with Classic fonts. Setting it to true changes the look for every user right away, so do it only at launch."],
+            ["brand_enabled", "Brand colors for everyone", "Off (or missing, the default) keeps the current colors and headings for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to the brand guide's navy and dark teal with Montserrat headings. Each person can try it early with Brand colors preview in Feature flags, or opt out with Classic colors. Setting it to true changes the look for every user right away, so do it only at launch."],
+            ["hovernav_enabled", "Hover menus for everyone", "Off (or missing, the default) keeps the sidebars as they are for everyone. Owner turns it on (true) with one SQL line, never from here, to open a small menu of tabs when you point at a sidebar icon (Work, Team, HR, Finances) and to replace the gray browser tooltips with themed ones. Each person can try it early with Hover menus preview in Feature flags, or opt out with Classic menus. Setting it to true changes the sidebars for every user right away, so do it only at launch."],
             ["layout_defaults", "Sidebar defaults by role", "What each role (admin, account manager, bookkeeper, temp admin) sees in the left sidebar until they customize it. Admins edit it in Settings › Firm settings › Sidebar defaults (shown once the sidebar is on). Not set means the built-in layout."],
             ["month_rhythm", "Month rhythm (Slate)", "The three days each month when Slate's monthly tasks come due: Check in, Send reports, Follow up, and what happens on a weekend or firm holiday. Admins edit it on Settings › Firm settings › Month rhythm (every change audited; the database refuses an invalid value). Not set means 4th, 14th, 24th, next business day."],
             ["month_rhythm_enabled", "Month rhythm tasks on for everyone", "Off (or missing, the default): the daily task run makes nothing from the eight MGB Month Rhythm templates for real clients (test and internal clients still get them from Make due tasks now), the month-rhythm-daily job sends no emails, and Slate › Recurring hides them unless you have Month rhythm preview on. Turning it on stamps the set's live_since, so only dates from that day on are made. Owner-only; the owner turns it on (true) with one SQL line, never from here, once the monthly rhythm tasks are finished. Each person can try the work early with Month rhythm preview in Feature flags."],

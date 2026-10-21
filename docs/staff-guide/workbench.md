@@ -7,7 +7,7 @@ sort: 41
 ---
 The **Desk** (it was called the Workbench) sits on the right of every staff page, with an info bar along the bottom. Press **D** anywhere to open it (**W** no longer does): one list of everything that needs you, in order, with tabs for your **Inbox**, your **Slate** (it was called Tasks) and one **Client**. **Today** (the first place in the left rail; the address stays `#/today`) keeps its name and shows only the top of that list as a **Do next** card (always your own items, even while an admin has **Everyone** picked here); the full list stays here and in **Slate**.
 
-The owner turns the Desk and the new Today on for the whole team. Until then Today looks as it always has. See [What's on my Today page?](#/help/home-page). **MGB Desk** (the Desk in its own window, below) follows that same switch plus a switch of its own, so it shows up only once the owner turns both on.
+The Desk and the new Today are on for the whole team (since October 21). See [What's on my Today page?](#/help/home-page) and [What changed: the Desk, left sidebar and new look](#/help/new-look-and-sidebar). **MGB Desk** (the Desk in its own window, below) follows that same switch plus a switch of its own, so it shows up only once the owner turns it on.
 
 ### The four counts
 

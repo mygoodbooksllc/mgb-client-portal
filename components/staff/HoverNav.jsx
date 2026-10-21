@@ -1,7 +1,11 @@
 // components/staff/HoverNav.jsx — hover navigation preview (owner request 2026-10-21).
 //
-// Behind the per-person checkbox mgb_hovernav_preview (Developer tools › Feature
-// flags). Off: nothing here runs and the sidebars behave as before.
+// Gate (HN_on, the one place that decides): Classic menus (mgb_hovernav_classic,
+// Developer tools › Feature flags) wins, then the person's checkbox
+// mgb_hovernav_preview, then the firm switch tk_settings.hovernav_enabled (the
+// inline script in index.html caches it in mgb_hovernav_cache and fires the
+// window event "mgb:hovernav" when it changes; code never writes the switch).
+// Off: nothing here shows and the sidebars behave as before.
 //   1. A themed tip replaces the browser's gray native title="" tooltip.
 //   2. Pointing at a sidebar icon whose place has tabs opens a small flyout of
 //      clickable tabs beside it (staff rail: Work, Team, HR; client sidebar:
@@ -10,16 +14,21 @@
 
 function HN_on() {
   try {
-    return window.localStorage.getItem("mgb_hovernav_preview") === "1";
+    const ls = window.localStorage;
+    if (ls.getItem("mgb_hovernav_classic") === "1") return false;
+    return ls.getItem("mgb_hovernav_preview") === "1" || ls.getItem("mgb_hovernav_cache") === "1";
   } catch (e) {
     return false;
   }
 }
 
 // Themed replacement for native title tooltips. One document-level listener,
-// installed only when the preview is on (the flag change reloads the page).
-(function HN_installTitleTips() {
-  if (typeof document === "undefined" || !HN_on()) return;
+// installed only once hover menus are on (at load, or when the firm switch
+// arrives); the handlers also check HN_on(), so a switch turned off goes quiet.
+let HN_titleTipsInstalled = false;
+function HN_installTitleTips() {
+  if (HN_titleTipsInstalled || typeof document === "undefined" || !HN_on()) return;
+  HN_titleTipsInstalled = true;
   let tipEl = null;
   let owner = null;
   function hide() {
@@ -33,6 +42,7 @@ function HN_on() {
     }
   }
   document.addEventListener("mouseover", (e) => {
+    if (!HN_on()) return;
     const el = e.target && e.target.closest ? e.target.closest("[title]") : null;
     if (!el || el === owner) return;
     const text = el.getAttribute("title");
@@ -60,12 +70,20 @@ function HN_on() {
   });
   document.addEventListener("mousedown", hide, true);
   window.addEventListener("scroll", hide, true);
-})();
+}
+HN_installTitleTips();
+if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("mgb:hovernav", HN_installTitleTips);
 
 // Flyout state for one sidebar. Returns { enabled, node, open, scheduleClose }.
 //   open(event, { title, items: [{ key, label, current }], onPick })
 function HN_useFlyout() {
   const enabled = HN_on();
+  const [, bumpOn] = React.useState(0);
+  React.useEffect(() => {
+    const f = () => bumpOn((n) => n + 1);
+    window.addEventListener("mgb:hovernav", f);
+    return () => window.removeEventListener("mgb:hovernav", f);
+  }, []);
   const [spec, setSpec] = React.useState(null);
   const timer = React.useRef(null);
   const cancel = () => {

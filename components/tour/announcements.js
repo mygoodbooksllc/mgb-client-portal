@@ -31,6 +31,10 @@
 //            localStorage); What's new and the ? menu list the tour anyway.
 //            Use it when the feature only makes sense once the person has
 //            met it, like "unassigned-tasks" (mgb_tk_seen_unassigned_v1).
+//   supersedes  optional list of older entry ids this one replaces (a combined
+//            launch). Once the person has been shown this entry, those are no
+//            longer owed (ANN_superseded in announcementsLogic.js); they stay
+//            in What's new and the ? menu.
 
 // True when the Desk is on for this person (WB_store loads after this file).
 function ANN_deskOn() {
@@ -46,6 +50,37 @@ function ANN_deskOn() {
 function ANN_deskDocked() {
   try {
     return typeof window !== "undefined" && !!window.matchMedia && !window.matchMedia("(max-width: 760px)").matches;
+  } catch (e) {
+    return false;
+  }
+}
+
+// True once the owner has switched the look and layout launch on for everyone:
+// the Lato, Brand colors and Hover menus firm switches (the last ones to go
+// live) are cached by index.html's inline script after its first read.
+// Someone on a Classic option still counts, so they hear about it too.
+function ANN_launchOn() {
+  try {
+    var ls = window.localStorage;
+    return ls.getItem("mgb_lato_cache") === "1" && ls.getItem("mgb_brand_cache") === "1" && ls.getItem("mgb_hovernav_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+// True when the left sidebar's Pinned and Recent clients are on for this person.
+function ANN_sidebarOn() {
+  try {
+    return typeof SS_isOn === "function" && !!SS_isOn();
+  } catch (e) {
+    return false;
+  }
+}
+
+// True when hover menus are on for this person (HN_on is the one gate).
+function ANN_hoverOn() {
+  try {
+    return typeof HN_on === "function" && !!HN_on();
   } catch (e) {
     return false;
   }
@@ -1349,6 +1384,77 @@ var ANN_REGISTRY = [
           "Sort orders tasks inside each group: click once for ascending, again for descending, a third time for the normal order. Reset view puts everything back. The Desk's Slate tab has the same bar and keeps its own view.",
       },
     ],
+  },
+  {
+    // Combined launch (2026-10-21): the Desk and new Today, the left sidebar, Lato,
+    // brand colors and hover menus, all switched on for staff. Waits until the
+    // owner has switched the last ones on (ANN_launchOn). Covers the earlier
+    // Desk-only launches, so nobody gets them one visit at a time behind it.
+    id: "new-look-and-layout",
+    date: "2026-10-21",
+    title: "The Desk, a left sidebar and a new look",
+    summary:
+      "The Desk (press D) and the new Today, Pinned and Recent clients in the left sidebar, the Lato font, the brand colors, and menus that open when you point at an icon are now on for the whole team. You can customize the sidebar, and most of it has a Classic option.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/today",
+    supersedes: ["desk-launch", "desk-right-now", "desk-task-view", "desk-right-launch", "workbench-launch"],
+    ready: () => ANN_launchOn(),
+    steps: (ctx) => {
+      const canDev = !!(ctx && (ctx.isAdmin || ctx.tempAdmin));
+      return [
+        {
+          id: "ann-welcome",
+          title: "A few things changed, all at once",
+          body: () =>
+            "Five things are new for everyone: the Desk and the new Today, the left sidebar, the Lato font, brand colors, and menus that open when you point at an icon. Nothing about your work moved. About a minute.",
+        },
+        {
+          id: "ann-desk",
+          when: () => ANN_deskOn(),
+          targets: ["wb-bar"],
+          wait: true,
+          title: "The Desk, and the new Today",
+          body: () =>
+            "Today now leads with one Do next card, and the full Needs you list lives in the Desk. This bar along the bottom shows what is late and your next task. Click it, or press D (not while typing), to open the Desk on the right with tabs for your Inbox, Slate and one Client. D or Esc closes it.",
+        },
+        {
+          id: "ann-sidebar",
+          when: () => ANN_sidebarOn(),
+          targets: ["staff-sidebar-gear", "staff-nav"],
+          wait: true,
+          title: "Your clients, one click away",
+          body: () =>
+            "The left sidebar now lists your Pinned clients (pin with the star in the Desk's Client tab) and your Recent clients under the places." +
+            (ctx && ctx.isAdmin ? " Admin alerts are in the bell at the top." : "") +
+            " The Customize gear down here chooses which sections show, in what order, and how wide the sidebar is. It is saved for you.",
+        },
+        {
+          id: "ann-look",
+          title: "A new font and the brand colors",
+          body: () =>
+            "Headings and text now use Lato, and the app has the MyGoodBooks navy and teal with Montserrat headings. Numbers keep their usual font. Nothing moved: it is only the look.",
+        },
+        {
+          id: "ann-hover",
+          when: () => ANN_hoverOn(),
+          targets: ["staff-nav"],
+          wait: true,
+          title: "Point to open a menu",
+          body: () =>
+            "Point at an icon with tabs here (Work, Team or HR) and a small menu of its tabs opens beside it, so you can jump straight to one. The gray browser tooltips are now themed ones too.",
+        },
+        {
+          id: "ann-done",
+          title: "Prefer the old way?",
+          body: () =>
+            "Classic Today is on the ? of Today's Do next card. " +
+            (canDev
+              ? "Classic fonts, Classic colors and Classic menus are in Settings › Firm settings › Developer tools › Feature flags, for this browser only."
+              : "Classic fonts, colors and menus are in Feature flags, a page only admins open, so tell us through Send feedback if one bothers you.") +
+            " To see this again, press ? and pick New: The Desk, a left sidebar and a new look, or read the staff guide.",
+        },
+      ];
+    },
   },
 ];
 

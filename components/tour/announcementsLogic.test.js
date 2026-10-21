@@ -231,6 +231,28 @@ t("report skips roles the launch isn't for", () => {
 });
 
 // ---- Registry integrity
+t("supersedes: once the combined entry has been shown, the ones it covers stop", () => {
+  const old1 = entry("old1", "2026-10-17");
+  const old2 = entry("old2", "2026-10-18");
+  const combo = Object.assign(entry("combo", "2026-10-21"), { supersedes: ["old1", "old2"] });
+  const reg = [combo, old1, old2];
+  // Before the combined one has any answer, it is the newest and shows first.
+  assert.strictEqual(L.ANN_pickNext(reg, state(), admin, NOW).id, "combo");
+  // Shown (seen), then answered Later or Skip: the covered ones never trickle out.
+  ["seen", "later", "dismissed", "toured"].forEach((status) => {
+    const st = state({ rows: { combo: { status, later_count: status === "later" ? 1 : 0 } }, hidden: [] });
+    const next = L.ANN_pickNext(reg, st, admin, NOW);
+    assert.ok(!next || next.id === "combo", status + " leaves old1 and old2 out");
+  });
+  assert.strictEqual(L.ANN_pickNext(reg, state({ rows: { combo: { status: "toured" } } }), admin, NOW), null);
+  // A person it is not for (role) still gets the older ones.
+  const adminOnly = Object.assign(entry("combo", "2026-10-21", ["admin"]), { supersedes: ["old1"] });
+  assert.strictEqual(L.ANN_pickNext([adminOnly, old1], state({ rows: {} }), bk, NOW).id, "old1");
+  // A combined entry still waiting on its own ready() does not hide them yet.
+  const waiting = Object.assign(entry("combo", "2026-10-21"), { supersedes: ["old1"], ready: () => false });
+  assert.strictEqual(L.ANN_pickNext([waiting, old1], state(), admin, NOW).id, "old1");
+});
+
 const { ANN_REGISTRY } = require("./announcements.js");
 // Tour.jsx helpers the steps call when a tour starts.
 global.TOUR_tabStep = (place, tab, title, body) => ({ id: place + "-" + tab, title, body: () => body, targets: ["#tp-tab-" + tab] });
@@ -447,6 +469,29 @@ t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view
   // The newest by date, so it is picked first for a person with nothing answered.
   const newest = ANN_REGISTRY.reduce((m, x) => (x.date > m ? x.date : m), "");
   assert.strictEqual(a.date, newest);
+});
+
+t("registry: new-look-and-layout is one combined staff notice for the five launches", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "new-look-and-layout");
+  assert.ok(a);
+  assert.strictEqual(a.date, "2026-10-21");
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  assert.ok(!a.roles.includes("client"));
+  assert.strictEqual(typeof a.ready, "function");
+  assert.deepStrictEqual(a.supersedes, ["desk-launch", "desk-right-now", "desk-task-view", "desk-right-launch", "workbench-launch"]);
+  a.supersedes.forEach((id) => assert.ok(ANN_REGISTRY.find((x) => x.id === id), id + " exists"));
+  // Not ready without the three firm caches (no browser here).
+  assert.strictEqual(a.ready(), false);
+  const steps = a.steps({ isAdmin: true });
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-desk", "ann-sidebar", "ann-look", "ann-hover", "ann-done"]);
+  assert.strictEqual(steps[0].targets, undefined);
+  assert.deepStrictEqual(steps[1].targets, ["wb-bar"]);
+  assert.deepStrictEqual(steps[2].targets, ["staff-sidebar-gear", "staff-nav"]);
+  assert.strictEqual(steps[3].targets, undefined);
+  assert.deepStrictEqual(steps[4].targets, ["staff-nav"]);
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body()), a.steps({}).map((x) => x.body())));
+  assert.ok(!/colour|slate app|month rhythm/i.test(text), "US spelling; nothing about the held Slate app or Month rhythm");
+  assert.ok(/Classic Today/.test(text) && /Classic fonts/.test(text) && /Customize/.test(text) && /press D/i.test(text));
 });
 
 console.log("announcementsLogic: " + n + " checks passed");

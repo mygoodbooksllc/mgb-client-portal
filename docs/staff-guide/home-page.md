@@ -28,7 +28,7 @@ Under Do next, a row of small cards that fits your window (side by side on a com
 - **Your reminders**: a quick list with a box to add one. For times, repeats and sharing, open the reminder from **Work › Slate**.
 - **This week**: birthdays and work anniversaries coming up (admins; send a shout-out), and **Milestones to review**: clients whose numbers point to a different pricing milestone, aren't confirmed yet, or are close to the next one.
 
-Below them, **Recent clients** is a single line with the clients you opened lately on this device. Click one to go back.
+Below them, **Recent clients** is a single line with the clients you opened lately on this device. Click one to go back. With the left sidebar on, those clients are listed in the sidebar instead and this card is hidden.
 
 ### Also show
 

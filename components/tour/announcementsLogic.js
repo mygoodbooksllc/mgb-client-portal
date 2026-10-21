@@ -121,6 +121,17 @@ function ANN_ready(entry, ctx) {
   }
 }
 
+// An entry may carry supersedes: ["older-id", ...], the launches it replaces
+// (a combined launch notice). Once the person has been shown the superseding
+// entry (it has any answer row), the ones it covers are no longer owed, so
+// they do not trickle out one visit at a time behind it.
+function ANN_superseded(registry, entry, state) {
+  var rows = (state && state.rows) || {};
+  return (registry || []).some(function (y) {
+    return y && Array.isArray(y.supersedes) && y.supersedes.indexOf(entry.id) !== -1 && !!ANN_effectiveStatus(rows[y.id]);
+  });
+}
+
 // The one announcement to show now, or null. ctx has the staff tour ctx
 // fields (isAdmin, tempAdmin, isBookkeeper, amCount) plus busy, profileOpen,
 // impersonating, previewing. state.hidden lists ids put away this page load
@@ -130,7 +141,7 @@ function ANN_pickNext(registry, state, ctx, now) {
   var hidden = (state && state.hidden) || [];
   var owed = ANN_audience(registry, ctx)
     .map(function (a, i) { return { a: a, i: i }; })
-    .filter(function (x) { return hidden.indexOf(x.a.id) === -1 && ANN_owed(x.a, state, now) && ANN_ready(x.a, ctx); })
+    .filter(function (x) { return hidden.indexOf(x.a.id) === -1 && ANN_owed(x.a, state, now) && !ANN_superseded(registry, x.a, state) && ANN_ready(x.a, ctx); })
     .sort(function (x, y) {
       if (x.a.date !== y.a.date) return x.a.date < y.a.date ? 1 : -1;
       return x.i - y.i;
@@ -180,6 +191,6 @@ if (typeof module !== "undefined" && module.exports) {
     ANN_STATUSES: ANN_STATUSES, ANN_ROLES: ANN_ROLES, ANN_LATER_MAX: ANN_LATER_MAX, ANN_CAP_DAYS: ANN_CAP_DAYS,
     ANN_roleSet: ANN_roleSet, ANN_audience: ANN_audience, ANN_effectiveStatus: ANN_effectiveStatus,
     ANN_apply: ANN_apply, ANN_merge: ANN_merge, ANN_day: ANN_day, ANN_blocked: ANN_blocked, ANN_owed: ANN_owed,
-    ANN_pickNext: ANN_pickNext, ANN_report: ANN_report, ANN_ready: ANN_ready,
+    ANN_pickNext: ANN_pickNext, ANN_report: ANN_report, ANN_ready: ANN_ready, ANN_superseded: ANN_superseded,
   };
 }
