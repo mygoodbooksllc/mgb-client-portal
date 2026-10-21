@@ -2378,3 +2378,210 @@ if (typeof module !== "undefined" && module.exports) {
     TK_slateDeepHref: TK_slateDeepHref,
   };
 }
+
+// ---- Slate app P2: manual order (drag reorder) -------------------------------
+// Kept in its own block (other slices edit this file). Pure helpers only; the
+// drag and key wiring lives in TK_Drag.jsx. The server twin is tk_reorder in
+// supabase/tasks-slate-p2-reorder.sql: TK_manualKeyBetween and
+// TK_manualRenormKeys must give the same numbers it does.
+var TK_MANUAL_STEP = 1024;
+var TK_MANUAL_MIN_GAP = 0.000001;
+var TK_MANUAL_PREF_KEY = "mgb_tk_manual_v1";
+var TK_MANUAL_KINDS = ["my", "project", "client", "person"];
+
+function TK_manualKeyOf(t) {
+  if (!t || t.sort_key == null || t.sort_key === "") return null;
+  var n = Number(t.sort_key);
+  return isNaN(n) ? null : n;
+}
+
+// The key for a row dropped between before and after (tasks or null).
+// null = no room: renumber the group.
+function TK_manualKeyBetween(before, after) {
+  var ka = TK_manualKeyOf(after);
+  if (!before) return after && ka != null ? ka - TK_MANUAL_STEP : TK_MANUAL_STEP;
+  var kb = TK_manualKeyOf(before);
+  if (kb == null) return null;
+  if (!after || ka == null) return kb + TK_MANUAL_STEP;
+  if (kb < ka && ka - kb > TK_MANUAL_MIN_GAP) return (kb + ka) / 2;
+  return null;
+}
+
+function TK_manualNeedsRenorm(before, after) {
+  return TK_manualKeyBetween(before, after) == null;
+}
+
+// The renumber the server does: order = the group's tasks after the move.
+// Rows from the top through the moved row, and through the last row that
+// already has a key, get 1024, 2048, ... Returns { key, rows: {id: key} }
+// where rows holds only the other rows whose key changes.
+function TK_manualRenormKeys(order, movedId) {
+  var list = Array.isArray(order) ? order : [];
+  var pos = -1;
+  var cut = -1;
+  list.forEach(function (t, i) {
+    if (!t) return;
+    if (t.id === movedId) pos = i;
+    else if (TK_manualKeyOf(t) != null) cut = i;
+  });
+  cut = Math.max(cut, pos);
+  var out = { key: pos >= 0 ? TK_MANUAL_STEP * (pos + 1) : null, rows: {} };
+  for (var i = 0; i <= cut; i++) {
+    var t = list[i];
+    if (!t || t.id === movedId) continue;
+    var k = TK_MANUAL_STEP * (i + 1);
+    if (TK_manualKeyOf(t) !== k) out.rows[t.id] = k;
+  }
+  return out;
+}
+
+// Can this view be put in manual order? o: { inApp, mode, kind, sort,
+// readOnly, search }. App only, regular or full width, no other sort, not
+// read-only, no search.
+function TK_manualOrderAllowed(o) {
+  o = o || {};
+  if (!o.inApp) return false;
+  if (o.mode !== "regular" && o.mode !== "full") return false;
+  if (TK_MANUAL_KINDS.indexOf(o.kind) < 0) return false;
+  if (o.sort && o.sort.col) return false;
+  if (o.readOnly) return false;
+  if (o.search && String(o.search).trim()) return false;
+  return true;
+}
+
+// Only a project list may drop a row into another group (its sections).
+function TK_manualCrossGroup(kind) {
+  return kind === "project";
+}
+
+// groups: [{ key, label, tasks }] as shown (top-level rows, in order).
+// Drop row id into group groupKey at gap index (0 = top, n = bottom, counted
+// over the rows as shown, the moved row included). Returns a plan or null
+// when nothing would change:
+//   { id, fromKey, groupKey, index, before, after, order, crossGroup }
+// index is the row's position in the group after the move; order is the
+// group's tasks after the move.
+function TK_manualDropPlan(groups, id, groupKey, index, opts) {
+  var gs = Array.isArray(groups) ? groups : [];
+  var from = null;
+  var fromIdx = -1;
+  var to = null;
+  gs.forEach(function (g) {
+    var ts = (g && g.tasks) || [];
+    for (var i = 0; i < ts.length; i++) {
+      if (ts[i] && ts[i].id === id) { from = g; fromIdx = i; }
+    }
+    if (g && g.key === groupKey) to = g;
+  });
+  if (!from || !to) return null;
+  var cross = from !== to;
+  if (cross && !(opts && opts.crossGroup)) return null;
+  var moved = from.tasks[fromIdx];
+  var rest = (to.tasks || []).filter(function (t) { return t && t.id !== id; });
+  var at = Math.max(0, Math.min(Number(index) || 0, (to.tasks || []).length));
+  if (!cross && fromIdx < at) at -= 1;
+  at = Math.max(0, Math.min(at, rest.length));
+  if (!cross && at === fromIdx) return null;
+  var order = rest.slice(0, at).concat([moved], rest.slice(at));
+  return {
+    id: id,
+    fromKey: from.key,
+    groupKey: to.key,
+    index: at,
+    before: at > 0 ? rest[at - 1] : null,
+    after: at < rest.length ? rest[at] : null,
+    order: order,
+    crossGroup: cross,
+  };
+}
+
+// Alt+Up (dir -1) / Alt+Down (dir 1) on row id: one step within its group;
+// at a group edge, into the next or previous non-collapsed group when
+// opts.crossGroup. null when it cannot move.
+function TK_manualKeyTarget(groups, id, dir, opts) {
+  var gs = (Array.isArray(groups) ? groups : []).filter(function (g) { return g && !g.collapsed; });
+  var gi = -1;
+  var i = -1;
+  gs.forEach(function (g, gx) {
+    (g.tasks || []).forEach(function (t, tx) {
+      if (t && t.id === id) { gi = gx; i = tx; }
+    });
+  });
+  if (gi < 0 || (dir !== 1 && dir !== -1)) return null;
+  var g = gs[gi];
+  var n = (g.tasks || []).length;
+  if (dir < 0 && i > 0) return TK_manualDropPlan(gs, id, g.key, i - 1, opts);
+  if (dir > 0 && i < n - 1) return TK_manualDropPlan(gs, id, g.key, i + 2, opts);
+  if (!(opts && opts.crossGroup)) return null;
+  var ng = gs[gi + dir];
+  if (!ng) return null;
+  return TK_manualDropPlan(gs, id, ng.key, dir < 0 ? (ng.tasks || []).length : 0, opts);
+}
+
+// What the store should change for a plan: { key, rows: {id: key}, renorm }.
+// rows holds the other renumbered rows (empty when the key fits).
+function TK_manualPatches(plan) {
+  if (!plan) return null;
+  var k = TK_manualKeyBetween(plan.before, plan.after);
+  if (k != null) return { key: k, rows: {}, renorm: false };
+  var r = TK_manualRenormKeys(plan.order, plan.id);
+  return { key: r.key, rows: r.rows, renorm: true };
+}
+
+// Each group's tasks in manual order (sort_key first, then the usual order).
+function TK_manualSortGroups(groups) {
+  return (Array.isArray(groups) ? groups : []).map(function (g) {
+    if (!g || !Array.isArray(g.tasks)) return g;
+    var out = {};
+    for (var k in g) if (Object.prototype.hasOwnProperty.call(g, k)) out[k] = g[k];
+    out.tasks = TK_sortTasks(g.tasks, null);
+    return out;
+  });
+}
+
+// The live-region line after a move.
+function TK_manualAnnounce(plan, label) {
+  if (!plan) return "";
+  var n = (plan.order || []).length;
+  var where = label ? " in " + label : "";
+  return "Moved to position " + (plan.index + 1) + " of " + n + where + ".";
+}
+
+// Per-person, app-only memory of which views are in manual order:
+// { "<scope>": true }. Kept apart from the shared Slate view so the portal
+// page never sees it.
+function TK_manualPrefRead(raw, scope) {
+  var o = null;
+  try { o = typeof raw === "string" ? JSON.parse(raw) : raw; } catch (e) { o = null; }
+  return !!(o && typeof o === "object" && !Array.isArray(o) && o[scope] === true);
+}
+function TK_manualPrefWrite(raw, scope, on) {
+  var o = null;
+  try { o = typeof raw === "string" ? JSON.parse(raw) : raw; } catch (e) { o = null; }
+  if (!o || typeof o !== "object" || Array.isArray(o)) o = {};
+  var out = {};
+  Object.keys(o).forEach(function (k) { if (o[k] === true && k !== scope) out[k] = true; });
+  if (on && scope) out[scope] = true;
+  return JSON.stringify(out);
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  Object.assign(module.exports, {
+    TK_MANUAL_STEP: TK_MANUAL_STEP,
+    TK_MANUAL_MIN_GAP: TK_MANUAL_MIN_GAP,
+    TK_MANUAL_PREF_KEY: TK_MANUAL_PREF_KEY,
+    TK_manualKeyOf: TK_manualKeyOf,
+    TK_manualKeyBetween: TK_manualKeyBetween,
+    TK_manualNeedsRenorm: TK_manualNeedsRenorm,
+    TK_manualRenormKeys: TK_manualRenormKeys,
+    TK_manualOrderAllowed: TK_manualOrderAllowed,
+    TK_manualCrossGroup: TK_manualCrossGroup,
+    TK_manualDropPlan: TK_manualDropPlan,
+    TK_manualKeyTarget: TK_manualKeyTarget,
+    TK_manualPatches: TK_manualPatches,
+    TK_manualSortGroups: TK_manualSortGroups,
+    TK_manualAnnounce: TK_manualAnnounce,
+    TK_manualPrefRead: TK_manualPrefRead,
+    TK_manualPrefWrite: TK_manualPrefWrite,
+  });
+}

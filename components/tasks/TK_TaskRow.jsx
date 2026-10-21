@@ -662,6 +662,7 @@ function TK_vIcon(props) {
   };
   if (name === "check") return <svg {...common}><polyline points="5 12.5 10 17 19 7.5" /></svg>;
   if (name === "chevron") return <svg {...common}><polyline points="9 6 15 12 9 18" /></svg>;
+  if (name === "grip") return <svg {...common}><circle cx="9" cy="6" r="1" /><circle cx="15" cy="6" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="9" cy="18" r="1" /><circle cx="15" cy="18" r="1" /></svg>;
   if (name === "down") return <svg {...common}><polyline points="6 9 12 15 18 9" /></svg>;
   if (name === "search") return <svg {...common}><circle cx="11" cy="11" r="6.5" /><line x1="16" y1="16" x2="20.5" y2="20.5" /></svg>;
   if (name === "plus") return <svg {...common}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
@@ -1846,6 +1847,18 @@ function TK_TaskRow(props) {
       </div>
       <div className="tk-cell tk-cell-main" role="gridcell">
         <div className="tk-row-titleline">
+          {props.dragHandle ? (
+            <button
+              type="button"
+              className="tk-drag-handle"
+              data-tk-drag-handle="1"
+              tabIndex={-1}
+              aria-hidden="true"
+              title="Drag to reorder (Alt+Up or Alt+Down)"
+            >
+              <TK_vIcon name="grip" size={14} />
+            </button>
+          ) : null}
           {selectBox}
           <a className="tk-row-title" href={href} onClick={openClick}>
             {task.text || "Untitled task"}

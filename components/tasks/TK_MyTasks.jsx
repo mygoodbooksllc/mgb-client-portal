@@ -88,6 +88,7 @@ function TK_vUseSlateView(email, scope) {
 }
 
 // props: view, onChange(patch), onReset(), compact (the Desk tab),
+// manual (Slate app P2, app only: { on, onToggle(on) } adds a Manual sort chip),
 // viewsMenu (Slate app P3: the named saved views menu, passed only inside the
 // Slate app), groupTour (data-tour of the Group by select; the Desk passes its own so a
 // tip never finds two targets).
@@ -160,6 +161,7 @@ function TK_SlateViewBar(props) {
                 title={dir === "desc" ? "Click to go back to the default order" : dir === "asc" ? "Click for descending" : "Click to sort"}
                 onClick={function () {
                   var next = typeof TK_toggleSort === "function" ? TK_toggleSort(v.sort, s.col) : null;
+                  if (next && props.manual && props.manual.on) props.manual.onToggle(false);
                   props.onChange({ sort: next });
                 }}
               >
@@ -168,6 +170,20 @@ function TK_SlateViewBar(props) {
               </button>
             );
           })}
+          {props.manual ? (
+            <button
+              type="button"
+              className={"tk-filter-chip tk-sv-chip tk-manual-chip" + (props.manual.on ? " is-on" : "")}
+              aria-pressed={props.manual.on ? "true" : "false"}
+              aria-label="Sort by manual order"
+              title="Drag rows to set your own order (Alt+Up or Alt+Down moves the focused row)"
+              onClick={function () {
+                props.manual.onToggle(!props.manual.on);
+              }}
+            >
+              Manual
+            </button>
+          ) : null}
         </span>
       ) : null}
       {isDefault ? null : (
@@ -440,6 +456,16 @@ function TK_vMyTasksBody(props) {
   var byDue = built ? built.byDue : true;
   var byClient = !byDue && groupBy === "client";
   var view = built ? built.groups : TK_myGroupsView(groups, { collapsed: collapsed, showDone: prefs.showDone });
+  // Slate app P2: manual order (drag, Alt+Up / Alt+Down) within each group.
+  // App only, regular or full width, and no other sort; off on the portal page.
+  var manualMode = typeof TK_useSlateMode === "function" ? TK_useSlateMode() : null;
+  var manualPair = typeof TK_useManualPref === "function" ? TK_useManualPref("my") : [false, function () {}];
+  var manualCan =
+    typeof TK_manualOrderAllowed === "function" &&
+    !embedded &&
+    TK_manualOrderAllowed({ inApp: slateApp, mode: manualMode && manualMode.mode, kind: "my", sort: null, readOnly: !online });
+  var manualOn = manualCan && manualPair[0] && !(sv.sort && sv.sort.col);
+  if (manualOn && typeof TK_manualSortGroups === "function") view = TK_manualSortGroups(view);
   // Only a quick chip can empty a list that has tasks (the client filter has
   // its own empty copy), so "No tasks match this view" shows only then.
   var chipEmptied = !!(sv && sv.chip) && TK_myGroupsView(groups, { showDone: prefs.showDone }).length > 0;
@@ -448,6 +474,18 @@ function TK_vMyTasksBody(props) {
   var subs = TK_vUseSubtasks(tasks);
   view = TK_subNestGroups(view, subs.kidsOf);
   var ids = TK_focusIds(view);
+  var manualBoxRef = React.useRef(null);
+  var manualSay = typeof TK_useManualAnnouncer === "function" ? TK_useManualAnnouncer() : null;
+  var manualRun = function (plan) {
+    if (!plan || typeof TK_manualMove !== "function") return;
+    TK_manualMove(plan, {
+      labelOf: function (k) {
+        for (var i = 0; i < view.length; i++) if (view[i].key === k) return view[i].label;
+        return "";
+      },
+      say: manualSay ? manualSay.say : null,
+    });
+  };
   var byId = {};
   tasks.forEach(function (t) {
     if (t && t.id != null) byId[t.id] = t;
@@ -510,6 +548,12 @@ function TK_vMyTasksBody(props) {
     },
     quickAdd: clientFilter ? { client_id: clientFilter } : {},
   });
+  if (typeof TK_useRowDrag === "function") {
+    TK_useRowDrag({ enabled: manualOn, containerRef: manualBoxRef, groups: view, crossGroup: false, onMove: manualRun });
+  }
+  if (typeof TK_useManualKeys === "function") {
+    TK_useManualKeys({ enabled: manualOn && keysOn, groups: view, focusedId: focusedId, crossGroup: false, onMove: manualRun });
+  }
 
   var toggleGroup = function (key, isCollapsed) {
     setCollapsed(function (c) {
@@ -551,8 +595,8 @@ function TK_vMyTasksBody(props) {
     );
   } else {
     body = (
-      <div className="tk-groups" data-tour="tk-groups">
-        {view.map(function (g) {
+      <div className={"tk-groups" + (manualOn ? " is-manual" : "")} data-tour="tk-groups" ref={manualBoxRef}>
+        {view.map(function (g, gi) {
           var gid = "tk-group-" + String(g.key).replace(/[^a-zA-Z0-9_-]/g, "_");
           return (
             <section
@@ -578,7 +622,7 @@ function TK_vMyTasksBody(props) {
                 {!g.collapsed && typeof TK_BulkGroupBox === "function" ? <TK_BulkGroupBox select={bulk} tasks={g.tasks} label={g.label} /> : null}
               </h3>
               {g.collapsed ? null : (
-                <ul className="tk-rows" role="grid" aria-label={g.label}>
+                <ul className="tk-rows" role="grid" aria-label={g.label} data-tk-group={manualOn ? String(gi) : undefined}>
                   {g.tasks.map(function (t) {
                     var tour = !firstRowDone;
                     firstRowDone = true;
@@ -626,6 +670,7 @@ function TK_vMyTasksBody(props) {
                         onSelect={bulk.ready ? bulk.toggle : undefined}
                         selected={bulk.has(t.id)}
                         selecting={bulk.count > 0}
+                        dragHandle={manualOn || undefined}
                       />
                     );
                   })}
@@ -724,9 +769,21 @@ function TK_vMyTasksBody(props) {
         onChange={svPair[1]}
         onReset={svPair[2]}
         viewsMenu={slateApp && typeof TK_SavedViewsMenu === "function" ? <TK_SavedViewsMenu view={sv} onApply={svPair[1]} email={email} scope="slate" /> : null}
+        manual={
+          manualCan
+            ? {
+                on: manualOn,
+                onToggle: function (on) {
+                  if (on && sv.sort) svPair[1]({ sort: null });
+                  manualPair[1](!!on);
+                },
+              }
+            : undefined
+        }
       />
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
+      {manualOn && manualSay ? manualSay.el : null}
       <TK_BulkBar select={bulk} tasksById={byId} staff={bulkStaff} projects={projects} readOnly={!online} />
       {keys.sheet}
     </div>

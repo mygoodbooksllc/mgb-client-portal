@@ -1062,6 +1062,68 @@ var TK_api = (function () {
     });
   };
 
+  // Slate app P2: manual order through tk_reorder. move: { id, beforeId,
+  // afterId, orderIds, key, rows: {id: key}, setSection, section } (key and
+  // rows from TK_manualPatches). The store moves the rows at once; on an
+  // error every patch rolls back and the error is thrown for the caller's toast.
+  api.reorder = function (move) {
+    var m = move || {};
+    if (!m.id) return Promise.reject(errOf("tk_not_found", "No task"));
+    var off = requireOnline();
+    if (off) return off;
+    var stamp = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    var ops = [];
+    var optimistic = function (id, patch) {
+      var opId = "tk-op-reorder-" + id + "-" + stamp;
+      dispatch({ type: "optimistic", id: id, patch: patch, opId: opId });
+      ops.push({ id: id, opId: opId });
+    };
+    var mp = {};
+    if (m.key != null) mp.sort_key = m.key;
+    if (m.setSection) mp.section = m.section || null;
+    if (Object.keys(mp).length) optimistic(m.id, mp);
+    var rows = m.rows || {};
+    Object.keys(rows).forEach(function (id) {
+      optimistic(id, { sort_key: rows[id] });
+    });
+    var args = {
+      p_task: m.id,
+      p_before: m.beforeId || null,
+      p_after: m.afterId || null,
+      p_section: m.setSection ? m.section || null : null,
+      p_set_section: !!m.setSection,
+      p_order: Array.isArray(m.orderIds) && m.orderIds.length ? m.orderIds.slice(0, 500) : null,
+    };
+    return rpcWrite("tk_reorder", args, "reorder").then(
+      function (d) {
+        var r = parseJson(d) || {};
+        var s = store();
+        var server = {};
+        server[m.id] = { sort_key: r.sort_key == null ? null : Number(r.sort_key), section: r.section == null ? null : r.section, updated_at: r.updated_at || null };
+        (Array.isArray(r.rows) ? r.rows : []).forEach(function (x) {
+          if (x && x.id) server[x.id] = { sort_key: x.sort_key == null ? null : Number(x.sort_key), updated_at: x.updated_at || null };
+        });
+        ops.forEach(function (o) { dispatch({ type: "commit", opId: o.opId }); });
+        Object.keys(server).forEach(function (id) {
+          var cur = s && s.getState().tasks[id];
+          if (!cur) return;
+          var patch = server[id];
+          if (!patch.updated_at) delete patch.updated_at;
+          var t = Object.assign({}, cur, patch);
+          dispatch({ type: "upsert", task: t });
+          afterWrite({ type: "upsert", task: t }, { legacy: false });
+        });
+        // a renumbered row the caller could not write keeps its old key: re-read the moved row's group
+        if (r.skipped > 0 && Object.keys(rows).length) refreshMany(Object.keys(rows).slice(0, 100)).catch(function () {});
+        return r;
+      },
+      function (e) {
+        ops.forEach(function (o) { dispatch({ type: "rollback", opId: o.opId }); });
+        throw e;
+      },
+    );
+  };
+
   // hint: { ids, spawned } to re-read afterwards (the op's rows). hint.fields
   // marks an op from bulkSet (undone with tk_undo_fields).
   api.undo = function (opId, hint) {

@@ -1896,4 +1896,119 @@ t("sliverKey: s, x, Enter; modifiers and repeats are not keys", () => {
   assert.strictEqual(L.TK_slateSliverKey(null), null);
 });
 
+// ---- Slate app P2: manual order ----
+const mk = (id, k) => ({ id, sort_key: k == null ? null : k, text: id, created_at: "2026-10-0" + (id.charCodeAt(0) % 9 + 1) + "T00:00:00Z" });
+t("manual key: between neighbors, top, bottom, mirrors tk_reorder", () => {
+  assert.strictEqual(L.TK_manualKeyBetween(null, null), 1024);
+  assert.strictEqual(L.TK_manualKeyBetween(null, mk("a", 1024)), 0);
+  assert.strictEqual(L.TK_manualKeyBetween(null, mk("a", null)), 1024);
+  assert.strictEqual(L.TK_manualKeyBetween(mk("a", 1024), null), 2048);
+  assert.strictEqual(L.TK_manualKeyBetween(mk("a", 1024), mk("b", null)), 2048);
+  assert.strictEqual(L.TK_manualKeyBetween(mk("a", 1024), mk("b", 2048)), 1536);
+  assert.strictEqual(L.TK_manualKeyBetween(mk("a", null), mk("b", 2048)), null, "no key above: renumber");
+  assert.strictEqual(L.TK_manualKeyBetween(mk("a", 1536), mk("b", 1536.0000001)), null, "too close: renumber");
+  assert.strictEqual(L.TK_manualKeyBetween(mk("a", 3000), mk("b", 2000)), null, "out of order: renumber");
+  assert.strictEqual(L.TK_manualKeyBetween(mk("a", "1024"), mk("b", "2048")), 1536, "numeric strings read as numbers");
+  assert.strictEqual(L.TK_manualNeedsRenorm(mk("a", null), null), true);
+  assert.strictEqual(L.TK_manualNeedsRenorm(mk("a", 1), null), false);
+});
+t("manual renumber: through the moved row and the last keyed row only", () => {
+  const r = L.TK_manualRenormKeys([mk("t1", 1024), mk("t4", null), mk("t2", null), mk("t3", null)], "t4");
+  assert.strictEqual(r.key, 2048);
+  assert.deepStrictEqual(r.rows, {}, "t1 already 1024; t2 and t3 stay unkeyed");
+  const r2 = L.TK_manualRenormKeys([mk("a", 5), mk("m", null), mk("b", 5.0000001), mk("c", null)], "m");
+  assert.strictEqual(r2.key, 2048);
+  assert.deepStrictEqual(r2.rows, { a: 1024, b: 3072 });
+  const r3 = L.TK_manualRenormKeys([mk("a", null), mk("b", null), mk("m", null)], "m");
+  assert.deepStrictEqual(r3, { key: 3072, rows: { a: 1024, b: 2048 } });
+});
+t("manual order: which views allow it", () => {
+  const base = { inApp: true, mode: "regular", kind: "my", sort: null };
+  assert.strictEqual(L.TK_manualOrderAllowed(base), true);
+  assert.strictEqual(L.TK_manualOrderAllowed(Object.assign({}, base, { mode: "full", kind: "project" })), true);
+  assert.strictEqual(L.TK_manualOrderAllowed(Object.assign({}, base, { inApp: false })), false, "portal page: never");
+  assert.strictEqual(L.TK_manualOrderAllowed(Object.assign({}, base, { mode: "compact" })), false);
+  assert.strictEqual(L.TK_manualOrderAllowed(Object.assign({}, base, { mode: "sliver" })), false);
+  assert.strictEqual(L.TK_manualOrderAllowed(Object.assign({}, base, { sort: { col: "due", dir: "asc" } })), false, "another sort is on");
+  assert.strictEqual(L.TK_manualOrderAllowed(Object.assign({}, base, { readOnly: true })), false);
+  assert.strictEqual(L.TK_manualOrderAllowed(Object.assign({}, base, { search: " x " })), false);
+  assert.strictEqual(L.TK_manualOrderAllowed(Object.assign({}, base, { kind: "review" })), false);
+  assert.strictEqual(L.TK_manualOrderAllowed(Object.assign({}, base, { kind: "waiting" })), false);
+  assert.strictEqual(L.TK_manualOrderAllowed(null), false);
+  assert.strictEqual(L.TK_manualCrossGroup("project"), true);
+  assert.strictEqual(L.TK_manualCrossGroup("my"), false);
+  assert.strictEqual(L.TK_manualCrossGroup("person"), false);
+});
+const G = () => [
+  { key: "A", label: "Alpha", tasks: [mk("a1", 1024), mk("a2", 2048), mk("a3", 3072)] },
+  { key: "B", label: "Beta", tasks: [mk("b1", 1024)] },
+  { key: "C", label: "Gamma", tasks: [] },
+];
+const ids = (p) => p.order.map((x) => x.id).join(",");
+t("manual drop plan: gap index within a group", () => {
+  const p = L.TK_manualDropPlan(G(), "a3", "A", 0);
+  assert.strictEqual(ids(p), "a3,a1,a2");
+  assert.strictEqual(p.before, null);
+  assert.strictEqual(p.after.id, "a1");
+  assert.strictEqual(p.index, 0);
+  assert.strictEqual(p.crossGroup, false);
+  const q = L.TK_manualDropPlan(G(), "a1", "A", 2);
+  assert.strictEqual(ids(q), "a2,a1,a3");
+  assert.strictEqual(q.before.id, "a2");
+  assert.strictEqual(q.after.id, "a3");
+  assert.strictEqual(L.TK_manualDropPlan(G(), "a2", "A", 1), null, "dropped where it was");
+  assert.strictEqual(L.TK_manualDropPlan(G(), "a2", "A", 2), null, "the gap just below itself is no move");
+  assert.strictEqual(ids(L.TK_manualDropPlan(G(), "a1", "A", 3)), "a2,a3,a1");
+  assert.strictEqual(L.TK_manualDropPlan(G(), "zz", "A", 0), null);
+  assert.strictEqual(L.TK_manualDropPlan(G(), "a1", "B", 0), null, "another group needs crossGroup");
+  const x = L.TK_manualDropPlan(G(), "a1", "B", 1, { crossGroup: true });
+  assert.strictEqual(ids(x), "b1,a1");
+  assert.strictEqual(x.crossGroup, true);
+  assert.strictEqual(x.fromKey, "A");
+  assert.strictEqual(x.groupKey, "B");
+  const e = L.TK_manualDropPlan(G(), "a1", "C", 0, { crossGroup: true });
+  assert.strictEqual(ids(e), "a1");
+  assert.strictEqual(e.before, null);
+  assert.strictEqual(e.after, null);
+});
+t("manual Alt+arrow target", () => {
+  const up = L.TK_manualKeyTarget(G(), "a2", -1);
+  assert.strictEqual(ids(up), "a2,a1,a3");
+  const down = L.TK_manualKeyTarget(G(), "a2", 1);
+  assert.strictEqual(ids(down), "a1,a3,a2");
+  assert.strictEqual(L.TK_manualKeyTarget(G(), "a1", -1), null, "top of the only allowed group");
+  assert.strictEqual(L.TK_manualKeyTarget(G(), "a3", 1), null, "bottom without crossGroup");
+  const over = L.TK_manualKeyTarget(G(), "a3", 1, { crossGroup: true });
+  assert.strictEqual(over.groupKey, "B");
+  assert.strictEqual(ids(over), "a3,b1");
+  const back = L.TK_manualKeyTarget(G(), "b1", -1, { crossGroup: true });
+  assert.strictEqual(back.groupKey, "A");
+  assert.strictEqual(ids(back), "a1,a2,a3,b1");
+  const gs = G();
+  gs[1].collapsed = true;
+  assert.strictEqual(L.TK_manualKeyTarget(gs, "a3", 1, { crossGroup: true }).groupKey, "C", "collapsed groups are skipped");
+  assert.strictEqual(L.TK_manualKeyTarget(G(), "a2", 0), null);
+});
+t("manual patches, sorting, announce, pref", () => {
+  const p = L.TK_manualPatches(L.TK_manualDropPlan(G(), "a3", "A", 1));
+  assert.deepStrictEqual(p, { key: 1536, rows: {}, renorm: false });
+  const flat = [{ key: "A", tasks: [mk("x", null), mk("y", null), mk("z", null)] }];
+  const r = L.TK_manualPatches(L.TK_manualDropPlan(flat, "z", "A", 1));
+  assert.strictEqual(r.renorm, true);
+  assert.strictEqual(r.key, 2048);
+  assert.deepStrictEqual(r.rows, { x: 1024 });
+  assert.strictEqual(L.TK_manualPatches(null), null);
+  const s = L.TK_manualSortGroups([{ key: "A", label: "L", tasks: [mk("p", null), mk("q", 5), mk("r", 1)] }]);
+  assert.deepStrictEqual(s[0].tasks.map((x) => x.id), ["r", "q", "p"]);
+  assert.strictEqual(s[0].label, "L");
+  assert.strictEqual(L.TK_manualAnnounce(L.TK_manualDropPlan(G(), "a3", "A", 0), "Alpha"), "Moved to position 1 of 3 in Alpha.");
+  assert.strictEqual(L.TK_manualAnnounce(null), "");
+  assert.strictEqual(L.TK_manualPrefRead('{"my":true}', "my"), true);
+  assert.strictEqual(L.TK_manualPrefRead("not json", "my"), false);
+  assert.strictEqual(L.TK_manualPrefRead(null, "my"), false);
+  assert.strictEqual(L.TK_manualPrefWrite('{"my":true,"bad":3}', "list:p1", true), '{"my":true,"list:p1":true}');
+  assert.strictEqual(L.TK_manualPrefWrite('{"my":true}', "my", false), "{}");
+  assert.strictEqual(L.TK_manualPrefWrite("[1]", "my", true), '{"my":true}');
+});
+
 console.log(n + " checks passed");

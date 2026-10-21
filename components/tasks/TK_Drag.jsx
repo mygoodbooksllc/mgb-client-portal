@@ -1,0 +1,343 @@
+// ----------------------------------------------------------------------------
+// TK_Drag.jsx — Slate app P2: drag to reorder, Alt+Up / Alt+Down, and the
+// manual-order switch. Only the Slate app uses it (the callers gate on
+// TK_manualOrderAllowed, which needs TK_slateInApp), so the portal page
+// renders exactly as before.
+//
+// The hooks know nothing about tasks beyond ids: rows are [data-tk-id]
+// children of a group element [data-tk-group="<index>"], and groups are
+// [{ key, label, tasks }] in the order shown. The P1 board can reuse
+// TK_useRowDrag with its columns as groups.
+//
+// Pure rules (key between neighbors, drop plans, Alt+arrow targets) live in
+// TK_viewLogic.js (TK_manual*); the server side is tk_reorder.
+// ----------------------------------------------------------------------------
+
+var TK_DRAG_THRESHOLD = 4; // px before a press on the handle becomes a drag
+var TK_DRAG_EDGE = 48; // px from a scroll edge where autoscroll starts
+var TK_DRAG_SPEED = 14; // px per frame at the very edge
+
+// The nearest scrolling ancestor (or null for the page itself).
+function TK_dragScroller(el) {
+  var n = el && el.parentElement;
+  while (n && n !== document.body && n !== document.documentElement) {
+    try {
+      var st = window.getComputedStyle(n);
+      if (/(auto|scroll)/.test(st.overflowY) && n.scrollHeight > n.clientHeight + 1) return n;
+    } catch (e) {}
+    n = n.parentElement;
+  }
+  return null;
+}
+
+// The rows of one group element, in order (direct [data-tk-id] children).
+function TK_dragRows(groupEl) {
+  var out = [];
+  var kids = groupEl ? groupEl.children : [];
+  for (var i = 0; i < kids.length; i++) {
+    if (kids[i].getAttribute && kids[i].getAttribute("data-tk-id")) out.push(kids[i]);
+  }
+  return out;
+}
+
+// The bottom edge of a row together with its open subtask rows.
+function TK_dragRowBottom(row) {
+  var b = row.getBoundingClientRect().bottom;
+  var n = row.nextElementSibling;
+  while (n && !n.getAttribute("data-tk-id") && n.classList && n.classList.contains("tk-subrow")) {
+    b = Math.max(b, n.getBoundingClientRect().bottom);
+    n = n.nextElementSibling;
+  }
+  return b;
+}
+
+// opts: { enabled, containerRef, groups, crossGroup, onMove(plan) }
+// Press the [data-tk-drag-handle] inside a row and move 4px to start. A line
+// shows where it will land; near the scroll edges the list scrolls. Esc or
+// a cancelled pointer drops nothing. onMove gets a TK_manualDropPlan.
+function TK_useRowDrag(opts) {
+  var ref = React.useRef(opts || {});
+  ref.current = opts || {};
+  var enabled = !!(opts && opts.enabled);
+
+  React.useEffect(
+    function () {
+      if (!enabled) return undefined;
+      if (typeof TK_manualDropPlan !== "function") return undefined;
+      var d = null; // the drag in progress
+      var box = null; // the list element of the drag in progress (read at press time)
+
+      function groupEls() {
+        var all = box.querySelectorAll("[data-tk-group]");
+        var out = [];
+        for (var i = 0; i < all.length; i++) out.push(all[i]);
+        return out;
+      }
+      function target(x, y) {
+        var els = groupEls();
+        if (!ref.current.crossGroup) {
+          els = els.filter(function (g) { return g.getAttribute("data-tk-group") === d.fromGroup; });
+        }
+        var best = null;
+        var bestDist = Infinity;
+        els.forEach(function (g) {
+          var r = g.getBoundingClientRect();
+          var dist = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = g;
+          }
+        });
+        if (!best) return null;
+        var rows = TK_dragRows(best);
+        var idx = 0;
+        for (var i = 0; i < rows.length; i++) {
+          var rr = rows[i].getBoundingClientRect();
+          if (y > rr.top + rr.height / 2) idx = i + 1;
+        }
+        var gr = best.getBoundingClientRect();
+        var lineY = rows.length === 0 ? gr.top + 2 : idx < rows.length ? rows[idx].getBoundingClientRect().top : TK_dragRowBottom(rows[rows.length - 1]);
+        return { groupEl: best, group: best.getAttribute("data-tk-group"), index: idx, lineY: lineY, left: gr.left, width: gr.width };
+      }
+      function place() {
+        if (!d || !d.active) return;
+        var t = target(d.x, d.y);
+        d.target = t;
+        if (!t) {
+          d.line.style.display = "none";
+          return;
+        }
+        d.line.style.display = "block";
+        d.line.style.top = Math.round(t.lineY - 1) + "px";
+        d.line.style.left = Math.round(t.left) + "px";
+        d.line.style.width = Math.round(t.width) + "px";
+        var on = box.querySelectorAll(".tk-drop-into");
+        for (var i = 0; i < on.length; i++) if (on[i] !== t.groupEl) on[i].classList.remove("tk-drop-into");
+        if (t.group !== d.fromGroup) t.groupEl.classList.add("tk-drop-into");
+      }
+      function tick() {
+        if (!d || !d.active) return;
+        var sc = d.scroller;
+        var top = sc ? sc.getBoundingClientRect().top : 0;
+        var bottom = sc ? sc.getBoundingClientRect().bottom : window.innerHeight;
+        var dy = 0;
+        if (d.y < top + TK_DRAG_EDGE) dy = -Math.ceil(((top + TK_DRAG_EDGE - d.y) / TK_DRAG_EDGE) * TK_DRAG_SPEED);
+        else if (d.y > bottom - TK_DRAG_EDGE) dy = Math.ceil(((d.y - (bottom - TK_DRAG_EDGE)) / TK_DRAG_EDGE) * TK_DRAG_SPEED);
+        if (dy) {
+          if (sc) sc.scrollTop += dy;
+          else window.scrollBy(0, dy);
+          place();
+        }
+        d.raf = window.requestAnimationFrame(tick);
+      }
+      function start() {
+        d.active = true;
+        d.row.classList.add("tk-drag-src");
+        document.documentElement.classList.add("tk-dragging");
+        var line = document.createElement("div");
+        line.className = "tk-drop-line";
+        line.setAttribute("aria-hidden", "true");
+        document.body.appendChild(line);
+        d.line = line;
+        d.scroller = TK_dragScroller(box);
+        d.raf = window.requestAnimationFrame(tick);
+      }
+      function end(commit) {
+        var cur = d;
+        d = null;
+        document.removeEventListener("pointermove", onMove, true);
+        document.removeEventListener("pointerup", onUp, true);
+        document.removeEventListener("pointercancel", onCancel, true);
+        document.removeEventListener("keydown", onKey, true);
+        if (!cur || !cur.active || !box) return;
+        if (cur.raf) window.cancelAnimationFrame(cur.raf);
+        cur.row.classList.remove("tk-drag-src");
+        document.documentElement.classList.remove("tk-dragging");
+        if (cur.line && cur.line.parentNode) cur.line.parentNode.removeChild(cur.line);
+        var on = box.querySelectorAll(".tk-drop-into");
+        for (var i = 0; i < on.length; i++) on[i].classList.remove("tk-drop-into");
+        // the click that ends a drag must not open the task
+        var swallow = function (e) {
+          e.stopPropagation();
+          e.preventDefault();
+        };
+        document.addEventListener("click", swallow, true);
+        window.setTimeout(function () {
+          document.removeEventListener("click", swallow, true);
+        }, 0);
+        if (!commit || !cur.target) return;
+        var gs = ref.current.groups || [];
+        var g = gs[Number(cur.target.group)];
+        if (!g) return;
+        var plan = TK_manualDropPlan(gs, cur.id, g.key, cur.target.index, { crossGroup: !!ref.current.crossGroup });
+        if (plan && ref.current.onMove) ref.current.onMove(plan);
+      }
+      function onMove(e) {
+        if (!d || e.pointerId !== d.pointerId) return;
+        d.x = e.clientX;
+        d.y = e.clientY;
+        if (!d.active) {
+          if (Math.abs(d.x - d.x0) < TK_DRAG_THRESHOLD && Math.abs(d.y - d.y0) < TK_DRAG_THRESHOLD) return;
+          start();
+        }
+        e.preventDefault();
+        place();
+      }
+      function onUp(e) {
+        if (!d || e.pointerId !== d.pointerId) return;
+        end(true);
+      }
+      function onCancel() {
+        end(false);
+      }
+      function onKey(e) {
+        if (e.key === "Escape" && d) {
+          e.preventDefault();
+          e.stopPropagation();
+          end(false);
+        }
+      }
+      function onDown(e) {
+        if (d || e.button !== 0 || !e.isPrimary) return;
+        var h = e.target && e.target.closest ? e.target.closest("[data-tk-drag-handle]") : null;
+        box = ref.current.containerRef && ref.current.containerRef.current;
+        if (!h || !box || !box.contains(h)) return;
+        var row = h.closest("[data-tk-id]");
+        var grp = row && row.parentElement && row.parentElement.closest("[data-tk-group]");
+        if (!row || !grp) return;
+        e.preventDefault(); // no text selection, no focus jump
+        d = {
+          id: row.getAttribute("data-tk-id"),
+          row: row,
+          fromGroup: grp.getAttribute("data-tk-group"),
+          pointerId: e.pointerId,
+          x0: e.clientX,
+          y0: e.clientY,
+          x: e.clientX,
+          y: e.clientY,
+          active: false,
+        };
+        document.addEventListener("pointermove", onMove, true);
+        document.addEventListener("pointerup", onUp, true);
+        document.addEventListener("pointercancel", onCancel, true);
+        document.addEventListener("keydown", onKey, true);
+      }
+      document.addEventListener("pointerdown", onDown);
+      return function () {
+        document.removeEventListener("pointerdown", onDown);
+        end(false);
+      };
+    },
+    [enabled],
+  );
+}
+
+// opts: { enabled, groups, focusedId, crossGroup, onMove(plan) }
+// Alt+Up / Alt+Down moves the focused row one place (into the next section
+// on a project list). The same guards as the list keys: not while typing, in
+// a menu, a dialog or a tour, and not inside the task drawer.
+function TK_useManualKeys(opts) {
+  var ref = React.useRef(opts || {});
+  ref.current = opts || {};
+  var enabled = !!(opts && opts.enabled);
+  React.useEffect(
+    function () {
+      if (!enabled) return undefined;
+      var onKey = function (e) {
+        if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+        if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+        var o = ref.current;
+        if (!o.focusedId || typeof TK_manualKeyTarget !== "function") return;
+        if (typeof TK_shouldHandleKey === "function" && typeof TK_vKeyCtx === "function") {
+          var probe = { target: e.target, isComposing: e.isComposing, keyCode: e.keyCode, defaultPrevented: e.defaultPrevented };
+          if (!TK_shouldHandleKey(probe, TK_vKeyCtx())) return;
+        }
+        var plan = TK_manualKeyTarget(o.groups || [], o.focusedId, e.key === "ArrowUp" ? -1 : 1, { crossGroup: !!o.crossGroup });
+        e.preventDefault();
+        if (plan && o.onMove) o.onMove(plan, { keys: true });
+      };
+      document.addEventListener("keydown", onKey);
+      return function () {
+        document.removeEventListener("keydown", onKey);
+      };
+    },
+    [enabled],
+  );
+}
+
+// Per-person, app-only "manual order" memory for one scope ("my",
+// "list:<listKey>"). Returns [on, setOn].
+function TK_useManualPref(scope) {
+  var read = function () {
+    try {
+      return TK_manualPrefRead(window.localStorage.getItem(TK_MANUAL_PREF_KEY), scope);
+    } catch (e) {
+      return false;
+    }
+  };
+  var pair = React.useState(read);
+  React.useEffect(
+    function () {
+      pair[1](read());
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scope],
+  );
+  var set = function (on) {
+    pair[1](!!on);
+    try {
+      window.localStorage.setItem(TK_MANUAL_PREF_KEY, TK_manualPrefWrite(window.localStorage.getItem(TK_MANUAL_PREF_KEY), scope, !!on));
+    } catch (e) {}
+  };
+  return [pair[0], set];
+}
+
+// One polite live region per view for "Moved to position 2 of 5 in Today."
+function TK_useManualAnnouncer() {
+  var pair = React.useState("");
+  var el = (
+    <div className="tk-sr" role="status" aria-live="polite" aria-atomic="true">
+      {pair[0]}
+    </div>
+  );
+  var say = function (text) {
+    pair[1]("");
+    window.setTimeout(function () {
+      pair[1](text || "");
+    }, 30);
+  };
+  return { el: el, say: say };
+}
+
+// Runs a plan: optimistic move in the store, tk_reorder, rollback + toast on
+// an error. ctx: { sectionOf(groupKey) -> section name or null, say(text),
+// labelOf(groupKey) }.
+function TK_manualMove(plan, ctx) {
+  if (!plan || typeof TK_api === "undefined" || !TK_api || typeof TK_api.reorder !== "function") return Promise.resolve(null);
+  var c = ctx || {};
+  var p = TK_manualPatches(plan);
+  var move = {
+    id: plan.id,
+    beforeId: plan.before ? plan.before.id : null,
+    afterId: plan.after ? plan.after.id : null,
+    orderIds: plan.order.map(function (t) { return t.id; }),
+    key: p.key,
+    rows: p.rows,
+    setSection: !!plan.crossGroup,
+    section: plan.crossGroup && c.sectionOf ? c.sectionOf(plan.groupKey) : null,
+  };
+  if (c.say) c.say(TK_manualAnnounce(plan, c.labelOf ? c.labelOf(plan.groupKey) : ""));
+  return TK_api.reorder(move).then(
+    function (r) {
+      try {
+        if (typeof TK_vTrack === "function") TK_vTrack("tasks-reorder");
+      } catch (e) {}
+      return r;
+    },
+    function (e) {
+      if (c.say) c.say("Couldn't move the task. It is back where it was.");
+      if (typeof TK_vToast === "function") TK_vToast(typeof TK_vErrText === "function" ? TK_vErrText(e) : "Couldn't move the task.");
+      return null;
+    },
+  );
+}

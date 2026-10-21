@@ -3236,3 +3236,82 @@ body:has(.ltip-ring.ltip-on) .tk-row .tk-sel {
 .tk-m-sliver .tk-p3-edit {
   display: none !important;
 }
+
+/* ---- Slate app P2: manual order (drag reorder) ---------------------------
+   Only rendered in the Slate app with Manual order on (regular or full
+   width). Hidden in compact and sliver. */
+
+.tk-drag-handle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  margin: 0 -2px 0 -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  opacity: 0.45;
+  cursor: grab;
+  touch-action: none;
+}
+
+li[data-tk-id]:hover .tk-drag-handle,
+li[data-tk-id]:focus-within .tk-drag-handle,
+.tk-drag-handle:hover {
+  opacity: 1;
+}
+
+.tk-drag-handle:hover {
+  background: var(--accent-soft);
+}
+
+.tk-drag-src {
+  opacity: 0.45;
+}
+
+html.tk-dragging,
+html.tk-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+.tk-drop-line {
+  position: fixed;
+  z-index: 9999;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.tk-drop-into {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.tk-manual-btn.is-on,
+.tk-manual-chip.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tk-m-compact .tk-drag-handle,
+.tk-m-sliver .tk-drag-handle,
+.tk-m-compact .tk-manual-btn,
+.tk-m-sliver .tk-manual-btn,
+.tk-m-compact .tk-manual-chip,
+.tk-m-sliver .tk-manual-chip {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-drag-src {
+    transition: none;
+  }
+}

@@ -1244,8 +1244,56 @@ function TK_vListBody(props) {
     quickAdd: archived ? {} : quickAddDetail,
   });
 
+  // Slate app P2: manual order (drag, Alt+Up / Alt+Down). App only, regular
+  // or full width, no column sort; off on the portal page.
+  var manualInApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
+  var manualMode = typeof TK_useSlateMode === "function" ? TK_useSlateMode() : null;
+  var manualKind = route.view === "project" || route.view === "client" || route.view === "person" ? route.view : null;
+  var manualPair = typeof TK_useManualPref === "function" ? TK_useManualPref("list:" + (listKey || "")) : [false, function () {}];
+  var manualCan =
+    typeof TK_manualOrderAllowed === "function" &&
+    !!listKey &&
+    TK_manualOrderAllowed({ inApp: manualInApp, mode: manualMode && manualMode.mode, kind: manualKind, sort: null, readOnly: readOnly });
+  var manualOn = manualCan && manualPair[0] && !sort;
+  var manualCross = manualOn && typeof TK_manualCrossGroup === "function" && TK_manualCrossGroup(manualKind) && !byClient;
+  var manualGroups = groups.map(function (g) {
+    return { key: g.key, label: g.name, tasks: g.tasks, collapsed: !!collapsed[g.key] };
+  });
+  var manualBoxRef = React.useRef(null);
+  var manualSay = typeof TK_useManualAnnouncer === "function" ? TK_useManualAnnouncer() : null;
+  var manualSection = function (key) {
+    if (!key) return null;
+    var secs = project && Array.isArray(project.sections) ? project.sections : [];
+    for (var i = 0; i < secs.length; i++) {
+      if (secs[i] != null && String(secs[i]).trim().toLowerCase() === String(key).toLowerCase()) return String(secs[i]).trim();
+    }
+    return undefined;
+  };
+  var manualRun = function (plan) {
+    if (!plan || typeof TK_manualMove !== "function") return;
+    if (plan.crossGroup && manualSection(plan.groupKey) === undefined) {
+      TK_vToast("That section isn't in this project. Add it to the project first.");
+      return;
+    }
+    TK_manualMove(plan, {
+      sectionOf: manualSection,
+      labelOf: function (k) {
+        for (var i = 0; i < manualGroups.length; i++) if (manualGroups[i].key === k) return manualGroups[i].label;
+        return "";
+      },
+      say: manualSay ? manualSay.say : null,
+    });
+  };
+  if (typeof TK_useRowDrag === "function") {
+    TK_useRowDrag({ enabled: manualOn, containerRef: manualBoxRef, groups: manualGroups, crossGroup: manualCross, onMove: manualRun });
+  }
+  if (typeof TK_useManualKeys === "function") {
+    TK_useManualKeys({ enabled: manualOn && keysOn, groups: manualGroups, focusedId: focusedId, crossGroup: manualCross, onMove: manualRun });
+  }
+
   var clickSort = function (col) {
     var next = TK_toggleSort(sort, col);
+    if (next && manualPair[0]) manualPair[1](false);
     setSort(next);
     if (listKey) {
       var allSorts = TK_vLsGet(TK_vSORT_KEY, {}) || {};
@@ -1306,6 +1354,32 @@ function TK_vListBody(props) {
         <TK_vFilters value={filters} onChange={patchFilters} people={people} hideAssignee={route.view === "person"} />
       )}
       {route.view === "person" ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
+      {manualCan ? (
+        <button
+          type="button"
+          className={"tk-tool-btn tk-manual-btn" + (manualOn ? " is-on" : "")}
+          aria-pressed={manualOn ? "true" : "false"}
+          title="Drag rows to set your own order (Alt+Up or Alt+Down moves the focused row)"
+          onClick={function () {
+            if (manualOn) {
+              manualPair[1](false);
+              return;
+            }
+            if (sort) {
+              setSort(null);
+              if (listKey) {
+                var s3 = TK_vLsGet(TK_vSORT_KEY, {}) || {};
+                delete s3[listKey];
+                TK_vLsSet(TK_vSORT_KEY, s3);
+              }
+            }
+            manualPair[1](true);
+          }}
+        >
+          <TK_vIcon name="grip" size={15} />
+          <span>Manual order</span>
+        </button>
+      ) : null}
       {sort && !byClient ? (
         <button
           type="button"
@@ -1403,19 +1477,20 @@ function TK_vListBody(props) {
           onSelect={bulk.ready ? bulk.toggle : undefined}
           selected={bulk.has(t.id)}
           selecting={bulk.count > 0}
+          dragHandle={manualOn || undefined}
         />
       );
     };
     var nothing = !shown.length;
     body = (
-      <div className="tk-table" role="grid" aria-label="Tasks" aria-rowcount={shown.length}>
+      <div className={"tk-table" + (manualOn ? " is-manual" : "")} role="grid" aria-label="Tasks" aria-rowcount={shown.length} ref={manualBoxRef}>
         {colHead}
         {nothing && (activeFilters || readOnly) ? (
           <div className="tk-empty">
             <p>{TK_vCopy("emptyList", "Nothing here yet.")}</p>
           </div>
         ) : null}
-        {groups.map(function (g) {
+        {groups.map(function (g, gi) {
           if (g.key === "\u0000flat") {
             return (
               <ul key={g.key} className="tk-rows" role="rowgroup">
@@ -1448,7 +1523,7 @@ function TK_vListBody(props) {
                 {!isCol && typeof TK_BulkGroupBox === "function" ? <TK_BulkGroupBox select={bulk} tasks={g.tasks} label={g.name} /> : null}
               </h3>
               {isCol ? null : (
-                <ul className="tk-rows" role="rowgroup">
+                <ul className="tk-rows" role="rowgroup" data-tk-group={manualOn ? String(gi) : undefined}>
                   {g.tasks.map(rowFor)}
                   {nothing && !activeFilters && !g.tasks.length && groups.length === 1 ? (
                     <li className="tk-empty tk-empty-inline">{TK_vCopy("emptyList", "Nothing here yet.")}</li>
@@ -1475,6 +1550,7 @@ function TK_vListBody(props) {
       {toolbar}
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
+      {manualOn && manualSay ? manualSay.el : null}
       <TK_BulkBar select={bulk} tasksById={byId} staff={staff} projects={projects} readOnly={readOnly} />
       {filtersOpen && phone ? (
         <TK_vModal

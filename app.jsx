@@ -17190,6 +17190,7 @@ const USAGE_ACTION_LABELS = {
   "tasks-quick-add-plain": "Quick adds that used plain words",
   "tasks-search": "Task searches",
   "tasks-shortcut": "Task keyboard shortcuts used",
+  "tasks-reorder": "Tasks reordered by hand (Slate app)",
   "tasks-popout": "Slate opened in its own window",
   "slate-app-open": "Slate app window opened from the portal",
   "slate-app-install": "Install Slate app clicked",
