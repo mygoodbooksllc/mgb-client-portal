@@ -11025,25 +11025,25 @@ html[data-brand="mgb"] {
 }
 html[data-brand="mgb"] .sidebar,
 html[data-brand="mgb"] .staff-rail {
-  background-image: linear-gradient(180deg, #05080d 0%, #0b1822 18%, #1b2f3e 55%, #2a4356 100%);
+  background-image: linear-gradient(180deg, #05080d 0%, #05080d 35%, #06262d 100%);
 }
 @media (prefers-color-scheme: dark) {
   html[data-brand="mgb"]:not([data-theme="light"]) {
     --navy-deep: #06262d;
     --sidebar-bg: #05080d;
-    --bg: #0f1d27;
-    --surface: #182b38;
-    --border: #2f4a5c;
-    --accent-soft: #1f3342;
+    --bg: #0d1c22;
+    --surface: #132a32;
+    --border: #28434d;
+    --accent-soft: #19333c;
   }
 }
 html[data-brand="mgb"][data-theme="dark"] {
   --navy-deep: #06262d;
   --sidebar-bg: #05080d;
-  --bg: #0f1d27;
-  --surface: #182b38;
-  --border: #2f4a5c;
-  --accent-soft: #1f3342;
+  --bg: #0d1c22;
+  --surface: #132a32;
+  --border: #28434d;
+  --accent-soft: #19333c;
 }
 html[data-brand="mgb"] h1,
 html[data-brand="mgb"] h2,
@@ -11116,7 +11116,7 @@ html[data-brand="mgb"] h3 {
 /* Brand colors preview: the Desk info bar continues the sidebar's fade (teal at the left edge,
    where it meets the rail, to near-black on the right). The loading splash stays Lato. */
 html[data-brand="mgb"] .wb-bar {
-  background-image: linear-gradient(90deg, #2a4356 0%, #1b2f3e 30%, #05080d 100%);
+  background-image: linear-gradient(90deg, #06262d 0%, #05080d 100%);
 }
 html[data-brand="mgb"] .boot-splash-mark {
   font-family: "Lato", var(--font-body, system-ui, sans-serif);

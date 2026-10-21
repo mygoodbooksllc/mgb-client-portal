@@ -666,63 +666,18 @@ html.wb-drawer-on .chat-fab-wrap {
   overflow: hidden;
 }
 .wb-bar:hover {
-  background-color: var(--sidebar-bg);
+  background: var(--sidebar-bg);
   color: var(--sidebar-text-active);
 }
 .wb-bar:hover .wb-bar-hint {
   color: var(--sidebar-text-active);
 }
-.wb-bar-main:focus-visible {
+.wb-bar:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: -2px;
 }
-/* The bar is a box; the open/close control fills it and the Next up buttons sit at its right. */
-.wb-bar-main {
-  flex: 1 1 auto;
+.wb-bar > span {
   min-width: 0;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  cursor: pointer;
-}
-.wb-bar-main > span {
-  min-width: 0;
-}
-.wb-bar-actions {
-  flex: none;
-  display: inline-flex;
-  gap: 6px;
-}
-.wb-bar-act {
-  min-height: 26px;
-  padding: 2px 11px;
-  border-radius: 7px;
-  border: 1px solid var(--desk-rail-line);
-  background: var(--desk-rail-hover);
-  color: var(--sidebar-text-active);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-.wb-bar-act:hover,
-.wb-bar-act:focus-visible {
-  border-color: var(--gold);
-  outline: none;
-}
-.wb-bar-act.is-primary {
-  background: var(--gold);
-  border-color: var(--gold);
-  color: var(--on-gold);
 }
 .wb-bar-work {
   flex: none;
