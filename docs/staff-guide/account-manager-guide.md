@@ -20,8 +20,9 @@ You review every bookkeeper, every quarter.
 
 1. An admin opens the cycle on **HR › Reviews › Team status** and you're picked as the reviewer (you're the **Default reviewer**). You get an email.
 2. Open **HR › Reviews › Reviews I'm giving** and fill in a review for each person: **Camaraderie**, **Ownership** and **Healthy Hustle**, two items each, rated 1 to 5. The **Appreciation** box shows their shout-outs from the quarter.
-3. Anything below 3 needs a comment and an action step. Your scores and theirs stay hidden until both forms are in. When someone submits their self-review first, you get an email saying so (no scores in it), so you know to finish yours.
-4. Meet, agree on action steps (owner, due date, status), and both sign. The review then locks and its PDF is saved to the Staff Reviews Shared Drive. You and the team member each get an email with the final scores, the change from their last locked review and the action steps.
+3. Anything below 3 needs a comment and an action step. You can't see their scores until both forms are in. When someone submits their self-review first, you get an email saying so (no scores in it), so you know to finish yours.
+4. Once both are in, the comparison opens for you to prep and the review shows **Ready to reveal**. The team member can't see it yet; they're asked to set up a meeting with you.
+5. In the meeting, click **Reveal comparison** so they see it, agree on action steps (owner, due date, status), and both sign. The review then locks and its PDF is saved to the Staff Reviews Shared Drive. You and the team member each get an email with the final scores, the change from their last locked review and the action steps.
 
 See [How do quarterly reviews work?](#/help/quarterly-reviews) and [How do I run a review cycle?](#/help/review-cycles).
 

@@ -7,6 +7,12 @@
 // comments, signatures (with the optional "I disagree" note), the PDF and
 // Drive export, and the admin tools: reopen before anyone signs, close
 // unsigned, addenda after it locks.
+//
+// Reveal (team-reviews-7, 2026-10-21): once both are in, the reviewer and
+// admins see the comparison to prep. The team member (even an admin) sees a
+// "set up a time" card (comparison_locked) until the reviewer, Jesse or
+// Bailley presses Reveal in the meeting (tr_reveal_comparison, can_reveal).
+// Signing opens after the reveal.
 
 function TR_ComparePanel({ review, onChanged }) {
   const r = review;
@@ -24,7 +30,9 @@ function TR_ComparePanel({ review, onChanged }) {
 
   return (
     <div className="tr-compare">
-      {!both && isAdmin && r.my_role === "admin" ? (
+      {r.comparison_locked ? (
+        <TR_MeetingCard review={r} />
+      ) : !both && isAdmin && r.my_role === "admin" ? (
         <TR_AdminLiveView review={r} />
       ) : !both ? (
         <div className="card">
@@ -42,7 +50,10 @@ function TR_ComparePanel({ review, onChanged }) {
           </div>
         </div>
       ) : (
-        <TR_CompareBody review={r} onChanged={changed} />
+        <>
+          {!r.revealed && <TR_RevealBanner review={r} onChanged={changed} />}
+          <TR_CompareBody review={r} onChanged={changed} />
+        </>
       )}
 
       {(r.events || []).length > 0 && (
@@ -115,7 +126,86 @@ function TR_ComparePanel({ review, onChanged }) {
   );
 }
 
-const TR_EVENT_LABEL = { reopen: "Reopened", reassign: "Reviewer changed", close_unsigned: "Closed unsigned" };
+const TR_EVENT_LABEL = { reopen: "Reopened", reassign: "Reviewer changed", close_unsigned: "Closed unsigned", reveal: "Comparison revealed" };
+
+// The team member's view once both sides are in but before the reveal. No
+// scores, no steps: the database sends none (tr_get_review, comparison_locked).
+function TR_MeetingCard({ review }) {
+  const r = review;
+  const rFirst = TR_first(r.reviewer && r.reviewer.name) || "your reviewer";
+  const closed = r.status === "closed_unsigned";
+  return (
+    <div className="card" data-tour="team-reviews-meeting">
+      <h2 className="card-title">Both sides complete</h2>
+      <p className="card-subtitle">
+        {closed
+          ? `Both you and ${rFirst} submitted this review. ${rFirst} can go over it with you in a meeting.`
+          : `Both you and ${rFirst} have submitted your review. Set up a time with ${rFirst} to go over it together. You’ll see the comparison together in that meeting, then agree action steps and both sign.`}
+      </p>
+      <div className="tr-problems">
+        <TR_Pill tone="good">Self-review: Submitted</TR_Pill>
+        <TR_Pill tone="good">{TR_poss(r.reviewer && r.reviewer.name)} review: Submitted</TR_Pill>
+        <TR_Pill tone="warm">Review meeting: to set up</TR_Pill>
+      </div>
+    </div>
+  );
+}
+
+// Reviewer and admin view before the reveal: prep note plus the Reveal button
+// for whoever may press it (the reviewer, Jesse, Bailley; checked again in SQL).
+function TR_RevealBanner({ review, onChanged }) {
+  const r = review;
+  const toast = TR_useToastSafe();
+  const [open, setOpen] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const staffFirst = TR_first(r.staff && r.staff.name) || "The team member";
+  return (
+    <>
+    <div className="tr-banner warm" role="status" data-tour="team-reviews-reveal">
+      <div>
+        <strong>Prep view. {staffFirst} can’t see this yet.</strong>{" "}
+        Go over it in the review meeting, then press Reveal so {staffFirst} sees the comparison.
+        {r.status === "comparing" ? " Signing opens after the reveal." : ""}
+      </div>
+      {r.can_reveal && (
+        <div className="tr-actions" style={{ marginTop: 8 }}>
+          <button type="button" className="btn-primary" onClick={() => { setError(""); setOpen(true); }}>
+            Reveal comparison
+          </button>
+        </div>
+      )}
+    </div>
+      {open && (
+        <TR_Confirm
+          title={`Reveal the comparison to ${staffFirst}?`}
+          confirmLabel="Reveal"
+          busy={busy}
+          onClose={() => setOpen(false)}
+          onConfirm={async () => {
+            setBusy(true);
+            setError("");
+            try {
+              await TR_api.rpc("tr_reveal_comparison", { p_review: r.id });
+              toast("Comparison revealed");
+              setOpen(false);
+              onChanged && onChanged();
+            } catch (e) {
+              setError(TR_errText(e));
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <p>
+            {staffFirst} will see both sets of scores and comments right away. This can’t be undone, and it’s recorded in the review’s history.
+          </p>
+          <TR_Error text={error} />
+        </TR_Confirm>
+      )}
+    </>
+  );
+}
 
 function TR_ReasonModal({ title, intro, confirmLabel, danger, onClose, onConfirm }) {
   const [reason, setReason] = React.useState("");
@@ -152,7 +242,8 @@ function TR_ReasonModal({ title, intro, confirmLabel, danger, onClose, onConfirm
 
 // Admins who aren't on the review watch it as it happens, drafts included
 // (owner, 2026-10-13; tr_can_see_submission). The reviewee and the reviewer
-// still see the locked card until both are submitted.
+// still see the locked card until both are submitted; after that the reviewee
+// waits for the reveal (TR_MeetingCard).
 function TR_AdminLiveView({ review }) {
   const r = review;
   const self = r.self && r.self.visible ? r.self : {};
@@ -170,7 +261,7 @@ function TR_AdminLiveView({ review }) {
         <h2 className="card-title">{open ? "In progress" : "Closed before both sides were in"}</h2>
         <p className="card-subtitle">
           {open
-            ? `As an admin you can see both sides as they’re filled in, drafts included. ${staffFirst} and ${rFirst} still can’t see each other’s scores until both are submitted.`
+            ? `As an admin you can see both sides as they’re filled in, drafts included. ${rFirst} sees the self-review once both are submitted; ${staffFirst} sees the comparison only when it’s revealed in the review meeting.`
             : `This review closed with only one side submitted. As an admin you can still see what each side entered.`}
         </p>
         <div className="tr-problems">
@@ -295,7 +386,7 @@ function TR_CompareBody({ review, onChanged }) {
 
       <TR_StepsCard review={r} editable={editable} onChanged={onChanged} />
 
-      <TR_RecipientComments review={r} editable={editable && r.my_role === "staff"} onChanged={onChanged} />
+      <TR_RecipientComments review={r} editable={editable && r.my_role === "staff" && !!r.revealed} onChanged={onChanged} />
 
       <TR_SignaturesCard review={r} onChanged={onChanged} />
 
@@ -655,7 +746,8 @@ function TR_SignatureBlock({ review, block, sig, onChanged }) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
   const mine = r.my_role === block.role;
-  const canSign = mine && !sig && r.status === "comparing";
+  const waitReveal = mine && !sig && r.status === "comparing" && !r.revealed;
+  const canSign = mine && !sig && r.status === "comparing" && !!r.revealed;
   const needsStep = !!r.requires_action_step && !(r.steps || []).length;
   const ack = (r.ack && r.ack[block.role]) || "";
   const first = TR_first(block.person && block.person.name);
@@ -708,6 +800,7 @@ function TR_SignatureBlock({ review, block, sig, onChanged }) {
           )}
         </div>
       )}
+      {waitReveal && <p className="tr-muted">Signing opens once the comparison is revealed in the review meeting.</p>}
       {canSign && (
         <div>
           {needsStep && (

@@ -100,8 +100,19 @@ t("blind rule", () => {
   assert.strictEqual(see({ kind: "manager", author: "R", viewer: "S", viewerIsAdmin: true, thisSubmitted: true, bothSubmitted: false }), false);
   // staff never sees manager early
   assert.strictEqual(see({ kind: "manager", author: "R", viewer: "S", thisSubmitted: true, bothSubmitted: false }), false);
-  // both in: reviewee, reviewer, admins
-  assert.strictEqual(see({ kind: "manager", author: "R", viewer: "S", thisSubmitted: true, bothSubmitted: true }), true);
+  // both in, not revealed: the reviewee (even an admin) stays blind; the reviewer and admins see it to prep
+  assert.strictEqual(see({ kind: "manager", author: "R", viewer: "S", thisSubmitted: true, bothSubmitted: true }), false);
+  assert.strictEqual(see({ kind: "manager", author: "R", viewer: "S", viewerIsAdmin: true, thisSubmitted: true, bothSubmitted: true }), false);
+  assert.strictEqual(see({ kind: "self", author: "S", viewer: "R", thisSubmitted: true, bothSubmitted: true }), true);
+  assert.strictEqual(see({ kind: "self", author: "S", viewer: "R", viewerIsAdmin: true, thisSubmitted: true, bothSubmitted: true }), true);
+  assert.strictEqual(see({ kind: "manager", author: "R", viewer: "A", viewerIsAdmin: true, thisSubmitted: true, bothSubmitted: true }), true);
+  // the reviewee always sees their own self-review
+  assert.strictEqual(see({ kind: "self", author: "S", viewer: "S", thisSubmitted: true, bothSubmitted: true }), true);
+  // revealed: the reviewee sees the reviewer's side
+  assert.strictEqual(see({ kind: "manager", author: "R", viewer: "S", thisSubmitted: true, bothSubmitted: true, revealed: true }), true);
+  assert.strictEqual(see({ kind: "manager", author: "R", viewer: "S", viewerIsAdmin: true, thisSubmitted: true, bothSubmitted: true, revealed: true }), true);
+  // revealed never opens a draft to the reviewee
+  assert.strictEqual(see({ kind: "manager", author: "R", viewer: "S", thisSubmitted: false, bothSubmitted: false, revealed: true }), false);
   assert.strictEqual(see({ kind: "self", author: "S", viewer: "A", viewerIsAdmin: true, thisSubmitted: true, bothSubmitted: true }), true);
   // a non-admin outsider never
   assert.strictEqual(see({ kind: "self", author: "S", viewer: "X", thisSubmitted: true, bothSubmitted: true }), false);

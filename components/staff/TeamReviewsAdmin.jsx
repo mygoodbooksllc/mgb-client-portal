@@ -100,7 +100,11 @@ function TR_YearBars({ h }) {
                   </div>
                 ) : (
                   <span className="tr-muted">
-                    {r.status === "closed_unsigned" ? "Closed unsigned before both reviews were in" : "Scores show once both reviews are in"}
+                    {r.both_submitted && !r.revealed
+                      ? "Scores show after the comparison is revealed in the review meeting"
+                      : r.status === "closed_unsigned"
+                        ? "Closed unsigned before both reviews were in"
+                        : "Scores show once both reviews are in"}
                   </span>
                 )}
               </div>
@@ -734,6 +738,7 @@ const TR_MEETING = (r) => {
   if (r.status === "closed_unsigned") return ["Closed unsigned", "bad"];
   if (r.status === "signed") return ["Signed", "good"];
   if (r.status === "comparing") {
+    if (!r.revealed) return ["Ready to reveal", "warm"];
     const n = (r.staff_signed ? 1 : 0) + (r.reviewer_signed ? 1 : 0);
     return n ? [`${n} of 2 signed`, "warm"] : ["Ready to meet", "warm"];
   }

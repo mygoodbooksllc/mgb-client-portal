@@ -2,12 +2,12 @@
 title: How do quarterly reviews work?
 section: Daily work
 audience: staff
-keywords: [review, final scores, review final email, compared with last quarter, quarter over quarter, previous quarter, quarter just ended, admins see in progress, live view, shout-outs, reviews, quarterly review, self-review, performance, jesse, reviewer, compare, comparison, sign, signature, action steps, history, pdf, download, disagree, rating, score, camaraderie, ownership, healthy hustle, year-end]
+keywords: [review, reveal, reveal comparison, review meeting, set up a meeting, both sides complete, final scores, review final email, compared with last quarter, quarter over quarter, previous quarter, quarter just ended, admins see in progress, live view, shout-outs, reviews, quarterly review, self-review, performance, jesse, reviewer, compare, comparison, sign, signature, action steps, history, pdf, download, disagree, rating, score, camaraderie, ownership, healthy hustle, year-end]
 sort: 145
 ---
-Once a quarter you review the quarter that just ended (in October, that's Q3). You fill in a short self-review, your reviewer (usually Jesse) fills in the same form about you, and then you meet, agree on action steps and both sign. Everything lives on the **Reviews** tab of **Team** (`#/hr/reviews`). The number on the tab shows how many things are waiting on you.
+Once a quarter you review the quarter that just ended (in October, that's Q3). You fill in a short self-review, your reviewer (usually Jesse) fills in the same form about you, and then you meet, see the comparison together, agree on action steps and both sign. Everything lives on the **Reviews** tab of **Team** (`#/hr/reviews`). The number on the tab shows how many things are waiting on you.
 
-When someone submits their self-review before you've done yours, their reviewer gets an email saying so (no scores). When a review is due, you also get an email, a **Review due** row on **Today**, and a number on the **Reviews** tab of **Team**.
+When someone submits their self-review before you've done yours, their reviewer gets an email saying so (no scores). When both sides are in, you get an email asking you to set up a time with your reviewer. When a review is due, you also get an email, a **Review due** row on **Today**, and a number on the **Reviews** tab of **Team**.
 
 ### The form
 
@@ -29,19 +29,21 @@ On the reviewer's form, the **Appreciation** box shows that person's shout-outs 
 
 Your answers save as a draft while you work, so you can stop and come back later to finish. Once you submit, the form is read-only.
 
-### Blind until both are in
+### Blind until your review meeting
 
-You can't see your reviewer's scores, and they can't see yours, until **both** forms are submitted. This applies even when you or your reviewer is an admin.
+Your reviewer can't see your scores until **both** forms are submitted. You can't see your reviewer's scores, or the comparison, until your reviewer reveals it in your review meeting. This applies even when you're an admin.
+
+Once both are in, your reviewer and the admins can see the comparison so they can prepare for the meeting. **My review** shows **Both sides complete. Set up a time with** your reviewer. That's your cue to book the meeting.
 
 Other admins can follow a review while it happens: they see both forms as they're filled in, drafts included.
 
-### Compare, meet, sign
+### Meet, reveal, sign
 
-Once both forms are in, **My review** shows the comparison: your score, your reviewer's score, the gap, and a flag for each item (**Action step required**, **Discuss** for a gap of 2 or more, or **Aligned**).
+In the meeting, your reviewer (or Jesse or Bailley) clicks **Reveal comparison**. From then on, **My review** shows the comparison: your score, your reviewer's score, the gap, and a flag for each item (**Action step required**, **Discuss** for a gap of 2 or more, or **Aligned**). A reveal can't be undone, and it's recorded in the review's history.
 
 After your meeting, the agreed action steps are added with an owner, a due date and a status. Steps that aren't done carry forward to next quarter's review, marked "From Q3 2026" (or whichever quarter they came from).
 
-To sign, type your full name and check the box. You can sign before or after your reviewer. If you disagree with parts of the review you can still sign: check **I disagree with parts of this review** and say why. Your note is saved with your signature and printed on the PDF.
+Signing opens once the comparison is revealed. To sign, type your full name and check the box. You can sign before or after your reviewer. If you disagree with parts of the review you can still sign: check **I disagree with parts of this review** and say why. Your note is saved with your signature and printed on the PDF.
 
 When both of you have signed, the review locks for good. Nothing in it can be edited after that. If something needs correcting, an admin adds an addendum.
 
@@ -49,7 +51,7 @@ When it locks, you and your reviewer each get one email with the final scores (y
 
 ### History and PDFs
 
-**History** shows your reviews by year: total score by quarter (yours and your reviewer's), your year average, how close your ratings were to your reviewer's, and how many action steps you've completed. Click **Download PDF** next to any signed review to get your copy. Once an admin confirms your year-end summary, it shows at the bottom of History with its own **Download PDF** button.
+**History** shows your reviews by year: total score by quarter (yours and your reviewer's, once revealed), your year average, how close your ratings were to your reviewer's, and how many action steps you've completed. Click **Download PDF** next to any signed review to get your copy. Once an admin confirms your year-end summary, it shows at the bottom of History with its own **Download PDF** button.
 
 ### Good to know
 

@@ -576,7 +576,7 @@ const TIPS_CATALOG = [
     roles: "am",
     match: (r) => r.page === "hr" && TIPS_tab("tp-tab-reviews"),
     target: "#tr-tab-giving",
-    text: "Reviews you give are here. Fill in each person's form; once both are in, meet, agree on action steps and both sign.",
+    text: "Reviews you give are here. Fill in each person's form; once both are in, prep with the comparison, reveal it in the meeting, agree on action steps and both sign.",
     slug: "account-manager-guide",
   },
   {
@@ -586,7 +586,7 @@ const TIPS_CATALOG = [
     // Only where "My review" exists (not for an admin without a review of
     // their own, for whom the text wouldn't fit).
     target: "#tr-tab-my",
-    text: "Your self-review saves as a draft as you go. You and your reviewer can't see each other's scores until both forms are in.",
+    text: "Your self-review saves as a draft as you go. Once both forms are in, set up a time with your reviewer; you see the comparison together in that meeting.",
     slug: "quarterly-reviews",
   },
   {

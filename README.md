@@ -1006,11 +1006,26 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   `supabase/team-reviews-2-rpcs.sql` (all `tr_*` RPCs, the email outbox and the two crons
   `team-reviews-sweep` every 5 minutes and `team-reviews-due-soon` daily). Roles come from
   `public.staff` (bookkeeper = staff, admin = admin).
-- **Blind rule** is enforced in `tr_get_review` via `tr_can_see_submission`: the reviewee and the
-  reviewer don't get each other's scores until both forms are submitted, even when either is an
-  admin. Any other admin sees both forms live, drafts included (2026-10-13,
-  `supabase/team-reviews-3-admin-live-view.sql`; the **In progress** view in
-  `TeamReviewsCompare.jsx`).
+- **Blind rule** is enforced in `tr_get_review` via `tr_can_see_submission`: the reviewer doesn't
+  get the self-review until both forms are submitted, even as an admin. Any other admin sees both
+  forms live, drafts included (2026-10-13, `supabase/team-reviews-3-admin-live-view.sql`; the
+  **In progress** view in `TeamReviewsCompare.jsx`).
+- **Comparison lock + reveal** (2026-10-21, `supabase/team-reviews-7-comparison-lock.sql`, role
+  tests in `team-reviews-7-comparison-lock-tests.sql`, ends in ROLLBACK): the reviewee (even an
+  admin) gets nothing of the reviewer's side (scores, comments, flags, steps, signatures, addenda,
+  totals in `tr_history` / `tr_my_overview` / `tr_team_status` / `tr_year_doc` /
+  `staff_performance`, `action_steps` RLS) until the review is **revealed**: `reviews.revealed_at`
+  set, or `status = 'signed'`. `tr_can_see_submission` takes a 9th `p_revealed` arg (the old
+  8-arg form fails closed). Once both are in, the reviewer and admins see it to prep.
+  `tr_reveal_comparison(p_review)` (active admin, not the reviewee, and the review's reviewer or in
+  `review_settings.revealer_emails`, seeded jesse@ + bailley@) sets `revealed_at`/`revealed_by`,
+  writes a `reveal` event, sends no email, and can't be undone (`tr_reviews_guard`). The reviewee
+  can't edit steps, comments or sign until then; `tr_sign` refuses before the reveal. When both
+  are in, the reviewee gets `both_complete` ("set up a time with <reviewer>"; `meeting.ts`, never
+  says results are ready) and the reviewer gets `comparison_ready` (prep wording). Due items:
+  `meet` (reviewee) and `reveal` (reviewer); reminders carry the same todos. UI:
+  `TR_MeetingCard` / `TR_RevealBanner` in `TeamReviewsCompare.jsx`, **Ready to reveal** pills.
+  Tests: `tests/edge/both_complete.test.mjs`, `teamReviewsLogic.test.js`.
 - **Self-review heads-up email** (2026-10-15, `supabase/team-reviews-4-self-submitted.sql`):
   `tr_save_submission` queues `self_review_submitted` for the review's `reviewer_id` when the
   self form is submitted first (dedupe `self_submitted:<review id>`, no reopen counter, so once per
@@ -1034,7 +1049,7 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   `locked` case stays in `emailFor` for legacy rows. Tests: `tests/edge/review_final.test.mjs`,
   `teamReviewsLogic.test.js`, SQL `supabase/team-reviews-5-final-compare-tests.sql` (ends in
   ROLLBACK). Email kinds: `cycle_opened`, `review_assigned`, `comparison_ready`,
-  `self_review_submitted`, `reopened`, `signature_needed`, `reminder`, `due_soon`,
+  `self_review_submitted`, `both_complete`, `reopened`, `signature_needed`, `reminder`, `due_soon`,
   `cycle_relabelled`, `review_final` (and legacy `locked`).
 - **Reassigning:** a former reviewer can't be put back on a review once its self-review exists
   (`tr_reassign_reviewer`), since while off it they could see the self-review as "another admin".

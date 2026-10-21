@@ -25,10 +25,11 @@
 //   RESEND_API_KEY                  via ../_shared/email.ts
 //
 // Deploy with ../drive-files/logic.ts, ../_shared/email.ts, ../_shared/layout.ts, ./pdf.ts,
-// ./selfsubmitted.ts and ./finalemail.ts.
+// ./selfsubmitted.ts, ./meeting.ts and ./finalemail.ts.
 //
 // Email kinds (review_notifications.kind): cycle_opened, review_assigned, comparison_ready,
-// self_review_submitted, reopened, signature_needed, reminder, due_soon, cycle_relabelled,
+// self_review_submitted, both_complete (team-reviews-7: the reviewee's "set up the meeting"
+// note before the reveal), reopened, signature_needed, reminder, due_soon, cycle_relabelled,
 // review_final (queued by exportReview since 2026-10-19) and locked (legacy rows only).
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -40,6 +41,7 @@ import * as L from "../_shared/layout.ts";
 import { buildHandbookPdf, buildReviewPdf, buildYearPdf, isoDateCT } from "./pdf.ts";
 import { selfSubmittedEmail } from "./selfsubmitted.ts";
 import { finalEmail } from "./finalemail.ts";
+import { bothCompleteEmail } from "./meeting.ts";
 
 void DRIVE_SCOPE; // scope is baked into signServiceAccountJwt's claims
 
@@ -390,7 +392,7 @@ function emailFor(n: any, to: any, review: any, cmp: any = null): EmailMsg | nul
         subject: `Your ${cycle} review is open`,
         lines: [
           `Your ${cycle} quarterly review is open${p.due_at ? `, due ${fmtDue(p.due_at)}` : ""}.`,
-          "Complete your self-review and the team survey in the portal. Your scores stay hidden from your reviewer until both reviews are in.",
+          "Complete your self-review and the team survey in the portal. Your scores stay hidden from your reviewer until both reviews are in, and you see the comparison together in your review meeting.",
         ],
         cta: "Start my self-review", href: reviewLink,
       };
@@ -399,18 +401,27 @@ function emailFor(n: any, to: any, review: any, cmp: any = null): EmailMsg | nul
         subject: `Review ${staffName} for ${cycle}`,
         lines: [
           `You're the reviewer for ${staffName}'s ${cycle} review${p.due_at ? `, due ${fmtDue(p.due_at)}` : ""}.`,
-          "Neither of you sees the other's scores until both reviews are submitted.",
+          `You see ${staffName}'s self-review once both are submitted. ${staffName} sees the comparison when you reveal it in the review meeting.`,
         ],
         cta: "Open the review", href: reviewLink,
       };
     case "comparison_ready":
+      // team-reviews-7: before the reveal the team member only gets the meeting note.
+      if (!isReviewer && !(review && review.revealed)) {
+        if (!review || review.staff_id !== n.to_staff_id) return null;
+        return bothCompleteEmail(p, review.reviewer_name, reviewLink);
+      }
       return {
         subject: `${cycle} comparison is ready`,
         lines: isReviewer
-          ? [`Both reviews are in for ${staffName}. The comparison is open.`, "Schedule the review meeting to agree action steps, then both of you sign."]
+          ? [`Both reviews are in for ${staffName}. The comparison is open for you to prep.`, `${staffName} can't see it yet. Reveal it in your review meeting, then agree action steps and both sign.`]
           : [`Both reviews are in for your ${cycle} review. The comparison is open.`, `Schedule your review meeting with ${revFirst}. You'll agree action steps together, then both sign.`],
         cta: "See the comparison", href: reviewLink,
       };
+    case "both_complete":
+      // Only ever to the team member; never says the results are ready.
+      if (!review || review.staff_id !== n.to_staff_id) return null;
+      return bothCompleteEmail(p, review.reviewer_name, reviewLink);
     case "self_review_submitted":
       // Reassigned since it was queued: the former reviewer must not get it.
       if (!review || review.reviewer_id !== n.to_staff_id) return null;
@@ -441,13 +452,15 @@ function emailFor(n: any, to: any, review: any, cmp: any = null): EmailMsg | nul
         t.self ? "Your self-review" : "",
         t.manager ? `Your review of ${staffName}` : "",
         t.survey ? "The team survey" : "",
+        t.meet ? `Set up your review meeting with ${firstName(p.reviewer_name) || revFirst}` : "",
+        t.reveal ? `Hold the review meeting with ${staffName} and reveal the comparison` : "",
         t.sign ? "Sign your review" : "",
       ].filter(Boolean);
       if (!items.length) return null;
       return {
         subject: n.kind === "due_soon" ? `${cycle} review due ${fmtDue(p.due_at)}` : `Reminder: ${cycle} review due ${fmtDue(p.due_at)}`,
         lines: [`Still to do for ${cycle}:`, ...items.map((i) => "- " + i)],
-        cta: "Open Reviews", href: t.survey && !t.self && !t.manager && !t.sign ? `${APP_URL}#/team/reviews/survey` : reviewLink,
+        cta: "Open Reviews", href: t.survey && !t.self && !t.manager && !t.sign && !t.meet && !t.reveal ? `${APP_URL}#/team/reviews/survey` : reviewLink,
       };
     }
     case "cycle_relabelled": {
@@ -509,7 +522,7 @@ async function sendOutbox(db: SupabaseClient) {
     const { data: to } = await db.from("staff").select("id, name, email, role, active").eq("id", n.to_staff_id).maybeSingle();
     let review: any = null;
     if (n.review_id) {
-      const { data: r } = await db.from("reviews").select("staff_id, reviewer_id, drive_file_id").eq("id", n.review_id).maybeSingle();
+      const { data: r } = await db.from("reviews").select("staff_id, reviewer_id, drive_file_id, revealed_at, status").eq("id", n.review_id).maybeSingle();
       if (r) {
         const { data: ppl } = await db.from("staff").select("id, name").in("id", [r.staff_id, r.reviewer_id]);
         const nm = (id: string) => (ppl || []).find((x: any) => x.id === id)?.name;
@@ -518,7 +531,7 @@ async function sendOutbox(db: SupabaseClient) {
           const { data: m } = await db.from("review_submissions").select("submitted_at").eq("review_id", n.review_id).eq("kind", "manager").maybeSingle();
           managerSubmitted = !!m?.submitted_at;
         }
-        review = { ...r, staff_name: nm(r.staff_id), reviewer_name: nm(r.reviewer_id), manager_submitted: managerSubmitted };
+        review = { ...r, staff_name: nm(r.staff_id), reviewer_name: nm(r.reviewer_id), manager_submitted: managerSubmitted, revealed: !!r.revealed_at || r.status === "signed" };
       }
     }
     let cmp: any = null;

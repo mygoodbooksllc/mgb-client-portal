@@ -614,8 +614,8 @@ function TR_SubmittedBanner({ review, kind }) {
   const reviewerFirst = TR_first(review.reviewer && review.reviewer.name);
   const staffFirst = TR_first(review.staff && review.staff.name);
   let text;
-  if (isSelf) text = otherIn ? "Self-review submitted and locked." : `Self-review submitted and locked. The comparison opens once ${reviewerFirst} submits.`;
-  else text = otherIn ? `Your review of ${staffFirst} is submitted and locked.` : `Your review of ${staffFirst} is submitted and locked. The comparison opens once ${staffFirst} submits.`;
+  if (isSelf) text = otherIn ? "Self-review submitted and locked." : `Self-review submitted and locked. Once ${reviewerFirst} submits, set up a time to go over it together.`;
+  else text = otherIn ? `Your review of ${staffFirst} is submitted and locked.` : `Your review of ${staffFirst} is submitted and locked. The comparison opens for you to prep once ${staffFirst} submits.`;
   return (
     <div className="tr-banner good" role="status">
       {text}
@@ -719,19 +719,21 @@ function TR_MyReviewTab({ ov }) {
     },
     {
       label: `${TR_poss(my.reviewer_name)} review of you`,
-      note: "Scores stay hidden until both reviews are in",
+      note: "You see it together in your review meeting",
       status: my.manager_status === "submitted" ? ["Submitted", "good"] : ["In progress", "neutral"],
       go: null,
     },
     {
       label: "Review meeting and signature",
-      note: "Compare results, agree action steps, sign",
+      note: both && !my.revealed && !signed ? `Both sides complete. Set up a time with ${reviewerFirst}` : "See the comparison together, agree action steps, sign",
       status:
         my.status === "closed_unsigned"
           ? ["Closed unsigned", "bad"]
           : signed
             ? ["Signed", "good"]
-            : both
+            : both && !my.revealed
+              ? ["Set up meeting", "warm"]
+              : both
               ? my.staff_signed
                 ? ["Waiting for " + reviewerFirst, "warm"]
                 : ["Ready", "warm"]
@@ -852,7 +854,7 @@ function TR_GivingTab({ ov }) {
                   <TR_StatusPill status={g.manager_status} />
                 </td>
                 <td data-label="Status">
-                  <TR_ReviewStatusPill status={g.status} />
+                  {g.status === "comparing" && !g.revealed ? <TR_Pill tone="warm">Ready to reveal</TR_Pill> : <TR_ReviewStatusPill status={g.status} />}
                 </td>
                 <td className="row-remove-cell">
                   <button type="button" className="btn-secondary" onClick={() => TR_goReviews("r/" + g.review_id)} aria-label={"Open review for " + g.staff_name}>
@@ -909,7 +911,7 @@ function TR_TeamReviewsPage() {
     tabs.push({ key: "year-end", label: "Year-end" });
   }
   const dueKinds = new Set(((ov.due && ov.due.items) || []).map((i) => i.kind));
-  const defaultTab = isAdmin && !ov.my_review ? (dueKinds.has("manager") || dueKinds.has("sign") ? "giving" : "team") : "my";
+  const defaultTab = isAdmin && !ov.my_review ? (dueKinds.has("manager") || dueKinds.has("reveal") || dueKinds.has("sign") ? "giving" : "team") : "my";
   const inDetail = !!(route.reviewId || route.survey);
   const tab = inDetail
     ? lastTab.current || defaultTab

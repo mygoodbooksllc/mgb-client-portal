@@ -2,7 +2,7 @@
 title: How do I run a review cycle?
 section: Admin
 audience: admin
-keywords: [review cycle, quarter being reviewed, previous quarter, in progress, live view, follow along, open cycle, close cycle, quarterly reviews, team status, reviewer, reassign, default reviewer, reminder, add people, close unsigned, reopen, addendum, year-end summary, confirm summary, export, drive, team averages]
+keywords: [review cycle, reveal, reveal comparison, review meeting, prep, ready to reveal, quarter being reviewed, previous quarter, in progress, live view, follow along, open cycle, close cycle, quarterly reviews, team status, reviewer, reassign, default reviewer, reminder, add people, close unsigned, reopen, addendum, year-end summary, confirm summary, export, drive, team averages]
 sort: 520
 ---
 Admins run quarterly reviews from **Reviews → Team status**. For how reviews work for the person being reviewed, see [How do quarterly reviews work?](#/help/quarterly-reviews).
@@ -28,13 +28,19 @@ The Team status page shows, for each person: reviewer, self-review status, the r
 - **Change a reviewer** with the dropdown in the Reviewer column. This works until the reviewer's review is submitted. You can add a reason; it's kept in the review's history. Once the person has started their self-review, a former reviewer can't be put back on it, because other admins can see self-reviews and they could have looked while they were off it.
 - **Close unsigned** closes one person's review without signatures. A reason is required, and it's kept.
 
-Reviewers fill in their reviews from **Reviews → Reviews I'm giving**. The blind rule still applies to the reviewer: you can't see someone's self-review scores until your own review of them is submitted.
+Reviewers fill in their reviews from **Reviews → Reviews I'm giving**. The blind rule still applies to the reviewer: you can't see someone's self-review scores until your own review of them is submitted. You get an email when they submit their self-review.
 
-Every other admin can click **Open** on Team status to follow a review as it happens. The **In progress** view shows both forms' scores and comments so far, drafts included. The person and their reviewer still can't see each other's side until both are in. An admin who is being reviewed never sees the reviewer's side early.
+Every other admin can click **Open** on Team status to follow a review as it happens. The **In progress** view shows both forms' scores and comments so far, drafts included. The reviewer can't see the self-review until both are in. The person being reviewed can't see the reviewer's side until it's revealed. An admin who is being reviewed never sees the reviewer's side early.
+
+### Prep and reveal
+
+When both forms are in, the comparison opens right away for the reviewer and all admins, so you can prepare. The person being reviewed doesn't see it yet: they get an email and a **Both sides complete. Set up a time with** (reviewer) message asking them to book the meeting. Team status and **Reviews I'm giving** show **Ready to reveal**.
+
+In the meeting, open the review and click **Reveal comparison**, then confirm. Only that review's reviewer, Jesse and Bailley can reveal, and never on their own review. The person sees the comparison right away. A reveal can't be undone, and it's logged in the review's history as **Comparison revealed**. No email goes out. Action steps can be drafted before the reveal; signing opens after it.
 
 ### Reopen and addenda
 
-Before anyone has signed, an admin can reopen a submitted form from the review's page so its author can change it. A reason is required. The comparison goes back to hidden until the form is submitted again, and the author gets an email.
+Before anyone has signed, an admin can reopen a submitted form from the review's page so its author can change it. A reason is required. The comparison goes back to hidden until the form is submitted again, and the author gets an email. A comparison that was already revealed stays revealed.
 
 Once someone has signed, forms can't be reopened. After a review locks, add corrections as an addendum on the review's page. The signed review itself never changes.
 

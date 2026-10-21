@@ -159,12 +159,16 @@ function TR_itemsToDiscuss(rows) {
 }
 
 // Mirrors tr_can_see_submission in SQL (the blind rule). Admins who aren't
-// on the review watch both sides live, drafts included (owner, 2026-10-13);
-// the reviewee and the reviewer stay blind until both are submitted.
+// on the review watch both sides live, drafts included (owner, 2026-10-13).
+// The reviewer sees the other side once both are submitted, to prep. The
+// reviewee (even an admin) only sees the reviewer's side once the reviewer,
+// Jesse or Bailley reveals the comparison in the meeting (team-reviews-7,
+// 2026-10-21); o.revealed is true once revealed_at is set or it's signed.
 function TR_canSeeSubmission(o) {
   if (!o.viewer) return false;
   if (o.viewer === o.author) return true;
-  if (o.viewerIsAdmin && o.viewer !== o.staffId && o.viewer !== o.reviewerId) return true;
+  if (o.viewer === o.staffId) return !!(o.revealed && o.thisSubmitted && o.bothSubmitted);
+  if (o.viewerIsAdmin && o.viewer !== o.reviewerId) return true;
   if (!o.thisSubmitted) return false;
   if (o.bothSubmitted) return o.viewer === o.staffId || o.viewer === o.reviewerId || !!o.viewerIsAdmin;
   if (o.kind === "manager" && o.viewerIsAdmin && o.viewer !== o.staffId) return true;
