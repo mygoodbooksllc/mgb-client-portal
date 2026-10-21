@@ -1365,7 +1365,7 @@ var ANN_REGISTRY = [
         wait: true,
         title: "Group by",
         body: () =>
-          "Due date is the list you know. Client lists one client at a time, Rhythm step groups by Check in, Send reports and Follow up, and Status groups by To do, In progress, Waiting on client and the rest.",
+          "Due date is the list you know. Client lists one client at a time, 4/14/24th groups by Check in, Send reports and Follow up, and Status groups by To do, In progress, Waiting on client and the rest.",
       },
       {
         id: "ann-chips",

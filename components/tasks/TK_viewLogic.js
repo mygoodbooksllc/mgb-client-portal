@@ -1418,7 +1418,7 @@ function TK_bulkSetPlan(kind, patch, tasks, projects) {
 var TK_SLATE_GROUPS = [
   { key: "due", label: "Due date" },
   { key: "client", label: "Client" },
-  { key: "part", label: "Rhythm step" },
+  { key: "part", label: "4/14/24th" },
   { key: "status", label: "Status" },
 ];
 

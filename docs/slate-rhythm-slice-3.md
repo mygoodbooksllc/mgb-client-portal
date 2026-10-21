@@ -50,7 +50,7 @@ turns on `month_rhythm_enabled`. Staff see nothing new unless they have Month rh
 
 5. **Task fields.** `tk__issue_period` writes the template description, and for a
    `firm_part` task `section` = the part label from the rhythm ("Check in", "Send reports",
-   "Follow up"). Slate's Rhythm step grouping reads that section. For every other template
+   "Follow up"). Slate's 4/14/24th grouping reads that section. For every other template
    both fields are NULL, the column default.
 
 6. **Saving.** `tk_save_template` accepts `description`. A payload without that key leaves it

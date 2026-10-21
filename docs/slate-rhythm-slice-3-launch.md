@@ -37,7 +37,7 @@ Buttons: Show me · Later
 
 ## Tour (bookkeeper)
 
-The bookkeeper tour targets Today's Rhythm step grouping. That grouping ships in a later slice, so it is
+The bookkeeper tour targets Today's 4/14/24th grouping. That grouping ships in a later slice, so it is
 drafted there, not here.
 
 ## Tip (admin, while learning)

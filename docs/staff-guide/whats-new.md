@@ -31,7 +31,7 @@ Admins have a new **Month rhythm** card in **Settings › Firm settings**. It ho
 
 ### 2026-10-21: Group, sort and filter Slate your way
 
-Slate has a new bar above the list. **Group by** now offers **Due date**, **Client**, **Rhythm step** (Check in, Send reports, Follow up) and **Status**. **Sort** chips order tasks inside each group by due date, priority, status or name. Two quick chips, **Mine today** and **Waiting on client**, narrow the list in one click, and **Reset view** puts it back. Your view is remembered per person. The same bar is on the Desk's **Slate** tab. A short tour comes with it; rerun it from **?** → **New: Group, sort and filter Slate tour**. See [How do I use my Slate?](#/help/my-tasks).
+Slate has a new bar above the list. **Group by** now offers **Due date**, **Client**, **4/14/24th** (Check in, Send reports, Follow up) and **Status**. **Sort** chips order tasks inside each group by due date, priority, status or name. Two quick chips, **Mine today** and **Waiting on client**, narrow the list in one click, and **Reset view** puts it back. Your view is remembered per person. The same bar is on the Desk's **Slate** tab. A short tour comes with it; rerun it from **?** → **New: Group, sort and filter Slate tour**. See [How do I use my Slate?](#/help/my-tasks).
 
 ### 2026-10-20: Handbook approver changes and a "sent back" email
 
