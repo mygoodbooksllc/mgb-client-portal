@@ -453,6 +453,11 @@ body:has(.tk-app.is-shell.tk-m-sliver .tk-sl) .toast-stack {
   border-width: 1px;
 }
 
+/* The buttons fill an xs strip, so an outside ring would be clipped. */
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip.tk-sl-xs .tk-sl-btn:focus-visible {
+  outline-offset: -2px;
+}
+
 .tk-app.is-shell.tk-shape-strip .tk-sl-strip.tk-sl-xs .tk-dot {
   width: 6px;
   height: 6px;

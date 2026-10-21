@@ -21,6 +21,8 @@
 //           gate, recurring tasks and the report picker all apply. Its toast
 //           ("Done." / "Sent for review..." with Undo, from TK_api.offerUndo)
 //           shows inside the sliver for 5 s, then the next task comes in.
+//           Done waits while Start is saving. The report picker needs the
+//           drawer, so Done on a "Send reports" task grows to the List size.
 //   Toasts  while the sliver is up, every mgb:toast shows inside it and its
 //           live region (the page's toast stack is hidden in a sliver: it
 //           would cover the strip).
@@ -29,7 +31,9 @@
 //           the window bigger". Clicking the title does the same.
 //   Keys    s Start, x Done, Enter expand: only while focus is in the slot (or
 //           nowhere), never while typing or with a dialog or menu open.
-//   Offline Start and Done are disabled, with a title saying why.
+//   Offline Start and Done are disabled, with a title saying why; a strip says
+//           "Offline" and the live region announces the change.
+//   Empty   "Clean slate" with + Add; a failed load says so, with Retry.
 //   Usage   slate-sliver-start, slate-sliver-done (window.MGB_track).
 // Pure rules: TK_viewLogic.js (TK_slateSliverFit, TK_slateSliverPick,
 // TK_slateSliverRest, TK_slateSliverKey). Loads after TK_SlateModes.jsx.
@@ -272,7 +276,21 @@ function TK_SlateSliver(props) {
     };
   }, []);
 
-  var canAct = online && !phase && !!task;
+  // Not while Start is saving: a Done racing it could land first and the
+  // late in_progress write would reopen the task.
+  var canAct = online && !phase && !busy && !!task;
+
+  // Going offline is said once in the live region (the buttons only dim).
+  var wasOnline = React.useRef(online);
+  React.useEffect(
+    function () {
+      if (wasOnline.current === online) return;
+      wasOnline.current = online;
+      say(online ? "Back online." : TK_SLIVER_OFFLINE);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [online],
+  );
 
   var doStart = function () {
     if (!canAct || busy || status !== "todo") return;
@@ -305,6 +323,17 @@ function TK_SlateSliver(props) {
       if (!landed) {
         // Failed, already in review, or the report picker: the task stays.
         endPhase();
+        if (r && r.reportPick) {
+          // TK_api opened the task for the Full / Preliminary pick, but a
+          // sliver has no drawer: grow to the List size so it shows.
+          if (presets && presets.ok && typeof presets.apply === "function") {
+            if (cap) showMsg(cap);
+            presets.apply("list");
+          } else {
+            showMsg({ text: "Drag the window bigger to choose Full or Preliminary reports.", action: null, key: null });
+          }
+          return;
+        }
         if (cap) showMsg(cap);
         return;
       }
@@ -441,18 +470,34 @@ function TK_SlateSliver(props) {
     );
   } else if (!task) {
     var loading = !!(list && list.loading);
+    // A failed load is not a clean slate: say so and offer Retry.
+    var failed = !loading && !!(list && list.error) && listTasks.length === 0;
+    var emptyText = loading ? "Loading your tasks…" : failed ? "Couldn't load your tasks." : "Clean slate";
     body = (
       <React.Fragment>
         <span className="tk-sl-main">
           {msg && !fit.due && shape === "strip" ? (
             <span className="tk-sl-note">{msg.text}</span>
           ) : (
-            <span className="tk-sl-title tk-sl-empty">{loading ? "Loading your tasks…" : "Clean slate"}</span>
+            <span className="tk-sl-title tk-sl-empty">{emptyText}</span>
           )}
           {msg && (fit.due || shape === "column") ? <span className="tk-sl-note">{msg.text}</span> : null}
         </span>
         <span className="tk-sl-acts">
-          {loading ? null : (
+          {failed ? (
+            <button
+              type="button"
+              className="btn-secondary tk-sl-btn"
+              data-sl-focus="1"
+              title={offTitle}
+              disabled={!online}
+              onClick={function () {
+                if (list && typeof list.reload === "function") list.reload();
+              }}
+            >
+              Retry
+            </button>
+          ) : loading ? null : (
             <button type="button" className="btn-secondary tk-sl-btn" data-sl-focus="1" aria-label="Add a task" onClick={doAdd}>
               <TK_vIcon name="plus" size={fit.size === "xs" ? 12 : 14} />
               <span>Add</span>
@@ -484,7 +529,13 @@ function TK_SlateSliver(props) {
             </button>
           )}
           {msg && !noteInTitle ? <span className="tk-sl-note">{msg.text}</span> : null}
-          {!msg || shape === "column" ? metaRow : null}
+          {!online && !msg && shape === "strip" ? (
+            <span className="tk-sl-note" title={TK_SLIVER_OFFLINE}>
+              Offline
+            </span>
+          ) : !msg || shape === "column" ? (
+            metaRow
+          ) : null}
         </span>
         {fit.rest && rest > 0 ? (
           <span className="tk-sl-rest" title={rest + " more due today or late"}>
@@ -527,7 +578,7 @@ function TK_SlateSliver(props) {
             data-sl-focus="1"
             aria-label={"Done: " + title}
             title={offTitle || (task.review_required ? "Done, sends it for review (x)" : "Done (x)")}
-            disabled={!online}
+            disabled={!online || busy}
             onClick={doDone}
           >
             <TK_vIcon name="check" size={fit.size === "xs" ? 12 : 14} />
