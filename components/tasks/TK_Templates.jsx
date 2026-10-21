@@ -111,7 +111,8 @@ function TK_tplNumSelect(props) {
 function TK_tplRuleBuilder(props) {
   var cadence = props.cadence;
   var rule = props.rule || TK_tplDefaultRule("offset", cadence);
-  var types = TK_TPL_RULES_BY_CADENCE[cadence] || [];
+  // slice 3: firm_part shows only with month rhythm on (or when the rule is one)
+  var types = TK_tplRuleTypes(cadence, !!props.rhythmOn, rule.type);
   var set = function (patch) {
     var next = {};
     for (var k in rule) next[k] = rule[k];
@@ -260,6 +261,32 @@ function TK_tplRuleBuilder(props) {
         <span>(a holiday moves it to the next business day)</span>
       </div>
     );
+  } else if (rule.type === "firm_part") {
+    fields = (
+      <div className="tk-tpl-rule-row">
+        <span>On the</span>
+        <select
+          className="tk-select"
+          aria-label="Which month rhythm date"
+          value={rule.part || "check_in"}
+          disabled={props.disabled}
+          onChange={function (e) {
+            set({ part: e.target.value });
+          }}
+        >
+          {["check_in", "reports", "follow_up"].map(function (k) {
+            var info = TK_tplRhythmPartInfo(props.rhythm, k);
+            return (
+              <option key={k} value={k}>
+                {info.label + (info.day != null ? " (" + TK_tplOrdinal(info.day) + ")" : "")}
+              </option>
+            );
+          })}
+        </select>
+        <span>date of</span>
+        {moSelect}
+      </div>
+    );
   } else if (rule.type === "offset") {
     fields = (
       <div className="tk-tpl-rule-row">
@@ -305,7 +332,10 @@ function TK_tplRuleBuilder(props) {
         })}
       </select>
       {fields}
-      <p className="tk-field-help">{TK_dueRuleText(rule, cadence)}</p>
+      <p className="tk-field-help">{TK_dueRuleText(rule, cadence, props.rhythm)}</p>
+      {rule.type === "firm_part" ? (
+        <p className="tk-field-help">Dates come from Settings › Firm settings › Month rhythm.</p>
+      ) : null}
       {props.error ? (
         <p className="tk-field-error" role="alert">
           {props.error}
@@ -324,6 +354,7 @@ function TK_tplNextList(props) {
     activatedOn: props.activatedOn || props.today,
     override: props.override || null,
     fye: props.fye || "12-31",
+    rhythm: props.rhythm || null,
   });
   if (!list) return <p className="tk-field-help">Pick a due date that works to see the next ones.</p>;
   if (!list.length) return <p className="tk-field-help">No upcoming dates.</p>;
@@ -485,7 +516,7 @@ function TK_tplEditor(props) {
                 onChange={function (e) {
                   var c = e.target.value;
                   var allowed = TK_TPL_RULES_BY_CADENCE[c] || [];
-                  var r = d.rule && allowed.indexOf(d.rule.type) >= 0 ? d.rule : TK_tplDefaultRule(allowed[0], c);
+                  var r = d.rule && TK_tplRuleAllowed(c, d.rule.type) ? d.rule : TK_tplDefaultRule(allowed[0], c);
                   set({ cadence: c, rule: r });
                 }}
               >
@@ -526,6 +557,8 @@ function TK_tplEditor(props) {
             id="tk-tpl-ed-rule"
             cadence={d.cadence}
             rule={d.rule}
+            rhythm={props.rhythm}
+            rhythmOn={props.rhythmOn}
             error={errs && errs.rule}
             onChange={function (r) {
               set({ rule: r });
@@ -757,9 +790,29 @@ function TK_tplEditor(props) {
             {errs && errs.checklist ? <span className="tk-field-error">{errs.checklist}</span> : null}
           </label>
 
+          {props.rhythmOn || d._hadDescription || d.description ? (
+            <label className="tk-field">
+              <span className="tk-field-label">Description (optional)</span>
+              <textarea
+                className={"tk-input tk-textarea" + (errs && errs.description ? " is-invalid" : "")}
+                rows={3}
+                maxLength={2000}
+                value={d.description || ""}
+                onChange={function (e) {
+                  set({ description: e.target.value });
+                }}
+              />
+              <span className="tk-field-help">Each task starts with this text.</span>
+              {errs && errs.description ? <span className="tk-field-error">{errs.description}</span> : null}
+            </label>
+          ) : null}
+          {d.email_kind && TK_TPL_EMAIL_KIND_LABELS[d.email_kind] ? (
+            <p className="tk-field-help">{"Email draft: " + TK_TPL_EMAIL_KIND_LABELS[d.email_kind] + ". Drafts come in a later update."}</p>
+          ) : null}
+
           <div className="tk-field tk-tpl-preview" aria-live="polite">
             <span className="tk-field-label">Next due dates</span>
-            <TK_tplNextList tpl={tplForPreview} today={props.today} holidays={props.holidays} activatedOn={props.today} />
+            <TK_tplNextList tpl={tplForPreview} today={props.today} holidays={props.holidays} activatedOn={props.today} rhythm={props.rhythm} />
             {d.cadence === "annually" && d.period_basis === "fiscal" ? (
               <p className="tk-field-help">Shown for a December 31 year end. Each client uses its own.</p>
             ) : null}
@@ -827,7 +880,7 @@ function TK_tplPreviewModal(props) {
             {st.error}
           </p>
         ) : (
-          <TK_tplResultTables data={st.data} clientNames={props.clientNames} nameOf={props.nameOf} />
+          <TK_tplResultTables data={st.data} clientNames={props.clientNames} nameOf={props.nameOf} hide={props.hide || null} />
         )}
       </div>
       <div className="modal-footer tk-modal-footer">
@@ -843,10 +896,20 @@ function TK_tplResultTables(props) {
   var r = props.data || {};
   var cn = props.clientNames || {};
   var nameOf = props.nameOf || function (e) { return e || ""; };
-  var would = Array.isArray(r.would_create) ? r.would_create : [];
-  var up = Array.isArray(r.upcoming) ? r.upcoming : [];
-  var skipped = Array.isArray(r.skipped) ? r.skipped : [];
-  var missed = Array.isArray(r.missed) ? r.missed : [];
+  // slice 3 review: with month rhythm off, a test client's dry run leaves out the
+  // hidden rhythm templates, so the preview reads as before. No hide map = no change.
+  var hide = props.hide || null;
+  var keep = function (list) {
+    if (!Array.isArray(list)) return [];
+    if (!hide) return list;
+    return list.filter(function (x) {
+      return !(x && x.template && hide[x.template]);
+    });
+  };
+  var would = keep(r.would_create);
+  var up = keep(r.upcoming);
+  var skipped = keep(r.skipped);
+  var missed = keep(r.missed);
   var warn = Array.isArray(r.warnings) ? r.warnings : [];
   var table = function (key, caption, rows, cols) {
     if (!rows.length) return null;
@@ -991,12 +1054,14 @@ function TK_tplOverrideModal(props) {
               id="tk-tpl-ov-rule"
               cadence={t.cadence}
               rule={rule}
+              rhythm={props.rhythm}
+              rhythmOn={props.rhythmOn}
               onChange={function (r) {
                 setRule(r);
               }}
             />
           ) : (
-            <p className="tk-field-help">{"Due: " + TK_dueRuleText(TK_tplEffectiveRule(t, null), t.cadence)}</p>
+            <p className="tk-field-help">{"Due: " + TK_dueRuleText(TK_tplEffectiveRule(t, null), t.cadence, props.rhythm)}</p>
           )}
           <label className="tk-field">
             <span className="tk-field-label">Who does it</span>
@@ -1044,7 +1109,7 @@ function TK_tplOverrideModal(props) {
           {rule ? (
             <div className="tk-field tk-tpl-preview" aria-live="polite">
               <span className="tk-field-label">Next due dates for this client</span>
-              <TK_tplNextList tpl={t} override={{ due_rule: rule }} today={props.today} holidays={props.holidays} fye={props.fye} />
+              <TK_tplNextList tpl={t} override={{ due_rule: rule }} today={props.today} holidays={props.holidays} fye={props.fye} rhythm={props.rhythm} />
             </div>
           ) : null}
           {msg ? (
@@ -1351,12 +1416,17 @@ function TK_tplClientPanel(props) {
               count: 1,
               override: override,
               fye: st.fye || "12-31",
+              rhythm: props.rhythm || null,
               // Central date; a standard-set member reaches a real client from when the set went live
               activatedOn: t.activated_at ? TK_tplActivatedOn(t, { set: setById[t.template_set_id], testClient: testClient }) || props.today : props.today,
               // P4-2: an opted-in client gets set members from its first close month on
               periodFloor:
-                t.template_set_id && optin && optin.enabled && !optin.set_live && !testClient && optin.starts ? String(optin.starts).slice(0, 10) : null,
+                t.template_set_id && !TK_tplIsRhythmSet(setById[t.template_set_id]) && optin && optin.enabled && !optin.set_live && !testClient && optin.starts
+                  ? String(optin.starts).slice(0, 10)
+                  : null,
             });
+            // slice 3: a month rhythm template reaches a real client only once the switch is on
+            var rhythmWaits = TK_tplIsRhythmSet(setById[t.template_set_id]) && !props.rhythmLive && !testClient;
             return (
               <li key={t.id} className={"tk-tpl-row" + (skip ? " is-skipped" : "")}>
                 <div className="tk-tpl-main">
@@ -1366,12 +1436,14 @@ function TK_tplClientPanel(props) {
                     {changed ? <span className="tk-tpl-status is-changed">Changed for this client</span> : null}
                   </div>
                   <div className="tk-tpl-meta tk-muted">
-                    {TK_tplLabelOf(TK_TPL_CADENCES, t.cadence) + " · " + TK_dueRuleText(TK_tplEffectiveRule(t, override), t.cadence)}
+                    {TK_tplLabelOf(TK_TPL_CADENCES, t.cadence) + " · " + TK_dueRuleText(TK_tplEffectiveRule(t, override), t.cadence, props.rhythm)}
                   </div>
                   <div className="tk-tpl-meta">
                     {skip
                       ? "Skipped for this client."
-                      : next && next.length
+                      : rhythmWaits
+                        ? "Waits for the owner to turn on month rhythm tasks."
+                        : next && next.length
                         ? "Next: " + next[0].label + ", due " + TK_tplFmtDate(next[0].due)
                         : ""}
                   </div>
@@ -1413,6 +1485,8 @@ function TK_tplClientPanel(props) {
           today={props.today}
           holidays={props.holidays}
           fye={st.fye || "12-31"}
+          rhythm={props.rhythm}
+          rhythmOn={props.rhythmOn}
           onClose={function () {
             setEditing(null);
           }}
@@ -1431,6 +1505,7 @@ function TK_tplClientPanel(props) {
           note="Only templates that are on. Nothing is created by this preview."
           clientNames={props.clientNames}
           nameOf={props.nameOf}
+          hide={props.hideTemplateIds || null}
           onClose={function () {
             setPreview(false);
           }}
@@ -1506,15 +1581,17 @@ function TK_vTemplatesBody(props) {
         TK_api.templateIssuedCounts().catch(function () { return {}; }),
         TK_api.getSettings().catch(function () { return {}; }),
         TK_api.holidays().catch(function () { return []; }),
+        // Slate month rhythm (slice 3): the rhythm for firm_part dates; never rejects
+        typeof TK_rhythmLoad === "function" ? TK_rhythmLoad(true).catch(function () { return null; }) : Promise.resolve(null),
       ]).then(
         function (res) {
           if (!live) return;
-          setData({ loading: false, error: null, templates: res[0], sets: res[1], counts: res[2], settings: res[3], holidays: res[4] });
+          setData({ loading: false, error: null, templates: res[0], sets: res[1], counts: res[2], settings: res[3], holidays: res[4], rhythm: res[5] ? res[5].rhythm : null });
         },
         function (err) {
           if (!live) return;
           setData(function (d) {
-            return { loading: false, error: err, templates: d.templates, sets: d.sets, counts: d.counts, settings: d.settings, holidays: d.holidays };
+            return { loading: false, error: err, templates: d.templates, sets: d.sets, counts: d.counts, settings: d.settings, holidays: d.holidays, rhythm: d.rhythm };
           });
         },
       );
@@ -1578,11 +1655,31 @@ function TK_vTemplatesBody(props) {
 
   // read the way the generator reads it (tk__jsonb_bool): anything not a yes/no counts as off
   var setLive = !!data.settings && TK_tplBool(data.settings.standard_set_live) === true;
+  // Slate month rhythm (slice 3): with it off (TK_rhythmEnabled, the one gate)
+  // the rhythm set and firm_part templates are left out, so the page is as before.
+  var rhythmOn = typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled();
+  var rhythmLive = !!data.settings && TK_tplBool(data.settings.month_rhythm_enabled) === true;
+  var rhythm = data.rhythm || null;
+  var shown = TK_tplHideRhythm(data.templates, data.sets, rhythmOn);
+  // slice 3 review: ids left out above, so a test client's dry run hides them too (null when on)
+  var hiddenTplIds = null;
+  if (!rhythmOn) {
+    var keptIds = {};
+    shown.templates.forEach(function (t) {
+      if (t && t.id) keptIds[t.id] = true;
+    });
+    (data.templates || []).forEach(function (t) {
+      if (t && t.id && !keptIds[t.id]) {
+        hiddenTplIds = hiddenTplIds || {};
+        hiddenTplIds[t.id] = true;
+      }
+    });
+  }
   var setById = {};
   (data.sets || []).forEach(function (s) {
     if (s && s.id) setById[s.id] = s;
   });
-  var groups = TK_tplGroups(data.templates, data.sets);
+  var groups = TK_tplGroups(shown.templates, shown.sets);
   var tplById = {};
   data.templates.forEach(function (t) {
     tplById[t.id] = t;
@@ -1645,7 +1742,13 @@ function TK_vTemplatesBody(props) {
         "The daily run makes tasks for matching clients from now on, each one showing up " +
         (Number(t.lead_days) || 0) +
         " days before it's due. Periods due more than 7 days ago aren't made; they're listed under Missed periods for you to decide." +
-        (inSet && !setLive ? " This is a standard template: it only reaches real clients once the owner turns the standard set on. Test clients can try it now." : "") +
+        (inSet && TK_tplIsRhythmSet(setById[t.template_set_id])
+          ? rhythmLive
+            ? ""
+            : " This is a month rhythm template: it only reaches real clients once the owner turns on month rhythm tasks. Test clients can try it now."
+          : inSet && !setLive
+            ? " This is a standard template: it only reaches real clients once the owner turns the standard set on. Test clients can try it now."
+            : "") +
         " Nothing is emailed to clients." +
         (opts.closeWarn ? " " + opts.closeWarn : "");
     } else {
@@ -1761,6 +1864,7 @@ function TK_vTemplatesBody(props) {
             fye: "12-31",
             // Central date, and for a standard-set member the later of that and when the set went live
             activatedOn: status === "active" && t.activated_at ? TK_tplActivatedOn(t, { set: setById[t.template_set_id] }) || today : today,
+            rhythm: rhythm,
           });
     // the list has no client, so a fiscal-year template is shown for a Dec 31 year end
     var fyNote = t.cadence === "annually" && t.period_basis === "fiscal" ? " (for a Dec 31 year end)" : "";
@@ -1794,6 +1898,11 @@ function TK_vTemplatesBody(props) {
             )}
             <span className={"tk-tpl-status is-" + status}>{TK_TPL_STATUS_LABELS[status]}</span>
             {t.review_required ? <span className="tk-tpl-status is-review">Needs approval</span> : null}
+            {t.email_kind && TK_TPL_EMAIL_KIND_LABELS[t.email_kind] ? (
+              <span className="tk-tpl-status is-draft" title="The email draft this task will help with. Drafts come in a later update.">
+                {TK_TPL_EMAIL_KIND_LABELS[t.email_kind]}
+              </span>
+            ) : null}
             {t.source === "asana" ? (
               <span className="tk-tpl-tag-asana" title="Made from an Asana recurring task by the import. Check it, then turn it on.">
                 From Asana
@@ -1803,7 +1912,7 @@ function TK_vTemplatesBody(props) {
           <div className="tk-tpl-meta tk-muted">
             {TK_tplLabelOf(TK_TPL_CADENCES, t.cadence) +
               " · " +
-              TK_dueRuleText(TK_tplEffectiveRule(t, null), t.cadence) +
+              TK_dueRuleText(TK_tplEffectiveRule(t, null), t.cadence, rhythm) +
               " · " +
               applies +
               " · " +
@@ -1877,6 +1986,16 @@ function TK_vTemplatesBody(props) {
                   </span>
                 </div>
               ) : null}
+              {g.set && TK_tplIsRhythmSet(g.set) ? (
+                <div className="tk-tpl-set-note" data-tour="tk-recurring-rhythm">
+                  <span className={"tk-tpl-status is-" + (rhythmLive ? "active" : "draft")}>{rhythmLive ? "Live for real clients" : "Test clients only"}</span>
+                  <span className="tk-muted">
+                    {rhythmLive
+                      ? " Month rhythm is on. Dates follow Settings › Firm settings › Month rhythm."
+                      : " Waits for the owner to turn on month rhythm tasks. Until then these only reach test clients. Dates follow Settings › Firm settings › Month rhythm."}
+                  </span>
+                </div>
+              ) : null}
               {g.templates.length ? (
                 <ul className="tk-tpl-rows">{g.templates.map(renderRow)}</ul>
               ) : (
@@ -1892,6 +2011,12 @@ function TK_vTemplatesBody(props) {
   }
 
   var openMissed = adminData.missed || [];
+  if (hiddenTplIds) {
+    // slice 3 review: a test client's missed rhythm periods stay hidden with month rhythm off
+    openMissed = openMissed.filter(function (m) {
+      return !(m && hiddenTplIds[m.template_id]);
+    });
+  }
   var suggestions = adminData.suggestions || [];
   var runs = adminData.runs || [];
 
@@ -2043,8 +2168,12 @@ function TK_vTemplatesBody(props) {
 
       <TK_tplClientPanel
         clients={props.clients}
-        templates={data.templates}
+        templates={shown.templates}
         sets={data.sets}
+        rhythm={rhythm}
+        rhythmOn={rhythmOn}
+        rhythmLive={rhythmLive}
+        hideTemplateIds={hiddenTplIds}
         isAdmin={isAdmin}
         online={online}
         today={today}
@@ -2097,6 +2226,8 @@ function TK_vTemplatesBody(props) {
           holidays={data.holidays}
           online={online}
           staff={staff}
+          rhythm={rhythm}
+          rhythmOn={rhythmOn}
           onClose={function () {
             setEditing(null);
           }}

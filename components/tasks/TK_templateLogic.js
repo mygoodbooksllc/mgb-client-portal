@@ -49,7 +49,93 @@ var TK_TPL_RULE_LABELS = {
   nth_weekday: "A weekday of the month",
   weekday: "A day of the week",
   offset: "Days after the period ends",
+  firm_part: "A month rhythm date",
 };
+
+// Slate month rhythm (slice 3): firm_part rules ("On the Send reports date,
+// next month"). Kept out of TK_TPL_RULES_BY_CADENCE so nothing changes for
+// anyone with month rhythm off: the editor offers firm_part only when
+// TK_rhythmEnabled() (or the rule already is one), never for weekly.
+var TK_TPL_RHYTHM_CADENCES = ["monthly", "quarterly", "annually"];
+var TK_TPL_RHYTHM_GATE = "month_rhythm_enabled";
+
+// The plain name of an email draft a template feeds (task_templates.email_kind).
+var TK_TPL_EMAIL_KIND_LABELS = {
+  request: "Statement request email",
+  reports: "Reports email",
+  maintenance: "Follow-up and maintenance email",
+};
+
+// May this cadence use this rule type? The old list, plus firm_part for
+// month-based cadences.
+function TK_tplRuleAllowed(cadence, type) {
+  var allowed = TK_TPL_RULES_BY_CADENCE[cadence];
+  if (!allowed) return false;
+  if (allowed.indexOf(type) >= 0) return true;
+  return type === "firm_part" && TK_TPL_RHYTHM_CADENCES.indexOf(cadence) >= 0;
+}
+
+// The rule types the editor offers. rhythmOn adds firm_part; currentType keeps
+// an existing firm_part rule editable when the rhythm is off.
+function TK_tplRuleTypes(cadence, rhythmOn, currentType) {
+  var list = (TK_TPL_RULES_BY_CADENCE[cadence] || []).slice();
+  if (TK_TPL_RHYTHM_CADENCES.indexOf(cadence) >= 0 && (rhythmOn || currentType === "firm_part")) list.push("firm_part");
+  return list;
+}
+
+// The month rhythm labels (TK_rhythmLogic.js): the global in the browser,
+// require() in node. Read lazily so load order does not matter.
+function TK_tplRhythmLib() {
+  if (typeof TK_rhythmPart === "function" && typeof TK_RHYTHM_DEFAULT !== "undefined") {
+    return { TK_rhythmPart: TK_rhythmPart, TK_RHYTHM_DEFAULT: TK_RHYTHM_DEFAULT };
+  }
+  if (typeof require === "function") {
+    try {
+      return require("./TK_rhythmLogic.js");
+    } catch (e) {}
+  }
+  return null;
+}
+
+var TK_TPL_RHYTHM_PART_FALLBACK = { check_in: "Check in", reports: "Send reports", follow_up: "Follow up" };
+
+// { label, day } for one part: the rhythm's own part, else the default label
+// with no day.
+function TK_tplRhythmPartInfo(rhythm, key) {
+  var lib = TK_tplRhythmLib();
+  var p = lib && rhythm ? lib.TK_rhythmPart(rhythm, key) : null;
+  if (p) return { label: p.label || TK_TPL_RHYTHM_PART_FALLBACK[key] || key, day: p.day };
+  var d = lib ? lib.TK_rhythmPart(lib.TK_RHYTHM_DEFAULT, key) : null;
+  return { label: (d && d.label) || TK_TPL_RHYTHM_PART_FALLBACK[key] || String(key || "rhythm"), day: null };
+}
+
+// A template set that waits for the month rhythm switch.
+function TK_tplIsRhythmSet(set) {
+  return !!set && set.gate_key === TK_TPL_RHYTHM_GATE;
+}
+
+// What the templates page shows. on = TK_rhythmEnabled(). When off, rhythm
+// sets, their templates and any firm_part template are left out, so the page
+// is exactly what it was before slice 3.
+function TK_tplHideRhythm(templates, sets, on) {
+  var t = templates || [];
+  var s = sets || [];
+  if (on) return { templates: t, sets: s };
+  var hidden = {};
+  s.forEach(function (x) {
+    if (TK_tplIsRhythmSet(x)) hidden[x.id] = true;
+  });
+  return {
+    templates: t.filter(function (x) {
+      if (x && x.template_set_id && hidden[x.template_set_id]) return false;
+      var r = x && TK_tplIsObj(x.due_rule) ? x.due_rule : null;
+      return !(r && r.type === "firm_part");
+    }),
+    sets: s.filter(function (x) {
+      return !TK_tplIsRhythmSet(x);
+    }),
+  };
+}
 
 var TK_TPL_STATUS_LABELS = { draft: "Draft", active: "On", paused: "Paused", retired: "Retired" };
 
@@ -141,9 +227,23 @@ function TK_tplRollPhrase(roll) {
   return "";
 }
 
+// firm_part text: "On the Send reports date (14th), next month". The day shows
+// only when a rhythm is given.
+function TK_tplFirmPartText(r, cadence, rhythm) {
+  var info = TK_tplRhythmPartInfo(rhythm, r.part);
+  var head = "On the " + info.label + " date" + (info.day != null ? " (" + TK_tplOrdinal(info.day) + ")" : "");
+  var mo = r.month_offset == null ? 1 : Number(r.month_offset);
+  if (cadence === "monthly") {
+    if (mo === 0) return head + ", same month";
+    if (mo === 1) return head + ", next month";
+    return head + ", " + mo + " months later";
+  }
+  return head + TK_tplMonthPhrase(mo, cadence);
+}
+
 // One sentence for a due rule, e.g. "10th business day of the month after
-// the month ends".
-function TK_dueRuleText(rule, cadence) {
+// the month ends". rhythm (optional, slice 3) only feeds firm_part rules.
+function TK_dueRuleText(rule, cadence, rhythm) {
   var r = TK_tplIsObj(rule) ? rule : null;
   var period = TK_tplCadence(cadence).period;
   if (!r) return "No due rule";
@@ -172,6 +272,8 @@ function TK_dueRuleText(rule, cadence) {
       );
     case "weekday":
       return (TK_TPL_DOW[r.dow] || "A weekday") + " of each week, or the next business day";
+    case "firm_part":
+      return TK_tplFirmPartText(r, cadence, rhythm);
   }
   return "Unknown due rule";
 }
@@ -189,6 +291,8 @@ function TK_tplDefaultRule(type, cadence) {
       return { type: "nth_weekday", n: 2, dow: 2, month_offset: 1, roll: "none" };
     case "weekday":
       return { type: "weekday", dow: 5 };
+    case "firm_part":
+      return { type: "firm_part", part: "check_in", month_offset: 1 };
     default:
       return { type: "offset", days: cadence === "weekly" ? 0 : 10 };
   }
@@ -205,7 +309,8 @@ function TK_tplAddDays(ymd, n) {
 
 // The next periods for one template x client, the way tk__generate walks
 // them. opts: { today, fye ('MM-DD'), holidays, count (default 3),
-// activatedOn (default today, as a preview treats a draft), override }.
+// activatedOn (default today, as a preview treats a draft), override,
+// rhythm (the month rhythm, for firm_part rules) }.
 // Returns null for an unusable rule, else
 // [{ start, end, label, due, startOn, when: 'now' | 'later' | 'missed' }]:
 // 'now' = the next run creates it, 'later' = created startOn, 'missed' =
@@ -216,8 +321,7 @@ function TK_tplUpcoming(tpl, opts) {
   if (!rec || !tpl || !o.today) return null;
   var rule = TK_tplEffectiveRule(tpl, o.override);
   if (!rec.TK_dueRuleValid(rule)) return null;
-  var allowed = TK_TPL_RULES_BY_CADENCE[tpl.cadence] || [];
-  if (allowed.indexOf(rule.type) < 0) return null;
+  if (!TK_tplRuleAllowed(tpl.cadence, rule.type)) return null;
   var kind = TK_tplKind(tpl.cadence, tpl.period_basis);
   var lead = Math.max(0, Number(tpl.lead_days) || 0);
   var today = o.today;
@@ -235,7 +339,8 @@ function TK_tplUpcoming(tpl, opts) {
     var end = rec.TK_periodEnd(kind, start);
     var due = null;
     try {
-      due = rec.TK_resolveDue(rule, start, end, hol);
+      // o.rhythm (slice 3): only firm_part reads it; without one it throws -> null
+      due = rec.TK_resolveDue(rule, start, end, hol, o.rhythm);
     } catch (e) {
       return null;
     }
@@ -292,6 +397,8 @@ function TK_tplBlank() {
     sop_section: "",
     estimate_minutes: "",
     period_basis: "calendar",
+    // slice 3: the text a task gets (task_templates.description)
+    description: "",
   };
 }
 
@@ -346,6 +453,11 @@ function TK_tplFromRow(row) {
   d.active = r.active !== false;
   d.template_set_id = r.template_set_id || null;
   d.activated_at = r.activated_at || null;
+  // slice 3 (month rhythm): description is sent back only when the row had one
+  // or the person typed one, so older templates save exactly as before.
+  d.description = r.description ? String(r.description) : "";
+  d._hadDescription = !!r.description;
+  d.email_kind = r.email_kind || null;
   return d;
 }
 
@@ -359,7 +471,7 @@ function TK_tplValidate(d) {
   else if (TK_tplStripPeriod(title) !== title) e.title = "Leave the period off. Each task gets it added, like “· Sep 2026”.";
   var allowed = TK_TPL_RULES_BY_CADENCE[d && d.cadence];
   if (!allowed) e.cadence = "Pick how often it repeats.";
-  else if (!d.rule || allowed.indexOf(d.rule.type) < 0) e.rule = "Pick when it's due.";
+  else if (!d.rule || !TK_tplRuleAllowed(d.cadence, d.rule.type)) e.rule = "Pick when it's due.";
   else if (rec && !rec.TK_dueRuleValid(d.rule)) e.rule = "That due date doesn't work. Check the numbers.";
   var lead = Number(d && d.lead_days);
   if (!(Math.floor(lead) === lead && lead >= 0 && lead <= 90)) e.lead_days = "Use 0 to 90 days.";
@@ -369,6 +481,7 @@ function TK_tplValidate(d) {
     if (!(Math.floor(n) === n && n >= 1 && n <= 10000)) e.estimate_minutes = "Use whole minutes, 1 to 10000.";
   }
   if (d && Array.isArray(d.checklist) && d.checklist.length > 50) e.checklist = "Keep it to 50 steps.";
+  if (d && d.description && String(d.description).length > 2000) e.description = "Keep the description under 2000 characters.";
   if (d && d.assign_mode === "person" && !String(d.assignee_email || "").trim()) e.assignee_email = "Pick who gets these tasks.";
   return Object.keys(e).length ? e : null;
 }
@@ -396,6 +509,10 @@ function TK_tplToPayload(d) {
   };
   // the legacy column stays meaningful for old readers
   if (rule && rule.type === "offset") p.due_offset_days = rule.days;
+  // slice 3: only when there is (or was) one; "" clears it. email_kind is
+  // never sent (seeded rows only).
+  var desc = String(d.description || "").trim();
+  if (desc || d._hadDescription) p.description = desc.slice(0, 2000);
   return p;
 }
 
@@ -752,6 +869,14 @@ if (typeof module !== "undefined" && module.exports) {
     TK_TPL_SOP: TK_TPL_SOP,
     TK_TPL_RULES_BY_CADENCE: TK_TPL_RULES_BY_CADENCE,
     TK_TPL_RULE_LABELS: TK_TPL_RULE_LABELS,
+    TK_TPL_RHYTHM_CADENCES: TK_TPL_RHYTHM_CADENCES,
+    TK_TPL_RHYTHM_GATE: TK_TPL_RHYTHM_GATE,
+    TK_TPL_EMAIL_KIND_LABELS: TK_TPL_EMAIL_KIND_LABELS,
+    TK_tplRuleAllowed: TK_tplRuleAllowed,
+    TK_tplRuleTypes: TK_tplRuleTypes,
+    TK_tplRhythmPartInfo: TK_tplRhythmPartInfo,
+    TK_tplIsRhythmSet: TK_tplIsRhythmSet,
+    TK_tplHideRhythm: TK_tplHideRhythm,
     TK_TPL_STATUS_LABELS: TK_TPL_STATUS_LABELS,
     TK_tplLabelOf: TK_tplLabelOf,
     TK_tplKind: TK_tplKind,

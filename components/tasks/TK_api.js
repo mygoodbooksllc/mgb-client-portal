@@ -1901,7 +1901,7 @@ var TK_api = (function () {
   var TPL_COLS =
     "id, title, cadence, due_offset_days, due_rule, lead_days, plan_tiers, client_ids, priority, active, status, checklist, " +
     "assignee_role, review_required, sop_section, estimate_minutes, period_basis, template_set_id, close_key, activated_at, " +
-    "source, created_by, created_at, updated_by, assignee_email, leave_unassigned";
+    "source, created_by, created_at, updated_by, assignee_email, leave_unassigned, description, email_kind";  // slice 3 month rhythm
 
   function rpcWrite(name, args, where) {
     var off = requireOnline();
@@ -1919,7 +1919,7 @@ var TK_api = (function () {
 
   api.listTemplateSets = function () {
     return run(function (c) {
-      return c.from("tk_template_sets").select("id, name, is_standard, deleted_at, live_since").order("name", { ascending: true });
+      return c.from("tk_template_sets").select("id, name, is_standard, deleted_at, live_since, gate_key").order("name", { ascending: true });
     }, { where: "listTemplateSets" }).then(function (rows) { return rows || []; });
   };
 

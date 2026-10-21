@@ -1,0 +1,25 @@
+DRAFT, not published. Admin staff-guide note for the MGB Month Rhythm templates (Slate month rhythm, slice 3). Add it to the admin recurring-templates article, merged with month-rhythm-due-rule.txt, on the day the owner turns on the month rhythm switch. Until then the live guide is unchanged, because staff without Month rhythm preview see nothing new.
+
+### The MGB Month Rhythm templates
+
+Slate › Recurring has a set called MGB Month Rhythm. It holds eight monthly tasks that follow the firm's month rhythm:
+
+- **Check in:** check in with the client about last month, ask for missing documents, categorize the bank feed through month end, note what is still missing.
+- **Send reports:** finish the month with the documents received, then send reports. Send full reports if the month is complete, or preliminary reports if documents are missing.
+- **Follow up:** follow up on missing documents, then finish and send full reports once they arrive.
+
+Each task is due on its part's date, in the month after the month it covers. For example, September's Send reports tasks are due on the Send reports date in October. The row reads "Monthly · On the Send reports date (14th), next month". The dates come from Settings › Firm settings › Month rhythm.
+
+- **Waits for the owner's switch.** Until the owner turns on month rhythm tasks, these templates make nothing for real clients. The set shows "Test clients only".
+- **Test and internal clients** get the tasks when an admin presses Make due tasks now on that client. Use this to try the set.
+- **Once the switch is on**, the daily task run makes them for every client from that day forward. Earlier months are not filled in.
+
+### Editing a month rhythm template
+
+Open a template and choose **A month rhythm date** under Due. Pick the part (Check in, Send reports or Follow up), then the month: same month, next month, or later. The preview below shows the next dates from the firm's rhythm.
+
+To move the day itself, change the month rhythm in Settings rather than each template. Tasks that already exist keep their dates.
+
+**Description:** each task made from the template starts with this text. Use it for the short "why" of the task. The checklist still holds the steps.
+
+**Email draft:** three of the templates show which email they will draft (statement request, reports, or follow-up and maintenance). The drafts come in a later update.

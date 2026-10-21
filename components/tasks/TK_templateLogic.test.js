@@ -531,4 +531,121 @@ t("P4-2: periodFloor skips periods before the opt-in month", () => {
   assert.strictEqual(floored[0].due.slice(0, 7), "2026-12", "the November close is due in December");
 });
 
+// ---- Slate month rhythm, slice 3: firm_part templates ------------------------
+const RH = require("./TK_rhythmLogic.js");
+
+t("slice 3: firm_part stays out of the old rule lists", () => {
+  ["weekly", "monthly", "quarterly", "annually"].forEach((c) => assert.ok(T.TK_TPL_RULES_BY_CADENCE[c].indexOf("firm_part") < 0, c));
+  assert.deepStrictEqual(T.TK_tplRuleTypes("monthly", false), T.TK_TPL_RULES_BY_CADENCE.monthly);
+  assert.deepStrictEqual(T.TK_tplRuleTypes("monthly", false, "business_day"), T.TK_TPL_RULES_BY_CADENCE.monthly);
+  assert.deepStrictEqual(T.TK_tplRuleTypes("monthly", true), T.TK_TPL_RULES_BY_CADENCE.monthly.concat(["firm_part"]));
+  assert.deepStrictEqual(T.TK_tplRuleTypes("quarterly", false, "firm_part").slice(-1), ["firm_part"], "an existing firm_part rule stays editable");
+  assert.deepStrictEqual(T.TK_tplRuleTypes("weekly", true), T.TK_TPL_RULES_BY_CADENCE.weekly, "never weekly");
+  assert.strictEqual(T.TK_tplRuleAllowed("monthly", "firm_part"), true);
+  assert.strictEqual(T.TK_tplRuleAllowed("weekly", "firm_part"), false);
+  assert.strictEqual(T.TK_tplRuleAllowed("monthly", "weekday"), false);
+  assert.strictEqual(T.TK_tplRuleAllowed("nope", "offset"), false);
+  const r = T.TK_tplDefaultRule("firm_part", "monthly");
+  assert.deepStrictEqual(r, { type: "firm_part", part: "check_in", month_offset: 1 });
+  assert.ok(require("./TK_recurrenceLogic.js").TK_dueRuleValid(r));
+  assert.ok(T.TK_TPL_RULE_LABELS.firm_part);
+});
+
+t("slice 3: firm_part rule text, with and without a rhythm", () => {
+  const rh = RH.TK_rhythmDefault();
+  const fp = (part, mo) => ({ type: "firm_part", part, month_offset: mo });
+  assert.strictEqual(T.TK_dueRuleText(fp("reports", 1), "monthly"), "On the Send reports date, next month");
+  assert.strictEqual(T.TK_dueRuleText(fp("reports", 1), "monthly", rh), "On the Send reports date (14th), next month");
+  assert.strictEqual(T.TK_dueRuleText(fp("check_in", 0), "monthly", rh), "On the Check in date (4th), same month");
+  assert.strictEqual(T.TK_dueRuleText(fp("follow_up", 2), "monthly", rh), "On the Follow up date (24th), 2 months later");
+  assert.strictEqual(T.TK_dueRuleText({ type: "firm_part", part: "follow_up" }, "monthly"), "On the Follow up date, next month", "no month_offset means 1");
+  assert.strictEqual(T.TK_dueRuleText(fp("reports", 1), "quarterly", rh), "On the Send reports date (14th) of the month after the quarter ends");
+  const custom = { parts: [{ key: "check_in", label: "Kickoff", day: 3 }, { key: "reports", label: "Reports out", day: 12 }, { key: "follow_up", label: "Chase", day: 20 }], roll: "prev" };
+  assert.strictEqual(T.TK_dueRuleText(fp("reports", 1), "monthly", custom), "On the Reports out date (12th), next month");
+  // every other rule reads the same with or without a rhythm
+  [{ type: "business_day", n: 5 }, { type: "offset", days: 10 }, { type: "day_of_month", day: 15 }].forEach((x) =>
+    assert.strictEqual(T.TK_dueRuleText(x, "monthly", rh), T.TK_dueRuleText(x, "monthly")),
+  );
+});
+
+t("slice 3: upcoming with a rhythm matches the resolver; no rhythm gives null", () => {
+  const tpl = { cadence: "monthly", due_rule: { type: "firm_part", part: "reports", month_offset: 1 }, lead_days: 10 };
+  assert.strictEqual(T.TK_tplUpcoming(tpl, { today: "2026-10-21", count: 2 }), null, "fails closed without a rhythm");
+  const live = { parts: RH.TK_rhythmDefault().parts, roll: "prev" };
+  const u = T.TK_tplUpcoming(tpl, { today: "2026-10-21", activatedOn: "2026-10-01", count: 2, rhythm: live, holidays: [] });
+  assert.deepStrictEqual(u.map((x) => [x.label, x.due, x.startOn, x.when]), [
+    ["Sep 2026", "2026-10-14", "2026-10-04", "now"],
+    ["Oct 2026", "2026-11-13", "2026-11-03", "later"],
+  ]);
+  assert.strictEqual(T.TK_tplUpcoming({ cadence: "weekly", due_rule: tpl.due_rule }, { today: "2026-10-21", rhythm: live }), null, "never weekly");
+});
+
+t("slice 3: the page hides the rhythm set and firm_part templates when off", () => {
+  const sets = [{ id: "s1", name: "MGB Standard", is_standard: true, gate_key: "standard_set_live" }, { id: "s2", name: "MGB Month Rhythm", is_standard: false, gate_key: "month_rhythm_enabled" }];
+  const tpls = [
+    { id: "a", template_set_id: "s1", due_rule: { type: "business_day", n: 5 } },
+    { id: "b", template_set_id: "s2", due_rule: { type: "firm_part", part: "check_in" } },
+    { id: "c", template_set_id: null, due_rule: { type: "firm_part", part: "reports" } },
+    { id: "d", template_set_id: null, due_rule: null },
+  ];
+  const off = T.TK_tplHideRhythm(tpls, sets, false);
+  assert.deepStrictEqual(off.templates.map((x) => x.id), ["a", "d"]);
+  assert.deepStrictEqual(off.sets.map((x) => x.id), ["s1"]);
+  const on = T.TK_tplHideRhythm(tpls, sets, true);
+  assert.strictEqual(on.templates, tpls);
+  assert.strictEqual(on.sets, sets);
+  assert.strictEqual(T.TK_tplIsRhythmSet(sets[1]), true);
+  assert.strictEqual(T.TK_tplIsRhythmSet(sets[0]), false);
+  assert.strictEqual(T.TK_tplIsRhythmSet({ id: "x" }), false, "older rows without gate_key");
+  // with no rhythm template anywhere the groups are exactly as before
+  const old = tpls.filter((x) => x.id === "a" || x.id === "d");
+  assert.deepStrictEqual(T.TK_tplGroups(T.TK_tplHideRhythm(old, [sets[0]], false).templates, [sets[0]]), T.TK_tplGroups(old, [sets[0]]));
+});
+
+t("slice 3: description round trip; older templates save exactly as before", () => {
+  const row = { id: "x", title: "Monthly close", cadence: "monthly", due_rule: { type: "business_day", n: 5 }, lead_days: 7 };
+  const before = T.TK_tplToPayload(T.TK_tplFromRow(row));
+  assert.ok(!("description" in before), "no description key for a row without one");
+  assert.ok(!("email_kind" in before));
+  const withD = T.TK_tplFromRow(Object.assign({}, row, { description: "Do the thing.", email_kind: "reports" }));
+  assert.strictEqual(withD.description, "Do the thing.");
+  assert.strictEqual(withD.email_kind, "reports");
+  assert.strictEqual(T.TK_tplToPayload(withD).description, "Do the thing.");
+  assert.ok(!("email_kind" in T.TK_tplToPayload(withD)), "email_kind is never sent");
+  withD.description = "   ";
+  assert.strictEqual(T.TK_tplToPayload(withD).description, "", "clearing sends an empty string");
+  const typed = Object.assign(T.TK_tplBlank(), { title: "x", description: " New text " });
+  assert.strictEqual(T.TK_tplToPayload(typed).description, "New text");
+  assert.strictEqual(T.TK_tplValidate(Object.assign(T.TK_tplBlank(), { title: "x", description: "y".repeat(2001) })).description.length > 0, true);
+  const fpDraft = Object.assign(T.TK_tplBlank(), { title: "x", rule: { type: "firm_part", part: "reports", month_offset: 1 } });
+  assert.strictEqual(T.TK_tplValidate(fpDraft), null, "a firm_part rule saves for monthly");
+  assert.ok(T.TK_tplValidate(Object.assign({}, fpDraft, { cadence: "weekly" })).rule, "but not for weekly");
+});
+
+t("slice 3: the seed SQL has the eight final titles, parts and email kinds", () => {
+  const sql = fs.readFileSync(path.join(__dirname, "../../supabase/slate-rhythm-3-templates.sql"), "utf8");
+  const want = [
+    ["month_rhythm:1_check_in", "Check in with the client about last month", "null"],
+    ["month_rhythm:2_check_in", "Ask for missing documents", "'request'"],
+    ["month_rhythm:3_check_in", "Categorize the bank feed through month end", "null"],
+    ["month_rhythm:4_check_in", "Note what is still missing", "null"],
+    ["month_rhythm:5_reports", "Finish the month with the documents received", "null"],
+    ["month_rhythm:6_reports", "Send reports: full if complete, preliminary if documents are missing", "'reports'"],
+    ["month_rhythm:7_follow_up", "Follow up on missing documents", "'maintenance'"],
+    ["month_rhythm:8_follow_up", "Finish and send full reports once documents arrive", "null"],
+  ];
+  want.forEach(([ref, title, email]) => {
+    const i = sql.indexOf("('" + ref + "'");
+    assert.ok(i > 0, ref);
+    const block = sql.slice(i, sql.indexOf(")", sql.indexOf("]", i) + 1) + 1);
+    assert.ok(block.indexOf("'" + title + "'") > 0, ref + " title");
+    assert.ok(new RegExp(email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(::text)?\\)$").test(block.trim()), ref + " email_kind " + block.slice(-30));
+    const part = ref.replace(/^month_rhythm:\d_/, "");
+    assert.ok(block.indexOf("'" + part + "'") > 0, ref + " part");
+    assert.ok(!/!/.test(title), "no exclamation marks");
+  });
+  Object.keys(T.TK_TPL_EMAIL_KIND_LABELS).forEach((k) => assert.ok(sql.indexOf("'" + k + "'") > 0, k));
+  assert.ok(/email_kind in \('request', 'reports', 'maintenance'\)\)/.test(sql), "email_kind CHECK matches the labels");
+});
+
 console.log("TK_templateLogic: " + n + " tests passed");
