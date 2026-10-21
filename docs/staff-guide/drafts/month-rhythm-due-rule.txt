@@ -1,0 +1,8 @@
+DRAFT, not published. Admin staff-guide note for the month rhythm due rule (Slate month rhythm, slice 2). Add it to the admin Settings or recurring-templates article when slice 3 ships the template editor option. Until then, nothing is visible, so the live guide is unchanged.
+
+### Due dates that follow the month rhythm
+
+A recurring template can set its due date by a month rhythm part (Check in, Send reports or Follow up) instead of a fixed day. Its day and weekend rule then come from the firm's month rhythm in Settings. If an admin changes the rhythm, the next tasks made from these templates use the new days. Tasks that already exist keep their dates.
+
+- **Turned off by default.** The daily task run makes nothing from these templates until the month rhythm switch is on.
+- **If the rhythm can't be read**, the run skips these templates and shows one warning. Save the month rhythm again in Settings to fix it.

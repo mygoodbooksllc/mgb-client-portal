@@ -2,7 +2,8 @@
 // Checks the business calendar and due rules (TK_recurrenceLogic.js) against
 // the shared fixtures. The same fixtures run in SQL via
 // tk_recurrence_selftest(); `--sql` prints the generated seed + values blocks
-// to paste into supabase/tasks-p2-1-calendar.sql.
+// to paste into supabase/tasks-p2-1-calendar.sql; `--sql-rhythm` prints the
+// firm_part vectors for supabase/slate-rhythm-2-firm-part-tests.sql.
 
 const assert = require("assert");
 const fs = require("fs");
@@ -29,6 +30,18 @@ if (process.argv.includes("--sql")) {
     return `      (${q(c.id)}, ${q(c.fn)}, ${rule}, ${a}, ${b}, ${n}, ${t1}, ${t2}, date ${q(c.expected)})`;
   }).join(",\n");
   console.log("-- seed\n" + seed + "\n\n-- values\n" + vals);
+  process.exit(0);
+}
+
+// Slate month rhythm, slice 2: the firm_part vectors for
+// supabase/slate-rhythm-2-firm-part-tests.sql.
+if (process.argv.includes("--sql-rhythm")) {
+  const j = (v) => (v === null || v === undefined ? "null::jsonb" : q(JSON.stringify(v)) + "::jsonb");
+  const res = F.RHYTHM_CASES.map(
+    (c) => `      (${q(c.id)}, ${j(c.rule)}, ${j(c.rhythm)}, ${q(c.start)}::date, ${q(c.end)}::date, ${q(c.expected)}::text)`,
+  ).join(",\n");
+  const vec = F.RULE_VECTORS.map((v) => `      (${q(v.id)}, ${j(v.rule)}, ${v.valid})`).join(",\n");
+  console.log("-- resolve vectors\n" + res + "\n\n-- rule vectors\n" + vec);
   process.exit(0);
 }
 
@@ -79,7 +92,7 @@ F.CASES.forEach((c) => {
 });
 
 t("every rule type is covered by a fixture", () => {
-  const seen = new Set(F.CASES.filter((c) => c.rule).map((c) => c.rule.type));
+  const seen = new Set(F.CASES.concat(F.RHYTHM_CASES).filter((c) => c.rule).map((c) => c.rule.type));
   L.TK_RULE_TYPES.forEach((ty) => assert.ok(seen.has(ty), ty));
 });
 
@@ -210,6 +223,83 @@ t("SQL file carries the current fixtures", () => {
   const sql = fs.readFileSync(path.join(__dirname, "../../supabase/tasks-p2-1-calendar.sql"), "utf8");
   F.CASES.forEach((c) => assert.ok(sql.includes("'" + c.id + "'"), "SQL is missing case " + c.id + " (run with --sql)"));
   F.HOLIDAYS.forEach((h) => assert.ok(sql.includes("'" + h[0] + "'"), "SQL is missing holiday " + h[0]));
+});
+
+// ---- firm_part (Slate month rhythm, slice 2) ------------------------------
+
+function runRhythm(c) {
+  try {
+    return L.TK_resolveDue(c.rule, c.start, c.end, HOL, c.rhythm);
+  } catch (e) {
+    return "error:" + e.message;
+  }
+}
+
+t("firm_part fixtures: unique ids, not mixed into the applied calendar cases", () => {
+  const ids = F.RHYTHM_CASES.map((c) => c.id).concat(F.RULE_VECTORS.map((v) => v.id));
+  assert.strictEqual(new Set(ids).size, ids.length);
+  const old = new Set(F.CASES.map((c) => c.id));
+  ids.forEach((id) => assert.ok(!old.has(id), id));
+  assert.ok(F.CASES.every((c) => !c.rule || c.rule.type !== "firm_part"));
+  assert.ok(F.RHYTHM_CASES.length >= 25, "only " + F.RHYTHM_CASES.length);
+});
+
+F.RHYTHM_CASES.forEach((c) => {
+  t("rhythm fixture " + c.id, () => assert.strictEqual(runRhythm(c), c.expected, c.id));
+});
+
+F.RULE_VECTORS.forEach((v) => {
+  t("rule vector " + v.id, () => assert.strictEqual(L.TK_dueRuleValid(v.rule), v.valid, v.id));
+});
+
+t("firm_part: the parts are the rhythm's keys", () => {
+  const R = require("./TK_rhythmLogic.js");
+  assert.deepStrictEqual(L.TK_FIRM_PARTS, R.TK_RHYTHM_PART_KEYS);
+  assert.ok(L.TK_RULE_TYPES.indexOf("firm_part") >= 0);
+});
+
+t("firm_part: fails closed with no rhythm (4-argument calls throw)", () => {
+  const rule = { type: "firm_part", part: "reports", month_offset: 1 };
+  assert.throws(() => L.TK_resolveDue(rule, "2026-09-01", "2026-09-30", HOL), /tk_month_rhythm_missing/);
+  assert.throws(() => L.TK_resolveDue(rule, "2026-09-01", "2026-09-30", HOL, undefined), /tk_month_rhythm_missing/);
+  // a bad period still returns null before the rhythm is looked at (same order as SQL)
+  assert.strictEqual(L.TK_resolveDue(rule, null, "2026-09-30", HOL, null), null);
+});
+
+t("firm_part matches day_of_month with the part's day and the rhythm's roll", () => {
+  const R = require("./TK_rhythmLogic.js");
+  const rh = R.TK_rhythmDefault();
+  const months = L.TK_periodsFor("month", "2026-01-01", "2028-11-30");
+  ["next", "prev", "none"].forEach((roll) => {
+    rh.roll = roll;
+    rh.parts.forEach((p) => {
+      [0, 1, 2].forEach((mo) => {
+        months.forEach((m) => {
+          const a = L.TK_resolveDue({ type: "firm_part", part: p.key, month_offset: mo }, m.start, m.end, HOL, rh);
+          const b = L.TK_resolveDue({ type: "day_of_month", day: p.day, month_offset: mo, roll: roll }, m.start, m.end, HOL);
+          assert.strictEqual(a, b, p.key + " " + roll + " " + mo + " " + m.start);
+        });
+      });
+    });
+  });
+});
+
+t("old rule types: the rhythm argument changes nothing", () => {
+  const R = require("./TK_rhythmLogic.js");
+  const rhythms = [undefined, null, R.TK_rhythmDefault(), { parts: [], roll: "x" }, "junk"];
+  F.CASES.filter((c) => c.fn === "resolve").forEach((c) => {
+    rhythms.forEach((rh) => assert.strictEqual(L.TK_resolveDue(c.rule, c.start, c.end, HOL, rh), c.expected, c.id));
+  });
+});
+
+t("SQL self-test carries the firm_part vectors", () => {
+  const sql = fs.readFileSync(path.join(__dirname, "../../supabase/slate-rhythm-2-firm-part-tests.sql"), "utf8");
+  F.RHYTHM_CASES.forEach((c) => assert.ok(sql.includes("'" + c.id + "'"), "SQL is missing case " + c.id + " (run with --sql-rhythm)"));
+  F.RULE_VECTORS.forEach((v) => assert.ok(sql.includes("'" + v.id + "'"), "SQL is missing vector " + v.id + " (run with --sql-rhythm)"));
+  F.RHYTHM_CASES.forEach((c) => {
+    if (c.rhythm) assert.ok(sql.includes(q(JSON.stringify(c.rhythm))), "SQL rhythm differs for " + c.id + " (run with --sql-rhythm)");
+    if (c.rule) assert.ok(sql.includes(q(JSON.stringify(c.rule))), "SQL rule differs for " + c.id + " (run with --sql-rhythm)");
+  });
 });
 
 console.log("TK_recurrenceLogic: " + n + " checks passed");

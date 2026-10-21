@@ -146,6 +146,100 @@ var TK_RECURRENCE_CASES = [
   { id: "ps_month", fn: "pstart", kind: "month", day: "2026-02-28", fye: null, expected: "2026-02-01" },
 ];
 
+// ---- firm_part (Slate month rhythm, slice 2) ------------------------------
+// Kept out of TK_RECURRENCE_CASES on purpose: those are pasted into the
+// applied tk_recurrence_selftest() and must not change. These run in node
+// (TK_recurrenceLogic.test.js) and in SQL in
+// supabase/slate-rhythm-2-firm-part-tests.sql via the 4-argument
+// tk_resolve_due(rule, start, end, rhythm). Regenerate the SQL values with:
+//   node components/tasks/TK_recurrenceLogic.test.js --sql-rhythm
+// expected is a date, or "error:<message>" for a call that must fail closed.
+
+function RH(days, roll, extra) {
+  var labels = ["Check in", "Send reports", "Follow up"];
+  var keys = ["check_in", "reports", "follow_up"];
+  var r = {
+    parts: keys.map(function (k, i) {
+      return { key: k, label: labels[i], day: days[i] };
+    }),
+    roll: roll,
+  };
+  if (extra) for (var x in extra) r[x] = extra[x];
+  return r;
+}
+var RH_DEFAULT = RH([4, 14, 24], "next");
+
+function FP(id, rule, rhythm, period, expected) {
+  return { id: id, fn: "resolve_rhythm", rule: rule, rhythm: rhythm, start: period[0], end: period[1], expected: expected };
+}
+
+var TK_RECURRENCE_RHYTHM_CASES = [
+  FP("fp_checkin_sunday_next", { type: "firm_part", part: "check_in", month_offset: 1 }, RH_DEFAULT, SEP26, "2026-10-05"),
+  FP("fp_reports_wednesday", { type: "firm_part", part: "reports", month_offset: 1 }, RH_DEFAULT, SEP26, "2026-10-14"),
+  FP("fp_followup_saturday_next", { type: "firm_part", part: "follow_up", month_offset: 1 }, RH_DEFAULT, SEP26, "2026-10-26"),
+  FP("fp_followup_saturday_prev", { type: "firm_part", part: "follow_up", month_offset: 1 }, RH([4, 14, 24], "prev"), SEP26, "2026-10-23"),
+  FP("fp_followup_saturday_none", { type: "firm_part", part: "follow_up", month_offset: 1 }, RH([4, 14, 24], "none"), SEP26, "2026-10-24"),
+  FP("fp_no_month_offset_means_1", { type: "firm_part", part: "reports" }, RH_DEFAULT, NOV26, "2026-12-14"),
+  FP("fp_month_offset_null_means_1", { type: "firm_part", part: "reports", month_offset: null }, RH_DEFAULT, NOV26, "2026-12-14"),
+  FP("fp_month_offset_0", { type: "firm_part", part: "check_in", month_offset: 0 }, RH_DEFAULT, OCT26, "2026-10-05"),
+  FP("fp_thanksgiving_run", { type: "firm_part", part: "reports", month_offset: 1 }, RH([4, 26, 27], "next"), OCT26, "2026-11-30"),
+  FP("fp_day_after_thanksgiving", { type: "firm_part", part: "follow_up", month_offset: 1 }, RH([4, 26, 27], "next"), OCT26, "2026-11-30"),
+  FP("fp_christmas_eve_prev", { type: "firm_part", part: "reports", month_offset: 1 }, RH([3, 24, 28], "prev"), NOV26, "2026-12-23"),
+  FP("fp_new_year_next", { type: "firm_part", part: "check_in", month_offset: 1 }, RH([1, 14, 24], "next"), ["2026-12-01", "2026-12-31"], "2027-01-04"),
+  FP("fp_good_friday_prev", { type: "firm_part", part: "check_in", month_offset: 1 }, RH([3, 14, 24], "prev"), ["2026-03-01", "2026-03-31"], "2026-04-02"),
+  FP("fp_quarter_offset_2", { type: "firm_part", part: "reports", month_offset: 2 }, RH_DEFAULT, ["2026-07-01", "2026-09-30"], "2026-11-16"),
+  FP("fp_feb_28_sunday_none", { type: "firm_part", part: "follow_up", month_offset: 1 }, RH([4, 14, 28], "none"), ["2027-01-01", "2027-01-31"], "2027-02-28"),
+  FP("fp_juneteenth_monday", { type: "firm_part", part: "reports", month_offset: 1 }, RH([4, 19, 24], "next"), ["2028-05-01", "2028-05-31"], "2028-06-20"),
+  FP("fp_rule_roll_ignored", { type: "firm_part", part: "follow_up", month_offset: 1, roll: "prev" }, RH_DEFAULT, SEP26, "2026-10-26"),
+  FP("fp_rhythm_extra_fields", { type: "firm_part", part: "check_in", month_offset: 1 }, RH([4, 14, 24], "next", { note: "x" }), SEP26, "2026-10-05"),
+  FP("fp_rhythm_no_labels", { type: "firm_part", part: "reports", month_offset: 1 },
+    { parts: [{ key: "check_in", day: 5 }, { key: "reports", day: 15 }, { key: "follow_up", day: 25 }], roll: "next" }, SEP26, "2026-10-15"),
+  FP("fp_month_offset_12", { type: "firm_part", part: "check_in", month_offset: 12 }, RH_DEFAULT, SEP26, "2027-09-07"),
+  // fails closed
+  FP("fp_err_rhythm_missing", { type: "firm_part", part: "reports", month_offset: 1 }, null, SEP26, "error:tk_month_rhythm_missing"),
+  FP("fp_err_days_out_of_order", { type: "firm_part", part: "reports", month_offset: 1 }, RH([14, 4, 24], "next"), SEP26, "error:tk_month_rhythm_invalid: day_order"),
+  FP("fp_err_bad_roll", { type: "firm_part", part: "reports", month_offset: 1 }, RH([4, 14, 24], "later"), SEP26, "error:tk_month_rhythm_invalid: roll"),
+  FP("fp_err_day_29", { type: "firm_part", part: "follow_up", month_offset: 1 }, RH([4, 14, 29], "next"), SEP26, "error:tk_month_rhythm_invalid: part_day"),
+  FP("fp_err_two_parts", { type: "firm_part", part: "check_in", month_offset: 1 },
+    { parts: [{ key: "check_in", day: 4 }, { key: "reports", day: 14 }], roll: "next" }, SEP26, "error:tk_month_rhythm_invalid: parts_count"),
+  FP("fp_err_rhythm_array", { type: "firm_part", part: "check_in", month_offset: 1 }, [4, 14, 24], SEP26, "error:tk_month_rhythm_invalid: not_object"),
+  FP("fp_err_bad_rule", { type: "firm_part", part: "middle", month_offset: 1 }, RH_DEFAULT, SEP26, "error:invalid due rule"),
+  // the rhythm argument changes nothing for the other rule types
+  FP("fp_dom_ignores_null_rhythm", { type: "day_of_month", day: 15 }, null, SEP26, "2026-10-15"),
+  FP("fp_dom_ignores_bad_rhythm", { type: "day_of_month", day: 15 }, RH([14, 4, 24], "later"), SEP26, "2026-10-15"),
+  FP("fp_bd_ignores_rhythm", { type: "business_day", n: 10 }, RH_DEFAULT, SEP26, "2026-10-15"),
+  FP("fp_weekday_ignores_rhythm", { type: "weekday", dow: 5 }, null, ["2026-12-28", "2027-01-03"], "2027-01-04"),
+  FP("fp_null_rule_is_null", null, RH_DEFAULT, SEP26, null),
+];
+
+// tk_due_rule_valid / TK_dueRuleValid verdicts for the new type (both sides).
+var TK_RECURRENCE_RULE_VECTORS = [
+  { id: "frv_checkin", rule: { type: "firm_part", part: "check_in", month_offset: 1 }, valid: true },
+  { id: "frv_reports_no_offset", rule: { type: "firm_part", part: "reports" }, valid: true },
+  { id: "frv_followup_offset0", rule: { type: "firm_part", part: "follow_up", month_offset: 0 }, valid: true },
+  { id: "frv_offset12", rule: { type: "firm_part", part: "reports", month_offset: 12 }, valid: true },
+  { id: "frv_offset_null", rule: { type: "firm_part", part: "reports", month_offset: null }, valid: true },
+  { id: "frv_extra_roll_ignored", rule: { type: "firm_part", part: "reports", roll: "sideways" }, valid: true },
+  { id: "frv_no_part", rule: { type: "firm_part", month_offset: 1 }, valid: false },
+  { id: "frv_part_null", rule: { type: "firm_part", part: null }, valid: false },
+  { id: "frv_part_unknown", rule: { type: "firm_part", part: "middle" }, valid: false },
+  { id: "frv_part_case", rule: { type: "firm_part", part: "Check_in" }, valid: false },
+  { id: "frv_part_number", rule: { type: "firm_part", part: 1 }, valid: false },
+  { id: "frv_part_array", rule: { type: "firm_part", part: ["reports"] }, valid: false },
+  { id: "frv_part_label", rule: { type: "firm_part", part: "Send reports" }, valid: false },
+  { id: "frv_offset13", rule: { type: "firm_part", part: "reports", month_offset: 13 }, valid: false },
+  { id: "frv_offset_neg", rule: { type: "firm_part", part: "reports", month_offset: -1 }, valid: false },
+  { id: "frv_offset_fraction", rule: { type: "firm_part", part: "reports", month_offset: 1.5 }, valid: false },
+  { id: "frv_offset_string", rule: { type: "firm_part", part: "reports", month_offset: "1" }, valid: false },
+  { id: "frv_type_typo", rule: { type: "firm_parts", part: "reports" }, valid: false },
+  { id: "frv_type_case", rule: { type: "Firm_part", part: "reports" }, valid: false },
+];
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { HOLIDAYS: TK_RECURRENCE_HOLIDAYS, CASES: TK_RECURRENCE_CASES };
+  module.exports = {
+    HOLIDAYS: TK_RECURRENCE_HOLIDAYS,
+    CASES: TK_RECURRENCE_CASES,
+    RHYTHM_CASES: TK_RECURRENCE_RHYTHM_CASES,
+    RULE_VECTORS: TK_RECURRENCE_RULE_VECTORS,
+  };
 }

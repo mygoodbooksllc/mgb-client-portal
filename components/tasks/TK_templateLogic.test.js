@@ -53,6 +53,16 @@ t("every skip reason the SQL returns has text", () => {
   assert.notStrictEqual(T.TK_tplSkipReasonText("error"), "Skipped.");
 });
 
+t("every skip reason slate-rhythm-2b returns has text", () => {
+  const sql = fs.readFileSync(path.join(__dirname, "../../supabase/slate-rhythm-2b-issue-gate.sql"), "utf8");
+  const re = /'reason', '([a-z_]+)'/g;
+  const found = new Set();
+  let m;
+  while ((m = re.exec(sql))) found.add(m[1]);
+  assert.deepStrictEqual([...found].sort(), ["no_rhythm", "rhythm_off"]);
+  found.forEach((r) => assert.notStrictEqual(T.TK_tplSkipReasonText(r), "Skipped.", r));
+});
+
 t("kind", () => {
   assert.strictEqual(T.TK_tplKind("weekly"), "week");
   assert.strictEqual(T.TK_tplKind("monthly", "fiscal"), "month");

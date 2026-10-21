@@ -403,6 +403,9 @@ var TK_TPL_SKIP_TEXT = {
   no_assignee: "Nobody to give it to: the client has no bookkeeper or account manager.",
   no_access: "The person it would go to can't see this client.",
   bad_rule: "The due rule doesn't give a date for this period.",
+  // Slate month rhythm (slice 2b): firm_part templates
+  rhythm_off: "Month rhythm tasks are not turned on for the firm yet.",
+  no_rhythm: "The month rhythm setting could not be read. An admin can save it again in Settings.",
   error: "Something went wrong. It tries again on the next run.",
 };
 

@@ -126,7 +126,11 @@ var TK_recurrence = (function () {
 
   // ---- Due rules -----------------------------------------------------------
 
-  var RULE_TYPES = ["offset", "business_day", "day_of_month", "eom", "nth_weekday", "weekday"];
+  // firm_part (Slate month rhythm, slice 2): { type: "firm_part", part:
+  // "check_in" | "reports" | "follow_up", month_offset }. The day and the roll
+  // come from the month rhythm, not the rule (see resolveDue).
+  var RULE_TYPES = ["offset", "business_day", "day_of_month", "eom", "nth_weekday", "weekday", "firm_part"];
+  var FIRM_PARTS = ["check_in", "reports", "follow_up"];
 
   function isInt(v) {
     return typeof v === "number" && isFinite(v) && Math.floor(v) === v;
@@ -159,19 +163,55 @@ var TK_recurrence = (function () {
         return (intIn(rule.n, 1, 5) || rule.n === -1) && intIn(rule.dow, 1, 7) && mo && optRoll(rule);
       case "weekday":
         return intIn(rule.dow, 1, 7);
+      case "firm_part":
+        // Any other field (a roll, say) is ignored: the rhythm's roll wins.
+        return typeof rule.part === "string" && FIRM_PARTS.indexOf(rule.part) >= 0 && mo;
       default:
         return false;
     }
+  }
+
+  // The month rhythm's validator lives in TK_rhythmLogic.js (TK_rhythmProblem,
+  // the twin of tk_month_rhythm_problem). Looked up at call time: in the
+  // browser it loads after this file; in node it is require()d.
+  function rhythmProblem(r) {
+    var fn = typeof TK_rhythmProblem === "function" ? TK_rhythmProblem : null;
+    if (!fn && typeof require === "function") {
+      try {
+        fn = require("./TK_rhythmLogic.js").TK_rhythmProblem;
+      } catch (e) {
+        fn = null;
+      }
+    }
+    if (typeof fn !== "function") return "validator_missing";
+    return fn(r);
+  }
+
+  // firm_part -> the day_of_month rule it stands for, using the rhythm (already
+  // merged client over firm by the caller). Fails closed: no rhythm throws
+  // "tk_month_rhythm_missing", a bad one "tk_month_rhythm_invalid: <code>"
+  // (same messages as the SQL).
+  function firmPartRule(rule, rhythm) {
+    if (rhythm === null || rhythm === undefined) throw new Error("tk_month_rhythm_missing");
+    var problem = rhythmProblem(rhythm);
+    if (problem) throw new Error("tk_month_rhythm_invalid: " + problem);
+    var day = null;
+    for (var i = 0; i < rhythm.parts.length; i++) if (rhythm.parts[i].key === rule.part) day = rhythm.parts[i].day;
+    return { type: "day_of_month", day: day, month_offset: rule.month_offset == null ? 1 : rule.month_offset, roll: rhythm.roll };
   }
 
   // The due date for one period. rule null returns null: the caller falls
   // back to the legacy due_offset_days ({type:'offset', days}).
   // month_offset counts from the month the period ends in (default 1 = the
   // month after).
-  function resolveDue(rule, periodStart, periodEnd, holidays) {
+  // rhythm (5th argument, optional): the month rhythm, already merged client
+  // over firm by the caller. Only firm_part reads it; every other rule type
+  // ignores it. tk_resolve_due(rule, start, end, rhythm) is the SQL twin.
+  function resolveDue(rule, periodStart, periodEnd, holidays, rhythm) {
     if (rule === null || rule === undefined) return null;
     if (!dueRuleValid(rule)) throw new Error("invalid due rule");
     if (!valid(periodStart) || !valid(periodEnd)) return null;
+    if (rule.type === "firm_part") return resolveDue(firmPartRule(rule, rhythm), periodStart, periodEnd, holidays);
     var h = holSet(holidays);
     var mo = rule.month_offset == null ? 1 : rule.month_offset;
     var target = addMonths(firstOfMonth(periodEnd), mo);
@@ -323,6 +363,7 @@ var TK_recurrence = (function () {
     TK_periodKey: periodKey,
     TK_periodLabel: periodLabel,
     TK_RULE_TYPES: RULE_TYPES,
+    TK_FIRM_PARTS: FIRM_PARTS,
   };
 })();
 
