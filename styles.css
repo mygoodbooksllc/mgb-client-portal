@@ -10978,3 +10978,35 @@ button.home-todo-main:hover { background: var(--surface-2); }
   }
   .client-tabbar-more button:hover { background: var(--hover, rgba(0, 0, 0, 0.05)); }
 }
+
+/* Admin alerts inside the top bell (replaces the sidebar Alerts section). */
+.notif-alerts {
+  padding: 0 0 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.notif-alerts-head {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 6px 8px;
+}
+.notif-alerts .ss-alert-row {
+  color: var(--text);
+  padding: 6px 8px;
+}
+.notif-alerts .ss-alert-row:hover,
+.notif-alerts .ss-alert-row:focus-visible {
+  background: var(--warm-bg);
+}
+.notif-alerts .ss-alert-row.sev-info,
+.notif-alerts .ss-alert-more {
+  color: var(--text-muted);
+}
+.notif-alerts .ss-alert-more {
+  display: block;
+  padding: 4px 8px;
+  font-size: 12px;
+}

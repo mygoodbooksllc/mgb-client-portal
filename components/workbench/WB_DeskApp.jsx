@@ -479,7 +479,7 @@ function WB_DeskMenu() {
   return (
     <>
       <span data-tour="wb-desk-menu">
-        <TK_vMenuButton className="wb-more-btn" label={WB_DESK_APP_NAME} title={"Open or install the " + WB_DESK_APP_NAME + " app (hover to see options)"} hoverOpen={true} ariaLabel={WB_DESK_APP_NAME + " options"} menuLabel={WB_NAME + " menu"} align="right">
+        <TK_vMenuButton className="wb-more-btn" label={WB_DESK_APP_NAME} hoverOpen={true} ariaLabel={WB_DESK_APP_NAME + " options"} menuLabel={WB_NAME + " menu"} align="right">
           {(close) =>
             items.map((it) => (
               <button key={it.id} type="button" role="menuitem" className="tk-menu-item" onClick={() => run(it.id, close)}>

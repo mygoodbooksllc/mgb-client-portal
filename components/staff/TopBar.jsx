@@ -1053,8 +1053,15 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
   return out;
 }
 
-function TB_Bell({ clients, items, me, isAdmin, page }) {
+function TB_Bell({ clients, items, me, isAdmin, isRealAdmin, page }) {
   const list = TB_useBellItems({ clients, items, me, isAdmin, page });
+  // Admin alerts ride in the bell for real admins while the sidebar preview is on
+  // (the sidebar has no Alerts section of its own). Off: the old top bar as before.
+  const sbOn = typeof SS_useOn === "function" ? SS_useOn() : false;
+  const adm =
+    typeof SS_useBellAlerts === "function"
+      ? SS_useBellAlerts({ enabled: !!isRealAdmin && sbOn, clients })
+      : { ready: false, count: 0, any: false, split: null };
   const menu = TB_useMenu();
   const [seen, setSeen] = useState(() => TB_readSeen(me));
   useEffect(() => setSeen(TB_readSeen(me)), [me]);
@@ -1069,7 +1076,7 @@ function TB_Bell({ clients, items, me, isAdmin, page }) {
       TB_writeSeen(me, next);
     }
   };
-  const n = unseen.length;
+  const n = unseen.length + adm.count;
   // The Desk rail's mentions count (R1) reads the bell's own list: the
   // mentions, each marked unseen until the bell is opened. Published on
   // window with an event, only when something changed.
@@ -1128,8 +1135,14 @@ function TB_Bell({ clients, items, me, isAdmin, page }) {
       {menu.open && (
         <div className="notif-panel tb-panel tb-bell-panel" role="menu" aria-label="Notifications">
           <div className="notif-panel-head">Notifications</div>
+          {adm.ready && adm.any && (
+            <div className="notif-alerts" aria-label="Admin alerts">
+              <div className="notif-alerts-head">Admin alerts</div>
+              <SS_AlertRows split={adm.split} onGo={() => menu.close(false)} />
+            </div>
+          )}
           {list.length === 0 ? (
-            <p className="notif-empty">You're all caught up.</p>
+            adm.ready && adm.any ? null : <p className="notif-empty">You're all caught up.</p>
           ) : (
             <ul>
               {list.slice(0, 30).map((i) => (
@@ -1738,7 +1751,7 @@ function TB_StaffTopBar({
       </div>
       <div className="tb-right">
         {isRealAdmin && own && !ssAlertsShown && <TB_ThrottleBadge />}
-        {own && <TB_Bell clients={typeof window.mgbRealClients === "function" ? window.mgbRealClients(clients) : clients} items={items} me={me} isAdmin={isAdmin} page={page} />}
+        {own && <TB_Bell clients={typeof window.mgbRealClients === "function" ? window.mgbRealClients(clients) : clients} items={items} me={me} isAdmin={isAdmin} isRealAdmin={isRealAdmin} page={page} />}
         {own && (deskOn ? <TB_SlateLink /> : <TB_TasksBadge items={items} me={me} client={client} />)}
         {!deskDocked && <TB_QuickAdd client={client} />}
         <TB_HelpButton page={page} isAdmin={isAdmin} />

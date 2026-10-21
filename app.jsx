@@ -1006,7 +1006,7 @@ const FEATURE_FLAGS = [
     key: "mgb_nav_preview",
     label: "Sidebar preview",
     description:
-      "Pinned and recent clients in the left sidebar, with a Customize gear (and, for admins, an Alerts section that takes over the top-bar QuickBooks badge). For you only, in this browser, while the firm-wide nav_enabled switch is off. The page reloads when you toggle it.",
+      "Pinned and recent clients in the left sidebar, with a Customize gear (and, for admins, the alerts show inside the top bell and take over the top-bar QuickBooks badge). For you only, in this browser, while the firm-wide nav_enabled switch is off. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -17048,7 +17048,7 @@ const USAGE_PAGE_TAB_LABELS = {
 // Action buckets MGB_track() writes (see the hooks in TopBar, StaffGuide,
 // Tour). Add a label here when a new call site is added.
 const USAGE_ACTION_LABELS = {
-  "nav-alert-open": "Left sidebar Alerts flyout opened (admin, collapsed rail)",
+  "nav-alert-open": "Admin alert row clicked in the bell (usage key nav-alert-<kind>)",
   "nav-alert-usage": "Left sidebar alert opened: QuickBooks usage",
   "nav-alert-qbo": "Left sidebar alert opened: QuickBooks connection",
   "nav-alert-email": "Left sidebar alert opened: failed client emails",

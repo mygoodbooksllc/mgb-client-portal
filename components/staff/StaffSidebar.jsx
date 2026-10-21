@@ -359,8 +359,8 @@ function SS_useSidebar(o) {
     save: save,
     reset: reset,
     togglePin: togglePin,
-    // L2: alerts are for real admins only (not temp admins, not "View as").
-    showAlerts: !!o.isRealAdmin,
+    // Alerts now live in the top bell, so the sidebar has no Alerts section to arrange.
+    showAlerts: false,
   };
 }
 
@@ -476,6 +476,44 @@ function SS_useAdminAlerts({ enabled }) {
     };
   }, [enabled]);
   return data; // null until the first load finishes
+}
+
+// The admin alerts for the top bell (real admins, sidebar preview on). Same
+// four reads and rules the sidebar section used; the bell renders the rows.
+// Also publishes SS_store.alertsShown so the top bar's QuickBooks badge steps aside.
+function SS_useBellAlerts({ enabled, clients }) {
+  const data = SS_useAdminAlerts({ enabled: !!enabled });
+  const clientsById = React.useMemo(() => {
+    const m = {};
+    (Array.isArray(clients) ? clients : []).forEach((c) => {
+      if (c && c.id != null) m[String(c.id)] = c;
+    });
+    return m;
+  }, [clients]);
+  const alerts = React.useMemo(
+    () =>
+      data
+        ? SS_alertRules({
+            usage: data.usage,
+            opsRows: data.opsRows,
+            emailErrors: data.emailErrors,
+            timeOff: data.timeOff,
+            directory: data.directory,
+            clientsById: clientsById,
+            excludedIds: typeof CF_excludedIds === "function" ? Array.from(CF_excludedIds()) : [],
+            today: data.today,
+            now: data.now,
+          })
+        : [],
+    [data, clientsById],
+  );
+  const split = React.useMemo(() => SS_alertSplit(alerts, 5), [alerts]);
+  const ready = !!enabled && !!data;
+  React.useLayoutEffect(() => {
+    SS_store.setAlertsShown(ready);
+  }, [ready]);
+  React.useLayoutEffect(() => () => SS_store.setAlertsShown(false), []);
+  return { ready: ready, split: split, count: ready ? SS_alertBadgeCount(alerts) : 0, any: split.shown.length + split.info.length > 0 };
 }
 
 function SS_BellIcon(props) {
@@ -862,7 +900,7 @@ function SS_Sections({ ss, expanded, showTip, hideTip }) {
         if (id === "pinned" || id === "recent") {
           return <SS_ClientSection key={id} kind={id} ss={ss} expanded={expanded} detail={p.detail[id]} showTip={showTip} hideTip={hideTip} onOpenClient={open} />;
         }
-        if (id === "alerts") return ss.showAlerts ? <SS_AlertsSection key={id} ss={ss} expanded={expanded} showTip={showTip} hideTip={hideTip} /> : null;
+        // Alerts moved into the top bell (SS_useBellAlerts); no sidebar section.
         return null;
       })}
     </>
@@ -1165,7 +1203,7 @@ function SS_DefaultsCard() {
   const profile = draft && draft.role === role ? draft.profile : current;
   const dirty = !!draft && draft.role === role;
   // Temp admins never see the Alerts section (L2), so only the admin role lists it.
-  const showAlerts = role === "admin";
+  const showAlerts = false; // alerts live in the top bell now
 
   // mutate(roles) edits a plain copy of the roles as stored RIGHT NOW: the row is
   // read again just before the save so another role's defaults are never lost.
