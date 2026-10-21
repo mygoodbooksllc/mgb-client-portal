@@ -392,6 +392,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   const open = s.drawerOpen;
   const panelRef = React.useRef(null);
   const barRef = React.useRef(null);
+  const barMain = () => (barRef.current && barRef.current.querySelector ? barRef.current.querySelector(".wb-bar-main") : null);
   const railRef = React.useRef(null);
   const live = on && s.status !== "missing" && !!me;
   const deskMode = WB_useDeskMode();
@@ -739,9 +740,9 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
         // The rail is back on the next paint (it replaces the open column).
         setTimeout(() => {
           const railBtn = railRef.current && railRef.current.querySelector('[data-wb-rail][tabindex="0"]');
-          const where = WB_deskReturnFocus({ openerOk: WB__canFocus(op), handleOk: WB__canFocus(railBtn) || WB__canFocus(barRef.current) });
+          const where = WB_deskReturnFocus({ openerOk: WB__canFocus(op), handleOk: WB__canFocus(railBtn) || WB__canFocus(barMain()) });
           if (where === "opener") op.focus();
-          else if (where === "handle") (WB__canFocus(railBtn) ? railBtn : barRef.current).focus();
+          else if (where === "handle") (WB__canFocus(railBtn) ? railBtn : barMain()).focus();
           else {
             const main = document.querySelector("main, .main");
             if (main) {
@@ -1076,12 +1077,30 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
     .filter(Boolean)
     .join(". ");
 
+  // Next up, from the bar: mark it done without opening the Desk (the same
+  // completion the Slate tick uses, so review gates and recurring tasks apply).
+  const completeNext = (row) => {
+    if (!row || typeof TK_api === "undefined" || !TK_api || typeof TK_vComplete !== "function") return;
+    WB_track("wb-action", "task:bar-done");
+    Promise.resolve(TK_api.get(row.source_id))
+      .then((t) => (t ? TK_vComplete(t, isAdmin) : null))
+      .then(() => {
+        try {
+          window.dispatchEvent(new CustomEvent("mgb:staff-items-changed"));
+        } catch (e) {}
+      });
+  };
+
   const desk = (
     <>
-      {!isWin && <button
+      {!isWin && <div
         ref={barRef}
-        type="button"
         className={"wb-bar wb-infobar" + (open ? " is-open" : "") + (progress.late ? " has-late" : "")}
+        data-tour="wb-bar"
+      >
+      <button
+        type="button"
+        className="wb-bar-main"
         onClick={() => {
           const willOpen = !WB_store.getState().drawerOpen;
           WB_store.setDrawerOpen(willOpen, "bar");
@@ -1091,7 +1110,6 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
         {...(sheet ? { "aria-haspopup": "dialog" } : {})}
         {...(open ? { "aria-controls": "wb-panel" } : {})}
         aria-label={(open ? "Close " : "Open ") + WB_NAME + (barSummary ? ". " + barSummary : "")}
-        data-tour="wb-bar"
       >
         <span className="wb-bar-work">
           {loading ? (
@@ -1124,7 +1142,20 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
         <span className="wb-bar-hint" aria-hidden="true">
           <kbd className="wb-bar-kbd">D</kbd> {open ? "to close" : "to open"}
         </span>
-      </button>}
+      </button>
+      {next && !loading && (
+        <span className="wb-bar-actions" role="group" aria-label={"Next up: " + next.title}>
+          {next.status === "todo" && (
+            <button type="button" className="wb-bar-act" onClick={() => WB_store.startTask(next)}>
+              Start
+            </button>
+          )}
+          <button type="button" className="wb-bar-act is-primary" onClick={() => completeNext(next)}>
+            Done
+          </button>
+        </span>
+      )}
+      </div>}
       {!isWin && !sheet && !open && (
         <div ref={railRef} className="wb-rail-wrap">
           <WB_DeskRail
