@@ -1481,6 +1481,174 @@ t("bulk: offline bulk calls reject tk_offline without a request", async () => {
 });
 
 // ===========================================================================
+// Slate app flag (S1): localStorage preview and classic plus tk_settings
+// ===========================================================================
+
+function slateEnv(opts) {
+  const o = opts || {};
+  const lsData = Object.assign({}, o.ls || {});
+  const calls = { queries: [] };
+  const client = o.noClient
+    ? null
+    : {
+        from(table) {
+          calls.queries.push({ table });
+          const q = {
+            select() {
+              return q;
+            },
+            eq(col, val) {
+              calls.queries[calls.queries.length - 1].eq = [col, val];
+              return q;
+            },
+            maybeSingle() {
+              if (o.throwSync) throw new Error("sync boom");
+              if (o.reject) return Promise.reject(new Error("network"));
+              if (o.error) return Promise.resolve({ data: null, error: { message: "denied" } });
+              return Promise.resolve({ data: o.row === undefined ? null : o.row, error: null });
+            },
+          };
+          return q;
+        },
+      };
+  const flag = S.TK_createSlateFlag({
+    ls: (k) => {
+      if (o.lsThrows) throw new Error("storage blocked");
+      return Object.prototype.hasOwnProperty.call(lsData, k) ? lsData[k] : null;
+    },
+    sb: () => client,
+  });
+  return { flag, lsData, calls };
+}
+
+t("slate flag: starts off and unknown", () => {
+  const { flag } = slateEnv();
+  assert.deepStrictEqual(flag.getState(), { setting: undefined, appFlagKnown: false, appOn: false });
+  done();
+});
+
+t("slate flag: the preview shows at once, still unknown until the read", () => {
+  const { flag } = slateEnv({ ls: { mgb_slate_app_preview: "1" } });
+  assert.deepStrictEqual(flag.getState(), { setting: undefined, appFlagKnown: false, appOn: true });
+  done();
+});
+
+t("slate flag: classic is known off at once", () => {
+  const { flag } = slateEnv({ ls: { mgb_slate_app_preview: "1", mgb_slate_classic: "1" } });
+  assert.deepStrictEqual(flag.getState(), { setting: undefined, appFlagKnown: true, appOn: false });
+  const other = slateEnv({ ls: { mgb_slate_classic: "true" } }); // only "1" counts
+  assert.strictEqual(other.flag.getState().appFlagKnown, false);
+  done();
+});
+
+t("slate flag: callers share one in-flight read", async () => {
+  const e = slateEnv({ row: { value: true } });
+  const a = e.flag.readSlateAppFlag();
+  const b = e.flag.readSlateAppFlag();
+  assert.strictEqual(a, b);
+  await a;
+  assert.strictEqual(e.calls.queries.length, 1);
+  const c = e.flag.readSlateAppFlag(); // finished: a new read
+  assert.notStrictEqual(c, a);
+  await c;
+  assert.strictEqual(e.calls.queries.length, 2);
+  // a read that finishes synchronously (no client) never sticks
+  const n = slateEnv({ noClient: true });
+  const p1 = n.flag.readSlateAppFlag();
+  const p2 = n.flag.readSlateAppFlag();
+  assert.notStrictEqual(p1, p2);
+  await Promise.all([p1, p2]);
+  done();
+});
+
+t("slate flag: reads tk_settings.slate_app_enabled", async () => {
+  const e = slateEnv({ row: { value: true } });
+  const r = await e.flag.readSlateAppFlag();
+  assert.deepStrictEqual(r, { appOn: true, appFlagKnown: true });
+  assert.deepStrictEqual(e.calls.queries[0], { table: "tk_settings", eq: ["key", "slate_app_enabled"] });
+  done();
+});
+
+t("slate flag: no row, false, or the string on all read as off and known", async () => {
+  for (const row of [null, { value: false }, { value: "on" }, { value: "false" }, { value: 0 }]) {
+    const r = await slateEnv({ row }).flag.readSlateAppFlag();
+    assert.deepStrictEqual(r, { appOn: false, appFlagKnown: true }, JSON.stringify(row));
+  }
+  for (const v of ["true", 1, { on: true }]) {
+    const r = await slateEnv({ row: { value: v } }).flag.readSlateAppFlag();
+    assert.deepStrictEqual(r, { appOn: true, appFlagKnown: true }, JSON.stringify(v));
+  }
+  done();
+});
+
+t("slate flag: a read error gives off and known (error, reject, throw, no client)", async () => {
+  for (const o of [{ error: true }, { reject: true }, { throwSync: true }, { noClient: true }, { error: true, row: { value: true } }]) {
+    const r = await slateEnv(o).flag.readSlateAppFlag();
+    assert.deepStrictEqual(r, { appOn: false, appFlagKnown: true }, JSON.stringify(o));
+  }
+  done();
+});
+
+t("slate flag: the preview key turns it on without the firm switch", async () => {
+  const e = slateEnv({ ls: { mgb_slate_app_preview: "1" }, row: null });
+  assert.strictEqual(e.flag.getState().appOn, true); // computed from localStorage at once
+  const r = await e.flag.readSlateAppFlag();
+  assert.deepStrictEqual(r, { appOn: true, appFlagKnown: true });
+  // a read error still leaves the person's own preview on
+  const r2 = await slateEnv({ ls: { mgb_slate_app_preview: "1" }, reject: true }).flag.readSlateAppFlag();
+  assert.deepStrictEqual(r2, { appOn: true, appFlagKnown: true });
+  // only "1" counts
+  const r3 = await slateEnv({ ls: { mgb_slate_app_preview: "true" }, row: null }).flag.readSlateAppFlag();
+  assert.strictEqual(r3.appOn, false);
+  done();
+});
+
+t("slate flag: the classic key wins over the preview and the firm switch", async () => {
+  const r = await slateEnv({ ls: { mgb_slate_app_preview: "1", mgb_slate_classic: "1" }, row: { value: true } }).flag.readSlateAppFlag();
+  assert.deepStrictEqual(r, { appOn: false, appFlagKnown: true });
+  done();
+});
+
+t("slate flag: blocked localStorage reads as unset", async () => {
+  const r = await slateEnv({ lsThrows: true, row: { value: true } }).flag.readSlateAppFlag();
+  assert.deepStrictEqual(r, { appOn: true, appFlagKnown: true }); // the firm switch still applies
+  const r2 = await slateEnv({ lsThrows: true, row: null }).flag.readSlateAppFlag();
+  assert.deepStrictEqual(r2, { appOn: false, appFlagKnown: true });
+  done();
+});
+
+t("slate flag: subscribers hear changes once; refresh re-reads localStorage", async () => {
+  const e = slateEnv({ row: { value: false } });
+  const seen = [];
+  const off = e.flag.subscribe((st) => seen.push(Object.assign({}, st)));
+  await e.flag.readSlateAppFlag();
+  assert.strictEqual(seen.length, 1);
+  assert.deepStrictEqual(seen[0], { setting: false, appFlagKnown: true, appOn: false });
+  await e.flag.readSlateAppFlag(); // nothing changed: no new emit
+  assert.strictEqual(seen.length, 1);
+  e.lsData.mgb_slate_app_preview = "1";
+  e.flag.refresh();
+  assert.strictEqual(seen.length, 2);
+  assert.strictEqual(e.flag.getState().appOn, true);
+  const same = e.flag.getState();
+  e.flag.refresh();
+  assert.strictEqual(e.flag.getState(), same); // stable object for useSyncExternalStore
+  off();
+  e.lsData.mgb_slate_classic = "1";
+  e.flag.refresh();
+  assert.strictEqual(seen.length, 2);
+  assert.strictEqual(e.flag.getState().appOn, false);
+  done();
+});
+
+t("slate flag: the default singleton exists and survives no window (node)", async () => {
+  assert.strictEqual(typeof S.TK_readSlateAppFlag, "function");
+  const r = await S.TK_readSlateAppFlag();
+  assert.deepStrictEqual(r, { appOn: false, appFlagKnown: true });
+  done();
+});
+
+// ===========================================================================
 
 (async () => {
   for (const item of queue) {

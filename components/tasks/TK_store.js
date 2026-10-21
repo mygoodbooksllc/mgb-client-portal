@@ -510,6 +510,146 @@ function TK_createStore(reducer, init) {
 
 var TK_store = TK_createStore();
 
+// ---- Slate app flag (preview; spec-desk-fullpage.md section 4) ----------------------
+// Three layers behind one helper, TK_slateAppIsOn (TK_viewLogic.js):
+//   localStorage mgb_slate_app_preview "1"   this browser only
+//   localStorage mgb_slate_classic "1"       opt-out, wins over the other two
+//   tk_settings.slate_app_enabled            the firm switch (owner-only, never written here)
+// State: { setting, appFlagKnown, appOn }. appOn is computed from localStorage
+// the first time anyone looks (so a person's preview shows at once), then
+// recomputed on every change. appFlagKnown stays false until the tk_settings read
+// has finished, except when the classic key is "1": that is known off at once,
+// whatever the firm switch says. A read error, a missing client or a denied row
+// all count as "off" and still set it true, so the app never waits forever.
+// readSlateAppFlag shares one in-flight read between callers.
+// env (a test passes its own): { ls(key) -> string|null, sb() -> Supabase client|null }.
+
+function TK_stSlateIsOn(setting, preview, classic) {
+  try {
+    if (typeof TK_slateAppIsOn === "function") return TK_slateAppIsOn(setting, preview, classic);
+  } catch (e) {}
+  if (typeof require === "function") {
+    try {
+      var m = require("./TK_viewLogic.js");
+      if (m && typeof m.TK_slateAppIsOn === "function") return m.TK_slateAppIsOn(setting, preview, classic);
+    } catch (e) {}
+  }
+  return false;
+}
+
+function TK_createSlateFlag(env) {
+  var e = env || {};
+  var listeners = [];
+  var state = null; // built on first use: TK_viewLogic.js loads after this file
+  var inflight = null;
+
+  function ls(key) {
+    try {
+      return typeof e.ls === "function" ? e.ls(key) : null;
+    } catch (err) {
+      return null; // blocked storage reads as unset
+    }
+  }
+  function compute(setting) {
+    var preview = ls("mgb_slate_app_preview") === "1";
+    var classic = ls("mgb_slate_classic") === "1";
+    return TK_stSlateIsOn(setting, preview ? "1" : null, classic);
+  }
+  function init() {
+    if (state) return state;
+    var classic = ls("mgb_slate_classic") === "1";
+    state = { setting: undefined, appFlagKnown: classic, appOn: compute(undefined) };
+    return state;
+  }
+  function set(patch) {
+    init();
+    var next = { setting: state.setting, appFlagKnown: state.appFlagKnown, appOn: state.appOn };
+    for (var k in patch) next[k] = patch[k];
+    next.appOn = compute(next.setting);
+    if (next.setting === state.setting && next.appFlagKnown === state.appFlagKnown && next.appOn === state.appOn) return state;
+    state = next;
+    listeners.slice().forEach(function (fn) {
+      try {
+        fn(state);
+      } catch (err) {}
+    });
+    return state;
+  }
+  function result() {
+    return { appOn: init().appOn, appFlagKnown: state.appFlagKnown };
+  }
+
+  // Reads tk_settings.slate_app_enabled. Resolves { appOn, appFlagKnown }, never rejects.
+  function readSlateAppFlag() {
+    if (inflight) return inflight;
+    var settled = false;
+    var p = new Promise(function (resolve) {
+      var finish = function (v) {
+        settled = true;
+        inflight = null;
+        set({ setting: v, appFlagKnown: true });
+        resolve(result());
+      };
+      var c = null;
+      try {
+        c = typeof e.sb === "function" ? e.sb() : null;
+      } catch (err) {
+        c = null;
+      }
+      if (!c) return finish(undefined);
+      try {
+        var q = c.from("tk_settings").select("value").eq("key", "slate_app_enabled").maybeSingle();
+        Promise.resolve(q).then(
+          function (res) {
+            finish(res && !res.error && res.data ? res.data.value : undefined);
+          },
+          function () {
+            finish(undefined);
+          },
+        );
+      } catch (err) {
+        finish(undefined);
+      }
+    });
+    if (!settled) inflight = p; // a read that finished synchronously leaves nothing in flight
+    return p;
+  }
+
+  return {
+    getState: function () {
+      return init();
+    },
+    subscribe: function (fn) {
+      init();
+      listeners.push(fn);
+      return function () {
+        var i = listeners.indexOf(fn);
+        if (i >= 0) listeners.splice(i, 1);
+      };
+    },
+    readSlateAppFlag: readSlateAppFlag,
+    // Re-reads the two localStorage keys (after a Dev Tools toggle) without a network call.
+    refresh: function () {
+      return set({});
+    },
+  };
+}
+
+var TK_slateFlag = TK_createSlateFlag({
+  ls: function (key) {
+    return typeof window !== "undefined" && window.localStorage ? window.localStorage.getItem(key) : null;
+  },
+  sb: function () {
+    return typeof window !== "undefined" ? window.mgbSupabase || null : null;
+  },
+});
+
+// The one call the UI makes: await TK_readSlateAppFlag() -> { appOn, appFlagKnown }.
+// Live reads: TK_slateFlag.getState() / TK_slateFlag.subscribe(fn).
+function TK_readSlateAppFlag() {
+  return TK_slateFlag.readSlateAppFlag();
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_initialState: TK_initialState,
@@ -518,6 +658,9 @@ if (typeof module !== "undefined" && module.exports) {
     TK_selectList: TK_selectList,
     TK_createStore: TK_createStore,
     TK_store: TK_store,
+    TK_createSlateFlag: TK_createSlateFlag,
+    TK_slateFlag: TK_slateFlag,
+    TK_readSlateAppFlag: TK_readSlateAppFlag,
     TK_stCanonStamp: TK_stCanonStamp,
     TK_stCmpStamp: TK_stCmpStamp,
   };

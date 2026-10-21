@@ -19,6 +19,8 @@
 //   subtasks inline                       TK_subIndex, TK_subCount, TK_subNestGroups, TK_subRowClickAction, TK_subOpenToggle
 //   project colors                        TK_PROJECT_COLORS, TK_projectColorOf, TK_projectColorError
 //   small display helpers                 TK_initials, TK_canManageProjectHint, TK_listScopeOf, TK_searchRowToTask
+//   Slate app (preview, spec-desk-fullpage) TK_slateAppIsOn, TK_slateMode, TK_slateCurrent,
+//                                         TK_slateSizePreset, TK_slateDeepHref (and the app minimum in TK_popOutSize)
 //
 // TK_logic.js loads first, so TK_compareTasks, TK_isOldDone and
 // TK_CLIENT_SECTION_ORDER are used when they exist. Under node (where only
@@ -29,6 +31,10 @@
 
 var TK_POPOUT_DEFAULT = { w: 480, h: 820 };
 var TK_POPOUT_MIN = { w: 380, h: 520 };
+// Slate app only (TK_slateAppIsOn): the popup may shrink to a sliver. window.open
+// and resizeTo take OUTER sizes; Chrome's outer floor is about 141px tall, so a
+// 120px request would be refused (S0). 180 outer gives about 123px of content.
+var TK_POPOUT_MIN_APP = { w: 240, h: 180 };
 var TK_POPOUT_KEY = "mgb_tk_popout_v1";
 var TK_DOCK_WAIT_MS = 600;
 
@@ -40,28 +46,32 @@ function TK_vNum(v) {
 }
 
 // saved: { w, h } from localStorage (or null). scr: { availWidth, availHeight }
-// (defaults to window.screen when there is one). Returns the clamped size.
-function TK_popOutSize(saved, scr) {
+// (defaults to window.screen when there is one). appOn: true only when the
+// Slate app is on (TK_slateAppIsOn); the minimum then drops from 380x520 to
+// 240x180 (outer size). Off or omitted: exactly the numbers it has always returned.
+// Returns the clamped size.
+function TK_popOutSize(saved, scr, appOn) {
   var s = scr;
   if (!s && typeof screen !== "undefined" && screen) s = { availWidth: screen.availWidth, availHeight: screen.availHeight };
   var maxW = s && TK_vNum(s.availWidth) ? TK_vNum(s.availWidth) : Infinity;
   var maxH = s && TK_vNum(s.availHeight) ? TK_vNum(s.availHeight) : Infinity;
+  var min = appOn === true ? TK_POPOUT_MIN_APP : TK_POPOUT_MIN;
   var w = saved ? TK_vNum(saved.w) : null;
   var h = saved ? TK_vNum(saved.h) : null;
   if (w == null || h == null) {
     w = TK_POPOUT_DEFAULT.w;
     h = TK_POPOUT_DEFAULT.h;
   }
-  w = Math.max(TK_POPOUT_MIN.w, w);
-  h = Math.max(TK_POPOUT_MIN.h, h);
+  w = Math.max(min.w, w);
+  h = Math.max(min.h, h);
   // A screen smaller than the minimum still wins: the window must fit.
   w = Math.min(w, maxW);
   h = Math.min(h, maxH);
   return { w: w, h: h };
 }
 
-function TK_popOutFeatures(saved, scr) {
-  var z = TK_popOutSize(saved, scr);
+function TK_popOutFeatures(saved, scr, appOn) {
+  var z = TK_popOutSize(saved, scr, appOn);
   return "popup,width=" + z.w + ",height=" + z.h;
 }
 
@@ -1491,6 +1501,211 @@ function TK_slateBuildView(groups, view, ctx) {
   return { groups: TK_slateSortWithin(out, v.sort, { nameOf: c.nameOf }), byDue: v.groupBy === "due" };
 }
 
+// ---- Slate app (preview; spec-desk-fullpage.md sections 3.3 to 3.5, 4) --------------
+// Nothing here runs unless TK_slateAppIsOn is true; S1 only adds the pure rules.
+
+var TK_SLATE_APP_PREVIEW = "mgb_slate_app_preview"; // localStorage "1": this browser only
+var TK_SLATE_APP_CLASSIC = "mgb_slate_classic"; // localStorage "1": opt out, wins over everything (added at launch)
+var TK_SLATE_APP_SETTING = "slate_app_enabled"; // tk_settings key: the firm switch, owner-only, code never writes it
+
+// Same reading rule as WB_flagValueOn: true, "true", 1 or {on:true}. The
+// string "on" is NOT on, and neither is "1" (a setting value, unlike the
+// localStorage preview string below).
+function TK_slateFlagValueOn(v) {
+  return v === true || v === "true" || v === 1 || (!!v && typeof v === "object" && v.on === true);
+}
+
+// Three layers, one helper. setting: the tk_settings.slate_app_enabled value;
+// preview: the localStorage mgb_slate_app_preview value ("1" or true counts);
+// classic: the mgb_slate_classic opt-out; counts only when "1" or true.
+// Classic wins, then the person's preview or the firm switch turns it on.
+function TK_slateAppIsOn(setting, preview, classic) {
+  if (classic === "1" || classic === true) return false;
+  if (preview === "1" || preview === true) return true;
+  return TK_slateFlagValueOn(setting);
+}
+
+// Size modes. Entering a mode uses the first set of numbers; once in a mode
+// the window stays there until it crosses the (smaller) leave number, so a
+// drag that hovers on an edge does not flicker. Tune after S0.
+var TK_SLATE_MODES = ["sliver", "compact", "regular", "full"];
+var TK_SLATE_EDGES = {
+  sliverW: 300, // w < 300 is a sliver (a column)
+  sliverH: 200, // h < 200 is a sliver (a strip)
+  sliverLeaveW: 316, // a sliver stays one until w >= 316 ...
+  sliverLeaveH: 216, // ... and h >= 216
+  regular: 720, // regular from 720
+  regularLeave: 704, // regular (or full on the way down) holds down to 704
+  full: 1100, // full from 1100
+  fullLeave: 1084, // full holds down to 1084
+};
+
+// TK_slateMode(w, h, prev) -> { mode, shape }
+//   mode   "sliver" | "compact" | "regular" | "full"
+//   shape  for a sliver only: "strip" (h < 200, the one-line bar) or "column"
+//          (w < 300 and h >= 200); null in every other mode.
+// w, h: the app window's inner width and height in CSS px. prev: the mode last
+// returned (the string, or the whole { mode, shape } object), or nothing; it only
+// adds hysteresis. With the whole object, a column sliver that shrinks in
+// height stays a column until h < 200. Bad input (0, negative, NaN, undefined, strings that are not
+// numbers) gives { mode: "compact", shape: null }, so a missing observer
+// reading never collapses the app. While a sliver holds in the 200 to 215 band,
+// the shape stays "strip" (h < 216) unless prev said "column", else "column".
+function TK_slateMode(w, h, prev) {
+  var E = TK_SLATE_EDGES;
+  var W = typeof w === "number" ? w : NaN;
+  var H = typeof h === "number" ? h : NaN;
+  if (!isFinite(W) || !isFinite(H) || W <= 0 || H <= 0) return { mode: "compact", shape: null };
+  var p = prev && typeof prev === "object" ? prev.mode : prev;
+  if (TK_SLATE_MODES.indexOf(p) < 0) p = null;
+  var wasSliver = p === "sliver";
+  var sliver = wasSliver ? !(W >= E.sliverLeaveW && H >= E.sliverLeaveH) : W < E.sliverW || H < E.sliverH;
+  if (sliver) {
+    var wasColumn = wasSliver && prev && typeof prev === "object" && prev.shape === "column";
+    var strip = H < (wasSliver && !wasColumn ? E.sliverLeaveH : E.sliverH);
+    return { mode: "sliver", shape: strip ? "strip" : "column" };
+  }
+  var m = W >= E.full ? "full" : W >= E.regular ? "regular" : "compact";
+  if (p === "full" && W >= E.fullLeave) m = "full";
+  else if ((p === "full" || p === "regular") && m === "compact" && W >= E.regularLeave) m = "regular";
+  return { mode: m, shape: null };
+}
+
+// The sliver's task. tasks: task rows (any list); me: the signed-in email (case
+// ignored); today: "YYYY-MM-DD", accepted for the caller's convenience (the
+// order below already puts late, then due today, ahead of later dates).
+// Mine = assignee_email is me. Only todo and in_progress tasks count: done,
+// waiting_client, ready_for_review and deleted ones are skipped.
+//   1. The newest of my in_progress tasks, by status_changed_at (when it was
+//      started), falling back to updated_at.
+//   2. Else the first of my todo tasks in My tasks order: due date soonest
+//      first (so late, then today), no due date last, then priority
+//      (high, normal, low), then due time, created time and id (TK_compareTasks).
+//   3. Else null.
+function TK_slateCurrent(tasks, me, today) {
+  var who = TK_vLower(me);
+  if (!who || !Array.isArray(tasks)) return null;
+  var started = null;
+  var next = null;
+  for (var i = 0; i < tasks.length; i++) {
+    var t = tasks[i];
+    if (!t || t.deleted_at || TK_vLower(t.assignee_email) !== who) continue;
+    var st = TK_vStatus(t);
+    if (st === "in_progress") {
+      if (!started || TK_slateNewer(t, started)) started = t;
+    } else if (st === "todo") {
+      if (!next || TK_vCompare(t, next) < 0) next = t;
+    }
+  }
+  return started || next || null;
+}
+
+// true when a was started or touched later than b (status_changed_at, else
+// updated_at; a tie keeps the smaller id so the answer never flips).
+function TK_slateNewer(a, b) {
+  var sa = a.status_changed_at || a.updated_at || "";
+  var sb = b.status_changed_at || b.updated_at || "";
+  var ma = Date.parse(sa);
+  var mb = Date.parse(sb);
+  if (isFinite(ma) && isFinite(mb) && ma !== mb) return ma > mb;
+  if (sa !== sb) return String(sa) > String(sb);
+  return String(a.id) < String(b.id);
+}
+
+// Window size presets. id: "sliver", "list" or "full". screen: { availWidth,
+// availHeight, availLeft, availTop } (window.screen). chrome: { w, h }, the
+// window's outer size minus its inner size (0 x 123 in a Chrome popup, measured
+// in S0), optional, default 0 x 0. resizeTo sets the OUTER size, so the result
+// is ready to pass to resizeTo:
+//   { id, w, h, x, y, innerW, innerH } or null for an unknown id.
+//   sliver (360x140) and list (440x800) name the INNER content size wanted. w and
+//     h are that plus chrome, clamped to availWidth and availHeight when the
+//     screen is known. innerW and innerH are the target the caller checks a frame
+//     after the resize (window.innerWidth/innerHeight, give or take 4px); after a
+//     clamp they are w and h minus chrome. x and y are null (leave the window).
+//   full: the available screen as an OUTER size (chrome is not added): w x h =
+//     availWidth x availHeight at x y = availLeft, availTop (0 when missing);
+//     innerW and innerH are that minus chrome. With no usable availWidth and
+//     availHeight (junk screen) it is null: a Full page cannot be sized blind.
+//   With a junk screen, sliver and list are not clamped.
+//   A junk chrome (not a finite number >= 0) counts as 0 in that direction.
+var TK_SLATE_PRESETS = {
+  sliver: { w: 360, h: 140 },
+  list: { w: 440, h: 800 },
+};
+function TK_slateSizePreset(id, screen, chrome) {
+  var key = typeof id === "string" ? id : "";
+  if (key !== "full" && !Object.prototype.hasOwnProperty.call(TK_SLATE_PRESETS, key)) return null;
+  var sw = screen ? TK_vNum(screen.availWidth) : null;
+  var sh = screen ? TK_vNum(screen.availHeight) : null;
+  var known = sw != null && sw > 0 && sh != null && sh > 0;
+  var cw = chrome ? TK_vNum(chrome.w) : null;
+  var ch = chrome ? TK_vNum(chrome.h) : null;
+  cw = cw != null && cw > 0 ? cw : 0;
+  ch = ch != null && ch > 0 ? ch : 0;
+  var w;
+  var h;
+  var x = null;
+  var y = null;
+  if (key === "full") {
+    if (!known) return null;
+    var l = screen ? TK_vNum(screen.availLeft) : null;
+    var tp = screen ? TK_vNum(screen.availTop) : null;
+    w = sw;
+    h = sh;
+    x = l == null ? 0 : l;
+    y = tp == null ? 0 : tp;
+  } else {
+    var p = TK_SLATE_PRESETS[key];
+    w = p.w + cw;
+    h = p.h + ch;
+    if (known) {
+      w = Math.min(w, sw);
+      h = Math.min(h, sh);
+    }
+  }
+  return { id: key, w: w, h: h, x: x, y: y, innerW: Math.max(0, w - cw), innerH: Math.max(0, h - ch) };
+}
+
+// Address of a place inside the Slate app: "/slate#/tasks/...". route is a
+// view name ("my", "search", "review", "templates", "waiting", "manage") or an
+// object { view, clientId?, projectId?, staffId?, taskId? } with the views the
+// portal's TK_parseRoute knows: my, search, review, templates, waiting,
+// manage, client (clientId), project (projectId, a uuid), person (staffId, a
+// uuid). view "task" (or taskId on any view) adds the task link the portal
+// already uses, ?item=task:<uuid>; with no other view it opens on My tasks.
+// Anything else (unknown view, bad or missing id, an "@" in a client id)
+// returns null, so an email can never reach a URL.
+var TK_vUUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var TK_SLATE_DEEP_VIEWS = ["my", "search", "review", "templates", "waiting", "manage"];
+function TK_slateDeepHref(route) {
+  var r = typeof route === "string" ? { view: route } : route;
+  if (!r || typeof r !== "object") return null;
+  var view = typeof r.view === "string" ? r.view.toLowerCase() : "";
+  var hasTask = r.taskId != null && r.taskId !== "";
+  if (hasTask && !(typeof r.taskId === "string" && TK_vUUID_RE.test(r.taskId))) return null;
+  var path;
+  if (view === "task") {
+    if (!hasTask) return null;
+    path = "my";
+  } else if (TK_SLATE_DEEP_VIEWS.indexOf(view) >= 0) {
+    path = view;
+  } else if (view === "client") {
+    var c = r.clientId == null ? "" : String(r.clientId);
+    if (!/^[\w.-]{1,120}$/.test(c) || /^\.+$/.test(c)) return null;
+    path = "c/" + encodeURIComponent(c);
+  } else if (view === "project") {
+    if (typeof r.projectId !== "string" || !TK_vUUID_RE.test(r.projectId)) return null;
+    path = "p/" + r.projectId;
+  } else if (view === "person") {
+    if (typeof r.staffId !== "string" || !TK_vUUID_RE.test(r.staffId)) return null;
+    path = "u/" + r.staffId;
+  } else {
+    return null;
+  }
+  return "/slate#/tasks/" + path + (hasTask ? "?item=task:" + r.taskId : "");
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_POPOUT_DEFAULT: TK_POPOUT_DEFAULT,
@@ -1585,5 +1800,18 @@ if (typeof module !== "undefined" && module.exports) {
     TK_groupByStatus: TK_groupByStatus,
     TK_slateSortWithin: TK_slateSortWithin,
     TK_slateBuildView: TK_slateBuildView,
+    TK_POPOUT_MIN_APP: TK_POPOUT_MIN_APP,
+    TK_SLATE_APP_PREVIEW: TK_SLATE_APP_PREVIEW,
+    TK_SLATE_APP_CLASSIC: TK_SLATE_APP_CLASSIC,
+    TK_SLATE_APP_SETTING: TK_SLATE_APP_SETTING,
+    TK_slateFlagValueOn: TK_slateFlagValueOn,
+    TK_slateAppIsOn: TK_slateAppIsOn,
+    TK_SLATE_MODES: TK_SLATE_MODES,
+    TK_SLATE_EDGES: TK_SLATE_EDGES,
+    TK_slateMode: TK_slateMode,
+    TK_slateCurrent: TK_slateCurrent,
+    TK_SLATE_PRESETS: TK_SLATE_PRESETS,
+    TK_slateSizePreset: TK_slateSizePreset,
+    TK_slateDeepHref: TK_slateDeepHref,
   };
 }

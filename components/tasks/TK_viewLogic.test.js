@@ -1151,4 +1151,292 @@ t("bulkDuePatch", () => {
   });
 }
 
+// ---- Slate app (S1): flag helper ----------------------------------------------------
+t("slateAppIsOn: firm switch values", () => {
+  [true, "true", 1, { on: true }].forEach((v) => assert.strictEqual(L.TK_slateAppIsOn(v, null, false), true, JSON.stringify(v)));
+  [undefined, null, false, "false", 0, "", "on", "1", "yes", { on: false }, {}].forEach((v) =>
+    assert.strictEqual(L.TK_slateAppIsOn(v, null, false), false, JSON.stringify(v)),
+  );
+});
+t("slateAppIsOn: the string on is not on", () => {
+  assert.strictEqual(L.TK_slateAppIsOn("on", undefined, undefined), false);
+  assert.strictEqual(L.TK_slateAppIsOn("on", "on", false), false);
+});
+t("slateAppIsOn: preview turns it on when the firm switch is off", () => {
+  assert.strictEqual(L.TK_slateAppIsOn(undefined, "1", false), true);
+  assert.strictEqual(L.TK_slateAppIsOn(false, true, false), true);
+  assert.strictEqual(L.TK_slateAppIsOn(undefined, "0", false), false);
+  assert.strictEqual(L.TK_slateAppIsOn(undefined, null, false), false);
+});
+t("slateAppIsOn: classic wins over the switch and the preview", () => {
+  assert.strictEqual(L.TK_slateAppIsOn(true, "1", "1"), false);
+  assert.strictEqual(L.TK_slateAppIsOn(true, "1", true), false);
+  // classic counts only as "1" or true
+  [1, "true", "0", "yes", "on", {}, 0, "", null, undefined, false].forEach((c) => assert.strictEqual(L.TK_slateAppIsOn(true, null, c), true, JSON.stringify(c)));
+});
+t("slate flag names", () => {
+  assert.strictEqual(L.TK_SLATE_APP_PREVIEW, "mgb_slate_app_preview");
+  assert.strictEqual(L.TK_SLATE_APP_CLASSIC, "mgb_slate_classic");
+  assert.strictEqual(L.TK_SLATE_APP_SETTING, "slate_app_enabled");
+});
+
+// ---- Slate app (S1): size modes --------------------------------------------------------
+const M = (w, h, prev) => L.TK_slateMode(w, h, prev);
+const modeOf = (w, h, prev) => M(w, h, prev).mode;
+t("slateMode: width edges at a normal height", () => {
+  assert.strictEqual(modeOf(299, 600), "sliver");
+  assert.strictEqual(modeOf(300, 600), "compact");
+  assert.strictEqual(modeOf(719, 600), "compact");
+  assert.strictEqual(modeOf(720, 600), "regular");
+  assert.strictEqual(modeOf(1099, 600), "regular");
+  assert.strictEqual(modeOf(1100, 600), "full");
+  assert.strictEqual(modeOf(2560, 1440), "full");
+});
+t("slateMode: height edge 199/200", () => {
+  assert.strictEqual(modeOf(800, 199), "sliver");
+  assert.strictEqual(modeOf(800, 200), "regular");
+  assert.strictEqual(modeOf(300, 200), "compact");
+  assert.strictEqual(modeOf(1400, 199), "sliver");
+});
+t("slateMode: strip when h < 200, column when w < 300", () => {
+  assert.deepStrictEqual(M(360, 140), { mode: "sliver", shape: "strip" });
+  assert.deepStrictEqual(M(240, 600), { mode: "sliver", shape: "column" });
+  assert.deepStrictEqual(M(299, 200), { mode: "sliver", shape: "column" });
+  assert.deepStrictEqual(M(299, 199), { mode: "sliver", shape: "strip" }); // short wins
+  assert.deepStrictEqual(M(240, 120), { mode: "sliver", shape: "strip" });
+  assert.strictEqual(M(500, 500).shape, null);
+});
+t("slateMode: hysteresis leaving full and regular", () => {
+  assert.strictEqual(modeOf(1090, 800, "full"), "full");
+  assert.strictEqual(modeOf(1084, 800, "full"), "full");
+  assert.strictEqual(modeOf(1083, 800, "full"), "regular");
+  assert.strictEqual(modeOf(1090, 800, "regular"), "regular"); // entering full needs 1100
+  assert.strictEqual(modeOf(1100, 800, "regular"), "full");
+  assert.strictEqual(modeOf(710, 800, "regular"), "regular");
+  assert.strictEqual(modeOf(704, 800, "regular"), "regular");
+  assert.strictEqual(modeOf(703, 800, "regular"), "compact");
+  assert.strictEqual(modeOf(710, 800, "compact"), "compact"); // no hysteresis going up
+  assert.strictEqual(modeOf(710, 800, "full"), "regular"); // a big jump down still holds regular
+  assert.strictEqual(modeOf(500, 800, "full"), "compact");
+});
+t("slateMode: prev as the whole result object works", () => {
+  assert.strictEqual(modeOf(1090, 800, { mode: "full", shape: null }), "full");
+  assert.strictEqual(modeOf(1090, 800, M(1200, 800)), "full");
+});
+t("slateMode: hysteresis leaving the sliver", () => {
+  assert.strictEqual(modeOf(300, 600, "sliver"), "sliver");
+  assert.strictEqual(modeOf(315, 600, "sliver"), "sliver");
+  assert.strictEqual(modeOf(316, 600, "sliver"), "compact");
+  assert.strictEqual(modeOf(500, 215, "sliver"), "sliver");
+  assert.strictEqual(modeOf(500, 216, "sliver"), "compact");
+  assert.strictEqual(modeOf(316, 215, "sliver"), "sliver"); // both must clear
+  assert.strictEqual(modeOf(316, 216, "sliver"), "compact");
+  assert.strictEqual(modeOf(900, 400, "sliver"), "regular"); // a big jump leaves cleanly
+  // the shape holds while it holds
+  assert.strictEqual(M(500, 210, "sliver").shape, "strip");
+  assert.strictEqual(M(310, 600, "sliver").shape, "column");
+  // a column that shrinks in height stays a column until h < 200 (prev as the whole result)
+  const col = { mode: "sliver", shape: "column" };
+  assert.strictEqual(M(250, 210, col).shape, "column");
+  assert.strictEqual(M(250, 200, col).shape, "column");
+  assert.strictEqual(M(250, 199, col).shape, "strip");
+  assert.strictEqual(M(250, 210, { mode: "sliver", shape: "strip" }).shape, "strip");
+  assert.strictEqual(M(310, 210, M(250, 400)).shape, "column");
+  assert.strictEqual(M(500, 210, "compact").mode, "compact"); // fresh: 210 is not a sliver
+});
+t("slateMode: junk gives compact", () => {
+  [[0, 0], [0, 600], [600, 0], [NaN, 600], [600, NaN], [undefined, undefined], [undefined, 600], [null, null], ["900", "700"], [-5, 700], [Infinity, 600]].forEach(([w, h]) => {
+    assert.deepStrictEqual(M(w, h), { mode: "compact", shape: null }, w + "x" + h);
+    assert.deepStrictEqual(M(w, h, "full"), { mode: "compact", shape: null }, w + "x" + h + " prev full");
+  });
+});
+t("slateMode: an unknown prev is ignored", () => {
+  assert.strictEqual(modeOf(1090, 800, "bogus"), "regular");
+  assert.strictEqual(modeOf(1090, 800, {}), "regular");
+});
+t("slateMode: edges are named constants", () => {
+  assert.strictEqual(L.TK_SLATE_EDGES.fullLeave, 1084);
+  assert.deepStrictEqual(L.TK_SLATE_MODES, ["sliver", "compact", "regular", "full"]);
+});
+
+// ---- Slate app (S1): the sliver's current task -------------------------------------------
+const SME = "me@example.test";
+const sid = (i) => "00000000-0000-4000-8000-" + String(i).padStart(12, "0");
+let sseq = 0;
+const stask = (o) =>
+  Object.assign(
+    { id: sid(++sseq), text: "T" + sseq, status: "todo", done: false, priority: "normal", assignee_email: SME, due_date: null, status_changed_at: null, updated_at: "2026-10-20T10:00:00.000Z", deleted_at: null },
+    o || {},
+  );
+const TODAY = "2026-10-21";
+t("slateCurrent: in_progress beats Next up", () => {
+  const late = stask({ due_date: "2026-10-01", priority: "high" });
+  const mine = stask({ status: "in_progress", due_date: null });
+  assert.strictEqual(L.TK_slateCurrent([late, mine], SME, TODAY), mine);
+});
+t("slateCurrent: the newest in_progress wins (started, else updated)", () => {
+  const a = stask({ status: "in_progress", status_changed_at: "2026-10-20T09:00:00.000Z" });
+  const b = stask({ status: "in_progress", status_changed_at: "2026-10-21T08:00:00.000Z" });
+  const c = stask({ status: "in_progress", status_changed_at: "2026-10-19T08:00:00.000Z" });
+  assert.strictEqual(L.TK_slateCurrent([a, b, c], SME, TODAY), b);
+  assert.strictEqual(L.TK_slateCurrent([c, b, a], SME, TODAY), b);
+  const d = stask({ status: "in_progress", status_changed_at: null, updated_at: "2026-10-21T12:00:00.000Z" });
+  assert.strictEqual(L.TK_slateCurrent([a, d, b], SME, TODAY), d);
+  const e = stask({ status: "in_progress", status_changed_at: "2026-10-21T08:00:00+00:00" });
+  assert.strictEqual(L.TK_slateCurrent([b, e], SME, TODAY).id, b.id < e.id ? b.id : e.id); // same instant: stable tie
+});
+t("slateCurrent: with none in progress, Next up order (late, today, soonest, priority)", () => {
+  const none = stask({ due_date: null, priority: "high" });
+  const later = stask({ due_date: "2026-10-30" });
+  const today = stask({ due_date: TODAY, priority: "low" });
+  const late = stask({ due_date: "2026-10-15", priority: "low" });
+  assert.strictEqual(L.TK_slateCurrent([none, later, today, late], SME, TODAY), late);
+  assert.strictEqual(L.TK_slateCurrent([none, later, today], SME, TODAY), today);
+  assert.strictEqual(L.TK_slateCurrent([none, later], SME, TODAY), later);
+  const p1 = stask({ due_date: "2026-10-22", priority: "low" });
+  const p2 = stask({ due_date: "2026-10-22", priority: "high" });
+  assert.strictEqual(L.TK_slateCurrent([p1, p2], SME, TODAY), p2);
+});
+t("slateCurrent: done, waiting, review, deleted and other people's are skipped", () => {
+  const rows = [
+    stask({ status: "done", done: true, due_date: "2026-10-01" }),
+    stask({ status: "waiting_client", due_date: "2026-10-01" }),
+    stask({ status: "ready_for_review", due_date: "2026-10-01" }),
+    stask({ deleted_at: "2026-10-20T00:00:00Z", due_date: "2026-10-01" }),
+    stask({ assignee_email: "other@example.test", status: "in_progress" }),
+    stask({ assignee_email: null, due_date: "2026-10-01" }),
+  ];
+  assert.strictEqual(L.TK_slateCurrent(rows, SME, TODAY), null);
+  const ok = stask({ due_date: "2026-12-31" });
+  assert.strictEqual(L.TK_slateCurrent(rows.concat([ok]), SME, TODAY), ok);
+});
+t("slateCurrent: me is matched ignoring case; empty and junk give null", () => {
+  const mine = stask({ assignee_email: "ME@Example.Test" });
+  assert.strictEqual(L.TK_slateCurrent([mine], "me@EXAMPLE.test", TODAY), mine);
+  assert.strictEqual(L.TK_slateCurrent([], SME, TODAY), null);
+  assert.strictEqual(L.TK_slateCurrent(null, SME, TODAY), null);
+  assert.strictEqual(L.TK_slateCurrent(undefined, SME, TODAY), null);
+  assert.strictEqual(L.TK_slateCurrent([mine], "", TODAY), null);
+  assert.strictEqual(L.TK_slateCurrent([mine], null, TODAY), null);
+  assert.strictEqual(L.TK_slateCurrent([null, undefined, mine], SME), mine);
+});
+t("slateCurrent: legacy rows with no status use the done flag", () => {
+  const open = stask({ status: undefined, done: false });
+  const closed = stask({ status: undefined, done: true, due_date: "2026-10-01" });
+  assert.strictEqual(L.TK_slateCurrent([closed, open], SME, TODAY), open);
+});
+
+// ---- Slate app (S1): size presets ---------------------------------------------------------
+t("slateSizePreset: sliver and list with no chrome", () => {
+  const scr = { availWidth: 1920, availHeight: 1055, availLeft: 0, availTop: 25 };
+  assert.deepStrictEqual(L.TK_slateSizePreset("sliver", scr), { id: "sliver", w: 360, h: 140, x: null, y: null, innerW: 360, innerH: 140 });
+  assert.deepStrictEqual(L.TK_slateSizePreset("list", scr), { id: "list", w: 440, h: 800, x: null, y: null, innerW: 440, innerH: 800 });
+});
+t("slateSizePreset: chrome is added to give the OUTER size", () => {
+  const scr = { availWidth: 1920, availHeight: 1055, availLeft: 0, availTop: 25 };
+  const chrome = { w: 0, h: 123 };
+  assert.deepStrictEqual(L.TK_slateSizePreset("sliver", scr, chrome), { id: "sliver", w: 360, h: 263, x: null, y: null, innerW: 360, innerH: 140 });
+  assert.deepStrictEqual(L.TK_slateSizePreset("list", scr, chrome), { id: "list", w: 440, h: 923, x: null, y: null, innerW: 440, innerH: 800 });
+  assert.deepStrictEqual(L.TK_slateSizePreset("sliver", scr, { w: 16, h: 123 }), { id: "sliver", w: 376, h: 263, x: null, y: null, innerW: 360, innerH: 140 });
+});
+t("slateSizePreset: full is the available screen (outer, no chrome added) with its offset", () => {
+  assert.deepStrictEqual(L.TK_slateSizePreset("full", { availWidth: 1920, availHeight: 1055, availLeft: 0, availTop: 25 }), { id: "full", w: 1920, h: 1055, x: 0, y: 25, innerW: 1920, innerH: 1055 });
+  assert.deepStrictEqual(L.TK_slateSizePreset("full", { availWidth: 1440, availHeight: 860, availLeft: -1440, availTop: 0 }), { id: "full", w: 1440, h: 860, x: -1440, y: 0, innerW: 1440, innerH: 860 });
+  assert.deepStrictEqual(L.TK_slateSizePreset("full", { availWidth: 1280, availHeight: 700 }), { id: "full", w: 1280, h: 700, x: 0, y: 0, innerW: 1280, innerH: 700 });
+  assert.deepStrictEqual(L.TK_slateSizePreset("full", { availWidth: 1280, availHeight: 700 }, { w: 0, h: 123 }), { id: "full", w: 1280, h: 700, x: 0, y: 0, innerW: 1280, innerH: 577 });
+});
+t("slateSizePreset: a small screen clamps the outer size, with and without chrome", () => {
+  const small = { availWidth: 400, availHeight: 600 };
+  assert.deepStrictEqual(L.TK_slateSizePreset("list", small), { id: "list", w: 400, h: 600, x: null, y: null, innerW: 400, innerH: 600 });
+  assert.deepStrictEqual(L.TK_slateSizePreset("list", small, { w: 0, h: 123 }), { id: "list", w: 400, h: 600, x: null, y: null, innerW: 400, innerH: 477 });
+  assert.deepStrictEqual(L.TK_slateSizePreset("sliver", { availWidth: 320, availHeight: 100 }, { w: 0, h: 123 }), { id: "sliver", w: 320, h: 100, x: null, y: null, innerW: 320, innerH: 0 });
+  assert.deepStrictEqual(L.TK_slateSizePreset("sliver", small, { w: 0, h: 123 }), { id: "sliver", w: 360, h: 263, x: null, y: null, innerW: 360, innerH: 140 });
+});
+t("slateSizePreset: junk screen", () => {
+  [undefined, null, {}, { availWidth: 0, availHeight: 0 }, { availWidth: "x", availHeight: NaN }, { availWidth: 1000 }].forEach((scr) => {
+    assert.strictEqual(L.TK_slateSizePreset("full", scr, { w: 0, h: 123 }), null, JSON.stringify(scr));
+    assert.deepStrictEqual(L.TK_slateSizePreset("sliver", scr), { id: "sliver", w: 360, h: 140, x: null, y: null, innerW: 360, innerH: 140 }, JSON.stringify(scr));
+    assert.deepStrictEqual(L.TK_slateSizePreset("list", scr, { w: 0, h: 123 }), { id: "list", w: 440, h: 923, x: null, y: null, innerW: 440, innerH: 800 }, JSON.stringify(scr));
+  });
+});
+t("slateSizePreset: junk chrome counts as zero", () => {
+  const scr = { availWidth: 1920, availHeight: 1055 };
+  [undefined, null, {}, { w: "x", h: NaN }, { w: -5, h: -123 }, "abc"].forEach((c) =>
+    assert.deepStrictEqual(L.TK_slateSizePreset("sliver", scr, c), { id: "sliver", w: 360, h: 140, x: null, y: null, innerW: 360, innerH: 140 }, JSON.stringify(c)),
+  );
+  assert.deepStrictEqual(L.TK_slateSizePreset("sliver", scr, { w: 0, h: "123" }), { id: "sliver", w: 360, h: 263, x: null, y: null, innerW: 360, innerH: 140 });
+});
+t("slateSizePreset: unknown id gives null", () => {
+  ["huge", "", null, undefined, 3, "constructor", "__proto__"].forEach((id) => assert.strictEqual(L.TK_slateSizePreset(id, { availWidth: 1000, availHeight: 800 }, { w: 0, h: 123 }), null, String(id)));
+});
+
+// ---- Slate app (S1): popup minimum -------------------------------------------------------
+t("popOutSize: the 240x180 minimum only when the app is on", () => {
+  const scr = { availWidth: 1920, availHeight: 1080 };
+  assert.deepStrictEqual(L.TK_popOutSize({ w: 260, h: 200 }, scr, true), { w: 260, h: 200 });
+  assert.deepStrictEqual(L.TK_popOutSize({ w: 260, h: 140 }, scr, true), { w: 260, h: 180 });
+  assert.deepStrictEqual(L.TK_popOutSize({ w: 100, h: 50 }, scr, true), { w: 240, h: 180 });
+  assert.deepStrictEqual(L.TK_popOutSize({ w: 260, h: 140 }, scr, false), { w: 380, h: 520 });
+  assert.deepStrictEqual(L.TK_popOutSize({ w: 260, h: 140 }, scr), { w: 380, h: 520 });
+  assert.deepStrictEqual(L.TK_popOutSize({ w: 260, h: 140 }, scr, "1"), { w: 380, h: 520 }); // only a real true
+  assert.deepStrictEqual(L.TK_popOutSize({ w: 260, h: 140 }, scr, undefined), { w: 380, h: 520 });
+  assert.strictEqual(L.TK_popOutFeatures({ w: 260, h: 140 }, scr, true), "popup,width=260,height=180");
+  assert.strictEqual(L.TK_popOutFeatures({ w: 260, h: 140 }, scr), "popup,width=380,height=520");
+  assert.deepStrictEqual(L.TK_POPOUT_MIN_APP, { w: 240, h: 180 });
+});
+t("popOutSize: the default and a clamp to the screen are the same on or off", () => {
+  const scr = { availWidth: 1440, availHeight: 900 };
+  assert.deepStrictEqual(L.TK_popOutSize(null, scr, true), L.TK_popOutSize(null, scr, false));
+  assert.deepStrictEqual(L.TK_popOutSize({ w: 3000, h: 2000 }, scr, true), { w: 1440, h: 900 });
+  assert.deepStrictEqual(L.TK_popOutSize({ w: 1, h: 1 }, { availWidth: 200, availHeight: 100 }, true), { w: 200, h: 100 });
+});
+
+// ---- Slate app (S1): deep links ----------------------------------------------------------
+t("slateDeepHref: named views", () => {
+  assert.strictEqual(L.TK_slateDeepHref("templates"), "/slate#/tasks/templates");
+  assert.strictEqual(L.TK_slateDeepHref("manage"), "/slate#/tasks/manage");
+  assert.strictEqual(L.TK_slateDeepHref("my"), "/slate#/tasks/my");
+  assert.strictEqual(L.TK_slateDeepHref("search"), "/slate#/tasks/search");
+  assert.strictEqual(L.TK_slateDeepHref("review"), "/slate#/tasks/review");
+  assert.strictEqual(L.TK_slateDeepHref("waiting"), "/slate#/tasks/waiting");
+  assert.strictEqual(L.TK_slateDeepHref({ view: "Templates" }), "/slate#/tasks/templates");
+});
+t("slateDeepHref: a list (client, project, person)", () => {
+  assert.strictEqual(L.TK_slateDeepHref({ view: "client", clientId: "Ab/c" }), null); // "/" is not a safe id
+  assert.strictEqual(L.TK_slateDeepHref({ view: "client", clientId: "acme-12" }), "/slate#/tasks/c/acme-12");
+  assert.strictEqual(L.TK_slateDeepHref({ view: "client", clientId: 42 }), "/slate#/tasks/c/42");
+  assert.strictEqual(L.TK_slateDeepHref({ view: "project", projectId: sid(5) }), "/slate#/tasks/p/" + sid(5));
+  assert.strictEqual(L.TK_slateDeepHref({ view: "person", staffId: sid(6) }), "/slate#/tasks/u/" + sid(6));
+});
+t("slateDeepHref: a task", () => {
+  assert.strictEqual(L.TK_slateDeepHref({ view: "task", taskId: sid(7) }), "/slate#/tasks/my?item=task:" + sid(7));
+  assert.strictEqual(L.TK_slateDeepHref({ view: "templates", taskId: sid(7) }), "/slate#/tasks/templates?item=task:" + sid(7));
+  assert.strictEqual(L.TK_slateDeepHref({ view: "task" }), null);
+  assert.strictEqual(L.TK_slateDeepHref({ view: "task", taskId: "not-a-uuid" }), null);
+  assert.strictEqual(L.TK_slateDeepHref({ view: "my", taskId: "x@y.com" }), null);
+});
+t("slateDeepHref: the hrefs parse back to the same views (TK_logic)", () => {
+  let P;
+  try {
+    P = require("./TK_logic.js");
+  } catch (e) {
+    return;
+  }
+  const back = (h) => P.TK_parseRoute(h.slice("/slate".length));
+  assert.deepStrictEqual(back(L.TK_slateDeepHref("templates")), { view: "templates" });
+  assert.deepStrictEqual(back(L.TK_slateDeepHref("manage")), { view: "manage" });
+  assert.deepStrictEqual(back(L.TK_slateDeepHref({ view: "client", clientId: "acme-12" })), { view: "client", clientId: "acme-12" });
+  assert.deepStrictEqual(back(L.TK_slateDeepHref({ view: "project", projectId: sid(5) })), { view: "project", projectId: sid(5) });
+  assert.deepStrictEqual(back(L.TK_slateDeepHref({ view: "person", staffId: sid(6) })), { view: "person", staffId: sid(6) });
+  assert.deepStrictEqual(back(L.TK_slateDeepHref({ view: "task", taskId: sid(7) })), { view: "my" });
+});
+t("slateDeepHref: junk is rejected", () => {
+  [undefined, null, "", "nope", "tasks", 5, [], {}, { view: "bogus" }, { view: "client" }, { view: "client", clientId: "a@b.com" }, { view: "client", clientId: "" }, { view: "project", projectId: "123" }, { view: "project" }, { view: "person", staffId: "x" }, "javascript:alert(1)", "//evil.com", "../manage", { view: "my/../../x" }].forEach((r) =>
+    assert.strictEqual(L.TK_slateDeepHref(r), null, JSON.stringify(r)),
+  );
+  assert.strictEqual(L.TK_slateDeepHref({ view: "client", clientId: "x".repeat(121) }), null);
+  ["..", ".", "..."].forEach((c) => assert.strictEqual(L.TK_slateDeepHref({ view: "client", clientId: c }), null, c));
+  assert.strictEqual(L.TK_slateDeepHref({ view: "client", clientId: "a.b" }), "/slate#/tasks/c/a.b");
+});
+
 console.log(n + " checks passed");

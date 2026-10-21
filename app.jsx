@@ -1002,6 +1002,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by TK_slateAppIsOn (components/tasks/TK_viewLogic.js) through TK_slateFlag (TK_store.js).
+    key: "mgb_slate_app_preview",
+    label: "Slate app preview",
+    description:
+      "Slate opens as its own app: full page with a detail pane, shrinks to a sliver with the current task, Open Slate app replaces Open in own window. For you only.",
+    reloads: true,
+  },
+  {
     // Read by SS_store (components/staff/StaffSidebar.jsx).
     key: "mgb_nav_preview",
     label: "Sidebar preview",
@@ -13985,8 +13993,8 @@ function resettableLocalStorageKeys() {
     // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
     // mgb_tk_slate_view_v1:<email> / :desk:<email>). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
-    // mgb_wb_classic, mgb_desk_app_preview, mgb_nav_preview, mgb_rhythm_preview, and at launch
-    // mgb_nav_classic). The MGB Desk window's own
+    // mgb_wb_classic, mgb_desk_app_preview, mgb_nav_preview, mgb_rhythm_preview, mgb_slate_app_preview, and at launch
+    // mgb_slate_classic, mgb_nav_classic). The MGB Desk window's own
     // keys (mgb_desk_win_v1 size, mgb_desk_installed_v1, mgb_wb_hub_win:<email>)
     // are cleared like any other saved screen.
     return Object.keys(localStorage).filter(
@@ -15354,6 +15362,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
             ["desk_app_enabled", "MGB Desk window on for staff", "Off (or missing, the default) hides the MGB Desk window for everyone: no Open MGB Desk or Get MGB Desk in the Desk menu, and /desk shows a short note. Needs wb_enabled on too. Owner turns it on (true) with one SQL line; read-only here. Each person can try it early with MGB Desk window preview in Feature flags. Setting it does nothing until the Desk itself is on."],
+            ["slate_app_enabled", "Slate app on for staff", "Off (or missing, the default) keeps Slate as it is for everyone: Open in own window opens the same small window and nothing new shows. Owner turns it on (true) with one SQL line, never from here, to give every staff member the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app). Read-only here. Each person can try it early with Slate app preview in Feature flags."],
             ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar, plus the Alerts section for real admins. Each person can try it early with Sidebar preview in Feature flags. Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
             ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can try it early with Lato font preview in Feature flags, or opt out with Classic fonts. Setting it to true changes the look for every user right away, so do it only at launch."],
             ["layout_defaults", "Sidebar defaults by role", "What each role (admin, account manager, bookkeeper, temp admin) sees in the left sidebar until they customize it. Admins edit it in Settings › Firm settings › Sidebar defaults (shown once the sidebar is on). Not set means the built-in layout."],
