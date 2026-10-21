@@ -9,6 +9,10 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-21: No more photo popup
+
+The full-page **Add your profile photo** screen is gone. Everyone has a task, **Finish setting up your portal profile**, due Wednesday, October 28. Add your photo under **Settings › Profile** when you have a minute. See [How do I add or change my profile photo?](#/help/profile-photo).
+
 ### 2026-10-21: Month rhythm setting (admins)
 
 Admins have a new **Month rhythm** card in **Settings › Firm settings**. It holds the three days each month when Slate's monthly tasks will come due: **Check in** (4th), **Send reports** (14th) and **Follow up** (24th), plus what happens when a date falls on a weekend or firm holiday. For now it only stores the dates; the monthly rhythm tasks come later, so nothing changes for anyone else yet. See [How do I change my settings?](#/help/staff-settings).

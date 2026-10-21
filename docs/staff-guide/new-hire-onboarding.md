@@ -9,7 +9,7 @@ Everyone on the team gets a short **onboarding checklist**: the first things to 
 
 ### Your first sign-in
 
-Before anything else, a full-page **Add your profile photo** screen asks for a clear picture of your face and shoulders. Upload one or take one, crop it, and you're through; it takes about a minute. After that comes the short welcome (birthday and start date) and your tour. See [How do I add or change my profile photo?](#/help/profile-photo).
+A task called **Finish setting up your portal profile** asks you to add a clear picture of your face and shoulders (Settings › Profile › Change photo). It takes about a minute, and nothing blocks you until it's done. The short welcome (birthday and start date) and your tour. See [How do I add or change my profile photo?](#/help/profile-photo).
 
 ### Work through your checklist
 

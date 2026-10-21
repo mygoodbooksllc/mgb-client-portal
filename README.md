@@ -1205,7 +1205,7 @@ matches. Spec `docs/staff-photo-spec.md`; database `supabase/staff-photo.sql` (r
 - **Files.** The browser re-encodes through canvas (strips EXIF and GPS): original JPEG, longest
   side 2048 px; current 512 x 512 JPEG; admin edit 512 x 512 PNG with alpha. Input up to 15 MB,
   crop at least 400 x 400.
-- **The gate.** `PG_Gate` (mounted in `app.jsx` before the staff tours) is a full-page overlay
+- **The gate (retired 2026-10-21).** `PG_Gate` is no longer mounted in `app.jsx`; staff get a "Finish setting up your portal profile" task instead (inserted once per active staffer, due 2026-10-28). The component stays in the repo. Old behavior: a full-page overlay
   `#pg-gate` for any active, non-exempt staffer with no photo. Not shown while viewing as someone,
   previewing a client, or on Settings. **Later** (always shown) and **Continue for now** (after a failed upload) hide it for
   that page load only, so it returns on every visit until a photo is saved. If the status can't load, it fails open. **Order:** photo gate, Today's

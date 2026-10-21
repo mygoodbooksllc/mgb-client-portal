@@ -9,7 +9,7 @@ Everyone on the team has a profile photo. Clients and teammates see it next to y
 
 ### Add your photo
 
-The first time you sign in (or the first time after this launched), a full-page **Add your profile photo** screen appears before anything else. You only do it once.
+Open **Settings** (your initials at the top right, then **Settings**), find **Profile**, and click **Add photo**. There is no popup or full-page screen: you'll find a task called **Finish setting up your portal profile** on your list to remind you.
 
 1. Click **Upload a photo** and pick a picture. On a phone or tablet, **Take a photo** opens your camera. On a computer with a webcam, **Take a photo** opens a small camera window with **Capture**.
 2. Drag the picture to line up your face inside the circle. Use the slider (or your mouse wheel) to zoom.
@@ -17,7 +17,7 @@ The first time you sign in (or the first time after this launched), a full-page 
 
 A good photo is a clear, recent shot of your face and shoulders, looking at the camera in good light. No sunglasses, hats, filters or group photos. **Any background is fine**: an admin removes it later so every photo matches.
 
-It appears as a popup. If you're busy, click **Later**, press **Esc**, or click anywhere beside the popup to close it and keep working. It pops up again every time you open the portal (or sign in again) until your photo is saved, so it can't be forgotten. If the upload fails, click **Try again**, or **Later**.
+If the upload fails, click **Try again**.
 
 ### What the photo needs
 

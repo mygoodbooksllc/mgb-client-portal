@@ -30294,20 +30294,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {typeof TOUR_Root === "function" && !NON_CLIENT_PAGES.has(effectivePage) && (
             <TOUR_Root client={client} access={access} page={effectivePage} onSelectPage={setPage} onOpenSettings={openClientSettings} setMobileNavOpen={setMobileNavOpen} clientPortalUser={clientPortalUser} isStaffSession={isStaffSession} isPreviewingUser={Boolean(isPreviewingUser)} impersonating={Boolean(impersonating)} />
           )}
-          {/* Required profile photo (components/staff/StaffPhotoGate.jsx). First in
-              line: tours, tips, announcements and Today's profile prompt wait for
-              it. Not limited to the staff rail, so the standalone Tasks window is
-              gated too; never shown in View as or a client preview. */}
-          {typeof PG_Gate === "function" && staffUser && !clientPortalUser && !isPreviewingUser && !impersonating && (
-            <PG_Gate
-              staffUser={staffUser}
-              impersonating={Boolean(impersonating)}
-              isPreviewingUser={Boolean(isPreviewingUser)}
-              page={effectivePage}
-              onOpenSettings={() => setPage("settings")}
-              onSignOut={onSignOut}
-            />
-          )}
+          {/* The full-page profile photo gate (components/staff/StaffPhotoGate.jsx,
+              PG_Gate) is no longer mounted: it was too intrusive. Staff get a
+              "Finish setting up your portal profile" task instead. */}
           {/* Staff tours: bookkeeper, admin, temporary admin and account
               manager (TOUR_StaffRoot, same file). Each starts by itself once
               for the people it applies to; the "?" menu, ⌘K and Settings ›

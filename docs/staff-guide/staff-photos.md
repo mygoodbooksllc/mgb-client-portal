@@ -11,7 +11,7 @@ Every active staff member adds a profile photo. You tidy the background so the w
 
 Each person has a photo and a status:
 
-- **Missing**: they haven't added a photo yet. They see a full-page prompt until they do.
+- **Missing**: they haven't added a photo yet. Their task list carries a reminder, but nothing blocks them.
 - **Needs edit**: they added their own photo and nobody has edited it yet.
 - **Done**: an admin's edited photo is the current one.
 - **Not required**: marked by an admin, so they never see the prompt.
