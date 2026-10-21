@@ -12,6 +12,7 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 ### 2026-10-21: The Desk, a left sidebar and a new look
 
 The Desk and the new **Today** are on for everyone, with a **left sidebar** under the rail (your **Pinned** and **Recent** clients, and a gear to **Customize** it), the **Lato** font, brand colors (navy and teal), and menus that open when you point at them. Press **D** to open the Desk. A short tour covers all of it: **?** → **New: The Desk, a left sidebar and a new look**. The old Today is one click away in the **?** on the **Do next** card. Admins and temporary admins can switch the old fonts, colors and menus back on this computer under **Developer tools › Feature flags**. See [What changed: the Desk, left sidebar and new look](#/help/new-look-and-sidebar).
+
 ### 2026-10-21: Ledger review: Roll-forward
 
 Ledger review has a new **Roll-forward** panel under **Reconciliation**. For each bank, credit card and loan account it shows the month's beginning balance, the money in and out by type, and the ending balance, then checks that ending against QuickBooks. An account that doesn't tie opens by itself and shows the difference. It's for looking only; no flags are created. See [How does Ledger review work?](#/help/ledger-review).
