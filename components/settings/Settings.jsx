@@ -79,6 +79,12 @@ const ST_STAFF_EMAIL_PREFS = [
     sub: "The policy approver only: when handbook drafts are waiting for your approval. At most one email every 30 minutes, with a count and a link.",
     def: true,
   },
+  {
+    key: "handbook_changes",
+    label: "Handbook drafts sent back to me",
+    sub: "Admins: when the policy approver asks for changes to a handbook draft you edited last. One email per request, with their note and a link.",
+    def: true,
+  },
 ];
 const ST_CLIENT_EMAIL_PREFS = [
   { key: "bookkeeper_message", label: "My bookkeeper sends me a message", sub: "A short email with a link to Messages. The message itself stays in the portal.", def: true },

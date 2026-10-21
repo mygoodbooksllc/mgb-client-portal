@@ -229,5 +229,26 @@ t("approval on Today and the badge", () => {
   eq(/New Reference/.test(JSON.stringify(ap)), false);
 });
 
+t("who can change the approver", () => {
+  eq(L.HB_canChangeApprover({ can_change: true, label: "Bailley or Jeff" }), true);
+  // Safe by default: not loaded, an error, an older server, or a truthy non-true value.
+  eq(L.HB_canChangeApprover(null), false);
+  eq(L.HB_canChangeApprover(undefined), false);
+  eq(L.HB_canChangeApprover({}), false);
+  eq(L.HB_canChangeApprover({ can_change: false }), false);
+  eq(L.HB_canChangeApprover({ can_change: "true" }), false);
+  eq(L.HB_approverChangersText({ can_change: false, label: "Bailley or Jeff" }), "Only Bailley or Jeff can change the approver.");
+  eq(L.HB_approverChangersText({ can_change: false, label: "Bailley" }), "Only Bailley can change the approver.");
+  eq(L.HB_approverChangersText({ can_change: false, label: null }), "Nobody is set up to change the approver. Ask the owner.");
+  eq(L.HB_approverChangersText(null), "Nobody is set up to change the approver. Ask the owner.");
+});
+
+t("request changes toast", () => {
+  eq(L.HB_changesSentText({ emailed_to: "jesse@x.org", emailed_name: "Jesse Smithwick" }), "Sent back. Jesse gets an email with your note.");
+  eq(L.HB_changesSentText({ emailed_to: "jesse@x.org", emailed_name: null }), "Sent back. jesse gets an email with your note.");
+  eq(L.HB_changesSentText({ emailed_to: null }), "Sent back. Your note shows on the draft.");
+  eq(L.HB_changesSentText(null), "Sent back. Your note shows on the draft.");
+});
+
 assert.ok(n >= 60, "need at least 60 checks, got " + n);
 console.log("HB_logic: " + n + " checks passed");

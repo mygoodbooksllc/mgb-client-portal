@@ -19,8 +19,9 @@
 // view (HB_PolicyView, admins, latest version); New policy swaps the list for
 // HB_NewPolicy (HB_Admin.jsx).
 //
-// Draft approval (Part L): admins see the policy approver line (and can
-// change the approver), each draft's approval pill and a drafts filter; the
+// Draft approval (Part L): admins see the policy approver line (the Co-CEOs
+// on approver_changers can change it), each draft's approval pill and a
+// drafts filter; the
 // approver also sees "Needs your approval (N)" at the top.
 
 function HB_parseRoute() {
@@ -189,18 +190,36 @@ function HB_CountersignerLine({ status }) {
 }
 
 // Admins: who approves drafts (Part L), or a warning when that person isn't
-// an active admin (publishing drafts is then blocked). The picker lists
-// active admins (hb_status.admins); hb_set_policy_approver checks and audits.
+// an active admin (publishing drafts is then blocked). Only the people on
+// handbook_settings.approver_changers (the Co-CEOs) see Change
+// (hb_approver_access); other admins get a note naming them. The picker
+// lists active admins (hb_status.admins); hb_set_policy_approver checks
+// who is asking and audits.
 function HB_ApproverLine({ status }) {
   const toast = HB_useToastSafe();
   const [editing, setEditing] = React.useState(false);
   const [pick, setPick] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
+  // null while loading or when it can't be read: no Change button (safe by default).
+  const [access, setAccess] = React.useState(null);
+  const [accessFailed, setAccessFailed] = React.useState(false);
   const admins = status.admins || [];
   const ap = status.approver;
   const missing = !!status.approver_missing;
   const waiting = HB_pendingApprovalCount(status);
+  const canChange = HB_canChangeApprover(access);
+
+  React.useEffect(() => {
+    let alive = true;
+    HB_api.approverAccess().then(
+      (a) => alive && setAccess(a || null),
+      () => alive && setAccessFailed(true)
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const save = async () => {
     if (!pick || busy) return;
@@ -226,7 +245,7 @@ function HB_ApproverLine({ status }) {
           {missing ? (
             <>
               <strong>Nobody can approve handbook drafts.</strong> The policy approver ({status.approver_setting || "not set"}) isn't an active admin,
-              so drafts can't be published until an admin picks a new one.
+              so drafts can't be published until a new one is chosen.
             </>
           ) : (
             <>
@@ -240,13 +259,15 @@ function HB_ApproverLine({ status }) {
             </span>
           )}
         </span>
-        {!editing && (
+        {!editing && canChange && (
           <button type="button" className="link-btn" onClick={() => setEditing(true)}>
             {missing ? "Choose an approver" : "Change"}
           </button>
         )}
       </div>
-      {editing && (
+      {access && !canChange && <div className="hb-muted hb-apv-note">{HB_approverChangersText(access)}</div>}
+      {accessFailed && <div className="hb-muted hb-apv-note">Couldn't check who can change the approver. Reload to try again.</div>}
+      {editing && canChange && (
         <div className="hb-cs-pick">
           <label className="hb-sr" htmlFor="hb-apv-select">
             Policy approver

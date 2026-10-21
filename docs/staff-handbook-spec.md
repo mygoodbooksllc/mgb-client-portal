@@ -306,7 +306,7 @@ Added 2026-10-19. SQL: `supabase/staff-handbook-4-approvals.sql` (run after `sta
 - `approval_note`: the approver's note when asking for changes (up to 2,000 characters; kept after the next edit so the editor still sees it).
 - `approval_updated_at`, `approval_updated_by`.
 
-**Approver.** `handbook_settings.policy_approver_email`, default `bailley@mygoodbooks.org`. Any admin changes it with `hb_set_policy_approver(email)`; the new approver must be an active admin, and the change is audited (`handbook.approver_changed`). Approvals already given stay valid. While the setting doesn't point at an active admin, nothing can be approved, so nothing can be published, and the Handbook tab, the draft bar and the approval card all say so.
+**Approver.** `handbook_settings.policy_approver_email`, default `bailley@mygoodbooks.org`. Only the people on `handbook_settings.approver_changers` (the Co-CEOs, see **Approver tweaks** below) change it with `hb_set_policy_approver(email)`; the new approver must be an active admin, and the change is audited (`handbook.approver_changed`). Approvals already given stay valid. While the setting doesn't point at an active admin, nothing can be approved, so nothing can be published, and the Handbook tab, the draft bar and the approval card all say so.
 
 **Triggers (so every path is covered):**
 - Approval columns only change inside the approval RPCs (a transaction-local setting PostgREST can't set). Anything else is refused (42501).
@@ -319,8 +319,8 @@ Added 2026-10-19. SQL: `supabase/staff-handbook-4-approvals.sql` (run after `sta
 | RPC | Who | Does | Audit |
 |---|---|---|---|
 | `hb_approve_policy(policy_id, version_id)` | approver only (42501 for anyone else) | Approves the latest version. `version_id` is the version the approver read; if the draft changed since, it's refused (55000) and the UI reloads. | `handbook.policy_approved` |
-| `hb_request_changes(policy_id, note)` | approver only | `changes_requested` with a required note. Also withdraws an approval. Nobody is emailed. | `handbook.policy_changes_requested` |
-| `hb_set_policy_approver(email)` | any admin | See Approver above. Queues the batched notice for the new approver when drafts are waiting. | `handbook.approver_changed` |
+| `hb_request_changes(policy_id, note)` | approver only | `changes_requested` with a required note. Also withdraws an approval. Emails the last editor (see **Approver tweaks**); the result has `emailed_to` and `emailed_name`. | `handbook.policy_changes_requested` (`details.emailed`) |
+| `hb_set_policy_approver(email)` | people on `approver_changers` who are active admins (42501 for anyone else) | See Approver above. Queues the batched notice for the new approver when drafts are waiting. | `handbook.approver_changed` |
 
 `hb_publish_policy` and `hb_convert_to_signed` (on a draft) refuse with the reason from `hb_approval_problem` (55000) until the latest text is approved. A converted draft then needs approval again, since its kind and text changed. `hb_status` adds, for admins, each draft's `approval_status`, `approval_current` and `approval_note`, plus `approver`, `approver_missing`, `approver_setting`, `approvals_pending`, `admins` and `me.is_approver`; the approver's `badge` includes the drafts waiting. `hb_get_policy` adds `approval` (status, whether it matches the latest text, who and when, the approved version, the note and the `problem` text) and the approver.
 
@@ -333,8 +333,8 @@ A new row waits until 30 minutes after the last one sent (`payload.not_before`).
 
 **Front end:**
 - An **Awaiting {first name}'s approval** pill (or **Approved**, or **Changes asked**) on each draft in the list and the policy view. Filter chips with counts above the Drafts group (**All drafts**, **Awaiting {first name}**, **Changes asked**, **Approved**). A draft approved on older text counts as awaiting.
-- The approver line at the top of the tab for admins: who approves, how many drafts wait, and **Change** (any admin). A warm warning when the approver isn't an active admin.
-- For the approver only: **Needs your approval (N)** panel with **Review** links, a Today row "N handbook policies need your approval", and the count in the Team › Handbook badge (combined with anything to sign or countersign).
+- The approver line at the top of the tab for admins: who approves, how many drafts wait, and **Change** (only the people on `approver_changers`; other admins read "Only Bailley or Jeff can change the approver."). A warm warning when the approver isn't an active admin.
+- For the approver only: **Needs your approval (N)** panel with **Review** links, a Today row "N handbook policies need your approval", and the count in the HR › Handbook badge (combined with anything to sign or countersign).
 - The **Approval** card on a draft: the state and any note for every admin; **Approve version N** and **Request changes** (or **Withdraw approval and ask for changes**) for the approver only. Other admins read "Only {name} can approve handbook drafts."
 - **Publish** and **Make this a signed policy** on a draft are disabled with the reason until the current text is approved.
 - **Edit text** on an approved draft shows, before saving, that saving sends it back for approval; the confirm step and the toast say so too. **Edit details** warns when a title or section change will reset an approval.
@@ -343,7 +343,24 @@ A new row waits until 30 minutes after the last one sent (`payload.not_before`).
 
 **Seed.** `staff-handbook-4-seed-handbook-drafts.sql` loads chapters 1–9 of the Employee Handbook mockup as nine reference drafts in the section "Employee Handbook" (order 1–9), each version 1, `pending`. Placeholders are `**[TBD: ...]**` so they stand out and can be edited in the app. It refuses to run before the approvals file, skips any slug that already exists, never publishes, converts or creates a signature, and queues only the one batched approver notice. Chapter 10 (Acknowledgment, a sign-here page) isn't loaded: signing in the portal replaces it.
 
-**Deploy order:** the `notification-emails` edge function first (so the new kind isn't dropped as unknown), then `staff-handbook-4-approvals.sql`, then the seed once. Re-run `staff-handbook-4-approvals.sql` after any re-run of `staff-handbook.sql`, `-2-admin.sql`, `-3-kinds.sql`, or a file that restates the outbox kind checks in full.
+**Deploy order:** the `notification-emails` edge function first (so the new kind isn't dropped as unknown), then `staff-handbook-4-approvals.sql`, then the seed once. Re-run `staff-handbook-4-approvals.sql` after any re-run of `staff-handbook.sql`, `-2-admin.sql`, `-3-kinds.sql`, or a file that restates the outbox kind checks in full, and then `staff-handbook-5-approver-tweaks.sql`.
+
+### Approver tweaks (2026-10-20)
+
+SQL: `supabase/staff-handbook-5-approver-tweaks.sql` (run after part 4; it redefines `hb_approval_problem`, `hb_set_policy_approver` and `hb_request_changes`). Checks: `supabase/staff-handbook-5-approver-tweaks-tests.sql` (one transaction, ends in ROLLBACK). Email: `notification-emails` kind `handbook_changes_requested` (`handbookChanges.ts`, tests in `tests/edge/hb_changes_email.test.mjs`).
+
+**Who can change the approver.** Only the two Co-CEOs (Bailley and Jeff). The rule lives in data, not code: `handbook_settings.approver_changers` (lower-case emails, at most 10). The file seeds it once, on its first run (while the new column is still unset), from the HR records: active admins whose job title is "Co-CEO", and prints the list. After that the column is not null (default `'{}'`) and it's a fixed setting. Editing a job title in **HR** changes nothing, because any admin can edit job titles, so a title rule would let any admin give themselves the right. Changing the list is a SQL change by the owner; there's no RPC for it. Entries are lower-case trimmed emails, no blanks or repeats. Someone on the list must also be an active admin at the time. An empty list, or one with no active admins, means nobody can change the approver (safe by default). List changes aren't audited in the app (they're SQL only).
+- `hb_set_policy_approver` refuses anyone else (42501, "Only Bailley or Jeff can change the policy approver."). It's audited as before (`handbook.approver_changed`). Self-approval rules are unchanged: someone on the list can make themselves the approver.
+- `hb_approver_access()` (admins): `can_change`, `changers` (email and name) and `label` ("Bailley or Jeff", first names). The approver line shows **Change** only when `can_change` is true; while it loads, or if it fails, there's no button. Other admins see who approves and the note "Only Bailley or Jeff can change the approver."
+- When the approver isn't an active admin, the warning (`hb_approval_problem`) names who can choose a new one: "Bailley or Jeff can choose a new approver in HR › Handbook."
+
+**Request changes emails the last editor.** `hb_request_changes` queues one `handbook_changes_requested` row per request (no batching) for `hb_last_editor(policy)`: whoever made the latest edit. That's the author of the latest version (create, **Edit text**, **Make this a signed policy**) or a later title or section change (audit `handbook.policy_updated`; an order-only change doesn't count). Nobody is emailed when the last editor is the approver, isn't an active admin (for example `system` for the seeded chapters), or can't be found. The request itself works the same either way.
+- Payload: policy id, slug and title, the note, who asked (`by`, `by_email`) and the link `#/hr/handbook?item=handbook:<slug>`. The recipient is always an admin who can read the draft, so the email names the draft and quotes the note. It never includes the policy text.
+- At send time the edge function checks the recipient is an active admin and not the approver who asked, and that the draft is still a draft waiting on changes (edited, approved or published since: skipped).
+- Preference: **Settings › Notifications › Handbook drafts sent back to me** (`notify.email.handbook_changes`, on by default). The Emails page lists the kind as "Staff: handbook changes requested".
+- The approver sees who gets the note: the hint under the note box says so, and the toast says "Sent back. {first name} gets an email with your note." The audit row records `details.emailed`. If the outbox refuses the row (an old kind check), the result and audit say nobody was emailed.
+
+**Deploy order:** the `notification-emails` edge function first, then `staff-handbook-5-approver-tweaks.sql`, then the front end (before the file runs, the new front end shows no **Change** button and says it couldn't check). Re-run it after any re-run of part 4 (part 4 warns when it's re-run on top of part 5) or a file that restates the outbox kind checks in full.
 
 ---
 

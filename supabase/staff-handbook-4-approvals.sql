@@ -790,4 +790,15 @@ begin
   end loop;
 end $$;
 
+-- Part 5 (staff-handbook-5-approver-tweaks.sql) redefines
+-- hb_set_policy_approver, hb_request_changes and hb_approval_problem. This
+-- file just put back the part 4 versions (any admin can change the approver).
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'handbook_settings' and column_name = 'approver_changers') then
+    raise warning 'handbook part 4 re-run: run staff-handbook-5-approver-tweaks.sql now, or any admin can change the policy approver.';
+  end if;
+end $$;
+
 commit;

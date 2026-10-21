@@ -227,7 +227,7 @@ function HB_todayItems(st) {
       kind: "approve",
       slug: "approvals",
       title: n === 1 ? "1 handbook policy needs your approval" : n + " handbook policies need your approval",
-      detail: "Drafts in Team › Handbook",
+      detail: "Drafts in HR › Handbook",
       overdue: false,
       due: "",
       count: n,
@@ -336,6 +336,28 @@ function HB_filterDrafts(policies, key) {
   });
 }
 
+// Who can change the policy approver (staff-handbook-5-approver-tweaks.sql,
+// hb_approver_access). Safe by default: only an explicit can_change: true
+// shows the Change button; loading, an error or an older server shows none.
+function HB_canChangeApprover(access) {
+  return !!(access && access.can_change === true);
+}
+// The note under the approver line for admins who can't change it.
+function HB_approverChangersText(access) {
+  var label = String((access && access.label) || "").trim();
+  if (label) return "Only " + label + " can change the approver.";
+  return "Nobody is set up to change the approver. Ask the owner.";
+}
+// Toast after Request changes: who gets the note by email, if anyone.
+function HB_changesSentText(result) {
+  var r = result || {};
+  var email = String(r.emailed_to || "").trim();
+  if (!email) return "Sent back. Your note shows on the draft.";
+  var name = String(r.emailed_name || "").trim();
+  var first = name ? name.split(/\s+/)[0] : email.split("@")[0];
+  return "Sent back. " + first + " gets an email with your note.";
+}
+
 // Admin grid rows: signing policies only.
 function HB_gridPolicies(policies) {
   return (policies || []).filter(HB_isSigning);
@@ -371,5 +393,8 @@ if (typeof module !== "undefined" && module.exports) {
     HB_pendingApprovalCount: HB_pendingApprovalCount,
     HB_filterDrafts: HB_filterDrafts,
     HB_badgeParts: HB_badgeParts,
+    HB_canChangeApprover: HB_canChangeApprover,
+    HB_approverChangersText: HB_approverChangersText,
+    HB_changesSentText: HB_changesSentText,
   };
 }

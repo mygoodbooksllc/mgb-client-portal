@@ -4,6 +4,7 @@ import { emailConfigured, esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
 import { loadSignoffs, signoffHtml, signoffText, type Signoff } from "../_shared/signature.ts";
 import { approvalEmail, approvalSkipReason, isHeld } from "./handbookApproval.ts";
+import { changesEmail, changesSkipReason } from "./handbookChanges.ts";
 
 // Notification emails behind Settings > Notifications
 // (supabase/notification-emails.sql has the outbox, triggers and schedules).
@@ -35,6 +36,13 @@ import { approvalEmail, approvalSkipReason, isHeld } from "./handbookApproval.ts
 // an active admin, and the live count of drafts waiting is used (0: skipped).
 // Count and link only, never titles or text. Settings key
 // notify.email.handbook_approval. See ./handbookApproval.ts.
+//
+// handbook_changes_requested (supabase/staff-handbook-5-approver-tweaks.sql):
+// one email per "Request changes" to the admin who last edited the draft,
+// with the draft title and the approver's note (never the policy text). At
+// send time the recipient must be an active admin and not the approver who
+// asked (payload.by_email), and the draft must still be waiting on changes.
+// Settings key notify.email.handbook_changes. See ./handbookChanges.ts.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -49,7 +57,7 @@ type Kind =
   | "staff_feedback_status" | "staff_tech_request" | "client_message" | "client_reports_ready"
   | "handbook_sign_needed" | "handbook_countersign_needed"
   | "staff_task_review_ready" | "staff_task_sent_back" | "staff_task_mention" | "staff_task_client_answered"
-  | "staff_task_batch" | "handbook_approval_needed";
+  | "staff_task_batch" | "handbook_approval_needed" | "handbook_changes_requested";
 
 // Settings key and default for each kind (matches components/settings/Settings.jsx).
 const PREF: Record<Kind, { key: string; def: boolean }> = {
@@ -64,6 +72,7 @@ const PREF: Record<Kind, { key: string; def: boolean }> = {
   handbook_sign_needed: { key: "handbook", def: true },
   handbook_countersign_needed: { key: "handbook", def: true },
   handbook_approval_needed: { key: "handbook_approval", def: true },
+  handbook_changes_requested: { key: "handbook_changes", def: true },
   // Tasks Phase 2 (supabase/tasks-p2-3-review.sql and later slices).
   staff_task_review_ready: { key: "task_review", def: true },
   staff_task_sent_back: { key: "task_sent_back", def: true },
@@ -456,7 +465,8 @@ Deno.serve(async (req) => {
   for (const r of routed) {
     // Loop-ins and @mentions (payload.loop_in, supabase/account-manager.sql)
     // share kind staff_client_message but get their own email.
-    const key = `${r.kind}|${r.recipient_email}|${r.client_id || ""}${r.payload?.loop_in ? "|loop" : ""}`;
+    // Each "changes requested" row is its own email (no batching).
+    const key = `${r.kind}|${r.recipient_email}|${r.client_id || ""}${r.payload?.loop_in ? "|loop" : ""}${r.kind === "handbook_changes_requested" ? `|${r.id}` : ""}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(r);
   }
@@ -656,6 +666,26 @@ Deno.serve(async (req) => {
           continue;
         }
         email = staffEmail(approvalEmail(count!, APP_URL));
+      } else if (kind === "handbook_changes_requested") {
+        // One request, one email: re-check the recipient and the draft.
+        const pl = list[0].payload || {};
+        const { data: pol, error: pErr } = await db.from("handbook_policies")
+          .select("status, active, approval_status").eq("id", String(pl.policy_id || list[0].ref_id || "")).maybeSingle();
+        if (pErr) {
+          await skip("Could not read the draft");
+          continue;
+        }
+        const why = changesSkipReason({
+          to,
+          byEmail: pl.by_email ? String(pl.by_email) : null,
+          isActiveAdmin: (staffRows || []).some((x: any) => x.active && x.role === "admin" && String(x.email).toLowerCase() === to),
+          policy: pol ?? null,
+        });
+        if (why) {
+          await skip(why);
+          continue;
+        }
+        email = staffEmail(changesEmail(pl, APP_URL));
       } else if (kind === "handbook_countersign_needed") {
         const items = list.slice(0, 15).map((r: any) => {
           const pl = r.payload || {};

@@ -123,6 +123,16 @@ insert into _who select 'bk', min(email) from staff where role = 'bookkeeper' an
 
 -- Point the setting at ap for the run, and start with no unsent notices.
 update handbook_settings set policy_approver_email = lower((select email from _who where k = 'ap')) where id = 1;
+-- Part 5 (staff-handbook-5-approver-tweaks.sql) limits who can change the
+-- approver to handbook_settings.approver_changers. Put adm on it for the run.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'handbook_settings' and column_name = 'approver_changers') then
+    execute 'update handbook_settings set approver_changers = array[lower($1)] where id = 1'
+      using (select email from _who where k = 'adm');
+  end if;
+end $$;
 update notification_outbox set processed_at = now(), status = 'skipped', reason = 'test run'
  where kind = 'handbook_approval_needed' and processed_at is null;
 

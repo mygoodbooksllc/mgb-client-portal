@@ -1246,7 +1246,9 @@ the countersigner is one setting (`handbook_settings`, set by an admin with `hb_
 - **Email:** `notification-emails` kinds `handbook_sign_needed` and `handbook_countersign_needed`
   (link only), preference `notify.email.handbook` (on by default). `handbook_approval_needed`
   (2026-10-19, batched, count and link only) goes to the policy approver, preference
-  `notify.email.handbook_approval`.
+  `notify.email.handbook_approval`. `handbook_changes_requested` (2026-10-20, one per request,
+  title and note, never the policy text) goes to the admin who last edited the draft, preference
+  `notify.email.handbook_changes`.
 - **Admin tools (2026-10-14, `HB_Admin.jsx`, `supabase/staff-handbook-2-admin.sql`, run after
   `staff-handbook.sql`):** **Publish new version** in the policy view (latest version only):
   markdown textarea, live `HLP_Markdown` preview, change note, Needs re-signing / Minor edit, then
@@ -1272,7 +1274,7 @@ the countersigner is one setting (`handbook_settings`, set by an admin with `hb_
 - **Draft approval (2026-10-19, spec Part L, `supabase/staff-handbook-4-approvals.sql`, run after
   `staff-handbook-3-kinds.sql`; checks in `staff-handbook-4-approvals-tests.sql`):** a draft is
   published only once the policy approver (`handbook_settings.policy_approver_email`, default
-  bailley@mygoodbooks.org, changed by any admin with `hb_set_policy_approver`) has approved its
+  bailley@mygoodbooks.org, changed with `hb_set_policy_approver` by the Co-CEOs only, see part 5) has approved its
   exact latest version and hash (`hb_approve_policy`, `hb_request_changes`; approver only,
   audited). Triggers reset a draft to `pending` on new text or a title, section or kind change.
   The approver gets a Today row, the tab badge, a **Needs your approval** panel and one batched
@@ -1281,6 +1283,17 @@ the countersigner is one setting (`handbook_settings`, set by an admin with `hb_
   this file. Re-run it after any re-run of parts 1 to 3 or of a file that restates the outbox
   kind checks. Seed: `staff-handbook-4-seed-handbook-drafts.sql` (Employee Handbook chapters
   1 to 9 as reference drafts; run once, after part 4; never publishes or creates signatures).
+- **Approver tweaks (2026-10-20, spec Part L "Approver tweaks",
+  `supabase/staff-handbook-5-approver-tweaks.sql`, run after part 4; checks in
+  `staff-handbook-5-approver-tweaks-tests.sql`):** only the people on
+  `handbook_settings.approver_changers` (seeded once from the HR "Co-CEO" titles: Bailley and
+  Jeff; after that a fixed setting changed only by SQL; empty means nobody) can run
+  `hb_set_policy_approver`. `hb_approver_access()` tells the UI whether to show **Change**.
+  `hb_request_changes` queues one `handbook_changes_requested` email per request to the last
+  editor (`hb_last_editor`: latest version author or a later title/section change), never the
+  approver, `system` or a non-admin. Settings key `notify.email.handbook_changes`; sender helper
+  `notification-emails/handbookChanges.ts` (tests `tests/edge/hb_changes_email.test.mjs`). Deploy
+  the function first, then the file, then the front end; re-run it after any re-run of part 4.
 
 ### Employee records (added 2026-10-19)
 

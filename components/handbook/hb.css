@@ -96,6 +96,13 @@
   flex-wrap: wrap;
   margin-top: 10px;
 }
+/* Who can change the approver (admins who can't). */
+.hb-apv-note {
+  margin-top: 6px;
+}
+.hb-banner.warm .hb-apv-note {
+  color: inherit;
+}
 
 /* Lists: policies, countersign queue, my signatures, version history. */
 .hb-list {

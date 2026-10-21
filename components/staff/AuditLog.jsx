@@ -136,7 +136,7 @@ function AL_summary(row) {
   if (a.startsWith("view_as.") || a.startsWith("portal_preview.")) return d.name || d.target || "";
   if (a === "handbook.countersigner_changed" || a === "handbook.approver_changed") return `${d.from || "none"} → ${d.to || "none"}`;
   if (a === "handbook.policy_approved") return [d.policy, d.version_no ? "v" + d.version_no : ""].filter(Boolean).join(" · ");
-  if (a === "handbook.policy_changes_requested") return [d.policy, d.note].filter(Boolean).join(" · ");
+  if (a === "handbook.policy_changes_requested") return [d.policy, d.note, d.emailed ? "emailed " + d.emailed : ""].filter(Boolean).join(" · ");
   if (a === "handbook.approval_reset")
     return [
       d.policy,

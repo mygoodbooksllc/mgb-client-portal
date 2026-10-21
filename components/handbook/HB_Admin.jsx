@@ -802,8 +802,8 @@ function HB_ApprovalCard({
     setBusy(true);
     setError("");
     try {
-      await HB_api.requestChanges(policy.id, note.trim());
-      toast("Sent back with your note. It comes back to you once it's edited.");
+      const res = await HB_api.requestChanges(policy.id, note.trim());
+      toast(HB_changesSentText(res) + " It comes back to you once it's edited.");
       setAsking(false);
       setNote("");
       done();
@@ -849,7 +849,7 @@ function HB_ApprovalCard({
           {a.problem ||
             "Nobody can approve handbook drafts right now: the policy approver (" +
               (approverSetting || "not set") +
-              ") is not an active admin. An admin can choose a new approver in Team › Handbook."}
+              ") is not an active admin. A new approver can be chosen in HR › Handbook."}
         </div>
       ) : (
         <p className="hb-approval-line">{line}</p>
@@ -895,10 +895,12 @@ function HB_ApprovalCard({
             className="hb-inp hb-approval-text"
             value={note}
             maxLength={2000}
-            placeholder="The admins editing it see this note on the draft"
+            placeholder="Say what needs to change. The admins editing it see this note on the draft"
             onChange={(e) => setNote(e.target.value)}
           />
-          <p className="hb-muted hb-hint">Nobody is emailed. The note shows on the draft for the admins.</p>
+          <p className="hb-muted hb-hint">
+            We email your note to whoever edited the draft last, unless that was you, the original import, or someone who's no longer an admin. It also shows on the draft.
+          </p>
           <div className="hb-actions">
             <button type="button" className="btn-primary" disabled={busy || !!noteProblem} onClick={sendBack}>
               {busy ? "Sending…" : "Send back for changes"}
@@ -1019,7 +1021,7 @@ function HB_ConvertCard({ policy, bookkeeperCount, approval, approverFirst, appr
   const needsApproval = draft && !!approval && (!approval.current || !!approverMissing);
   const problem = needsApproval
     ? (approverMissing
-        ? "Nobody can approve handbook drafts right now, so this draft can't be converted. An admin can choose a new approver in Team › Handbook."
+        ? approval.problem || "Nobody can approve handbook drafts right now, so this draft can't be converted. A new approver can be chosen in HR › Handbook."
         : approval.problem || "This draft needs approval first.")
     : !note.trim()
       ? "Add a short note that says why it now needs signing."
