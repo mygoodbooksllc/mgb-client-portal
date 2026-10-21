@@ -327,9 +327,11 @@ var WB_HUB_TABS = [
 // read again and is removed on first sign-in. The mgb_ prefix lets Dev Tools
 // Reset local state clear both.
 var WB_HUB_KEY = "mgb_wb_hub";
-function WB_hubKey(email) {
+// base: the MGB Desk window saves under WB_HUB_WIN_KEY, so the two windows
+// never overwrite each other's tab, drill or open state.
+function WB_hubKey(email, base) {
   var e = String(email == null ? "" : email).trim().toLowerCase();
-  return e ? WB_HUB_KEY + ":" + e : null;
+  return e ? (base || WB_HUB_KEY) + ":" + e : null;
 }
 // The page a saved panel belongs to: the hash without its query. A saved
 // open panel comes back only on the same page and not on a link that brings

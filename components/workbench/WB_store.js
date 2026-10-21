@@ -126,7 +126,15 @@ var WB_store = (function () {
     drill: [],
     drillOrigin: { closeOnEmpty: false, tab: "" },
     drillClosedAt: 0,
+    // MGB Desk window (spec-mgb-desk-app): tk_settings.desk_app_enabled, read as
+    // its own query. appOn = WB_deskAppIsOn(appSetting, preview, on).
+    appSetting: undefined,
+    appFlagKnown: false,
+    appOn: false,
   };
+  // The hub saves under mgb_wb_hub:<email>; the own-window MGB Desk under
+  // mgb_wb_hub_win:<email> (a store option, so a test can set it too).
+  var hubKeyBase = typeof window !== "undefined" && window.MGB_SHELL === "desk" ? WB_HUB_WIN_KEY : WB_HUB_KEY;
   var users = 0;
   var timer = null;
   var poll = null;
@@ -148,6 +156,7 @@ var WB_store = (function () {
   }
   function set(patch) {
     state = Object.assign({}, state, patch);
+    state.appOn = WB_deskAppIsOn(state.appSetting, appPreviewOn(), state.on);
     emit();
   }
   function sb() {
@@ -159,6 +168,36 @@ var WB_store = (function () {
   }
   function classicOn() {
     return WB__ls("mgb_wb_classic") === "1";
+  }
+  function appPreviewOn() {
+    return WB__ls(WB_DESK_APP_PREVIEW) === "1";
+  }
+
+  // MGB Desk window switch: tk_settings.desk_app_enabled, a separate query so
+  // the wb_enabled path above stays as it was. A read error or RLS denial counts
+  // as off and still sets appFlagKnown, so the window never waits forever.
+  function readAppFlag() {
+    var c = sb();
+    var done = function (v) {
+      set({ appSetting: v, appFlagKnown: true });
+    };
+    if (!c) return done(undefined);
+    try {
+      c.from("tk_settings")
+        .select("value")
+        .eq("key", "desk_app_enabled")
+        .maybeSingle()
+        .then(
+          function (res) {
+            done(res && !res.error && res.data ? res.data.value : undefined);
+          },
+          function () {
+            done(undefined);
+          },
+        );
+    } catch (e) {
+      done(undefined);
+    }
   }
 
   // Reads the switch once per configure and after a Dev Tools flag change.
@@ -284,6 +323,7 @@ var WB_store = (function () {
     };
     var onFlags = function () {
       readFlag();
+      readAppFlag();
     };
     // Another tab changed a Workbench flag (or cleared storage).
     var onStorage = function (e) {
@@ -359,6 +399,7 @@ var WB_store = (function () {
     if (users === 1) {
       wire();
       readFlag();
+      readAppFlag();
     }
     if (state.on && (changed || !state.at)) refresh();
     return function leave() {
@@ -584,7 +625,7 @@ var WB_store = (function () {
     hubTimer = null;
     if (!hubUser) return; // nobody signed in to this store yet: nothing to save
     var h = Object.assign({}, state.hub, { open: state.drawerOpen });
-    WB__lsSet(WB_hubKey(hubUser), WB_hubSerialize(h, Date.now(), hubHash()));
+    WB__lsSet(WB_hubKey(hubUser, hubKeyBase), WB_hubSerialize(h, Date.now(), hubHash()));
   }
   // patch: { tab, chip, clientId, scroll: { tab: n }, collapsed: { group: b },
   // lastFocus }. silent saves without re-rendering (scroll position, focus row).
@@ -656,8 +697,9 @@ var WB_store = (function () {
       hubTimer = null;
     }
     hubUser = email;
-    WB__lsSet(WB_HUB_KEY, null);
-    var h = WB_hubParse(WB__ls(WB_hubKey(email)), Date.now(), { hash: hubHash() });
+    // The window never removes the portal's old unscoped key.
+    if (hubKeyBase === WB_HUB_KEY) WB__lsSet(WB_HUB_KEY, null);
+    var h = WB_hubParse(WB__ls(WB_hubKey(email, hubKeyBase)), Date.now(), { hash: hubHash() });
     var raw = WB__ls(WB_deskKey(email));
     var d = WB_deskParse(raw);
     // Migration: a v1 (D3 bottom height) or junk value is rewritten as v2 once.
@@ -693,6 +735,15 @@ var WB_store = (function () {
     join: join,
     refresh: refresh,
     readFlag: readFlag,
+    readAppFlag: readAppFlag,
+    // Store options. hubKeyBase: where the hub is saved (the MGB Desk window
+    // uses WB_HUB_WIN_KEY). Set before join.
+    setOptions: function (o) {
+      if (o && typeof o.hubKeyBase === "string" && o.hubKeyBase) hubKeyBase = o.hubKeyBase;
+    },
+    hubKeyBase: function () {
+      return hubKeyBase;
+    },
     setScope: setScope,
     snooze: snooze,
     unsnooze: unsnooze,

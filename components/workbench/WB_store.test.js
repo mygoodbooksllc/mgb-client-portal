@@ -631,6 +631,50 @@ t("R2 drill: closing keeps the stack for 5 minutes; a page drill on a closed Des
   assert.strictEqual(c.S.getState().drill.length, 0);
 });
 
+t("MGB Desk window: the hub saves under mgb_wb_hub_win and never removes the portal's old key", () => {
+  // Portal: unchanged key, old unscoped key removed.
+  const p = load({ ls: { mgb_wb_hub: "old" } });
+  p.S.join("pat@example.com", false);
+  assert.strictEqual(p.S.hubKeyBase(), "mgb_wb_hub");
+  p.S.setDrawerOpen(true, "key");
+  p.S.flushHub();
+  assert.ok(p.store["mgb_wb_hub:pat@example.com"]);
+  assert.strictEqual(p.store["mgb_wb_hub"], undefined);
+  // Window: its own key, legacy key left alone, portal key untouched.
+  const w = load({ ls: { mgb_wb_hub: "old", "mgb_wb_hub:pat@example.com": "portal" } });
+  w.S.setOptions({ hubKeyBase: "mgb_wb_hub_win" });
+  w.S.join("pat@example.com", false);
+  assert.strictEqual(w.S.hubKeyBase(), "mgb_wb_hub_win");
+  assert.strictEqual(w.store["mgb_wb_hub"], "old");
+  w.S.setDrawerOpen(true, "window");
+  w.S.flushHub();
+  assert.ok(w.store["mgb_wb_hub_win:pat@example.com"]);
+  assert.strictEqual(w.store["mgb_wb_hub:pat@example.com"], "portal");
+});
+
+t("MGB Desk window: the desk shell picks the _win key on its own", () => {
+  const c = load();
+  assert.strictEqual(c.sandbox.WB_hubKey("A@b.co", "mgb_wb_hub_win"), "mgb_wb_hub_win:a@b.co");
+  assert.strictEqual(c.sandbox.WB_hubKey("A@b.co"), "mgb_wb_hub:a@b.co");
+});
+
+t("MGB Desk window: app flag is its own state; unread or denied means off but known", () => {
+  const c = load();
+  assert.strictEqual(c.S.getState().appFlagKnown, false);
+  c.S.join("pat@example.com", false);
+  // No Supabase client in the sandbox: counts as off, and known.
+  assert.strictEqual(c.S.getState().appFlagKnown, true);
+  assert.strictEqual(c.S.getState().appOn, false);
+  // Preview checkbox on, with the Desk on (preview): on.
+  const d = load({ ls: { mgb_wb_preview: "1", mgb_desk_app_preview: "1" } });
+  d.S.join("pat@example.com", false);
+  assert.strictEqual(d.S.getState().appOn, true);
+  // App preview on but the Desk is off: off.
+  const e = load({ ls: { mgb_desk_app_preview: "1" } });
+  e.S.join("pat@example.com", false);
+  assert.strictEqual(e.S.getState().appOn, false);
+});
+
 Promise.all(later).then(
   () => console.log("WB_store: " + n + " checks passed"),
   (e) => {
