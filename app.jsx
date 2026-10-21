@@ -994,6 +994,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by WB_deskAppIsOn (components/workbench/WB_logic.js).
+    key: "mgb_desk_app_preview",
+    label: "MGB Desk window preview",
+    description:
+      "Shows the MGB Desk window for you only, in this browser, while the firm-wide desk_app_enabled switch is off: the Desk menu gets Open MGB Desk (a pop-up window that stays on top of your other tabs) and Get MGB Desk (install it as its own app, Chrome or Edge on a computer). Needs the Desk itself on for you (Desk preview or the firm switch). The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     key: "mgb_wb_classic",
     label: "Classic Today",
     description:
@@ -1029,7 +1037,7 @@ const INFRA_LINKS = [
   {
     name: "Vercel",
     url: "https://vercel.com/dashboard",
-    note: "Deploys app.mygoodbooks.org from main · credentials: 1Password vault “MGB Infra”",
+    note: "Deploys app.mygoodbooks.org from main · /desk is a rewrite to index.html and desk.webmanifest is served by vercel.json (MGB Desk window) · credentials: 1Password vault “MGB Infra”",
   },
   {
     name: "Google Cloud (OAuth)",
@@ -13834,7 +13842,9 @@ function resettableLocalStorageKeys() {
     // mgb_wb_pins:<email> and its width mgb_wb_desk:<email>, and the staff
     // sidebar choice mgb_rail_expanded:<email>). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
-    // mgb_wb_classic).
+    // mgb_wb_classic, mgb_desk_app_preview). The MGB Desk window's own
+    // keys (mgb_desk_win_v1 size, mgb_desk_installed_v1, mgb_wb_hub_win:<email>)
+    // are cleared like any other saved screen.
     return Object.keys(localStorage).filter(
       (k) =>
         (k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_")) &&
@@ -15199,6 +15209,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["ooo_auto_apply", "Time off hands tasks to backups", "Off (false or not set, the default): only the manual Hand my tasks to backups button moves tasks. Set to true and the tk-ooo-daily cron (11:00 UTC) also moves open tasks due during someone's time off to each client's backup on their first day off (never re-taking a task someone handed back). Handing back after the time off always runs."],
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
+            ["desk_app_enabled", "MGB Desk window on for staff", "Off (or missing, the default) hides the MGB Desk window for everyone: no Open MGB Desk or Get MGB Desk in the Desk menu, and /desk shows a short note. Needs wb_enabled on too. Owner turns it on (true) with one SQL line; read-only here. Each person can try it early with MGB Desk window preview in Feature flags. Setting it does nothing until the Desk itself is on."],
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
             ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Slate › Recurring › One client; off by default. Works while the standard close set is off."],
@@ -16970,6 +16981,12 @@ const USAGE_PAGE_TAB_LABELS = {
 // Action buckets MGB_track() writes (see the hooks in TopBar, StaffGuide,
 // Tour). Add a label here when a new call site is added.
 const USAGE_ACTION_LABELS = {
+  "desk-app-open": "MGB Desk window opened from the portal",
+  "desk-app-focus": "MGB Desk window brought to the front",
+  "desk-app-get": "Get MGB Desk (install) clicked",
+  "desk-app-install": "MGB Desk installed as an app",
+  "desk-app-dock": "Dock back from the MGB Desk window",
+  "desk-app-forward": "Links sent from the MGB Desk window to a portal tab",
   "palette-open": "Search opened (Ctrl+K / ⌘K)",
   "guide-search": "Guide searches",
   "guide-miss": "Guide searches with no result",
@@ -26395,6 +26412,8 @@ function loadReferralPromo() {
 }
 
 const PAGE_META = {
+  // Label only (Usage Stats): the MGB Desk window (/desk).
+  "desk-app": { title: "MGB Desk window", subtitle: "The Desk in its own window" },
   dashboard: {
     title: "Home",
     subtitle: "What needs you, and where things stand",
