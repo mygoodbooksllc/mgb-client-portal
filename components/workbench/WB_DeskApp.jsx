@@ -2,7 +2,7 @@
 // WB_DeskApp: MGB Desk in its own window (docs: specs/spec-mgb-desk-app.md).
 //
 // The Desk column can open as a small window of its own: a pop-up (Open MGB
-// Desk, every browser) or an installed app (Get MGB Desk, Chrome and Edge on a
+// Desk, every browser) or an installed app (Download MGB Desk, Chrome and Edge on a
 // computer, its own manifest /desk.webmanifest and id). Everything here is
 // hidden behind WB_deskAppIsOn: the Desk is live and the person ticked "MGB
 // Desk window preview" or the firm switch tk_settings.desk_app_enabled is on.
@@ -380,7 +380,7 @@ function WB_deskOpenWindow() {
   return true;
 }
 
-// Get MGB Desk: the install page in a normal tab (a pop-up usually gets no
+// Download MGB Desk: the install page in a normal tab (a pop-up usually gets no
 // install prompt). Returns "standalone" inside an installed app, where the
 // caller shows the copy-link dialog instead.
 function WB_deskGet() {
@@ -434,7 +434,7 @@ function WB_DeskDialog({ kind, onClose }) {
         </>
       ) : (
         <>
-          <h3 id="dk-dlg-title">Get {WB_DESK_APP_NAME}</h3>
+          <h3 id="dk-dlg-title">Download {WB_DESK_APP_NAME}</h3>
           <p>
             Open <b>{window.location.host}/desk</b> in Chrome or Edge to install {WB_DESK_APP_NAME}. An installed app can't install another one.
           </p>

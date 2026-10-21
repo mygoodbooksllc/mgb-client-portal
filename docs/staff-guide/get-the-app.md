@@ -39,7 +39,7 @@ The code only works if you've signed in to the portal with Google at least once.
 
 **MGB Desk** is the Desk in its own window, and you can install it as a second app next to MyGoodBooks. It has its own icon, so you can open it from the Dock or Start menu without opening the portal first. It shows once the owner turns it on, in Chrome or Edge on a computer.
 
-1. Open the **Desk** menu and click **Get MGB Desk**, or open **Open MGB Desk** and use the **Install** banner at the top of the window.
+1. Open the **Desk** menu and click **Download MGB Desk**, or open **Open MGB Desk** and use the **Install** banner at the top of the window.
 2. Click **Install** and confirm.
 3. Next time, open **MGB Desk** from the Start menu (Windows) or Launchpad or Applications (Mac), or pin it to your taskbar or Dock.
 

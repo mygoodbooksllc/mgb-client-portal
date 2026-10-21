@@ -1026,6 +1026,22 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by the inline script in index.html (sets data-brand="mgb" on <html>).
+    key: "mgb_brand_preview",
+    label: "Brand colors preview",
+    description:
+      "Tries the brand guide's colors for you only, in this browser: navy #243746 and dark teal #06262D in place of the near-black, gold unchanged, Montserrat headings. No firm-wide switch yet. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
+    // Read by components/staff/HoverNav.jsx.
+    key: "mgb_hovernav_preview",
+    label: "Hover menus preview",
+    description:
+      "Pointing at a sidebar icon with tabs (Work, Team, HR, Finances) opens a small menu of clickable tabs beside it, and gray browser tooltips become themed ones. For you only, in this browser. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     key: "mgb_lato_classic",
     label: "Classic fonts",
     description:
@@ -1798,6 +1814,8 @@ function Sidebar({
   // node isn't a descendant of `.nav` in the DOM at all, so that clipping
   // ancestor can't touch it regardless of position/transform quirks.
   const [hoverTip, setHoverTip] = useState(null); // { text, rect } | null
+  // Hover-nav preview (components/staff/HoverNav.jsx): flyout of clickable tabs.
+  const fly = typeof HN_useFlyout === "function" ? HN_useFlyout() : null;
   function showTip(e, text) {
     // §157: `collapsed` is a stored preference, not "is the sidebar
     // actually rendering collapsed right now" — §154 made the CSS ignore
@@ -2220,6 +2238,18 @@ function Sidebar({
                     }}
                     aria-label={collapsed ? place.label : undefined}
                     aria-current={active ? "page" : undefined}
+                    onMouseEnter={(e) => {
+                      if (!place.tabs || !fly) return;
+                      fly.open(e, {
+                        title: place.label,
+                        items: pages.map((k) => ({ key: k, label: NAV_LABEL_BY_KEY[k] || k, current: page === k })),
+                        onPick: (k) => {
+                          onSelectPage(k);
+                          onCloseMobile();
+                        },
+                      });
+                    }}
+                    onMouseLeave={() => fly && fly.scheduleClose()}
                   >
                     {place.icon}
                     <span className="nav-item-label">{place.label}</span>
@@ -2290,6 +2320,7 @@ function Sidebar({
         {!collapsed && <span>Collapse</span>}
       </button>
 
+      {fly && fly.node}
       {hoverTip &&
         ReactDOM.createPortal(
           <div
@@ -2334,6 +2365,8 @@ function StaffRail({
   isRealAdmin,
 }) {
   const [tip, setTip] = useState(null);
+  // Hover-nav preview (components/staff/HoverNav.jsx): flyout of clickable tabs.
+  const fly = typeof HN_useFlyout === "function" ? HN_useFlyout() : null;
   // L1 left sidebar (components/staff/StaffSidebar.jsx): null while the gate
   // (SS_isOn) is off, and then nothing below changes the classic rail.
   const ssOn = typeof SS_useOn === "function" ? SS_useOn() : false;
@@ -2471,6 +2504,20 @@ function StaffRail({
         </>
       );
     }
+    if (fly && fly.enabled && typeof NAV_visibleTabs === "function") {
+      const tabCtx = {
+        role: staffUser.role,
+        isAdmin: showsAdminPages,
+        isRealAdmin: !!isRealAdmin,
+        impersonating: !!impersonating,
+        canViewInternal: !!canViewInternal,
+      };
+      const tabs = NAV_visibleTabs(p, tabCtx);
+      if (tabs.length > 1) {
+        const cur = page === p.key && typeof NAV_subFromHash === "function" ? NAV_subFromHash(p.slug) : null;
+        it.flyItems = tabs.map((t) => ({ key: t.key, label: t.label, current: cur === t.key }));
+      }
+    }
     return it;
   });
   const renderItem = (it) => {
@@ -2487,8 +2534,17 @@ function StaffRail({
         }}
         aria-label={expanded ? undefined : it.label}
         aria-current={active ? "page" : undefined}
-        onMouseEnter={(e) => it.short && showTip(e, it.label)}
-        onMouseLeave={hideTip}
+        onMouseEnter={(e) => {
+          if (it.flyItems && fly && fly.open(e, { title: it.label, items: it.flyItems, onPick: (k) => NAV_go(it.key, k) })) {
+            hideTip();
+            return;
+          }
+          if (it.short) showTip(e, it.label);
+        }}
+        onMouseLeave={() => {
+          hideTip();
+          if (fly) fly.scheduleClose();
+        }}
         onFocus={(e) => it.short && showTip(e, it.label)}
         onBlur={hideTip}
       >
@@ -2566,6 +2622,7 @@ function StaffRail({
         )}
       </div>
       {ss && !ss.readOnly && expanded && !halfScreen && <SS_WidthGrip ss={ss} railRef={railRef} />}
+      {fly && fly.node}
       {tip &&
         ReactDOM.createPortal(
           <div

@@ -1737,7 +1737,7 @@ function WB_deskLaunchItems(o) {
   if (x.installed) out.push({ id: "open-app", label: "Open " + WB_DESK_APP_NAME });
   else {
     out.push({ id: "open", label: "Open " + WB_DESK_APP_NAME });
-    if (x.canInstall) out.push({ id: "get", label: "Get " + WB_DESK_APP_NAME });
+    if (x.canInstall) out.push({ id: "get", label: "Download " + WB_DESK_APP_NAME });
   }
   out.push({ id: "help", label: "Help" });
   return out;

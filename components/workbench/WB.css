@@ -1848,3 +1848,22 @@ body.dk-shell .chat-fab-wrap,
 body.dk-shell .tour-root {
   display: none !important;
 }
+
+/* Themed Desk menu button (was the browser's gray default button). */
+.wb-more-btn {
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.wb-more-btn:hover,
+.wb-more-btn[aria-expanded="true"] {
+  background: var(--hover-bg);
+  border-color: var(--gold, #c7ae86);
+}

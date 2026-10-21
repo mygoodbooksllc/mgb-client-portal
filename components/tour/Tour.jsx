@@ -165,7 +165,7 @@
 //   wb-rail-add      the rail's + (quick add) at its foot
 //   wb-desk-handle   the open Desk column's width grip on its left edge
 //                    (WB_Hub.jsx), only while the Desk is open, wider than 760px
-//   wb-desk-menu     the open Desk header's MGB Desk menu (Open MGB Desk, Get MGB Desk),
+//   wb-desk-menu     the open Desk header's MGB Desk menu (Open MGB Desk, Download MGB Desk),
 //                    only while MGB Desk is on (WB_DeskApp.jsx)
 //   wb-taskview      the task showing in the Desk (WB_Hub.jsx), only while a
 //                    task is open there (Desk on)

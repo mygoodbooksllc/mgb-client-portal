@@ -1280,12 +1280,12 @@ t("WB_deskWinFeatures: popup, width, height, left, top", () => {
 
 t("WB_deskLaunchItems: labels and hidden items", () => {
   const I = (o) => L.WB_deskLaunchItems(o).map((x) => x.label);
-  assert.deepStrictEqual(I({ canInstall: true }), ["Open MGB Desk", "Get MGB Desk", "Help"]);
+  assert.deepStrictEqual(I({ canInstall: true }), ["Open MGB Desk", "Download MGB Desk", "Help"]);
   assert.deepStrictEqual(I({ canInstall: false }), ["Open MGB Desk", "Help"]);
   assert.deepStrictEqual(I({ installed: true, canInstall: true }), ["Open MGB Desk", "Help"]);
   assert.deepStrictEqual(L.WB_deskLaunchItems({ installed: true }).map((x) => x.id), ["open-app", "help"]);
   assert.deepStrictEqual(L.WB_deskLaunchItems({ canInstall: true }).map((x) => x.id), ["open", "get", "help"]);
-  assert.deepStrictEqual(I({ canInstall: true, standalone: true }), ["Open MGB Desk", "Get MGB Desk", "Help"]);
+  assert.deepStrictEqual(I({ canInstall: true, standalone: true }), ["Open MGB Desk", "Download MGB Desk", "Help"]);
   assert.deepStrictEqual(I({ canInstall: true, mobile: true }), []);
   assert.deepStrictEqual(I({ canInstall: true, narrow: true }), []);
   assert.deepStrictEqual(I(undefined), ["Open MGB Desk", "Help"]);
