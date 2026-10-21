@@ -3315,3 +3315,257 @@ html.tk-dragging * {
     transition: none;
   }
 }
+
+/* ---- Slate app P1: board view (preview) -------------------------------------
+   Only rendered inside the Slate app in regular and full sizes (TK_boardAllowed).
+   Hidden under .tk-m-compact and .tk-m-sliver as a second guard. Colors come
+   from the shared tokens, so dark mode follows them. */
+
+.tk-seg {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.tk-seg-btn {
+  min-height: 32px;
+  padding: 5px 12px;
+  border: 0;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.tk-seg-btn:first-child {
+  border-left: 0;
+}
+
+.tk-seg-btn:hover {
+  background: var(--hover-bg);
+}
+
+.tk-seg-btn.is-on {
+  background: var(--accent-soft);
+  color: var(--ink-strong);
+  font-weight: 600;
+}
+
+.tk-seg-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.tk-board-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tk-board-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.tk-board {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 2px 14px;
+  scroll-padding: 0 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tk-board-col {
+  flex: none;
+  width: 264px;
+  max-width: 82vw;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  background: var(--surface-2);
+}
+
+.tk-board-col.is-collapsed {
+  width: 168px;
+}
+
+.tk-board-head {
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.tk-board-head-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tk-board-head-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 8px;
+}
+
+.tk-board-col.is-collapsed .tk-board-head-btn .tk-chev {
+  transform: rotate(-90deg);
+}
+
+.tk-board-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-board-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0 8px 10px;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tk-board-cards.is-folded {
+  min-height: 28px;
+}
+
+.tk-board-cards.is-folded > li {
+  display: none;
+}
+
+.tk-board-empty {
+  padding: 10px 4px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.tk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tk-card:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+.tk-card:focus-visible,
+.tk-card.is-focused {
+  outline: 2px solid var(--selected-outline, var(--accent));
+  outline-offset: 1px;
+}
+
+.tk-card.is-draggable {
+  cursor: grab;
+}
+
+.tk-card.is-done .tk-card-title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.tk-card-title {
+  font-size: 13.5px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.tk-card-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.tk-card-title a:hover {
+  text-decoration: underline;
+}
+
+.tk-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tk-card-prio {
+  display: inline-flex;
+  align-items: center;
+}
+
+.tk-card-client,
+.tk-card-section {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-card-subs {
+  padding: 1px 6px;
+  border: 1px solid var(--muted-line);
+  border-radius: 999px;
+}
+
+.tk-card-who {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tk-card-unassigned {
+  font-style: italic;
+}
+
+.tk-drop-no {
+  outline: 2px dashed var(--bad);
+  outline-offset: 2px;
+  border-radius: 6px;
+  cursor: not-allowed;
+}
+
+.tk-m-compact .tk-board-wrap,
+.tk-m-sliver .tk-board-wrap,
+.tk-m-compact .tk-board-switch,
+.tk-m-sliver .tk-board-switch {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-board {
+    scroll-behavior: auto;
+  }
+  .tk-board-col.is-collapsed .tk-board-head-btn .tk-chev {
+    transition: none;
+  }
+}

@@ -1172,19 +1172,54 @@ function TK_vListBody(props) {
     !!manualScope &&
     TK_manualOrderAllowed({ inApp: manualInApp, mode: manualMode && manualMode.mode, kind: manualKind, sort: null, readOnly: archived || !online });
   var manualOn = manualCan && manualPair[0] && !sort;
-  var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder(manualScope, manualOn) : {};
+  // Slate app P1: List | Board, remembered per person per list. Columns are
+  // statuses or (project and client lists) sections; inside a column the
+  // person's manual order when no column sort is set. App only, regular or full.
+  var boardLay = typeof TK_useBoardLayout === "function" && manualKind ? TK_useBoardLayout(email, "list:" + (listKey || ""), manualKind) : null;
+  var boardCan = !!boardLay && !!listKey && typeof TK_boardAllowed === "function" && TK_boardAllowed({ inApp: manualInApp, mode: manualMode && manualMode.mode, kind: manualKind });
+  var boardOn = boardCan && boardLay.layout === "board";
+  if (boardOn) manualOn = false;
+  var boardReorder = boardOn && manualCan && !sort;
+  var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder(manualScope, manualOn || boardReorder) : {};
   if (manualOn && typeof TK_manualSortGroups === "function") groups = TK_manualSortGroups(groups, manualKeys);
   // Subtasks open inline under their parent; one in the same group as its
   // parent is shown there, not as its own row.
   var subs = TK_vUseSubtasks(all);
   groups = TK_subNestGroups(groups, subs.kidsOf);
+  var boardBy = boardLay ? boardLay.by || (boardLay.choices && boardLay.choices[0]) || "status" : "status";
+  var board =
+    typeof TK_useBoard === "function"
+      ? TK_useBoard({
+          on: boardOn,
+          kind: manualKind,
+          by: boardBy,
+          scope: manualScope,
+          tasks: boardOn ? TK_sortTasks(TK_applyFilters(all, { assignee: filters.assignee, statuses: filters.statuses, showDone: true, showOlder: filters.showOlder, today: today }), sort, { nameOf: nameOf }) : [],
+          sections: project ? project.sections : [],
+          canReorder: boardReorder,
+          manualKeys: manualKeys,
+          readOnly: archived || !online,
+          isAdmin: isAdmin,
+          today: today,
+          clientNames: clientNames,
+          nameOf: nameOf,
+          subs: subs,
+          focusedId: focusedId,
+          setFocusedId: setFocusedId,
+          showClient: route.view !== "client",
+          showSection: boardBy !== "section" && route.view === "project",
+          label: route.view === "project" ? (project && project.name) || "Project" : route.view === "client" ? (client && client.name) || "Client" : "List",
+        })
+      : { ids: [], el: null };
   var ids = [];
-  groups.forEach(function (g) {
-    if (collapsed[g.key]) return;
-    g.tasks.forEach(function (t) {
-      if (t && t.id != null) ids.push(t.id);
+  if (boardOn) ids = board.ids;
+  else
+    groups.forEach(function (g) {
+      if (collapsed[g.key]) return;
+      g.tasks.forEach(function (t) {
+        if (t && t.id != null) ids.push(t.id);
+      });
     });
-  });
   var byId = {};
   all.forEach(function (t) {
     if (t && t.id != null) byId[t.id] = t;
@@ -1235,7 +1270,7 @@ function TK_vListBody(props) {
   var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
   var bulk = TK_useBulkSelect({
     ids: ids,
-    enabled: !readOnly && slateWide,
+    enabled: !readOnly && slateWide && !boardOn,
     keys: keysOn,
   });
 
@@ -1359,8 +1394,9 @@ function TK_vListBody(props) {
       ) : (
         <TK_vFilters value={filters} onChange={patchFilters} people={people} hideAssignee={route.view === "person"} />
       )}
-      {route.view === "person" ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
-      {manualCan ? (
+      {route.view === "person" && !boardOn ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
+      {boardCan && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardBy} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
+      {manualCan && !boardOn ? (
         <button
           type="button"
           className={"tk-tool-btn tk-manual-btn" + (manualOn ? " is-on" : "")}
@@ -1386,7 +1422,7 @@ function TK_vListBody(props) {
           <span>Manual order</span>
         </button>
       ) : null}
-      {sort && !byClient ? (
+      {sort && !byClient && !boardOn ? (
         <button
           type="button"
           className="tk-tool-btn"
@@ -1440,6 +1476,7 @@ function TK_vListBody(props) {
   var body;
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (list.error && !all.length) body = <TK_vErrorState onRetry={list.reload} />;
+  else if (boardOn) body = board.el;
   else {
     var rowFor = function (t) {
       return (

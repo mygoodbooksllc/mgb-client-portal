@@ -2051,4 +2051,157 @@ t("manual patches, sorting, announce, pref", () => {
   assert.strictEqual(L.TK_manualPrefWrite("[1]", "my", true), '{"my":true}');
 });
 
+// ---- Slate app P1: board view ----------------------------------------------------
+const bk = (id, status, extra) => Object.assign({ id: id, status: status, assignee_email: "me@x.com" }, extra || {});
+t("board allowed only in the app at regular or full", () => {
+  assert.strictEqual(L.TK_boardAllowed({ inApp: true, mode: "regular", kind: "my" }), true);
+  assert.strictEqual(L.TK_boardAllowed({ inApp: true, mode: "full", kind: "project" }), true);
+  assert.strictEqual(L.TK_boardAllowed({ inApp: true, mode: "compact", kind: "my" }), false);
+  assert.strictEqual(L.TK_boardAllowed({ inApp: true, mode: "sliver", kind: "my" }), false);
+  assert.strictEqual(L.TK_boardAllowed({ inApp: false, mode: "full", kind: "my" }), false);
+  assert.strictEqual(L.TK_boardAllowed({ inApp: true, mode: "full", kind: "search" }), false);
+  assert.strictEqual(L.TK_boardAllowed(null), false);
+});
+t("board group choices", () => {
+  assert.deepStrictEqual(L.TK_boardGroupChoices("my"), ["status"]);
+  assert.deepStrictEqual(L.TK_boardGroupChoices("project"), ["section", "status"]);
+  assert.deepStrictEqual(L.TK_boardGroupChoices("client"), ["status", "section"]);
+  assert.deepStrictEqual(L.TK_boardGroupChoices("person"), ["status"]);
+  assert.deepStrictEqual(L.TK_boardGroupChoices("x"), []);
+});
+t("board layout memory per person per list", () => {
+  assert.deepStrictEqual(L.TK_boardLayoutRead(null, "a@x.com", "my", "my"), { layout: "list", by: "" });
+  assert.deepStrictEqual(L.TK_boardLayoutRead("not json", "a@x.com", "my", "my"), { layout: "list", by: "" });
+  let raw = L.TK_boardLayoutWrite(null, "A@x.com", "my", "board", "");
+  assert.strictEqual(raw, '{"a@x.com":{"my":"board"}}');
+  assert.deepStrictEqual(L.TK_boardLayoutRead(raw, "a@x.com", "my", "my"), { layout: "board", by: "" });
+  assert.deepStrictEqual(L.TK_boardLayoutRead(raw, "b@x.com", "my", "my"), { layout: "list", by: "" }, "another person");
+  raw = L.TK_boardLayoutWrite(raw, "a@x.com", "list:project:p1", "board", "status");
+  assert.deepStrictEqual(L.TK_boardLayoutRead(raw, "a@x.com", "list:project:p1", "project"), { layout: "board", by: "status" });
+  assert.deepStrictEqual(L.TK_boardLayoutRead('{"a@x.com":{"s":"board:section"}}', "a@x.com", "s", "person"), { layout: "board", by: "" }, "a by the kind can't use is dropped");
+  raw = L.TK_boardLayoutWrite(raw, "a@x.com", "my", "list");
+  assert.strictEqual(raw, '{"a@x.com":{"list:project:p1":"board:status"}}');
+  assert.strictEqual(L.TK_boardLayoutWrite(raw, "a@x.com", "list:project:p1", "list"), "{}");
+  assert.strictEqual(L.TK_boardLayoutWrite('{"a@x.com":{"my":"junk","z":3}}', "a@x.com", "q", "list"), "{}", "junk is dropped");
+  let big = null;
+  for (let i = 0; i < 205; i++) big = L.TK_boardLayoutWrite(big, "a@x.com", "s" + i, "board");
+  assert.strictEqual(Object.keys(JSON.parse(big)["a@x.com"]).length, 200);
+  assert.strictEqual(JSON.parse(big)["a@x.com"].s0, undefined, "the oldest go first");
+});
+t("board status columns", () => {
+  const cols = L.TK_boardColumns([bk("a", "todo"), bk("b", "done"), bk("c", "todo"), bk("d", "waiting_client"), null], { by: "status" });
+  assert.deepStrictEqual(cols.map((c) => c.key), ["status:todo", "status:in_progress", "status:waiting_client", "status:ready_for_review", "status:done"]);
+  assert.deepStrictEqual(cols[0].tasks.map((x) => x.id), ["a", "c"], "input order kept");
+  assert.strictEqual(cols[1].tasks.length, 0, "empty columns stay");
+  assert.strictEqual(cols[4].collapsed, true, "Done is folded");
+  assert.strictEqual(cols[0].collapsed, false);
+  assert.strictEqual(cols[2].status, "waiting_client");
+  assert.strictEqual(cols[0].label, "To do");
+  const open = L.TK_boardColumns([bk("b", "done")], { by: "status", collapsed: { "status:done": false, "status:todo": true } });
+  assert.strictEqual(open[4].collapsed, false);
+  assert.strictEqual(open[0].collapsed, true);
+});
+t("board section columns", () => {
+  const tasks = [bk("a", "todo", { section: "Setup" }), bk("b", "todo", { section: "Other" }), bk("c", "todo")];
+  const p = L.TK_boardColumns(tasks, { by: "section", kind: "project", sections: ["Setup", "Close"] });
+  assert.deepStrictEqual(p.map((c) => c.key), ["section:Setup", "section:Close", "section:Other", "section:"]);
+  assert.strictEqual(p[3].label, "No section");
+  assert.strictEqual(p[3].section, "");
+  assert.deepStrictEqual(p[3].tasks.map((x) => x.id), ["c"]);
+  const noneEmpty = L.TK_boardColumns([bk("a", "todo", { section: "Setup" })], { by: "section", kind: "project", sections: ["Setup"] });
+  assert.deepStrictEqual(noneEmpty.map((c) => c.key), ["section:Setup", "section:"], "a project always has No section");
+  const cl = L.TK_boardColumns([bk("a", "todo", { section: "Monthly" }), bk("b", "todo", { section: "Weekly" })], { by: "section", kind: "client" });
+  assert.deepStrictEqual(cl.map((c) => c.key), ["section:Weekly", "section:Monthly"], "client order, no empty No section");
+});
+t("board pending placement", () => {
+  const cols = L.TK_boardColumns([bk("a", "todo"), bk("b", "todo"), bk("c", "in_progress")], { by: "status" });
+  const p = L.TK_boardApplyPending(cols, { a: { key: "status:in_progress", index: 1 } });
+  assert.deepStrictEqual(p[0].tasks.map((x) => x.id), ["b"]);
+  assert.deepStrictEqual(p[1].tasks.map((x) => x.id), ["c", "a"]);
+  assert.strictEqual(p[2], cols[2], "untouched columns keep their object");
+  assert.strictEqual(L.TK_boardApplyPending(cols, {}), cols);
+  assert.strictEqual(L.TK_boardApplyPending(cols, { a: { key: "status:nope", index: 0 } }), cols, "a missing column changes nothing");
+  assert.strictEqual(L.TK_boardApplyPending(cols, { zz: { key: "status:done", index: 0 } })[4].tasks.length, 0, "an unknown task is ignored");
+});
+t("board ids skip folded columns", () => {
+  const cols = L.TK_boardColumns([bk("a", "todo"), bk("b", "done"), bk("c", "in_progress")], { by: "status" });
+  assert.deepStrictEqual(L.TK_boardIds(cols), ["a", "c"]);
+});
+t("board drop rules follow the status pill", () => {
+  const cols = L.TK_boardColumns([], { by: "status" });
+  const C = (st) => cols.filter((c) => c.status === st)[0];
+  const items = (list) => list.map((s) => (typeof s === "string" ? { status: s, label: s } : s));
+  const task = bk("a", "todo");
+  assert.deepStrictEqual(L.TK_boardDropCheck(task, C("todo"), C("in_progress"), { items: items(["in_progress", "done"]) }), { ok: true, action: "set" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(task, C("todo"), C("done"), { items: items(["in_progress", "done"]) }), { ok: true, action: "complete" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(task, C("todo"), C("todo"), { canReorder: true }), { ok: true, action: "reorder" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(task, C("todo"), C("todo"), {}), { ok: false, why: "sorted" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(task, C("todo"), C("done"), { readOnly: true, items: items(["done"]) }), { ok: false, why: "read_only" });
+  const gated = bk("g", "todo", { review_required: true });
+  assert.deepStrictEqual(L.TK_boardDropCheck(gated, C("todo"), C("done"), { items: items(["in_progress", "ready_for_review"]) }), { ok: false, why: "gated" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(gated, C("todo"), C("ready_for_review"), { items: items(["in_progress", "ready_for_review"]) }), { ok: true, action: "set" });
+  const done = bk("d", "done");
+  assert.deepStrictEqual(L.TK_boardDropCheck(done, C("done"), C("ready_for_review"), { items: items(["todo", "in_progress"]) }), { ok: false, why: "from_done" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(done, C("done"), C("todo"), { items: items(["todo", "in_progress"]) }), { ok: true, action: "set" });
+  const rev = bk("r", "ready_for_review");
+  const asReviewer = items([{ status: "todo", action: "withdraw" }, { status: "in_progress", action: "send_back" }, { status: "done", action: "approve" }]);
+  assert.deepStrictEqual(L.TK_boardDropCheck(rev, C("ready_for_review"), C("done"), { items: asReviewer }), { ok: true, action: "approve" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(rev, C("ready_for_review"), C("in_progress"), { items: asReviewer }), { ok: false, why: "send_back" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(rev, C("ready_for_review"), C("todo"), { items: asReviewer }), { ok: true, action: "set" });
+  const asOwner = items([{ status: "todo", action: "withdraw" }, { status: "in_progress", action: "withdraw" }]);
+  assert.deepStrictEqual(L.TK_boardDropCheck(rev, C("ready_for_review"), C("in_progress"), { items: asOwner }), { ok: true, action: "withdraw" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(rev, C("ready_for_review"), C("done"), { items: asOwner }), { ok: false, why: "in_review" });
+  const un = bk("u", "todo", { assignee_email: "" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(un, C("todo"), C("in_progress"), { kind: "my", items: items(["in_progress"]) }), { ok: false, why: "unassigned" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(un, C("todo"), C("in_progress"), { kind: "project", items: items(["in_progress"]) }), { ok: true, action: "set" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(task, C("todo"), C("waiting_client"), { items: items(["in_progress"]) }), { ok: false, why: "not_allowed" });
+  assert.strictEqual(L.TK_boardDropCheck(null, C("todo"), C("done"), {}).ok, false);
+});
+t("board section drops: project sections only", () => {
+  const cols = L.TK_boardColumns([bk("a", "todo", { section: "Setup" }), bk("b", "todo", { section: "Stray" })], { by: "section", kind: "project", sections: ["Setup", "Close"] });
+  const C = (k) => cols.filter((c) => c.key === k)[0];
+  const o = { kind: "project", sections: ["Setup", "Close"] };
+  assert.deepStrictEqual(L.TK_boardDropCheck(bk("a", "todo"), C("section:Setup"), C("section:Close"), o), { ok: true, action: "section" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(bk("a", "todo"), C("section:Setup"), C("section:"), o), { ok: true, action: "section" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(bk("a", "todo"), C("section:Setup"), C("section:Stray"), o), { ok: false, why: "section_none" });
+  assert.deepStrictEqual(L.TK_boardDropCheck(bk("a", "todo"), C("section:Setup"), C("section:Close"), { kind: "client" }), { ok: false, why: "section_kind" });
+  assert.strictEqual(L.TK_boardWhyText("section_none"), "That section isn't in this project. Add it to the project first.");
+  assert.strictEqual(L.TK_boardWhyText("nope"), L.TK_boardWhyText("not_allowed"));
+});
+t("board key moves and plans", () => {
+  const cols = L.TK_boardColumns([bk("a", "todo"), bk("b", "todo"), bk("c", "waiting_client")], { by: "status" });
+  const any = () => ({ ok: true });
+  const r = L.TK_boardKeyMove(cols, "a", "right", any);
+  assert.strictEqual(r.plan.groupKey, "status:in_progress");
+  assert.strictEqual(r.plan.index, 0);
+  assert.strictEqual(r.plan.crossGroup, true);
+  const skip = L.TK_boardKeyMove(cols, "a", "right", (f, t2) => (t2.status === "in_progress" ? { ok: false, why: "not_allowed" } : { ok: true }));
+  assert.strictEqual(skip.plan.groupKey, "status:waiting_client", "a column that refuses is skipped");
+  assert.deepStrictEqual(skip.plan.order.map((x) => x.id), ["a", "c"]);
+  assert.deepStrictEqual(L.TK_boardKeyMove(cols, "a", "right", () => ({ ok: false, why: "unassigned" })), { why: "unassigned" });
+  assert.strictEqual(L.TK_boardKeyMove(cols, "a", "left", any), null, "the board edge");
+  const down = L.TK_boardKeyMove(cols, "a", "down", any);
+  assert.deepStrictEqual(down.plan.order.map((x) => x.id), ["b", "a"]);
+  assert.strictEqual(down.plan.crossGroup, false);
+  assert.strictEqual(L.TK_boardKeyMove(cols, "b", "down", any), null, "the column edge");
+  assert.deepStrictEqual(L.TK_boardKeyMove(cols, "b", "up", () => ({ ok: false, why: "sorted" })), { why: "sorted" });
+  assert.strictEqual(L.TK_boardKeyMove(cols, "zz", "up", any), null);
+  assert.strictEqual(L.TK_boardColumnOf(cols, "c").key, "status:waiting_client");
+  const plan = L.TK_boardMovePlan(cols, "c", "status:todo", 1);
+  assert.deepStrictEqual(plan.order.map((x) => x.id), ["a", "c", "b"]);
+  assert.strictEqual(L.TK_boardAnnounce(plan, "To do"), "Moved to To do, position 2 of 3.");
+  assert.strictEqual(L.TK_boardAnnounce(down.plan, "To do"), "Moved to position 2 of 2 in To do.");
+  assert.strictEqual(L.TK_boardAnnounce(null), "");
+});
+t("saved views carry layout board, older views unchanged", () => {
+  assert.deepStrictEqual(L.TK_normalizeSlateView({ groupBy: "status", layout: "board" }), { groupBy: "status", sort: null, chip: "", layout: "board" });
+  assert.deepStrictEqual(L.TK_normalizeSlateView({ groupBy: "status", layout: "list" }), { groupBy: "status", sort: null, chip: "" });
+  assert.deepStrictEqual(L.TK_normalizeSlateView({ layout: "grid" }), { groupBy: "due", sort: null, chip: "" });
+  assert.strictEqual(L.TK_sameSlateView({ groupBy: "due" }, { groupBy: "due", layout: "list" }), true);
+  assert.strictEqual(L.TK_sameSlateView({ groupBy: "due" }, { groupBy: "due", layout: "board" }), false);
+  const merged = L.TK_mergeSavedViews([{ id: 1, name: "Board", view: { groupBy: "due", layout: "board" }, position: 1 }], { groupBy: "due" });
+  assert.strictEqual(L.TK_activeSavedViewId(merged, { groupBy: "due", layout: "board" }), "1");
+  assert.strictEqual(L.TK_activeSavedViewId(merged, { groupBy: "due" }), "__default__");
+});
+
 console.log(n + " checks passed");

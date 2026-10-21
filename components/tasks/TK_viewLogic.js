@@ -25,6 +25,9 @@
 //                                         TK_slateDockHashOk, TK_slateAppUrl, TK_slateLaunchItems
 //   Slate app P3 (preview)                TK_validateViewName, TK_mergeSavedViews, TK_activeSavedViewId (named saved views);
 //                                         TK_bulkSetOffer, TK_bulkSetPlan, TK_bulkSameProject (bulk Status, Priority, Section)
+//   Slate app P2 (preview)                TK_manual* (per-person manual order, drag and Alt+Up/Down)
+//   Slate app P1 (preview)                TK_boardAllowed, TK_boardColumns, TK_boardDropCheck, TK_boardKeyMove,
+//                                         TK_boardLayoutRead/Write (List | Board per list), TK_boardAnnounce
 //
 // TK_logic.js loads first, so TK_compareTasks, TK_isOldDone and
 // TK_CLIENT_SECTION_ORDER are used when they exist. Under node (where only
@@ -1467,7 +1470,11 @@ function TK_normalizeSlateView(raw) {
   var s = r.sort && typeof r.sort === "object" ? r.sort : null;
   var sort = s && TK_vInList(TK_SLATE_SORTS, "col", s.col) ? { col: s.col, dir: s.dir === "desc" ? "desc" : "asc" } : null;
   var chip = TK_vInList(TK_SLATE_CHIPS, "key", r.chip) ? r.chip : "";
-  return { groupBy: groupBy, sort: sort, chip: chip };
+  var out = { groupBy: groupBy, sort: sort, chip: chip };
+  // Slate app P1: a saved view may carry layout "board". Only "board" is kept,
+  // so a view without it (every older one) stays exactly as it was.
+  if (r.layout === "board") out.layout = "board";
+  return out;
 }
 
 // saved: the stored view (or null). legacyGroupBy: the old Due date | Client
@@ -1576,7 +1583,7 @@ function TK_mergeSavedViews(rows, defaultView) {
 function TK_sameSlateView(a, b) {
   var x = TK_normalizeSlateView(a);
   var y = TK_normalizeSlateView(b);
-  return x.groupBy === y.groupBy && x.chip === y.chip &&
+  return x.groupBy === y.groupBy && x.chip === y.chip && (x.layout || "list") === (y.layout || "list") &&
     (x.sort ? x.sort.col + ":" + x.sort.dir : "") === (y.sort ? y.sort.col + ":" + y.sort.dir : "");
 }
 
@@ -2640,5 +2647,305 @@ if (typeof module !== "undefined" && module.exports) {
     TK_manualAnnounce: TK_manualAnnounce,
     TK_manualPrefRead: TK_manualPrefRead,
     TK_manualPrefWrite: TK_manualPrefWrite,
+  });
+}
+
+// ---- Slate app P1: board view (columns by status or section) -----------------
+// Kept in its own block (other slices edit this file). Pure helpers only; the
+// board itself is TK_Board.jsx. App only: TK_boardAllowed needs the Slate app
+// at regular or full width, so the portal page, compact and sliver keep the
+// list exactly as before.
+//
+// Moves reuse the single-task paths. A status column changes status the way
+// the status pill does (TK_nextStatuses decides what is allowed, Done goes
+// through the completion path so the review gate and recurring apply). A
+// section column changes section through tk_manual_reorder (project lists
+// only, P2 rule). The order inside a column is the person's manual order
+// (tk_manual_order) when no sort is set.
+var TK_BOARD_LAYOUT_KEY = "mgb_tk_layout_v1";
+var TK_BOARD_KINDS = ["my", "project", "client", "person"];
+var TK_BOARD_LAYOUT_MAX = 200; // remembered lists per person
+
+// o: { inApp, mode, kind }
+function TK_boardAllowed(o) {
+  o = o || {};
+  if (!o.inApp) return false;
+  if (o.mode !== "regular" && o.mode !== "full") return false;
+  return TK_BOARD_KINDS.indexOf(o.kind) >= 0;
+}
+
+// The group-by choices for a board, the default first. One choice: no switch.
+function TK_boardGroupChoices(kind) {
+  if (kind === "project") return ["section", "status"];
+  if (kind === "client") return ["status", "section"];
+  if (kind === "my" || kind === "person") return ["status"];
+  return [];
+}
+
+// The remembered layout for one list: { layout: "list" | "board", by }.
+// raw: the stored JSON { "<email>": { "<scope>": "board" | "board:<by>" } }.
+// by is "" when nothing valid is stored (the caller takes the default).
+function TK_boardLayoutRead(raw, email, scope, kind) {
+  var o = null;
+  try { o = typeof raw === "string" ? JSON.parse(raw) : raw; } catch (e) { o = null; }
+  var mine = o && typeof o === "object" && !Array.isArray(o) ? o[TK_vLower(email)] : null;
+  var v = mine && typeof mine === "object" && !Array.isArray(mine) ? mine[scope] : null;
+  if (typeof v !== "string" || (v !== "board" && v.indexOf("board:") !== 0)) return { layout: "list", by: "" };
+  var by = v.indexOf("board:") === 0 ? v.slice(6) : "";
+  if (TK_boardGroupChoices(kind).indexOf(by) < 0) by = "";
+  return { layout: "board", by: by };
+}
+
+// The new stored JSON. Only "board" is kept; "list" removes the entry, so a
+// list nobody switched stores nothing. At most TK_BOARD_LAYOUT_MAX per person.
+function TK_boardLayoutWrite(raw, email, scope, layout, by) {
+  var o = null;
+  try { o = typeof raw === "string" ? JSON.parse(raw) : raw; } catch (e) { o = null; }
+  if (!o || typeof o !== "object" || Array.isArray(o)) o = {};
+  var who = TK_vLower(email);
+  var out = {};
+  Object.keys(o).forEach(function (k) {
+    if (k !== who && o[k] && typeof o[k] === "object" && !Array.isArray(o[k])) out[k] = o[k];
+  });
+  var prev = o[who] && typeof o[who] === "object" && !Array.isArray(o[who]) ? o[who] : {};
+  var mine = {};
+  Object.keys(prev).forEach(function (k) {
+    if (k !== scope && typeof prev[k] === "string" && (prev[k] === "board" || prev[k].indexOf("board:") === 0)) mine[k] = prev[k];
+  });
+  if (layout === "board" && scope) mine[scope] = by ? "board:" + by : "board";
+  var keys = Object.keys(mine);
+  while (keys.length > TK_BOARD_LAYOUT_MAX) delete mine[keys.shift()];
+  if (Object.keys(mine).length) out[who] = mine;
+  return JSON.stringify(out);
+}
+
+function TK_vBoardLabel(st) {
+  var labels = typeof TK_STATUS_LABELS !== "undefined" && TK_STATUS_LABELS ? TK_STATUS_LABELS : TK_vSTATUS_LABEL_FALLBACK;
+  return labels[st] || TK_vSTATUS_LABEL_FALLBACK[st] || st;
+}
+
+// tasks: in the order to show (sorted first). o: { by: "status" | "section",
+// kind, sections (the project's), collapsed: { key: bool } }.
+// Status: all five columns in workflow order, always (empty ones too, so each
+// can take a drop); Done is folded unless opened. Section: TK_groupBySection's
+// columns; a project always ends with "No section".
+// -> [{ key, label, status | section, tasks, collapsed }]
+function TK_boardColumns(tasks, o) {
+  o = o || {};
+  var col = o.collapsed || {};
+  var has = function (k) { return Object.prototype.hasOwnProperty.call(col, k); };
+  var list = (Array.isArray(tasks) ? tasks : []).filter(function (t) { return !!t; });
+  if (o.by === "section") {
+    var gs = TK_groupBySection(list, { kind: o.kind === "project" ? "project" : "client", sections: o.sections || [] });
+    var out = gs.map(function (g) {
+      var key = "section:" + g.key;
+      return { key: key, label: g.name, section: g.key, tasks: g.tasks, collapsed: has(key) ? !!col[key] : false };
+    });
+    if (o.kind === "project" && !out.some(function (c) { return c.section === ""; })) {
+      out.push({ key: "section:", label: "No section", section: "", tasks: [], collapsed: has("section:") ? !!col["section:"] : false });
+    }
+    return out;
+  }
+  var by = {};
+  list.forEach(function (t) {
+    var st = TK_vStatus(t);
+    (by[st] = by[st] || []).push(t);
+  });
+  return TK_vSTATUS_ORDER.map(function (st) {
+    var key = "status:" + st;
+    return { key: key, label: TK_vBoardLabel(st), status: st, tasks: by[st] || [], collapsed: has(key) ? !!col[key] : st === "done" };
+  });
+}
+
+// Optimistic placement while a status change is on its way.
+// pending: { taskId: { key, index } }. Returns new columns (others keep their
+// object); a pending task found nowhere is ignored.
+function TK_boardApplyPending(columns, pending) {
+  var cols = Array.isArray(columns) ? columns : [];
+  var p = pending && typeof pending === "object" ? pending : {};
+  var ids = Object.keys(p).filter(function (id) {
+    var dest = p[id] || {};
+    return cols.some(function (c) { return c && c.key === dest.key; });
+  });
+  if (!ids.length) return cols;
+  var moved = {};
+  var out = cols.map(function (c) {
+    if (!c || !Array.isArray(c.tasks)) return c;
+    var keep = c.tasks.filter(function (t) {
+      if (t && t.id != null && Object.prototype.hasOwnProperty.call(p, String(t.id))) {
+        moved[String(t.id)] = t;
+        return false;
+      }
+      return true;
+    });
+    if (keep.length === c.tasks.length) return c;
+    var n = {};
+    for (var k in c) if (Object.prototype.hasOwnProperty.call(c, k)) n[k] = c[k];
+    n.tasks = keep;
+    return n;
+  });
+  ids.forEach(function (id) {
+    var t = moved[id];
+    if (!t) return;
+    var dest = p[id] || {};
+    var placed = false;
+    out = out.map(function (c) {
+      if (placed || !c || c.key !== dest.key) return c;
+      placed = true;
+      var n = {};
+      for (var k in c) if (Object.prototype.hasOwnProperty.call(c, k)) n[k] = c[k];
+      var at = Math.max(0, Math.min(Number(dest.index) || 0, c.tasks.length));
+      n.tasks = c.tasks.slice(0, at).concat([t], c.tasks.slice(at));
+      return n;
+    });
+  });
+  return out;
+}
+
+// The focus order: column by column, top to bottom, folded columns skipped.
+function TK_boardIds(columns) {
+  var out = [];
+  (Array.isArray(columns) ? columns : []).forEach(function (c) {
+    if (!c || c.collapsed) return;
+    (c.tasks || []).forEach(function (t) {
+      if (t && t.id != null) out.push(t.id);
+    });
+  });
+  return out;
+}
+
+// Can task move from column `from` to column `to`? o: { kind, items (the
+// TK_nextStatuses list for the task), sections (the project's), readOnly,
+// canReorder }.
+// -> { ok: true, action: "reorder" | "section" | "set" | "complete" | "approve" | "withdraw" }
+//    or { ok: false, why }
+// Status rules are the status pill's: an item must exist for the target; a
+// send back needs a note, so it is never a drop. On My tasks an Unassigned
+// task is claimed first (its row has no status menu there either).
+function TK_boardDropCheck(task, from, to, o) {
+  o = o || {};
+  var no = function (why) { return { ok: false, why: why }; };
+  if (!task || !from || !to) return no("not_allowed");
+  if (o.readOnly) return no("read_only");
+  if (from.key === to.key) return o.canReorder ? { ok: true, action: "reorder" } : no("sorted");
+  if (to.status) {
+    var fromSt = TK_vStatus(task);
+    if (o.kind === "my" && !TK_vLower(task.assignee_email)) return no("unassigned");
+    var items = Array.isArray(o.items) ? o.items : [];
+    var item = null;
+    for (var i = 0; i < items.length; i++) if (items[i] && items[i].status === to.status) item = items[i];
+    if (!item) {
+      if (fromSt === "done" && (to.status === "waiting_client" || to.status === "ready_for_review")) return no("from_done");
+      if (fromSt === "ready_for_review") return no("in_review");
+      if (to.status === "done" && task.review_required) return no("gated");
+      return no("not_allowed");
+    }
+    if (item.action === "send_back") return no("send_back");
+    if (item.action === "approve") return { ok: true, action: "approve" };
+    if (item.action === "withdraw" && to.status === "in_progress") return { ok: true, action: "withdraw" };
+    if (to.status === "done") return { ok: true, action: "complete" };
+    return { ok: true, action: "set" };
+  }
+  if (to.section != null) {
+    if (o.kind !== "project") return no("section_kind");
+    if (to.section === "") return { ok: true, action: "section" };
+    var secs = Array.isArray(o.sections) ? o.sections : [];
+    var want = String(to.section).trim().toLowerCase();
+    for (var j = 0; j < secs.length; j++) {
+      if (secs[j] != null && String(secs[j]).trim().toLowerCase() === want) return { ok: true, action: "section" };
+    }
+    return no("section_none");
+  }
+  return no("not_allowed");
+}
+
+var TK_BOARD_WHY = {
+  read_only: "This list is read only.",
+  sorted: "A sort is on, so the order follows the sort. Clear the sort to set your own order.",
+  unassigned: "Claim this task first, then move it.",
+  from_done: "A done task can't go there. Move it to To do or In progress first.",
+  in_review: "This task is in review. Only a reviewer can approve it.",
+  gated: "This task needs a review. Drop it on Ready for review instead.",
+  send_back: "To send it back, use the status menu so you can add a note.",
+  section_kind: "Only a project's sections can be changed by dragging.",
+  section_none: "That section isn't in this project. Add it to the project first.",
+  not_allowed: "That move isn't allowed for this task.",
+};
+
+function TK_boardWhyText(why) {
+  return Object.prototype.hasOwnProperty.call(TK_BOARD_WHY, why) ? TK_BOARD_WHY[why] : TK_BOARD_WHY.not_allowed;
+}
+
+// The column holding task id, or null.
+function TK_boardColumnOf(columns, id) {
+  var cols = Array.isArray(columns) ? columns : [];
+  for (var i = 0; i < cols.length; i++) {
+    var ts = (cols[i] && cols[i].tasks) || [];
+    for (var j = 0; j < ts.length; j++) if (ts[j] && String(ts[j].id) === String(id)) return cols[i];
+  }
+  return null;
+}
+
+// A drop of id into column key at gap index, as a manual-order plan (P2's
+// TK_manualDropPlan, columns as groups, crossing allowed). null = no change.
+function TK_boardMovePlan(columns, id, key, index) {
+  return TK_manualDropPlan(columns, id, key, index, { crossGroup: true });
+}
+
+// Alt+Arrow on a card. dir: "left" | "right" (the next column that takes the
+// task, at its top) or "up" | "down" (one place within the column).
+// allow(fromCol, toCol) -> { ok, why }. Returns { plan } or { why } or null
+// (nothing to do: the edge of the board or the column).
+function TK_boardKeyMove(columns, id, dir, allow) {
+  var cols = Array.isArray(columns) ? columns : [];
+  var from = TK_boardColumnOf(cols, id);
+  if (!from) return null;
+  if (dir === "up" || dir === "down") {
+    var plan = TK_manualKeyTarget([from], id, dir === "up" ? -1 : 1, { crossGroup: false });
+    if (!plan) return null;
+    var ok = typeof allow === "function" ? allow(from, from) : { ok: true };
+    return ok && ok.ok ? { plan: plan } : { why: (ok && ok.why) || "not_allowed" };
+  }
+  if (dir !== "left" && dir !== "right") return null;
+  var step = dir === "left" ? -1 : 1;
+  var at = cols.indexOf(from);
+  var firstWhy = null;
+  for (var i = at + step; i >= 0 && i < cols.length; i += step) {
+    var to = cols[i];
+    var r = typeof allow === "function" ? allow(from, to) : { ok: true };
+    if (r && r.ok) {
+      var p = TK_boardMovePlan(cols, id, to.key, 0);
+      return p ? { plan: p } : null;
+    }
+    if (!firstWhy) firstWhy = (r && r.why) || "not_allowed";
+  }
+  return firstWhy ? { why: firstWhy } : null;
+}
+
+// The live-region line after a board move.
+function TK_boardAnnounce(plan, label) {
+  if (!plan) return "";
+  var n = (plan.order || []).length;
+  if (plan.crossGroup) return "Moved to " + (label || "the column") + ", position " + (plan.index + 1) + " of " + n + ".";
+  return TK_manualAnnounce(plan, label);
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  Object.assign(module.exports, {
+    TK_BOARD_LAYOUT_KEY: TK_BOARD_LAYOUT_KEY,
+    TK_BOARD_KINDS: TK_BOARD_KINDS,
+    TK_boardAllowed: TK_boardAllowed,
+    TK_boardGroupChoices: TK_boardGroupChoices,
+    TK_boardLayoutRead: TK_boardLayoutRead,
+    TK_boardLayoutWrite: TK_boardLayoutWrite,
+    TK_boardColumns: TK_boardColumns,
+    TK_boardApplyPending: TK_boardApplyPending,
+    TK_boardIds: TK_boardIds,
+    TK_boardDropCheck: TK_boardDropCheck,
+    TK_boardWhyText: TK_boardWhyText,
+    TK_boardColumnOf: TK_boardColumnOf,
+    TK_boardMovePlan: TK_boardMovePlan,
+    TK_boardKeyMove: TK_boardKeyMove,
+    TK_boardAnnounce: TK_boardAnnounce,
   });
 }

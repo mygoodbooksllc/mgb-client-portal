@@ -17191,6 +17191,8 @@ const USAGE_ACTION_LABELS = {
   "tasks-search": "Task searches",
   "tasks-shortcut": "Task keyboard shortcuts used",
   "tasks-reorder": "Tasks reordered by hand (Slate app)",
+  "slate-board-open": "Slate app board opened",
+  "slate-board-move": "Slate app board: card moved",
   "tasks-popout": "Slate opened in its own window",
   "slate-app-open": "Slate app window opened from the portal",
   "slate-app-install": "Install Slate app clicked",

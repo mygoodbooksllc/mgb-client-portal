@@ -57,6 +57,11 @@ function TK_dragRowBottom(row) {
 // Press the [data-tk-drag-handle] inside a row and move 4px to start. A line
 // shows where it will land; near the scroll edges the list scrolls. Esc or
 // a cancelled pointer drops nothing. onMove gets a TK_manualDropPlan.
+// Slate app P1 (the board) adds, all optional, so lists behave as before:
+//   axis "x"   groups sit side by side (columns): the nearest by x wins, and
+//              the container itself scrolls sideways near its edges
+//   canDrop(fromIndex, toIndex, id) -> false marks that group .tk-drop-no
+//   onBlocked(fromIndex, toIndex, id) when the drop lands on such a group
 function TK_useRowDrag(opts) {
   var ref = React.useRef(opts || {});
   ref.current = opts || {};
@@ -82,15 +87,20 @@ function TK_useRowDrag(opts) {
         }
         var best = null;
         var bestDist = Infinity;
+        var byX = ref.current.axis === "x";
         els.forEach(function (g) {
           var r = g.getBoundingClientRect();
-          var dist = y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
+          var dist = byX ? (x < r.left ? r.left - x : x > r.right ? x - r.right : 0) : y < r.top ? r.top - y : y > r.bottom ? y - r.bottom : 0;
           if (dist < bestDist) {
             bestDist = dist;
             best = g;
           }
         });
         if (!best) return null;
+        var bestGroup = best.getAttribute("data-tk-group");
+        if (typeof ref.current.canDrop === "function" && bestGroup !== d.fromGroup && !ref.current.canDrop(Number(d.fromGroup), Number(bestGroup), d.id)) {
+          return { groupEl: best, group: bestGroup, blocked: true };
+        }
         var rows = TK_dragRows(best);
         var idx = 0;
         for (var i = 0; i < rows.length; i++) {
@@ -105,8 +115,13 @@ function TK_useRowDrag(opts) {
         if (!d || !d.active) return;
         var t = target(d.x, d.y);
         d.target = t;
-        if (!t) {
+        var no = box.querySelectorAll(".tk-drop-no");
+        for (var n = 0; n < no.length; n++) if (!t || no[n] !== t.groupEl || !t.blocked) no[n].classList.remove("tk-drop-no");
+        if (!t || t.blocked) {
           d.line.style.display = "none";
+          var was = box.querySelectorAll(".tk-drop-into");
+          for (var w = 0; w < was.length; w++) was[w].classList.remove("tk-drop-into");
+          if (t) t.groupEl.classList.add("tk-drop-no");
           return;
         }
         d.line.style.display = "block";
@@ -125,11 +140,18 @@ function TK_useRowDrag(opts) {
         var dy = 0;
         if (d.y < top + TK_DRAG_EDGE) dy = -Math.ceil(((top + TK_DRAG_EDGE - d.y) / TK_DRAG_EDGE) * TK_DRAG_SPEED);
         else if (d.y > bottom - TK_DRAG_EDGE) dy = Math.ceil(((d.y - (bottom - TK_DRAG_EDGE)) / TK_DRAG_EDGE) * TK_DRAG_SPEED);
+        var dx = 0;
+        if (ref.current.axis === "x" && box) {
+          var br = box.getBoundingClientRect();
+          if (d.x < br.left + TK_DRAG_EDGE) dx = -Math.ceil(((br.left + TK_DRAG_EDGE - d.x) / TK_DRAG_EDGE) * TK_DRAG_SPEED);
+          else if (d.x > br.right - TK_DRAG_EDGE) dx = Math.ceil(((d.x - (br.right - TK_DRAG_EDGE)) / TK_DRAG_EDGE) * TK_DRAG_SPEED);
+          if (dx) box.scrollLeft += dx;
+        }
         if (dy) {
           if (sc) sc.scrollTop += dy;
           else window.scrollBy(0, dy);
-          place();
         }
+        if (dy || dx) place();
         d.raf = window.requestAnimationFrame(tick);
       }
       function start() {
@@ -156,8 +178,8 @@ function TK_useRowDrag(opts) {
         cur.row.classList.remove("tk-drag-src");
         document.documentElement.classList.remove("tk-dragging");
         if (cur.line && cur.line.parentNode) cur.line.parentNode.removeChild(cur.line);
-        var on = box.querySelectorAll(".tk-drop-into");
-        for (var i = 0; i < on.length; i++) on[i].classList.remove("tk-drop-into");
+        var on = box.querySelectorAll(".tk-drop-into, .tk-drop-no");
+        for (var i = 0; i < on.length; i++) on[i].classList.remove("tk-drop-into", "tk-drop-no");
         // the click that ends a drag must not open the task
         var swallow = function (e) {
           e.stopPropagation();
@@ -168,6 +190,10 @@ function TK_useRowDrag(opts) {
           document.removeEventListener("click", swallow, true);
         }, 0);
         if (!commit || !cur.target) return;
+        if (cur.target.blocked) {
+          if (ref.current.onBlocked) ref.current.onBlocked(Number(cur.fromGroup), Number(cur.target.group), cur.id);
+          return;
+        }
         var gs = ref.current.groups || [];
         var g = gs[Number(cur.target.group)];
         if (!g) return;

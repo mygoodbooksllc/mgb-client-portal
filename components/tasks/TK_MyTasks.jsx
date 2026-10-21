@@ -104,6 +104,7 @@ function TK_SlateViewBar(props) {
   return (
     <div className={"tk-slate-viewbar" + (props.compact ? " is-compact" : "")} role="group" aria-label="Slate view" data-tour={props.barTour || undefined}>
       {props.viewsMenu || null}
+      {props.noGroupBy ? null : (
       <label className="tk-select-wrap tk-groupby" data-tour={props.groupTour === undefined ? "tk-groupby" : props.groupTour || undefined}>
         <span className="tk-groupby-label">Group by</span>
         <select
@@ -123,6 +124,7 @@ function TK_SlateViewBar(props) {
           })}
         </select>
       </label>
+      )}
       {chips.length ? (
         <span className="tk-sv-set" role="group" aria-label="Quick views" data-tour={props.compact ? undefined : "tk-slate-chips"}>
           {chips.map(function (c) {
@@ -466,7 +468,19 @@ function TK_vMyTasksBody(props) {
     !embedded &&
     TK_manualOrderAllowed({ inApp: slateApp, mode: manualMode && manualMode.mode, kind: "my", sort: null, readOnly: !online });
   var manualOn = manualCan && manualPair[0] && !(sv.sort && sv.sort.col);
-  var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder("my", manualOn) : {};
+  // Slate app P1: List | Board, remembered per person. Board columns are the
+  // statuses; inside a column the person's manual order when no sort is set.
+  // App only, regular or full width (TK_boardAllowed); off on the portal page.
+  var boardLay = typeof TK_useBoardLayout === "function" ? TK_useBoardLayout(email, "my", "my") : null;
+  var boardCan =
+    !!boardLay &&
+    typeof TK_boardAllowed === "function" &&
+    !embedded &&
+    TK_boardAllowed({ inApp: slateApp, mode: manualMode && manualMode.mode, kind: "my" });
+  var boardOn = boardCan && boardLay.layout === "board";
+  if (boardOn) manualOn = false;
+  var boardReorder = boardOn && manualCan && !(sv.sort && sv.sort.col);
+  var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder("my", manualOn || boardReorder) : {};
   if (manualOn && typeof TK_manualSortGroups === "function") view = TK_manualSortGroups(view, manualKeys);
   // Only a quick chip can empty a list that has tasks (the client filter has
   // its own empty copy), so "No tasks match this view" shows only then.
@@ -475,7 +489,48 @@ function TK_vMyTasksBody(props) {
   // same group is shown there, not as its own row).
   var subs = TK_vUseSubtasks(tasks);
   view = TK_subNestGroups(view, subs.kidsOf);
-  var ids = TK_focusIds(view);
+  var boardTasks = [];
+  if (boardOn && typeof TK_slateBuildView === "function") {
+    // the same chips and sort as the list; Done shows its recent tasks, folded
+    TK_slateBuildView(groups, { groupBy: "status", sort: sv.sort, chip: sv.chip }, {
+      collapsed: {},
+      showDone: true,
+      email: email,
+      today: today,
+      clients: props.clients || [],
+      flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
+    }).groups.forEach(function (g) {
+      (g.tasks || []).forEach(function (t) {
+        boardTasks.push(t);
+      });
+    });
+  }
+  var boardStaff = TK_vUseStaff(false) || [];
+  var board =
+    typeof TK_useBoard === "function"
+      ? TK_useBoard({
+          on: boardOn,
+          kind: "my",
+          by: "status",
+          scope: "my",
+          tasks: boardTasks,
+          canReorder: boardReorder,
+          manualKeys: manualKeys,
+          readOnly: !online,
+          isAdmin: isAdmin,
+          today: today,
+          clientNames: clientNames,
+          nameOf: function (e) {
+            return typeof TK_vStaffName === "function" ? TK_vStaffName(boardStaff, e) : e;
+          },
+          subs: subs,
+          focusedId: focusedId,
+          setFocusedId: setFocusedId,
+          showClient: !clientFilter,
+          label: "Slate",
+        })
+      : { ids: [], el: null };
+  var ids = boardOn ? board.ids : TK_focusIds(view);
   var manualBoxRef = React.useRef(null);
   var manualSay = typeof TK_useManualAnnouncer === "function" ? TK_useManualAnnouncer() : null;
   var manualRun = function (plan) {
@@ -528,7 +583,7 @@ function TK_vMyTasksBody(props) {
   // Slate app full mode: the task sits in the pane, so the list keeps its keys.
   var keysOn = typeof TK_useListKeysOn === "function" ? TK_useListKeysOn(drawerId) : !drawerId;
   var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
-  var bulk = TK_useBulkSelect({ ids: ids, enabled: online && slateWide, keys: keysOn });
+  var bulk = TK_useBulkSelect({ ids: ids, enabled: online && slateWide && !boardOn, keys: keysOn });
   var bulkStaff = TK_vUseStaff(bulk.count > 0);
   var addStaff = TK_vUseStaff(false) || []; // for the group add rows: the store's list, no extra fetch
 
@@ -581,6 +636,7 @@ function TK_vMyTasksBody(props) {
   var body;
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (err) body = <TK_vErrorState onRetry={list.reload} />;
+  else if (boardOn) body = board.el;
   else if (!view.length && chipEmptied) {
     body = (
       <div className="tk-empty">
@@ -760,6 +816,7 @@ function TK_vMyTasksBody(props) {
               );
             }}
           </TK_vMenuButton>
+          {boardCan && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardLay.by} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
           {touch ? null : (
             <button type="button" className="tk-icon-btn tk-keys-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={keys.openHelp}>
               <TK_vIcon name="keyboard" size={16} />
@@ -771,9 +828,25 @@ function TK_vMyTasksBody(props) {
         view={sv}
         onChange={svPair[1]}
         onReset={svPair[2]}
-        viewsMenu={slateApp && typeof TK_SavedViewsMenu === "function" ? <TK_SavedViewsMenu view={sv} onApply={svPair[1]} email={email} scope="slate" /> : null}
+        viewsMenu={
+          slateApp && typeof TK_SavedViewsMenu === "function" ? (
+            <TK_SavedViewsMenu
+              view={boardLay && boardLay.layout === "board" ? Object.assign({}, sv, { layout: "board" }) : sv}
+              onApply={function (v) {
+                // Slate app P1: the layout lives apart from the shared Slate view
+                var rest = Object.assign({}, v || {});
+                if (boardLay) boardLay.setLayout(rest.layout === "board" ? "board" : "list");
+                delete rest.layout;
+                svPair[1](rest);
+              }}
+              email={email}
+              scope="slate"
+            />
+          ) : null
+        }
+        noGroupBy={boardOn}
         manual={
-          manualCan
+          manualCan && !boardOn
             ? {
                 on: manualOn,
                 onToggle: function (on) {
