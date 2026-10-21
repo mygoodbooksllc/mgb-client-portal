@@ -1748,3 +1748,103 @@ html.wb-hub-open .si-drawer-layer {
 
 .wb-hub-popout { display: flex; justify-content: flex-end; margin: 0 0 6px; }
 .wb-hub-popout .tk-popout-btn { font-size: 12px; }
+
+/* MGB Desk window (specs/spec-mgb-desk-app.md): the Desk in its own window
+   (/desk). Rendered in place (no host, no rail, no bar, no width grip), full
+   height under a slim bar. dk- is the prefix for everything here. */
+.dk-stage {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--sidebar-bg);
+}
+.dk-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--topbar-bg, var(--surface));
+  border-bottom: 1px solid var(--border);
+  color: var(--ink-strong);
+}
+.dk-brand {
+  flex: 1;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.dk-stay {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dk-bar .btn-secondary {
+  padding: 5px 10px;
+  font-size: 12.5px;
+}
+.dk-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--warm-bg);
+  color: var(--warm-text);
+  border-bottom: 1px solid var(--warm-border);
+  font-size: 13px;
+}
+.dk-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+}
+/* The panel in the window: not fixed, as tall as the window, centered and
+   capped so it stays readable at full width. */
+.wb-panel.is-window {
+  position: static;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 760px;
+  height: 100%;
+  min-height: 0;
+  border-left: 0;
+  box-shadow: none;
+  animation: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--sidebar-bg);
+}
+.dk-wait,
+.dk-panel {
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text);
+  background: var(--bg, var(--surface));
+}
+.dk-panel-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+/* Backstop only: the real gating is in app.jsx (no tour, tips, chat button or
+   PageDrop mount in the desk shell). */
+body.dk-shell .chat-fab-wrap,
+body.dk-shell .tour-root {
+  display: none !important;
+}

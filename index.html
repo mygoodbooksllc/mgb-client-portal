@@ -144,6 +144,7 @@
           if (deskShell) {
             try { e.preventDefault(); } catch (er) {}
             deskPrompt = e;
+            try { window.dispatchEvent(new CustomEvent("mgb-desk-prompt")); } catch (er) {}
             // The browser offers install again, so an "installed" mark is stale.
             if (installParam) ls(function (l) { l.removeItem(DESK_INSTALLED_KEY); });
           }

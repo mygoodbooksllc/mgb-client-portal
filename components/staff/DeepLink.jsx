@@ -438,6 +438,11 @@ function LK_rearm() {
 // opts.keepPreview: don't leave "Preview as" first (staff surfaces do).
 function LK_go(t, hint, opts) {
   if (!t) return;
+  // MGB Desk window: the place opens in the portal window, never in this one.
+  if (window.MGB_SHELL === "desk" && typeof WB_deskForward === "function") {
+    WB_deskForward({ t, hint: hint || null });
+    return;
+  }
   if (!(opts && opts.keepPreview)) {
     try {
       if (typeof window.MGB_exitPreview === "function") window.MGB_exitPreview();

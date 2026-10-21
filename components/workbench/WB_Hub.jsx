@@ -50,6 +50,8 @@ function WB_useHubKeys(live, panelRef, deskRef) {
       if (!isD && !open) return;
       const dk = (deskRef && deskRef.current) || {};
       const sheet = dk.mode === "sheet";
+      const inWin = dk.variant === "window"; // MGB Desk window: no D, no F6, Esc never closes
+      if (inWin && (isD || isF6)) return;
       const panel = panelRef.current;
       const tgt = e.target;
       const inPanel = !!(panel && tgt && tgt.nodeType === 1 && panel.contains(tgt));
@@ -119,7 +121,7 @@ function WB_useHubKeys(live, panelRef, deskRef) {
         try {
           onBar = !!(tgt && tgt.nodeType === 1 && tgt.closest && tgt.closest(".wb-bar, .wb-rail"));
         } catch (err) {}
-        if (!inPanel && !(sheet && (onBody || onBar))) return;
+        if (!inPanel && !((sheet || inWin) && (onBody || onBar))) return;
         let clears = false;
         try {
           clears = !!(tgt && tgt.matches && tgt.matches(WB_ESC_CLEARS_SEL));
@@ -357,7 +359,8 @@ function WB_RightNow({ ctx, onGo }) {
 // deskRef, onDrillStep(step), onCloseTask(), and staffUser plus the template
 // props for TK_DrawerContent. While a task shows, the head, tabs, chips and
 // list panes are hidden (the panes stay mounted; their scroll comes back).
-function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle, drill, deskRef, onDrillStep, onCloseTask, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates, glance, extras, onGlancePick, rightNow, onRightNowGo }) {
+function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle, drill, deskRef, onDrillStep, onCloseTask, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates, glance, extras, onGlancePick, rightNow, onRightNowGo, variant, deskMenu }) {
+  const isWin = variant === "window"; // MGB Desk window: mode "window", never a sheet
   const dock = mode !== "sheet";
   const hub = s.hub;
   const tab = hub.tab;
@@ -447,7 +450,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
       <section
         ref={panelRef}
         id="wb-panel"
-        className={"wb-panel wb-glass" + (dock ? " is-dock is-right" + (layout === "overlay" ? " is-overlay" : " is-push") : " is-sheet")}
+        className={"wb-panel wb-glass" + (isWin ? " is-window" : dock ? " is-dock is-right" + (layout === "overlay" ? " is-overlay" : " is-push") : " is-sheet")}
         {...(dock ? { role: "region" } : { role: "dialog", "aria-modal": "true" })}
         aria-labelledby="wb-panel-title"
         tabIndex={-1}
@@ -481,12 +484,17 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
             {WB_NAME} <span className="wb-chip-n">{count}</span>
           </h2>
           {s.offline && <span className="wb-offline">Offline</span>}
-          <a className="wb-panel-full" href="#/today" onClick={() => WB_store.setDrawerOpen(false)}>
-            Open Today
-          </a>
-          <button type="button" className="wb-icon-btn" aria-label={"Close " + WB_NAME} onClick={() => WB_store.setDrawerOpen(false)}>
-            ×
-          </button>
+          {!isWin && (
+            <a className="wb-panel-full" href="#/today" onClick={() => WB_store.setDrawerOpen(false)}>
+              Open Today
+            </a>
+          )}
+          {!isWin && deskMenu}
+          {!isWin && (
+            <button type="button" className="wb-icon-btn" aria-label={"Close " + WB_NAME} onClick={() => WB_store.setDrawerOpen(false)}>
+              ×
+            </button>
+          )}
         </div>
         {!taskView && extraIds.length > 0 && (
           <div className="wb-desk-extras">
@@ -639,11 +647,11 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
         </div>
         {taskView ? (
           <p className="wb-panel-foot wb-taskview-keys">
-            <kbd>Esc</kbd> back · <kbd>D</kbd> close · <kbd>F6</kbd> page · <kbd>x</kbd> done · <kbd>s</kbd> status · <kbd>a</kbd> assignee
+            <kbd>Esc</kbd> back{isWin ? null : <> · <kbd>D</kbd> close · <kbd>F6</kbd> page</>} · <kbd>x</kbd> done · <kbd>s</kbd> status · <kbd>a</kbd> assignee
           </p>
         ) : (
         <p className="wb-panel-foot">
-          <kbd>D</kbd> opens and closes · <kbd>Esc</kbd> goes back one step
+          {isWin ? null : <><kbd>D</kbd> opens and closes · </>}<kbd>Esc</kbd> goes back one step
           {dock && handle && handle.show && <> · drag the left edge to change the width</>}
           {tab === "tasks" && <> · <kbd>↑</kbd> <kbd>↓</kbd> move between tasks · use <b>Add to your {WB_SLATE}</b> to add one</>}
           {tab === "client" && <> · type in the box to find a client · the <b>☆</b> pins one to the top</>}
