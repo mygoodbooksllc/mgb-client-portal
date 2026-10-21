@@ -1740,10 +1740,11 @@ function WB_deskLaunchItems(o) {
 }
 
 // A hash the Desk window may ask a portal to show: "#/..." with a short,
-// plain set of characters (encodeURIComponent output, "?", "=", "&", ":").
+// plain set of characters (encodeURIComponent output, which keeps ' too,
+// plus "?", "=", "&", ":").
 function WB_deskForwardOk(hash) {
   if (typeof hash !== "string" || hash.length > 300) return false;
-  return /^#\/[A-Za-z0-9/_\-?=&.%:~!*()]*$/.test(hash) && hash.indexOf("//") < 0;
+  return /^#\/[A-Za-z0-9/_\-?=&.%:~!*()']*$/.test(hash) && hash.indexOf("//") < 0;
 }
 
 // Which portal answers a Dock back or a forwarded row. replies = [{from,

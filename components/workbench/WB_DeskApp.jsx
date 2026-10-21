@@ -73,13 +73,15 @@ function WB__dkClearShell() {
 function WB__dkPlain(o, keys, cap) {
   if (!o || typeof o !== "object" || Array.isArray(o)) return null;
   const out = {};
+  const max = cap || 10;
   Object.keys(o).forEach((k) => {
     if (keys && keys.indexOf(k) < 0) return;
+    if (Object.keys(out).length >= max) return;
     const v = o[k];
     if (typeof v === "string") out[k] = v.slice(0, 200);
     else if (typeof v === "number" && isFinite(v)) out[k] = String(v);
   });
-  return Object.keys(out).slice(0, cap || 10).length ? out : null;
+  return Object.keys(out).length ? out : null;
 }
 // An LK target ({ clientId, tab, sub, item, month, account } or { place, ... }).
 function WB__dkTarget(t) {
@@ -169,7 +171,8 @@ function WB__dkOnMsg(m) {
       window.dispatchEvent(new CustomEvent("mgb:open-chat", { detail: detail }));
     } catch (e) {}
     // The chat drawer declines on the Inbox page itself (that page is the chat).
-    if (!detail.handled && typeof LK_go === "function") LK_go({ place: "inbox" }, email ? { email: email } : null);
+    // Fall back to the client's Messages tab, the same place the portal row goes.
+    if (!detail.handled && typeof LK_go === "function") LK_go({ clientId: cid, tab: "messages" }, email ? { email: email } : null);
     raise();
     reply();
     return;

@@ -1296,6 +1296,9 @@ t("WB_deskForwardOk: plain app hashes only", () => {
   assert.strictEqual(K("#/work/tasks?item=task:abc123"), true);
   assert.strictEqual(K("#/tasks/c/Ab%2Fc"), true);
   assert.strictEqual(K("#/today?client=a%40b.co"), true);
+  // encodeURIComponent leaves ' unencoded (e.g. an O'Brien id).
+  assert.strictEqual(K("#/tasks/c/" + encodeURIComponent("O'Brien")), true);
+  assert.strictEqual(K('#/a"b'), false);
 });
 
 t("WB_deskDockPick: none, one, several", () => {

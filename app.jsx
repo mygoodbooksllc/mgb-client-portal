@@ -28508,6 +28508,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     if (!actorEmail) return;
     if (deskShell) {
       // The Desk window logs one row per open, under its own page name.
+      // effectivePage changes inside the window (link catch-all), so guard it.
+      if (window.__mgbDeskUsageLogged) return;
+      window.__mgbDeskUsageLogged = true;
       supabase
         .from("usage_events")
         .insert({
@@ -29411,9 +29414,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     } catch (e) {}
   }, [tkHosts]);
   // "Open in Desk window" lands in this tab: the portal side of the
-  // BroadcastChannel (WB_DeskApp.jsx). Staff only, never inside the window.
+  // BroadcastChannel (WB_DeskApp.jsx). Staff only, never inside the window
+  // and never in the Slate pop-out (it has no Desk, so it must not answer).
   useEffect(() => {
-    if (!tkHosts || deskShell) return;
+    if (!tkHosts || deskShell || window.MGB_SHELL === "tasks") return;
     try {
       if (typeof WB_startDeskReceiver === "function") WB_startDeskReceiver();
     } catch (e) {}
