@@ -5,6 +5,7 @@
 -- Upserts only, no deletes. Idempotent: a row whose content is unchanged keeps its updated_at.
 -- Replaces supabase/staff-guide-desk-app.sql. Generated from docs/staff-guide/{workbench,get-the-app,admin-insight}.md.
 -- The Slate app guide article, What's new entry and tour are DRAFTS (docs/staff-guide/drafts/), not in this file.
+-- Applied to production 2026-10-21 (all three rows updated; body_md and keywords md5 match this file).
 begin;
 
 insert into public.staff_guide as g (slug, title, section, audience, body_md, keywords, sort)
