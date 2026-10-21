@@ -1,8 +1,8 @@
 // ----------------------------------------------------------------------------
 // L1 left sidebar (spec-l1-sidebar.md, build #2). When the gate is on, the
 // staff rail (StaffRail in app.jsx) also lists Pinned clients, Recent clients
-// and an (empty) admin alerts slot under the places, has a Customize gear and
-// a drag-wider grip. Everything here is invisible while the gate is off.
+// and the admin Alerts section (L2, spec-l2-admin-alerts.md) under the places,
+// has a Customize gear and a drag-wider grip. Everything here is invisible while the gate is off.
 //
 // The gate (SS_store, a copy of the Desk's WB_store pattern):
 //   Layer 1  localStorage mgb_nav_preview = "1" ("Sidebar preview" in Feature flags)
@@ -19,15 +19,16 @@
 // default); pins mgb_wb_pins:<email> and recents mgb-client-switcher-recent:<email>
 // (the real viewer's, never the "View as" person's).
 //
-// Browser file; loads after WB_HubClient.jsx. Uses WB_layout.js, WB_store.js
-// (WB_pinToggle, WB_toast), app.jsx globals at call time only.
+// Browser file; loads after WB_HubClient.jsx and SS_alerts.js. Uses WB_layout.js,
+// WB_store.js (WB_pinToggle, WB_toast), SS_alerts.js (the pure alert rules),
+// app.jsx globals at call time only.
 // ----------------------------------------------------------------------------
 
 const SS_PREVIEW_KEY = "mgb_nav_preview";
 const SS_CLASSIC_KEY = "mgb_nav_classic";
 const SS_CACHE_KEY = "mgb_nav_on_cache";
 const SS_PREFS_PREFIX = "mgb_nav_prefs:";
-const SS_SECTION_LABELS = { pinned: "Pinned clients", recent: "Recent clients", alerts: "Admin alerts" };
+const SS_SECTION_LABELS = { pinned: "Pinned clients", recent: "Recent clients", alerts: "Alerts" };
 
 function SS__ls(key) {
   try {
@@ -61,7 +62,7 @@ const SS_store = (function () {
   const previewOn = () => SS__ls(SS_PREVIEW_KEY) === "1";
   const classicOn = () => SS__ls(SS_CLASSIC_KEY) === "1";
   const fromCache = () => (classicOn() ? false : previewOn() || SS__ls(SS_CACHE_KEY) === "1");
-  let state = { on: fromCache(), flagKnown: false, defaults: null, defaultsLoaded: false };
+  let state = { on: fromCache(), flagKnown: false, defaults: null, defaultsLoaded: false, alertsShown: false };
   let flagInflight = false;
   let defaultsInflight = false;
   let warned = false;
@@ -158,7 +159,23 @@ const SS_store = (function () {
     });
   }
 
+  // L2: true only while the Alerts section is really rendered and visible with
+  // data (SS_AlertsSection sets it). The top bar's QuickBooks badge hides on it.
+  function setAlertsShown(v) {
+    const next = !!v;
+    if (next === state.alertsShown) return;
+    state = Object.assign({}, state, { alertsShown: next });
+    emit();
+    try {
+      window.dispatchEvent(new CustomEvent("mgb:ss-alerts", { detail: { shown: next } }));
+    } catch (e) {}
+  }
+
   return {
+    get alertsShown() {
+      return !!state.alertsShown;
+    },
+    setAlertsShown: setAlertsShown,
     getState: () => state,
     subscribe: (fn) => {
       listeners.push(fn);
@@ -194,7 +211,8 @@ function SS__readPrefs(email) {
   return k ? WB_layoutParse(SS__ls(k)) : null;
 }
 
-// props: on, realEmail (the REAL viewer), role / hasTempAdminAccess / amCount
+// props: on, realEmail (the REAL viewer), isRealAdmin (real role admin, not "View as",
+// not previewing: gates the Alerts section), role / hasTempAdminAccess / amCount
 // (the person on screen), currentClientId, clients, readOnly, halfScreen,
 // expanded. Returns null while the gate is off.
 function SS_useSidebar(o) {
@@ -341,13 +359,373 @@ function SS_useSidebar(o) {
     save: save,
     reset: reset,
     togglePin: togglePin,
-    showAlerts: roleKey === "admin" || roleKey === "tempAdmin",
+    // L2: alerts are for real admins only (not temp admins, not "View as").
+    showAlerts: !!o.isRealAdmin,
   };
 }
 
-// ---- Alerts slot (L2 fills it) ----
-function SS_AlertsSlot() {
-  return null;
+// ---- Admin alerts (L2, spec-l2-admin-alerts.md) ----
+const SS_ALERT_REFRESH_MS = 10 * 60 * 1000; // same cadence as the old top bar badge
+let SS_alertWarned = false;
+function SS_alertWarn(what, err) {
+  if (SS_alertWarned) return;
+  SS_alertWarned = true;
+  try {
+    console.warn("[sidebar alerts] could not read " + what + "; that rule is skipped.", err && err.message ? err.message : "");
+  } catch (e) {}
+}
+function SS_todayLocal() {
+  return typeof todayLocal === "function" ? todayLocal() : OPS_isoDay(new Date());
+}
+
+// One read that never throws: resolves { ok, data }.
+function SS_alertRead(what, make) {
+  return new Promise((resolve) => {
+    try {
+      Promise.resolve(make()).then(
+        (res) => {
+          if (!res || res.error) {
+            if (what !== "usage") SS_alertWarn(what, res && res.error);
+            resolve({ ok: false, data: null });
+          } else resolve({ ok: true, data: res.data });
+        },
+        (err) => {
+          SS_alertWarn(what, err);
+          resolve({ ok: false, data: null });
+        },
+      );
+    } catch (err) {
+      SS_alertWarn(what, err);
+      resolve({ ok: false, data: null });
+    }
+  });
+}
+
+// The four reads, in parallel, each failing on its own. Nothing is fetched
+// unless enabled (a real admin, rail on screen). Loads every 10 minutes while
+// the tab is visible, and once on focus when the last load is older than that.
+function SS_useAdminAlerts({ enabled }) {
+  const [data, setData] = React.useState(null);
+  const prev = React.useRef(null);
+  React.useEffect(() => {
+    if (!enabled) {
+      prev.current = null;
+      setData(null);
+      return undefined;
+    }
+    let alive = true;
+    let last = 0;
+    let inflight = false;
+    const load = () => {
+      const sb = window.mgbSupabase;
+      if (!sb || inflight || document.visibilityState === "hidden") return;
+      inflight = true;
+      const today = SS_todayLocal(); // recomputed every poll, so midnight rolls over
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const done = () => {
+        inflight = false;
+      };
+      const guard = setTimeout(done, 30000); // a read that never settles must not stop polling
+      Promise.all([
+        SS_alertRead("usage", () => sb.rpc("qbo_usage_status")),
+        SS_alertRead("ops_alert_state", () => sb.from("ops_alert_state").select("key,title,detail,first_seen_at").is("resolved_at", null).limit(100)),
+        SS_alertRead("client_email_log", () =>
+          sb.from("client_email_log").select("client_id,feature,created_at").eq("status", "error").neq("trigger", "preview").gt("created_at", since).order("created_at", { ascending: false }).limit(50),
+        ),
+        SS_alertRead("staff_time_off", () => sb.from("staff_time_off").select("staff_email,starts_on,ends_on,cancelled_at").is("cancelled_at", null).lte("starts_on", OPS_addDays(today, 60)).gte("ends_on", today)), // SS_alertRules keeps only today; the wider range lets back-to-back entries chain
+        typeof CV_loadDirectory === "function"
+          ? Promise.resolve(CV_loadDirectory()).then((l) => ({ ok: true, data: l || [] }), () => ({ ok: false, data: null }))
+          : SS_alertRead("staff_directory", () => sb.rpc("staff_directory")),
+      ]).then((r) => {
+        clearTimeout(guard);
+        done();
+        if (!alive) return;
+        last = Date.now();
+        const dir = (r[4].data || []).map((s) => ({ email: String(s.email || "").toLowerCase(), name: s.name }));
+        // A failed read keeps the last good value for that source (a blip never
+        // turns a real alert into "All clear"); the first load starts empty.
+        const keep = (i, key, okVal) => (okVal !== undefined ? okVal : prev.current && prev.current[key] !== undefined ? prev.current[key] : null);
+        const next = {
+          usage: keep(0, "usage", r[0].ok ? r[0].data || null : undefined),
+          opsRows: keep(1, "opsRows", r[1].ok && Array.isArray(r[1].data) ? r[1].data : undefined),
+          emailErrors: keep(2, "emailErrors", r[2].ok && Array.isArray(r[2].data) ? r[2].data : undefined),
+          timeOff: keep(3, "timeOff", r[3].ok && Array.isArray(r[3].data) ? r[3].data : undefined),
+          directory: r[4].ok ? dir : prev.current ? prev.current.directory : [],
+          today: today,
+          now: Date.now(),
+        };
+        prev.current = next;
+        setData(next);
+      });
+    };
+    load();
+    const id = setInterval(load, SS_ALERT_REFRESH_MS);
+    const onFocus = () => {
+      if (Date.now() - last > SS_ALERT_REFRESH_MS) load();
+    };
+    const onVis = () => {
+      if (document.visibilityState === "visible") onFocus();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [enabled]);
+  return data; // null until the first load finishes
+}
+
+function SS_BellIcon(props) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
+// A small error boundary: on an error the section renders nothing (and its
+// unmount puts the top bar badge back).
+class SS_AlertsBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { failed: false };
+  }
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(err) {
+    try {
+      SS_store.setAlertsShown(false);
+      console.warn("[sidebar alerts] the Alerts section failed and was hidden.", err && err.message ? err.message : "");
+    } catch (e) {}
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
+function SS_alertGo(e, a, after) {
+  SS_track("nav-alert-" + a.kind, "");
+  if (after) after();
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+  if (a.to && typeof LK_go === "function") {
+    e.preventDefault();
+    LK_go(a.to);
+  }
+}
+
+// Rows shared by the expanded list and the collapsed flyout.
+function SS_AlertRows({ split, onGo }) {
+  const row = (a) => (
+    <a
+      key={a.id}
+      className={"ss-alert-row sev-" + a.severity}
+      href={a.href}
+      title={a.detail || undefined}
+      onClick={(e) => SS_alertGo(e, a, onGo)}
+    >
+      <span className="ss-alert-dot" aria-hidden="true" />
+      <span className="ss-alert-text">{a.text}</span>
+    </a>
+  );
+  return (
+    <>
+      {split.shown.map(row)}
+      {split.more > 0 && (
+        <a className="ss-alert-more" href="#/settings" onClick={() => {
+            SS_track("nav-alert-generic", "more");
+            if (onGo) onGo();
+          }}>
+          {split.more} more
+        </a>
+      )}
+      {split.info.map(row)}
+    </>
+  );
+}
+
+function SS_AlertsInner({ ss, expanded, showTip, hideTip }) {
+  const rootRef = React.useRef(null);
+  const btnRef = React.useRef(null);
+  const [visible, setVisible] = React.useState(false);
+  const [fly, setFly] = React.useState(null); // { left, top } when the collapsed flyout is open
+  const closeTimer = React.useRef(0);
+
+  // Is the rail on screen? (Phones and half-screen collapsed mode hide it by CSS.)
+  React.useLayoutEffect(() => {
+    const check = () => {
+      const el = rootRef.current;
+      setVisible(!!el && el.getClientRects().length > 0);
+    };
+    check();
+    window.addEventListener("resize", check);
+    // The rail hides under 761px unless there is a fine pointer (styles.css).
+    let mq = null;
+    try {
+      mq = window.matchMedia ? window.matchMedia("(min-width: 761px), (hover: hover) and (pointer: fine)") : null;
+      if (mq && mq.addEventListener) mq.addEventListener("change", check);
+    } catch (e) {
+      mq = null;
+    }
+    return () => {
+      window.removeEventListener("resize", check);
+      try {
+        if (mq && mq.removeEventListener) mq.removeEventListener("change", check);
+      } catch (e) {}
+    };
+  }, [expanded]);
+
+  const data = SS_useAdminAlerts({ enabled: !!ss.showAlerts && visible });
+  const alerts = React.useMemo(
+    () =>
+      data
+        ? SS_alertRules({
+            usage: data.usage,
+            opsRows: data.opsRows,
+            emailErrors: data.emailErrors,
+            timeOff: data.timeOff,
+            directory: data.directory,
+            clientsById: ss.clientsById,
+            excludedIds: typeof CF_excludedIds === "function" ? Array.from(CF_excludedIds()) : [],
+            today: data.today,
+            now: data.now,
+          })
+        : [],
+    [data, ss.clientsById],
+  );
+  const split = React.useMemo(() => SS_alertSplit(alerts, 5), [alerts]);
+  const count = SS_alertBadgeCount(alerts);
+  const ready = !!data;
+
+  // The mounted signal the top bar reads: only while really rendered, visible and loaded.
+  React.useLayoutEffect(() => {
+    SS_store.setAlertsShown(ready && visible);
+  }, [ready, visible]);
+  React.useLayoutEffect(() => () => SS_store.setAlertsShown(false), []);
+
+  const closeFly = () => {
+    clearTimeout(closeTimer.current);
+    setFly(null);
+  };
+  const openFly = () => {
+    clearTimeout(closeTimer.current);
+    const b = btnRef.current;
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    setFly((cur) => {
+      if (!cur) SS_track("nav-alert-open", "");
+      return { left: r.right + 8, top: Math.max(8, r.top) };
+    });
+  };
+  const holdClose = () => {
+    clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setFly(null), 200);
+  };
+  React.useEffect(() => {
+    if (!fly) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        closeFly();
+        if (btnRef.current) btnRef.current.focus();
+      }
+    };
+    const onDown = (e) => {
+      const t = e.target;
+      if (btnRef.current && btnRef.current.contains(t)) return;
+      if (t && t.closest && t.closest(".ss-alert-fly")) return;
+      closeFly();
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+      clearTimeout(closeTimer.current);
+    };
+  }, [!!fly]);
+  React.useEffect(() => {
+    if (expanded) setFly(null);
+  }, [expanded]);
+
+  const clear = ready && split.shown.length === 0;
+  return (
+    <div
+      ref={rootRef}
+      className={"ss-section ss-alerts" + (ready ? "" : " ss-alerts-pending")}
+      data-tour="staff-sidebar-alerts"
+      role="region"
+      aria-label="Alerts"
+    >
+      {ready &&
+        (expanded ? (
+          <>
+            <div className="staff-rail-heading ss-heading ss-alerts-head">
+              <span>Alerts</span>
+              {count > 0 && (
+                <span className="ss-alert-badge" aria-label={count + " admin alert" + (count === 1 ? "" : "s")}>
+                  {count}
+                </span>
+              )}
+            </div>
+            {clear && <div className="ss-alert-clear">All clear</div>}
+            <SS_AlertRows split={split} onGo={null} />
+          </>
+        ) : (
+          <>
+            <div className="staff-rail-divider" role="separator" aria-label="Alerts" />
+            <button
+              type="button"
+              ref={btnRef}
+              className="staff-rail-item ss-alert-btn"
+              aria-haspopup="true"
+              aria-expanded={!!fly}
+              aria-label={count > 0 ? count + " admin alert" + (count === 1 ? "" : "s") : "Alerts: all clear"}
+              onClick={openFly}
+              onMouseEnter={openFly}
+              onMouseLeave={holdClose}
+              onFocus={openFly}
+            >
+              <span className="ss-alert-bell">
+                <SS_BellIcon />
+                {count > 0 && (
+                  <span className="ss-alert-badge ss-alert-badge-mini" aria-hidden="true">
+                    {count > 9 ? "9+" : count}
+                  </span>
+                )}
+              </span>
+            </button>
+            {fly &&
+              ReactDOM.createPortal(
+                <div
+                  className="ss-alert-fly"
+                  role="region"
+                  aria-label="Alerts"
+                  style={{ left: fly.left, top: fly.top }}
+                  onMouseEnter={() => clearTimeout(closeTimer.current)}
+                  onMouseLeave={holdClose}
+                >
+                  <div className="ss-alert-fly-title">Alerts</div>
+                  {clear && <div className="ss-alert-clear">All clear</div>}
+                  <SS_AlertRows split={split} onGo={closeFly} />
+                </div>,
+                document.body,
+              )}
+          </>
+        ))}
+    </div>
+  );
+}
+
+function SS_AlertsSection(props) {
+  return (
+    <SS_AlertsBoundary>
+      <SS_AlertsInner {...props} />
+    </SS_AlertsBoundary>
+  );
 }
 
 // ---- Icons ----
@@ -484,7 +862,7 @@ function SS_Sections({ ss, expanded, showTip, hideTip }) {
         if (id === "pinned" || id === "recent") {
           return <SS_ClientSection key={id} kind={id} ss={ss} expanded={expanded} detail={p.detail[id]} showTip={showTip} hideTip={hideTip} onOpenClient={open} />;
         }
-        if (id === "alerts") return ss.showAlerts ? <SS_AlertsSlot key={id} /> : null;
+        if (id === "alerts") return ss.showAlerts ? <SS_AlertsSection key={id} ss={ss} expanded={expanded} showTip={showTip} hideTip={hideTip} /> : null;
         return null;
       })}
     </>
@@ -742,14 +1120,14 @@ function SS_Preview({ profile, showAlerts }) {
     { n: "Sample client A", d: "AM JG" },
     { n: "Sample client B", d: "AM TS" },
   ];
-  const label = (id) => (id === "pinned" ? "Pinned" : id === "recent" ? "Recent" : "Admin alerts");
+  const label = (id) => (id === "pinned" ? "Pinned" : id === "recent" ? "Recent" : "Alerts");
   return (
     <div className="ss-preview" aria-hidden="true">
       <div className="ss-preview-rail" style={{ width: profile.width }}>
         <div className="ss-preview-places">Today, Inbox, Work, Clients, Team</div>
         {profile.order.map((id) => {
           if (id === "places" || !profile.on[id] || profile.detail[id] === "off") return null;
-          if (id === "alerts") return showAlerts ? <div className="ss-preview-alerts" key={id}>{label(id)} (coming)</div> : null;
+          if (id === "alerts") return showAlerts ? <div className="ss-preview-alerts" key={id}>{label(id)}</div> : null;
           return (
             <div className="ss-preview-sec" key={id}>
               <div className="staff-rail-heading ss-heading">{label(id)}</div>
@@ -776,7 +1154,8 @@ function SS_DefaultsCard() {
   const [draft, setDraft] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
   const [msg, setMsg] = React.useState("");
-  const builtin = React.useMemo(() => WB_layoutBuiltin("left"), []);
+  // Per role: admins' built-in order has Alerts after the places (WB_layoutProfile).
+  const builtin = React.useMemo(() => WB_layoutProfile({ bar: "left", roleKey: role }), [role]);
   React.useEffect(() => {
     SS_store.ensure();
     return SS_store.subscribe(() => setSaved(SS_store.getState().defaults));
@@ -785,7 +1164,8 @@ function SS_DefaultsCard() {
   const current = React.useMemo(() => WB_layoutProfile({ bar: "left", roleKey: role, roleDefaults: saved }), [role, saved]);
   const profile = draft && draft.role === role ? draft.profile : current;
   const dirty = !!draft && draft.role === role;
-  const showAlerts = role === "admin" || role === "tempAdmin";
+  // Temp admins never see the Alerts section (L2), so only the admin role lists it.
+  const showAlerts = role === "admin";
 
   // mutate(roles) edits a plain copy of the roles as stored RIGHT NOW: the row is
   // read again just before the save so another role's defaults are never lost.

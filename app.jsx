@@ -1006,7 +1006,7 @@ const FEATURE_FLAGS = [
     key: "mgb_nav_preview",
     label: "Sidebar preview",
     description:
-      "Pinned and recent clients in the left sidebar, with a Customize gear. For you only, in this browser, while the firm-wide nav_enabled switch is off. The page reloads when you toggle it.",
+      "Pinned and recent clients in the left sidebar, with a Customize gear (and, for admins, an Alerts section that takes over the top-bar QuickBooks badge). For you only, in this browser, while the firm-wide nav_enabled switch is off. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -2303,6 +2303,7 @@ function StaffRail({
   roleInfo,
   halfScreen,
   previewing,
+  isRealAdmin,
 }) {
   const [tip, setTip] = useState(null);
   // L1 left sidebar (components/staff/StaffSidebar.jsx): null while the gate
@@ -2313,6 +2314,7 @@ function StaffRail({
       ? SS_useSidebar({
           on: ssOn,
           realEmail: realEmail,
+          isRealAdmin: !!isRealAdmin,
           role: roleInfo && roleInfo.role,
           hasTempAdminAccess: !!(roleInfo && roleInfo.hasTempAdminAccess),
           amCount: roleInfo && roleInfo.amCount,
@@ -15256,7 +15258,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
             ["desk_app_enabled", "MGB Desk window on for staff", "Off (or missing, the default) hides the MGB Desk window for everyone: no Open MGB Desk or Get MGB Desk in the Desk menu, and /desk shows a short note. Needs wb_enabled on too. Owner turns it on (true) with one SQL line; read-only here. Each person can try it early with MGB Desk window preview in Feature flags. Setting it does nothing until the Desk itself is on."],
-            ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar. Each person can try it early with Sidebar preview in Feature flags. Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
+            ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar, plus the Alerts section for real admins. Each person can try it early with Sidebar preview in Feature flags. Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
             ["layout_defaults", "Sidebar defaults by role", "What each role (admin, account manager, bookkeeper, temp admin) sees in the left sidebar until they customize it. Admins edit it in Settings › Firm settings › Sidebar defaults (shown once the sidebar is on). Not set means the built-in layout."],
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
@@ -17029,6 +17031,13 @@ const USAGE_PAGE_TAB_LABELS = {
 // Action buckets MGB_track() writes (see the hooks in TopBar, StaffGuide,
 // Tour). Add a label here when a new call site is added.
 const USAGE_ACTION_LABELS = {
+  "nav-alert-open": "Left sidebar Alerts flyout opened (admin, collapsed rail)",
+  "nav-alert-usage": "Left sidebar alert opened: QuickBooks usage",
+  "nav-alert-qbo": "Left sidebar alert opened: QuickBooks connection",
+  "nav-alert-email": "Left sidebar alert opened: failed client emails",
+  "nav-alert-drive": "Left sidebar alert opened: Google Drive",
+  "nav-alert-generic": "Left sidebar alert opened: other server problem or more",
+  "nav-alert-out": "Left sidebar alert opened: out today",
   "nav-gear": "Left sidebar Customize gear opened",
   "nav-reset": "Left sidebar reset to the role default",
   "nav-defaults-save": "Sidebar defaults saved for a role (admin)",
@@ -29788,6 +29797,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             // L1 left sidebar: pins, recents and prefs belong to the REAL
             // viewer; the role default follows the person on screen.
             realEmail={staffUser.email}
+            // L2 admin alerts: from the REAL signed-in role, never the
+            // effective one (temp admins, "View as" and previews never qualify).
+            isRealAdmin={Boolean(staffUser && staffUser.role === "admin" && !impersonating && !(isStaffSession && isPreviewingUser))}
             currentClientId={!onStaffPage && client ? client.id : null}
             clients={listClients}
             roleInfo={{

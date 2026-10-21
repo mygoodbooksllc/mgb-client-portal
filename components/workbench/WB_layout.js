@@ -183,6 +183,8 @@ function WB_layoutProfile(opts) {
   var personLayer = pp && pp[bar] ? pp[bar] : null;
   var layers = [roleLayer, personLayer]; // later wins, per field
   var order = base.order.slice();
+  // L2: admins' Alerts section sits right after the places by default.
+  if (bar === "left" && o.roleKey === "admin") order = ["places", "alerts", "pinned", "recent"];
   var on = Object.assign({}, base.on);
   var detail = Object.assign({}, base.detail);
   var width = base.width;

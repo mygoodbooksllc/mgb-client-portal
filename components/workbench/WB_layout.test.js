@@ -34,8 +34,12 @@ t("built-in for an unknown bar falls back to left", () => {
   assert.deepStrictEqual(L.WB_layoutBuiltin("nope").order, BUILTIN_ORDER);
 });
 
-t("profile with no layers is the built-in", () => {
-  assert.deepStrictEqual(L.WB_layoutProfile({ bar: "left", roleKey: "admin" }), L.WB_layoutBuiltin("left"));
+t("profile with no layers is the built-in (admins get Alerts right after the places)", () => {
+  assert.deepStrictEqual(L.WB_layoutProfile({ bar: "left", roleKey: "am" }), L.WB_layoutBuiltin("left"));
+  assert.deepStrictEqual(L.WB_layoutProfile({ bar: "left", roleKey: "tempAdmin" }), L.WB_layoutBuiltin("left"));
+  const admin = L.WB_layoutProfile({ bar: "left", roleKey: "admin" });
+  assert.deepStrictEqual(admin.order, ["places", "alerts", "pinned", "recent"]);
+  assert.deepStrictEqual(Object.assign({}, admin, { order: BUILTIN_ORDER }), L.WB_layoutBuiltin("left"));
 });
 
 const roleDefaults = {

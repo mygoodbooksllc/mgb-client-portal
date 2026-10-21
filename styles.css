@@ -8752,6 +8752,160 @@ a.staff-rail-item.ss-client:hover {
   color: var(--sidebar-text-active);
   font-weight: 600;
 }
+/* ---- L2 admin alerts (spec-l2-admin-alerts.md). Severity colors are tokens:
+   danger and warning on the dark rail, --bad and an amber step on the flyout's
+   surface (light and dark). No blue. ---- */
+.staff-rail {
+  --ss-danger: #f0a193;
+  --ss-warn: #f3c979;
+  --ss-info: var(--sidebar-text-muted);
+}
+.ss-alerts-pending {
+  margin-top: 0;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+}
+.ss-alerts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ss-alert-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--bad);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1;
+}
+.ss-alert-badge-mini {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+.ss-alert-bell {
+  position: relative;
+  display: inline-flex;
+}
+.staff-rail:not(.expanded) .staff-rail-item.ss-alert-btn {
+  flex-direction: row;
+  height: 40px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.ss-alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--sidebar-text);
+  font-size: 12.5px;
+  line-height: 1.3;
+  text-decoration: none;
+}
+.ss-alert-row:hover,
+.ss-alert-row:focus-visible {
+  color: var(--sidebar-text-active);
+  background: rgba(255, 255, 255, 0.07);
+}
+.ss-alert-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--ss-info);
+}
+.ss-alert-row.sev-danger .ss-alert-dot {
+  background: var(--ss-danger);
+}
+.ss-alert-row.sev-warning .ss-alert-dot {
+  background: var(--ss-warn);
+}
+.ss-alert-row.sev-info {
+  color: var(--sidebar-text-muted);
+  font-size: 12px;
+}
+.ss-alert-text {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.ss-alert-more {
+  padding: 4px 12px 4px 28px;
+  color: var(--sidebar-text-muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+.ss-alert-more:hover {
+  color: var(--sidebar-text-active);
+}
+.ss-alert-clear {
+  padding: 4px 12px;
+  color: var(--sidebar-text-muted);
+  font-size: 12px;
+}
+.ss-alert-fly {
+  --ss-danger: var(--bad);
+  --ss-warn: #8a5a00;
+  --ss-info: var(--text-muted);
+  position: fixed;
+  z-index: 2100;
+  width: 280px;
+  max-width: calc(100vw - 100px);
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 10px 6px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .ss-alert-fly {
+    --ss-warn: #f3c979;
+  }
+}
+:root[data-theme="dark"] .ss-alert-fly {
+  --ss-warn: #f3c979;
+}
+.ss-alert-fly-title {
+  padding: 0 12px 4px;
+  font-weight: 700;
+  font-size: 13px;
+}
+.ss-alert-fly .ss-alert-row {
+  color: var(--text);
+}
+.ss-alert-fly .ss-alert-row:hover,
+.ss-alert-fly .ss-alert-row:focus-visible {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.ss-alert-fly .ss-alert-row.sev-info,
+.ss-alert-fly .ss-alert-clear,
+.ss-alert-fly .ss-alert-more {
+  color: var(--text-muted);
+}
 .ss-preview-alerts {
   padding: 8px 12px;
   color: var(--sidebar-text-muted);

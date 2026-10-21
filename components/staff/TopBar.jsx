@@ -20,7 +20,8 @@
 //                              that client's transactions, budget, documents
 //                              and messages (replaces the header search icon
 //                              for staff).
-//   Right    TB_ThrottleBadge  admins: QuickBooks sync slowed or stopped
+//   Right    TB_ThrottleBadge  admins: QuickBooks sync slowed or stopped (hidden while
+//            the left sidebar's Alerts section shows it, L2)
 //                              (qbo_usage_status, supabase/qbo-usage-guard.sql)
 //            TB_Bell           client messages waiting, uploaded documents,
 //                              tasks assigned to me, blocked month-end close
@@ -1635,6 +1636,27 @@ function TB_ThrottleBadge() {
   );
 }
 
+// True while the left sidebar's Alerts section is rendered, visible and loaded
+// (SS_store.alertsShown, L2). TopBar.jsx loads before StaffSidebar.jsx, so
+// SS_store is looked up at call time and may not exist (then false).
+function TB_useSidebarAlertsShown() {
+  const read = () => {
+    try {
+      return typeof SS_store !== "undefined" && !!SS_store && SS_store.alertsShown === true;
+    } catch (e) {
+      return false;
+    }
+  };
+  const [shown, setShown] = useState(read);
+  useEffect(() => {
+    const on = () => setShown(read());
+    window.addEventListener("mgb:ss-alerts", on);
+    on();
+    return () => window.removeEventListener("mgb:ss-alerts", on);
+  }, []);
+  return shown;
+}
+
 // ---------------------------------------------------------------------------
 // The bar
 // ---------------------------------------------------------------------------
@@ -1669,6 +1691,9 @@ function TB_StaffTopBar({
   // reachable during "View as", so their pieces step aside then.
   const own = !impersonating;
   const items = TB_useMyItems(me, own);
+  // L2: the left sidebar's Alerts section has taken over the QuickBooks usage
+  // warning, but only while it is really on screen (never both, never neither).
+  const ssAlertsShown = TB_useSidebarAlertsShown();
   if (!staffUser || !realStaffUser) return null;
   const isRealAdmin = realStaffUser.role === "admin";
   const isAdmin = staffUser.role === "admin";
@@ -1712,7 +1737,7 @@ function TB_StaffTopBar({
         />
       </div>
       <div className="tb-right">
-        {isRealAdmin && own && <TB_ThrottleBadge />}
+        {isRealAdmin && own && !ssAlertsShown && <TB_ThrottleBadge />}
         {own && <TB_Bell clients={typeof window.mgbRealClients === "function" ? window.mgbRealClients(clients) : clients} items={items} me={me} isAdmin={isAdmin} page={page} />}
         {own && (deskOn ? <TB_SlateLink /> : <TB_TasksBadge items={items} me={me} client={client} />)}
         {!deskDocked && <TB_QuickAdd client={client} />}
