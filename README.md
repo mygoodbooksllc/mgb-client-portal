@@ -2479,6 +2479,14 @@ The old `HANDOFF2.md`–`HANDOFF7.md`, `HANDOFF-DESIGN.md` and
 history. For example, `git show 3344625:HANDOFF7.md` shows the full running log (§1–§171),
 which explains the reasoning behind most of the decisions above.
 
+## Left sidebar (preview)
+
+The staff rail can also list **Pinned** and **Recent** clients (plus an alerts slot for L2), with a gear to customize it. It is invisible unless on: `SS_navIsOn` (`components/workbench/WB_layout.js`) = `mgb_nav_classic` (launch only, not added yet) wins, else the per-person flag `mgb_nav_preview` (Developer tools > Feature flags > Sidebar preview, reloads) or the firm switch `tk_settings.nav_enabled` (code never writes it; SQL only). Gate reads go through `SS_store` in `components/staff/StaffSidebar.jsx`; the last answer is cached in `mgb_nav_on_cache`.
+
+- Layout profile (pure logic, `WB_layout.js`, tests in `WB_layout.test.js`): person prefs over role default over built-in, merged per field. Person prefs are a diff vs the role default in localStorage `mgb_nav_prefs:<email>` = `{v:1,left:{...}}` (real email, not View as). Role defaults: `tk_settings.layout_defaults` = `{v:1,roles:{admin|am|bookkeeper|tempAdmin:{left:{...}}}}`, edited by admins in Settings > Firm settings > Sidebar defaults (`SS_DefaultsCard`, the only `tk_settings` write). Parsing never throws, 8 KB cap, unknown ids dropped. Width 220-320 (260 cap under 1100px).
+- Pins reuse `WB_pins` (max 8, `mgb:wb-pins` event keeps the Desk client view and sidebar in sync); recents reuse `mgb-client-switcher-recent:<email>`. While viewing as someone, the gear and pins are read-only.
+- When on, Today hides its Recent card. The Desk follows the rail width through its existing ResizeObserver.
+
 ## Installable app (staff only, desktop only)
 
 `manifest.webmanifest` + `app-icons/` make the portal installable (Add to Home Screen, Chrome/Edge Install).

@@ -989,6 +989,7 @@ function ST_firmGroups(isAdmin, hasTempAdminAccess) {
     BarChartIcon: typeof BarChartIcon === "function" ? BarChartIcon : null,
     DocumentIcon: typeof DocumentIcon === "function" ? DocumentIcon : null,
     WrenchIcon: typeof WrenchIcon === "function" ? WrenchIcon : null,
+    SlidersIcon: typeof SlidersIcon === "function" ? SlidersIcon : null,
   };
   const icon = (name) => {
     const C = icons[name];
@@ -1000,6 +1001,9 @@ function ST_firmGroups(isAdmin, hasTempAdminAccess) {
       rows: [
         { key: "templates", page: "task-templates", label: "Task templates", sub: "Recurring tasks for each client, now in Slate › Recurring.", icon: icon("RepeatIcon"), show: anyAdmin },
         { key: "roster", page: "client-access", label: "Client roster", sub: "Who at each organization is registered to sign in.", icon: icon("ClientRosterIcon"), show: anyAdmin },
+        // L1 left sidebar (StaffSidebar.jsx): real admins only (RLS lets only
+        // is_active_staff_admin() write layout_defaults), and only while the gate is on.
+        { key: "sidebar", inline: true, label: "Sidebar defaults", sub: "What each role sees in the left sidebar until they customize it.", icon: icon("SlidersIcon"), show: !!isAdmin && typeof SS_isOn === "function" && SS_isOn() },
       ],
     },
     {
@@ -1141,6 +1145,7 @@ function ST_LateTasksCard({ isOwner }) {
 
 function ST_FirmSettings({ groups, isAdmin, onSelectPage, isOwner }) {
   const status = ST_useFirmStatus(!!isAdmin);
+  const [openInline, setOpenInline] = React.useState(null);
   return (
     <>
       {isAdmin && typeof TK_api !== "undefined" && <ST_LateTasksCard isOwner={!!isOwner} />}
@@ -1154,7 +1159,14 @@ function ST_FirmSettings({ groups, isAdmin, onSelectPage, isOwner }) {
                   <button
                     type="button"
                     className="st-firm-row"
-                    onClick={() => (r.tab && typeof NAV_go === "function" ? NAV_go(r.page, r.tab) : onSelectPage(r.page))}
+                    aria-expanded={r.inline ? openInline === r.key : undefined}
+                    onClick={() =>
+                      r.inline
+                        ? setOpenInline(openInline === r.key ? null : r.key)
+                        : r.tab && typeof NAV_go === "function"
+                          ? NAV_go(r.page, r.tab)
+                          : onSelectPage(r.page)
+                    }
                   >
                     <span className="st-firm-icon" aria-hidden="true">{r.icon}</span>
                     <span className="st-row-text">
@@ -1172,6 +1184,11 @@ function ST_FirmSettings({ groups, isAdmin, onSelectPage, isOwner }) {
                       <ST_ChevronIcon />
                     </span>
                   </button>
+                  {r.inline && openInline === r.key && r.key === "sidebar" && typeof SS_DefaultsCard === "function" && (
+                    <div className="ss-defaults-wrap">
+                      <SS_DefaultsCard />
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -1196,6 +1213,8 @@ function ST_StaffSettingsPage({
   const st = ST_useSettings();
   const s = st.settings || {};
   const ro = !!readOnlyReason;
+  // Re-render when the L1 sidebar gate resolves, so the Sidebar defaults row appears.
+  if (typeof SS_useOn === "function") SS_useOn();
   const [tab, setTab] = React.useState("profile");
   const set = (patch) => ST_store.update(patch);
   const prof = ST_useMyProfile(staffUser && staffUser.email);

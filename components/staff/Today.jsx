@@ -1649,6 +1649,9 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const saved = st && st.email === me && TD_isObj(st.settings && st.settings.todayCards) ? st.settings.todayCards : {};
   const [cardOverride, setCardOverride] = React.useState(null);
   const cards = { ...TD_CARD_DEFAULTS, ...saved, ...(cardOverride || {}) };
+  // L1 left sidebar: its Recent clients section replaces this card while the
+  // gate is on. The saved choice is left alone, so it returns when the gate is off.
+  const ssOn = typeof SS_useOn === "function" ? SS_useOn() : false;
 
   // Everything the old list also carried that Slate and the Desk don't:
   // approvals, handbook, deadlines, reviews... kept behind one fold.
@@ -1813,14 +1816,14 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
           {cards.milestones && <TD_MilestonesCard clients={allClients} onOpenClientMilestone={onOpenClientMilestone} celebrations={celebrationRows} />}
         </div>
       )}
-      {cards.recent && <TD_RecentCard clients={openableClients} />}
+      {cards.recent && !ssOn && <TD_RecentCard clients={openableClients} />}
 
       <div className="td-cards-bar">
         <span className="td-cards-label" id="td-cards-label">
           Also show
         </span>
         <div className="td-cards-toggles" role="group" aria-labelledby="td-cards-label" data-tour="today-cards">
-          {TD_CARDS.map((c) => (
+          {TD_CARDS.filter((c) => !(ssOn && c.key === "recent")).map((c) => (
             <button type="button" key={c.key} className={"td-toggle" + (cards[c.key] ? " is-on" : "")} aria-pressed={!!cards[c.key]} onClick={() => toggleCard(c.key)}>
               {c.label}
             </button>

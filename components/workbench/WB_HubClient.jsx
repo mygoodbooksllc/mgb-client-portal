@@ -93,6 +93,26 @@ function WB_HubClientBody(props) {
   });
   var pins = pinsPair[0];
   var setPins = pinsPair[1];
+  // A pin made elsewhere (the staff sidebar) in this tab shows here at once.
+  React.useEffect(
+    function () {
+      var onPins = function (e) {
+        var who = e && e.detail && e.detail.email;
+        if (!who || who === String(email || "").trim().toLowerCase()) setPins(WB_pinsRead(email));
+      };
+      // A pin made in another tab arrives through the storage event.
+      var onStore = function (e) {
+        if (e && e.key && e.key === WB_pinsKey(email)) setPins(WB_pinsRead(email));
+      };
+      window.addEventListener("mgb:wb-pins", onPins);
+      window.addEventListener("storage", onStore);
+      return function () {
+        window.removeEventListener("mgb:wb-pins", onPins);
+        window.removeEventListener("storage", onStore);
+      };
+    },
+    [email],
+  );
   var recentPair = React.useState(function () {
     return WB_recentsRead(email);
   });

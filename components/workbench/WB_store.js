@@ -84,6 +84,11 @@ function WB_pinToggle(email, id, current) {
     WB_pinsWrite(email, r.pins);
   } catch (e) {}
   WB_track("wb-pin", r.on ? "on" : "off");
+  // Same-tab sync: the Desk's Client tab and the staff sidebar (L1) both show
+  // pins and read them once, so each listens for this and re-reads.
+  try {
+    window.dispatchEvent(new CustomEvent("mgb:wb-pins", { detail: { email: String(email == null ? "" : email).trim().toLowerCase() } }));
+  } catch (e) {}
   return r;
 }
 function WB__recentKey(email) {

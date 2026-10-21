@@ -1002,6 +1002,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by SS_store (components/staff/StaffSidebar.jsx).
+    key: "mgb_nav_preview",
+    label: "Sidebar preview",
+    description:
+      "Pinned and recent clients in the left sidebar, with a Customize gear. For you only, in this browser, while the firm-wide nav_enabled switch is off. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     key: "mgb_wb_classic",
     label: "Classic Today",
     description:
@@ -2289,8 +2297,30 @@ function StaffRail({
   canViewInternal,
   internalOpen,
   hideMark,
+  realEmail,
+  currentClientId,
+  clients,
+  roleInfo,
+  halfScreen,
+  previewing,
 }) {
   const [tip, setTip] = useState(null);
+  // L1 left sidebar (components/staff/StaffSidebar.jsx): null while the gate
+  // (SS_isOn) is off, and then nothing below changes the classic rail.
+  const ssOn = typeof SS_useOn === "function" ? SS_useOn() : false;
+  const ss =
+    typeof SS_useSidebar === "function"
+      ? SS_useSidebar({
+          on: ssOn,
+          realEmail: realEmail,
+          role: roleInfo && roleInfo.role,
+          hasTempAdminAccess: !!(roleInfo && roleInfo.hasTempAdminAccess),
+          amCount: roleInfo && roleInfo.amCount,
+          currentClientId: currentClientId,
+          clients: clients,
+          readOnly: !!impersonating || !!previewing,
+        })
+      : null;
   const showTip = (e, text) => {
     if (expanded) return;
     setTip({ text, rect: e.currentTarget.getBoundingClientRect() });
@@ -2441,16 +2471,26 @@ function StaffRail({
         {it.dot && <span className="nav-badge-dot staff-rail-dot" aria-label="Unread" />}
         {it.extra}
         {it.due && expanded && <MyTasksDueCount due={myTasksDue} />}
-        {it.due && !expanded && myTasksDue && myTasksDue.due > 0 && (
-          <span className="nav-badge-dot staff-rail-dot" aria-label={`${myTasksDue.due} tasks due`} />
-        )}
+        {it.due && !expanded && myTasksDue && myTasksDue.due > 0 &&
+          (ss ? (
+            <span
+              className={"ss-count staff-rail-dot" + (myTasksDue.overdue > 0 ? " overdue" : "")}
+              role="img"
+              aria-label={`${myTasksDue.due} tasks due`}
+            >
+              {myTasksDue.due > 99 ? "99+" : myTasksDue.due}
+            </span>
+          ) : (
+            <span className="nav-badge-dot staff-rail-dot" aria-label={`${myTasksDue.due} tasks due`} />
+          ))}
       </button>
     );
   };
   return (
     <aside
       ref={railRef}
-      className={"staff-rail" + (expanded ? " expanded" : "")}
+      className={"staff-rail" + (expanded ? " expanded" : "") + (ss ? " ss-on" + (ss.dragging ? " ss-dragging" : "") : "")}
+      style={ss && expanded && !halfScreen ? { width: ss.width } : undefined}
       aria-label="Staff navigation"
     >
       <div className="staff-rail-brand">
@@ -2468,11 +2508,14 @@ function StaffRail({
         )}
       </div>
       {/* Picking a client happens on the Clients page and in the top bar's
-          client picker, so the rail itself lists only places. */}
+          client picker. The classic rail lists only places; with the L1 gate
+          on (ss), Pinned and Recent clients and the alerts slot follow them. */}
       <nav className="staff-rail-nav" data-tour="staff-nav">
         {items.map(renderItem)}
+        {ss && <SS_Sections ss={ss} expanded={expanded} showTip={showTip} hideTip={hideTip} />}
       </nav>
       <div className="staff-rail-foot">
+        {ss && <SS_Gear ss={ss} expanded={expanded} railRef={railRef} showTip={showTip} hideTip={hideTip} />}
         {/* On client pages too: the rail is the only sidebar there now. */}
         {onToggleCollapse && (
           <button
@@ -2492,6 +2535,7 @@ function StaffRail({
           </button>
         )}
       </div>
+      {ss && !ss.readOnly && expanded && !halfScreen && <SS_WidthGrip ss={ss} railRef={railRef} />}
       {tip &&
         ReactDOM.createPortal(
           <div
@@ -13840,9 +13884,11 @@ function resettableLocalStorageKeys() {
     // "mgb-"/"mgb_" ones (nav, tour, tips, profile prompt, bell, client
     // switcher, inbox context, the Desk's mgb_wb_hub:<email>,
     // mgb_wb_pins:<email> and its width mgb_wb_desk:<email>, and the staff
-    // sidebar choice mgb_rail_expanded:<email>). Feature flags are kept on purpose, including
+    // sidebar choice mgb_rail_expanded:<email>, and the L1 left sidebar's
+    // mgb_nav_prefs:<email> and mgb_nav_on_cache). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
-    // mgb_wb_classic, mgb_desk_app_preview). The MGB Desk window's own
+    // mgb_wb_classic, mgb_desk_app_preview, mgb_nav_preview, and at launch
+    // mgb_nav_classic). The MGB Desk window's own
     // keys (mgb_desk_win_v1 size, mgb_desk_installed_v1, mgb_wb_hub_win:<email>)
     // are cleared like any other saved screen.
     return Object.keys(localStorage).filter(
@@ -15210,6 +15256,8 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
             ["desk_app_enabled", "MGB Desk window on for staff", "Off (or missing, the default) hides the MGB Desk window for everyone: no Open MGB Desk or Get MGB Desk in the Desk menu, and /desk shows a short note. Needs wb_enabled on too. Owner turns it on (true) with one SQL line; read-only here. Each person can try it early with MGB Desk window preview in Feature flags. Setting it does nothing until the Desk itself is on."],
+            ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar. Each person can try it early with Sidebar preview in Feature flags. Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
+            ["layout_defaults", "Sidebar defaults by role", "What each role (admin, account manager, bookkeeper, temp admin) sees in the left sidebar until they customize it. Admins edit it in Settings › Firm settings › Sidebar defaults (shown once the sidebar is on). Not set means the built-in layout."],
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
             ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Slate › Recurring › One client; off by default. Works while the standard close set is off."],
@@ -16981,6 +17029,10 @@ const USAGE_PAGE_TAB_LABELS = {
 // Action buckets MGB_track() writes (see the hooks in TopBar, StaffGuide,
 // Tour). Add a label here when a new call site is added.
 const USAGE_ACTION_LABELS = {
+  "nav-gear": "Left sidebar Customize gear opened",
+  "nav-reset": "Left sidebar reset to the role default",
+  "nav-defaults-save": "Sidebar defaults saved for a role (admin)",
+  "nav-widen": "Left sidebar width changed",
   "desk-app-open": "MGB Desk window opened from the portal",
   "desk-app-focus": "MGB Desk window brought to the front",
   "desk-app-get": "Get MGB Desk (install) clicked",
@@ -29728,10 +29780,22 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             staffMessagesUnread={staffMessagesUnread}
             myTasksDue={myTasksDue}
             impersonating={impersonating}
+            previewing={Boolean(isStaffSession && isPreviewingUser)}
             showsAdminPages={
               (effectiveStaffUser.role === "admin" || hasTempAdminAccess) && !impersonating
             }
             hideMark={false}
+            // L1 left sidebar: pins, recents and prefs belong to the REAL
+            // viewer; the role default follows the person on screen.
+            realEmail={staffUser.email}
+            currentClientId={!onStaffPage && client ? client.id : null}
+            clients={listClients}
+            roleInfo={{
+              role: effectiveStaffUser.role,
+              hasTempAdminAccess: hasTempAdminAccess && !impersonating,
+              amCount: typeof TOUR_amCount === "function" ? TOUR_amCount(effectiveStaffUser.email) : 0,
+            }}
+            halfScreen={halfScreen}
           />
         )}
         {!tkShell && (
