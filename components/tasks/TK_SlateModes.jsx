@@ -661,12 +661,16 @@ function TK_SlateReadOnly(props) {
 
 // ---- The sliver's slot (S4 fills it) --------------------------------------------
 
+// S4: TK_SlateSliver (TK_SlateSliver.jsx) fills it with the current task.
 function TK_SlateSliverSlot(props) {
+  var p = props || {};
   var pr = TK_useSlatePresets();
+  var filled = typeof TK_SlateSliver === "function";
   return (
-    <div className="tk-sliver-slot" id="tk-sliver-slot" role="region" aria-label="Current task" tabIndex={-1} data-shape={(props && props.shape) || ""}>
-      <p className="tk-sliver-wait">Make the window bigger to see your list.</p>
-      {pr.ok ? (
+    <div className="tk-sliver-slot" id="tk-sliver-slot" role="region" aria-label="Current task" tabIndex={-1} data-shape={p.shape || ""}>
+      {filled ? <TK_SlateSliver shape={p.shape} staffUser={p.staffUser} clients={p.clients} isAdmin={p.isAdmin} /> : null}
+      {filled ? null : <p className="tk-sliver-wait">Make the window bigger to see your list.</p>}
+      {!filled && pr.ok ? (
         <button
           type="button"
           className="tk-tool-btn"

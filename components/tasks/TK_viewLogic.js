@@ -2138,6 +2138,93 @@ function TK_slatePresetPlace(mode) {
   return "none";
 }
 
+// ---- Slate app: the sliver (S4, spec 3.4) ---------------------------------------
+// TK_SlateSliver.jsx uses these; only the Slate app shows a sliver.
+
+// What fits in the sliver. shape: "strip" | "column"; w, h: the slot's content
+// width and height in CSS px (h = the window's inner height below the slot's
+// top). Returns { size, due, client, rest, lines }:
+//   size    "xs" (h < 28: 18 to 27px tall buttons), "sm" (h < 44) or "md"
+//   due     the due label fits (strip: h >= 24 and w >= 300)
+//   client  the client name fits (strip: h >= 32 and w >= 420)
+//   rest    the "+N" count fits (strip: h >= 24 and w >= 260)
+//   lines   title lines (strip 1, column 3, or 2 when the column is short)
+// Column: everything shows; below 120px of height the title takes 2 lines.
+// Bad numbers count as 0 (the smallest strip: title, Start, Done, Expand).
+function TK_slateSliverFit(shape, w, h) {
+  var W = typeof w === "number" && isFinite(w) && w > 0 ? w : 0;
+  var H = typeof h === "number" && isFinite(h) && h > 0 ? h : 0;
+  if (shape === "column") {
+    return { size: "md", due: true, client: true, rest: true, lines: H > 0 && H < 120 ? 2 : 3 };
+  }
+  return {
+    size: H < 28 ? "xs" : H < 44 ? "sm" : "md",
+    due: H >= 24 && W >= 300,
+    client: H >= 32 && W >= 420,
+    rest: H >= 24 && W >= 260,
+    lines: 1,
+  };
+}
+
+// The sliver's task, leaving out skip (ids, an array or a single id): the
+// task just marked Done stays out while its Undo is up, even before the store
+// has its new status. Otherwise exactly TK_slateCurrent.
+function TK_slateSliverPick(tasks, me, today, skip) {
+  if (!Array.isArray(tasks)) return null;
+  var out = skip == null ? [] : Array.isArray(skip) ? skip : [skip];
+  if (!out.length) return TK_slateCurrent(tasks, me, today);
+  var drop = {};
+  out.forEach(function (id) {
+    if (id != null) drop[String(id)] = 1;
+  });
+  return TK_slateCurrent(
+    tasks.filter(function (t) {
+      return !(t && drop[String(t.id)]);
+    }),
+    me,
+    today,
+  );
+}
+
+// "+N": the rest of today. My open tasks (todo or in_progress, assignee me,
+// not deleted) due today or late, not counting currentId and the skip ids.
+// today: "YYYY-MM-DD"; without it the answer is 0.
+function TK_slateSliverRest(tasks, me, today, currentId, skip) {
+  var who = TK_vLower(me);
+  var day = typeof today === "string" && /^\d{4}-\d{2}-\d{2}$/.test(today) ? today : "";
+  if (!who || !day || !Array.isArray(tasks)) return 0;
+  var drop = {};
+  if (currentId != null) drop[String(currentId)] = 1;
+  (Array.isArray(skip) ? skip : skip == null ? [] : [skip]).forEach(function (id) {
+    if (id != null) drop[String(id)] = 1;
+  });
+  var seen = {};
+  var n = 0;
+  for (var i = 0; i < tasks.length; i++) {
+    var t = tasks[i];
+    if (!t || t.deleted_at || t.id == null || drop[String(t.id)] || seen[String(t.id)]) continue;
+    if (TK_vLower(t.assignee_email) !== who) continue;
+    var st = TK_vStatus(t);
+    if (st !== "todo" && st !== "in_progress") continue;
+    var due = typeof t.due_date === "string" ? t.due_date.slice(0, 10) : "";
+    if (!due || due > day) continue;
+    seen[String(t.id)] = 1;
+    n++;
+  }
+  return n;
+}
+
+// The sliver's keys: s Start, x Done, Enter open / expand. e: a keydown
+// event (or { key, ctrlKey, metaKey, altKey, shiftKey }). Any modifier,
+// repeat, or another key gives null.
+function TK_slateSliverKey(e) {
+  if (!e || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.repeat) return null;
+  if (e.key === "s") return "start";
+  if (e.key === "x") return "done";
+  if (e.key === "Enter") return "expand";
+  return null;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_SLATE_APP_NAME: TK_SLATE_APP_NAME,
@@ -2155,6 +2242,10 @@ if (typeof module !== "undefined" && module.exports) {
     TK_slatePresetsAllowed: TK_slatePresetsAllowed,
     TK_slateSizeHit: TK_slateSizeHit,
     TK_slatePresetPlace: TK_slatePresetPlace,
+    TK_slateSliverFit: TK_slateSliverFit,
+    TK_slateSliverPick: TK_slateSliverPick,
+    TK_slateSliverRest: TK_slateSliverRest,
+    TK_slateSliverKey: TK_slateSliverKey,
     TK_POPOUT_DEFAULT: TK_POPOUT_DEFAULT,
     TK_POPOUT_MIN: TK_POPOUT_MIN,
     TK_POPOUT_KEY: TK_POPOUT_KEY,

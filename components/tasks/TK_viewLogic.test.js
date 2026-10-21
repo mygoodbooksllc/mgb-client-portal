@@ -1834,4 +1834,66 @@ t("skip groups: new reasons group like the rest", () => {
   assert.strictEqual(g[0].text, "It isn't in a project.");
 });
 
+// ---- Slate app S4: the sliver ---------------------------------------------------
+t("sliverFit: the smallest strip keeps only title and buttons", () => {
+  assert.deepStrictEqual(L.TK_slateSliverFit("strip", 360, 18), { size: "xs", due: false, client: false, rest: false, lines: 1 });
+  assert.deepStrictEqual(L.TK_slateSliverFit("strip", NaN, undefined), { size: "xs", due: false, client: false, rest: false, lines: 1 });
+});
+t("sliverFit: strip edges by height and width", () => {
+  assert.strictEqual(L.TK_slateSliverFit("strip", 360, 27).size, "xs");
+  assert.strictEqual(L.TK_slateSliverFit("strip", 360, 28).size, "sm");
+  assert.strictEqual(L.TK_slateSliverFit("strip", 360, 43).size, "sm");
+  assert.strictEqual(L.TK_slateSliverFit("strip", 360, 44).size, "md");
+  assert.strictEqual(L.TK_slateSliverFit("strip", 360, 23).due, false);
+  assert.strictEqual(L.TK_slateSliverFit("strip", 360, 24).due, true);
+  assert.strictEqual(L.TK_slateSliverFit("strip", 299, 60).due, false);
+  assert.strictEqual(L.TK_slateSliverFit("strip", 259, 60).rest, false);
+  assert.strictEqual(L.TK_slateSliverFit("strip", 260, 24).rest, true);
+  assert.strictEqual(L.TK_slateSliverFit("strip", 419, 60).client, false);
+  assert.strictEqual(L.TK_slateSliverFit("strip", 420, 31).client, false);
+  assert.strictEqual(L.TK_slateSliverFit("strip", 420, 32).client, true);
+});
+t("sliverFit: column shows everything, 2 title lines when short", () => {
+  assert.deepStrictEqual(L.TK_slateSliverFit("column", 240, 300), { size: "md", due: true, client: true, rest: true, lines: 3 });
+  assert.strictEqual(L.TK_slateSliverFit("column", 240, 119).lines, 2);
+  assert.strictEqual(L.TK_slateSliverFit("column", 240, 0).lines, 3);
+});
+const sv = (id, x) => Object.assign({ id, assignee_email: "me@x.com", status: "todo", text: id }, x || {});
+t("sliverPick: skips the just-done id, else TK_slateCurrent", () => {
+  const rows = [sv("a", { status: "in_progress", status_changed_at: "2026-10-20T10:00:00Z" }), sv("b", { due_date: "2026-10-01" })];
+  assert.strictEqual(L.TK_slateSliverPick(rows, "ME@x.com", "2026-10-21").id, "a");
+  assert.strictEqual(L.TK_slateSliverPick(rows, "me@x.com", "2026-10-21", "a").id, "b");
+  assert.strictEqual(L.TK_slateSliverPick(rows, "me@x.com", "2026-10-21", ["a", "b"]), null);
+  assert.strictEqual(L.TK_slateSliverPick(rows, "me@x.com", "2026-10-21", []).id, "a");
+  assert.strictEqual(L.TK_slateSliverPick(null, "me@x.com", "2026-10-21"), null);
+});
+t("sliverRest: my open tasks due today or late, minus current and skip", () => {
+  const rows = [
+    sv("a", { due_date: "2026-10-21" }),
+    sv("b", { due_date: "2026-10-01", status: "in_progress" }),
+    sv("c", { due_date: "2026-10-22" }),
+    sv("d", { due_date: "2026-10-21", status: "done" }),
+    sv("e", { due_date: "2026-10-21", status: "waiting_client" }),
+    sv("f", { due_date: "2026-10-21", assignee_email: "other@x.com" }),
+    sv("g", { due_date: "2026-10-21", deleted_at: "2026-10-20T00:00:00Z" }),
+    sv("h"),
+    sv("a", { due_date: "2026-10-21" }),
+  ];
+  assert.strictEqual(L.TK_slateSliverRest(rows, "me@x.com", "2026-10-21"), 2);
+  assert.strictEqual(L.TK_slateSliverRest(rows, "me@x.com", "2026-10-21", "a"), 1);
+  assert.strictEqual(L.TK_slateSliverRest(rows, "me@x.com", "2026-10-21", "a", ["b"]), 0);
+  assert.strictEqual(L.TK_slateSliverRest(rows, "me@x.com", "bad"), 0);
+  assert.strictEqual(L.TK_slateSliverRest(rows, "", "2026-10-21"), 0);
+});
+t("sliverKey: s, x, Enter; modifiers and repeats are not keys", () => {
+  assert.strictEqual(L.TK_slateSliverKey({ key: "s" }), "start");
+  assert.strictEqual(L.TK_slateSliverKey({ key: "x" }), "done");
+  assert.strictEqual(L.TK_slateSliverKey({ key: "Enter" }), "expand");
+  assert.strictEqual(L.TK_slateSliverKey({ key: "S", shiftKey: true }), null);
+  assert.strictEqual(L.TK_slateSliverKey({ key: "x", metaKey: true }), null);
+  assert.strictEqual(L.TK_slateSliverKey({ key: "x", repeat: true }), null);
+  assert.strictEqual(L.TK_slateSliverKey({ key: "j" }), null);
+  assert.strictEqual(L.TK_slateSliverKey(null), null);
+});
+
 console.log(n + " checks passed");

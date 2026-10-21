@@ -17194,6 +17194,8 @@ const USAGE_ACTION_LABELS = {
   "slate-app-open": "Slate app window opened from the portal",
   "slate-app-install": "Install Slate app clicked",
   "slate-app-forward": "Links sent from the Slate app to a portal window",
+  "slate-sliver-start": "Slate app sliver: Start clicked",
+  "slate-sliver-done": "Slate app sliver: Done clicked",
   "tasks-bulk-complete": "Bulk: tasks completed together",
   "tasks-bulk-reopen": "Bulk: tasks reopened together",
   "tasks-bulk-delete": "Bulk: tasks deleted together",

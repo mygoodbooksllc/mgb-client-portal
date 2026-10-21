@@ -235,3 +235,311 @@ html.tk-slate-m-sliver .tk-sbar-follow-wrap,
 html.tk-slate-m-sliver .tk-sbar-dock {
   display: none;
 }
+
+/* ---- S4 sliver: the current task (TK_SlateSliver.jsx) ----------------------
+   Strip (wide and short): one line, the bar hidden so 18-60px of content
+   works; TK_slateSliverFit picks xs/sm/md and drops the client, the due pill
+   and the +N count as the height shrinks. Column (narrow and tall): stacked.
+   Keys only off .tk-m-sliver, .tk-shape-* and @container slate. */
+
+body:has(.tk-app.is-shell.tk-shape-strip) .tk-sbar {
+  display: none;
+}
+
+body:has(.tk-app.is-shell.tk-shape-strip) {
+  overflow: hidden;
+}
+
+/* The global toast stack would cover the sliver; it shows toasts inline. */
+body:has(.tk-app.is-shell.tk-m-sliver .tk-sl) .toast-stack {
+  display: none;
+}
+
+.tk-app.is-shell.tk-shape-strip {
+  padding: 0 8px;
+}
+
+.tk-app.is-shell.tk-shape-strip .tk-sliver-slot {
+  box-sizing: border-box;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sliver-slot:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  border-radius: 8px;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sliver-slot > .tk-sl {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl {
+  position: relative;
+  box-sizing: border-box;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl .tk-dot {
+  width: 8px;
+  height: 8px;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-main {
+  display: flex;
+  min-width: 0;
+  gap: 2px 8px;
+  animation: tk-sl-in 140ms ease-out;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-title {
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-title.tk-sl-empty {
+  cursor: default;
+  font-family: var(--font-heading);
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.92em;
+  white-space: nowrap;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-client {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-note {
+  min-width: 0;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-was {
+  min-width: 0;
+  color: var(--text-muted);
+  text-decoration: line-through;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-rest {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-acts {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl .tk-sl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl .tk-sl-btn.tk-sl-expand {
+  padding: 0 8px;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl .tk-sl-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tk-app.is-shell.tk-m-sliver .tk-sl-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Strip: one line. */
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+}
+
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip .tk-sl-main {
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip .tk-sl-title,
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip .tk-sl-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip .tk-sl-meta {
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+
+/* md strip (44px and up): the title over its meta. */
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip.tk-sl-md .tk-sl-main {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip.tk-sl-sm .tk-sl-btn {
+  min-height: 24px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip.tk-sl-xs {
+  gap: 6px;
+  font-size: 11.5px;
+}
+
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip.tk-sl-xs .tk-sl-acts {
+  gap: 4px;
+}
+
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip.tk-sl-xs .tk-sl-btn {
+  min-height: 18px;
+  padding: 0 7px;
+  font-size: 11px;
+  border-width: 1px;
+}
+
+.tk-app.is-shell.tk-shape-strip .tk-sl-strip.tk-sl-xs .tk-dot {
+  width: 6px;
+  height: 6px;
+}
+
+/* Column: stacked. */
+.tk-app.is-shell.tk-shape-column .tk-sl-column {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.tk-app.is-shell.tk-shape-column .tk-sl-column > .tk-dot {
+  margin-top: 5px;
+}
+
+.tk-app.is-shell.tk-shape-column .tk-sl-column .tk-sl-main {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.tk-app.is-shell.tk-shape-column .tk-sl-column .tk-sl-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.tk-app.is-shell.tk-shape-column .tk-sl-column.tk-sl-lines2 .tk-sl-title {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.tk-app.is-shell.tk-shape-column .tk-sl-column .tk-sl-meta {
+  flex-wrap: wrap;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.tk-app.is-shell.tk-shape-column .tk-sl-column > .tk-sl-rest {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.tk-app.is-shell.tk-shape-column .tk-sl-column > .tk-sl-acts,
+.tk-app.is-shell.tk-shape-column .tk-sl-column > .tk-sl-hint {
+  grid-column: 1 / -1;
+}
+
+.tk-app.is-shell.tk-shape-column .tk-sl-column .tk-sl-acts {
+  flex-wrap: wrap;
+}
+
+.tk-app.is-shell.tk-shape-column .tk-sl-column .tk-sl-acts > .tk-sl-btn {
+  flex: 1 1 auto;
+}
+
+/* A narrow strip keeps only the icons on Done and Add (they keep their
+   aria-labels); a very narrow column drops the icons instead. */
+@container slate (max-width: 360px) {
+  .tk-app.is-shell.tk-shape-strip .tk-sl-strip .tk-sl-btn > svg + span {
+    display: none;
+  }
+}
+
+@container slate (max-width: 200px) {
+  .tk-app.is-shell.tk-shape-column .tk-sl-column .tk-sl-btn > svg {
+    display: none;
+  }
+}
+
+@keyframes tk-sl-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-app.is-shell.tk-m-sliver .tk-sl-main {
+    animation: none;
+  }
+}

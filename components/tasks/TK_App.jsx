@@ -188,7 +188,7 @@ function TK_App(props) {
         {main}
       </div>
       {slm && slm.mode === "full" && typeof TK_SlatePane === "function" ? <TK_SlatePane view={route.view} /> : null}
-      {slm && slm.mode === "sliver" && typeof TK_SlateSliverSlot === "function" ? <TK_SlateSliverSlot shape={slm.shape} /> : null}
+      {slm && slm.mode === "sliver" && typeof TK_SlateSliverSlot === "function" ? <TK_SlateSliverSlot shape={slm.shape} staffUser={staffUser} clients={clients} isAdmin={isAdmin} /> : null}
 
       {listsOpen && !rail ? (
         <TK_vModal
