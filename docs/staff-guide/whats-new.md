@@ -138,7 +138,7 @@ Admins now see the anonymous answers to survey questions 7 and 10 as soon as one
 ### 2026-10-17: The Workbench is now the Desk, and Tasks is now Slate
 
 - **Only the names changed.** The panel at the bottom of every page is the **Desk** (it was the Workbench), and the whole Tasks area is **Slate** (the **Tasks** tab under Work, the top-bar button, and **My tasks** are now just **Slate**). Nothing moved and your settings, pins and tasks are untouched.
-- **Today keeps its name.** Its list is still called **Needs you**; the Desk's header link that said *Full page* now says **Open Today**, and the button that added a task is **Add to your Slate**.
+- **Today keeps its name.** Its list is still called **Needs you**; the Desk's old *Full page* link is gone (Today is in the left menu), and the button that added a task is **Add to your Slate**.
 - A launch notice and tour come with it; rerun it from **?** → **New: Workbench is now Desk, Tasks is now Slate tour**. See [How do I use the Desk?](#/help/workbench) and [How do I use my Slate?](#/help/my-tasks). Older entries below keep the old names.
 
 ### 2026-10-17: A Client tab in the Workbench (the Workbench is still off until the owner turns it on)

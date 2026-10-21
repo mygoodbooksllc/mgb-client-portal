@@ -484,11 +484,6 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
             {WB_NAME} <span className="wb-chip-n">{count}</span>
           </h2>
           {s.offline && <span className="wb-offline">Offline</span>}
-          {!isWin && (
-            <a className="wb-panel-full" href="#/today" onClick={() => WB_store.setDrawerOpen(false)}>
-              Open Today
-            </a>
-          )}
           {!isWin && deskMenu}
           {!isWin && (
             <button type="button" className="wb-icon-btn" aria-label={"Close " + WB_NAME} onClick={() => WB_store.setDrawerOpen(false)}>

@@ -126,8 +126,27 @@ function TK_vMenuButton(props) {
   var close = function () {
     setOpen(false);
   };
+  // hoverOpen: a mouse pointer resting on the button or menu opens it; leaving closes it after a short grace
+  var hoverT = React.useRef(null);
+  var hoverIn = function (e) {
+    if (!props.hoverOpen || (e && e.pointerType && e.pointerType !== "mouse")) return;
+    if (hoverT.current) clearTimeout(hoverT.current);
+    setOpen(true);
+  };
+  var hoverOut = function (e) {
+    if (!props.hoverOpen || (e && e.pointerType && e.pointerType !== "mouse")) return;
+    if (hoverT.current) clearTimeout(hoverT.current);
+    hoverT.current = setTimeout(function () {
+      setOpen(false);
+    }, 250);
+  };
+  React.useEffect(function () {
+    return function () {
+      if (hoverT.current) clearTimeout(hoverT.current);
+    };
+  }, []);
   return (
-    <span className="tk-pop-wrap">
+    <span className="tk-pop-wrap" onPointerEnter={props.hoverOpen ? hoverIn : undefined} onPointerLeave={props.hoverOpen ? hoverOut : undefined}>
       <button
         type="button"
         ref={btnRef}
@@ -137,6 +156,7 @@ function TK_vMenuButton(props) {
         aria-label={props.ariaLabel || undefined}
         title={props.title || undefined}
         onClick={function () {
+          if (props.hoverOpen && open) return;
           setOpen(!open);
         }}
       >
