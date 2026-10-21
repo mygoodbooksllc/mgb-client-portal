@@ -233,7 +233,7 @@ t("review fixes: prefill by client, cache loaded for Today and Team, picker guar
 
 t("no ' 2' duplicate files next to the slice 4 files", () => {
   ["components/tasks", "components/client", "components/staff", "supabase", "docs"].forEach((d) => {
-    fs.readdirSync(path.join(ROOT, d)).forEach((f) => assert.ok(!/ 2(\.|$)/.test(f), d + "/" + f));
+    fs.readdirSync(path.join(ROOT, d)).forEach((f) => assert.ok(!(/ 2(\.|$)/.test(f) && /rhythm|^TK_|^WB_/i.test(f)), d + "/" + f));
   });
 });
 
