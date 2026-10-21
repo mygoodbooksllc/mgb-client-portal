@@ -1143,12 +1143,156 @@ function ST_LateTasksCard({ isOwner }) {
   );
 }
 
+// Slate month rhythm, slice 1 (docs/slate-rhythm-slice-1.md): the firm's three
+// monthly dates in tk_settings.month_rhythm. Admins only (RLS: admin write,
+// every change in tk_settings_audit; the DB refuses an invalid value). Shown
+// whatever month_rhythm_enabled says: until the owner turns monthly tasks on,
+// it only stores the dates. Missing row = 4th, 14th, 24th, roll next.
+const ST_RHYTHM_DAYS = Array.from({ length: 28 }, (_, i) => i + 1);
+function ST_MonthRhythmCard() {
+  const [st, setSt] = React.useState({ loaded: false });
+  const [form, setForm] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState("");
+  const load = React.useCallback(() => {
+    Promise.all([
+      Promise.resolve(TK_api.getSettingRow("month_rhythm")),
+      Promise.resolve(TK_api.getSettingRow("month_rhythm_enabled")).catch(() => null),
+    ]).then(
+      ([row, sw]) => {
+        const res = TK_rhythmResolve(row ? row.value : undefined);
+        setSt({ loaded: true, row, res, switchOn: TK_rhythmFlagValueOn(sw ? sw.value : undefined) });
+        setForm(TK_rhythmToForm(res.rhythm));
+      },
+      () => {
+        setSt({ loaded: true, failed: true });
+        setForm(null);
+      }
+    );
+  }, []);
+  React.useEffect(load, [load]);
+  if (!st.loaded) {
+    return (
+      <ST_Card title="Month rhythm">
+        <p className="st-muted">Loading…</p>
+      </ST_Card>
+    );
+  }
+  if (st.failed || !form) {
+    return (
+      <ST_Card title="Month rhythm">
+        <p className="st-muted">Could not load the month rhythm. Try again later.</p>
+      </ST_Card>
+    );
+  }
+  const saved = st.res.rhythm;
+  const built = TK_rhythmFromForm(form, saved);
+  const errs = built.errors;
+  const changed = !saved || !built.value || !TK_rhythmSame(built.value, saved);
+  const set = (k) => (e) => {
+    setMsg("");
+    setForm(Object.assign({}, form, { [k]: k === "roll" ? e.target.value : Number(e.target.value) }));
+  };
+  const save = () => {
+    if (busy || !built.value) return;
+    setBusy(true);
+    setMsg("");
+    Promise.resolve(TK_api.setSetting("month_rhythm", built.value)).then(
+      () => {
+        setBusy(false);
+        setMsg("Saved. The month rhythm is now " + TK_rhythmSummary(built.value) + ".");
+        if (typeof TK_rhythmLoad === "function") TK_rhythmLoad(true);
+        load();
+      },
+      (e) => {
+        setBusy(false);
+        const m = /tk_month_rhythm_invalid:\s*([a-z_]+)/.exec(String((e && e.message) || e));
+        setMsg(m ? TK_rhythmProblemText(m[1]) : "Could not save. Only admins can change this. Try again.");
+      }
+    );
+  };
+  const parts = [
+    { key: "check_in", label: "Check in" },
+    { key: "reports", label: "Send reports" },
+    { key: "follow_up", label: "Follow up" },
+  ];
+  const labelOf = (k) => {
+    const p = saved && TK_rhythmPart(saved, k);
+    return (p && p.label) || parts.find((x) => x.key === k).label;
+  };
+  const row = st.row;
+  const status =
+    st.res.source === "invalid"
+      ? "The saved rhythm is not valid: " + TK_rhythmProblemText(st.res.problem) + " Save a new one below. Monthly tasks will not be made until then."
+      : st.res.source === "default"
+        ? "Using the standard rhythm: " + TK_rhythmSummary(saved) + ". Nothing has been saved yet."
+        : "Now: " + TK_rhythmSummary(saved) + "." +
+          (row && row.updated_at ? " Last changed " + String(row.updated_at).slice(0, 10) + (row.updated_by ? " by " + row.updated_by : "") + "." : "");
+  return (
+    <ST_Card
+      title="Month rhythm"
+      sub="The three days each month when Slate's monthly tasks come due: Check in, Send reports and Follow up. All three cover work for the previous month."
+    >
+      <p className="st-muted">{status}</p>
+      <div className="st-rhythm-grid" style={{ marginTop: 12 }}>
+        {parts.map((p) => (
+          <ST_Field key={p.key} label={labelOf(p.key) + " day"}>
+            <select className="st-input" value={form[p.key]} disabled={busy} onChange={set(p.key)} aria-invalid={!!errs[p.key]}>
+              {ST_RHYTHM_DAYS.map((d) => (
+                <option key={d} value={d}>
+                  {TK_rhythmOrdinal(d)}
+                </option>
+              ))}
+            </select>
+            {errs[p.key] && <span className="st-field-error">{errs[p.key]}</span>}
+          </ST_Field>
+        ))}
+        <ST_Field label="Weekend or firm holiday">
+          <select className="st-input" value={form.roll} disabled={busy} onChange={set("roll")} aria-invalid={!!errs.roll}>
+            {TK_RHYTHM_ROLLS.map((r) => (
+              <option key={r} value={r}>
+                {TK_RHYTHM_ROLL_LABELS[r]}
+              </option>
+            ))}
+          </select>
+          {errs.roll && <span className="st-field-error">{errs.roll}</span>}
+        </ST_Field>
+      </div>
+      {errs.form && <p className="st-field-error">{errs.form}</p>}
+      <div className="st-actions">
+        <button type="button" className="btn-primary" disabled={busy || !built.value || !changed} onClick={save}>
+          {busy ? "Saving…" : "Save rhythm"}
+        </button>
+        <button
+          type="button"
+          className="btn-secondary st-btn-sm"
+          disabled={busy || TK_rhythmSame(TK_rhythmFromForm(form, saved).value, TK_rhythmDefault())}
+          onClick={() => {
+            setMsg("");
+            setForm(TK_rhythmToForm(TK_rhythmDefault()));
+          }}
+        >
+          Use 4th, 14th, 24th
+        </button>
+        <span className="st-muted" aria-live="polite">{msg}</span>
+      </div>
+      <p className="st-muted">
+        {st.switchOn
+          ? "Changes apply to monthly tasks made from now on. Tasks already made keep their dates."
+          : "Monthly rhythm tasks are not turned on yet, so for now this only stores the dates. Saving changes nothing for staff today."}{" "}
+        Only admins can change this, and every change is recorded.
+      </p>
+    </ST_Card>
+  );
+}
+
 function ST_FirmSettings({ groups, isAdmin, onSelectPage, isOwner }) {
   const status = ST_useFirmStatus(!!isAdmin);
   const [openInline, setOpenInline] = React.useState(null);
   return (
     <>
       {isAdmin && typeof TK_api !== "undefined" && <ST_LateTasksCard isOwner={!!isOwner} />}
+      {isAdmin && typeof TK_api !== "undefined" && typeof TK_rhythmResolve === "function" && <ST_MonthRhythmCard />}
       {groups.map((g) => (
         <ST_Card key={g.title} title={g.title}>
           <ul className="st-firm-list">

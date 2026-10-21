@@ -1018,6 +1018,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by TK_rhythmEnabled (components/tasks/TK_rhythmLogic.js).
+    key: "mgb_rhythm_preview",
+    label: "Month rhythm preview",
+    description:
+      "Turns on the Slate month rhythm work for you only, in this browser, while the firm-wide month_rhythm_enabled switch is off. Nothing uses it yet: the parts that come next (monthly tasks on the 4th, 14th and 24th) check it. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     key: "mgb_lato_classic",
     label: "Classic fonts",
     description:
@@ -1111,6 +1119,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Late-task grace period)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "supabase/tasks-grace-period.sql (self-test: tasks-grace-period-tests.sql, rolls back): owner-only switches late_tasks_count_against_staff (default false) and late_tasks_effective_from in tk_settings · RPCs tk_late_count_from, tk_set_late_tasks_count · patches staff_performance, client_health, digest_weekly_data and tk_on_time_stats to leave late tasks out while the switch is off · weekly-admin-digest edge function redeployed to hide the overdue figure",
+  },
+  {
+    name: "Supabase SQL (Slate month rhythm setting)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "supabase/slate-rhythm-1-settings.sql (self-test: slate-rhythm-1-settings-tests.sql, rolls back): tk_settings key month_rhythm (the 4th, 14th, 24th rhythm; admin write, audited in tk_settings_audit; no row = the default) · functions tk_month_rhythm_default, tk_month_rhythm_problem (same rules as TK_rhythmLogic.js; shared vectors in TK_rhythm.fixtures.js), tk_month_rhythm (stored, default when missing, null when invalid) · trigger tk_settings_check_month_rhythm refuses an invalid value · month_rhythm_enabled added to the owner-only keys (tk__owner_only_key) · slate-rhythm-1b-label-parity.sql: label blank set and code-point length matched to JS (re-run after the first file) · no email, no edge function",
   },
   {
     name: "Supabase SQL (Workbench)",
@@ -13905,7 +13918,7 @@ function resettableLocalStorageKeys() {
     // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
     // mgb_tk_slate_view_v1:<email> / :desk:<email>). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
-    // mgb_wb_classic, mgb_desk_app_preview, mgb_nav_preview, and at launch
+    // mgb_wb_classic, mgb_desk_app_preview, mgb_nav_preview, mgb_rhythm_preview, and at launch
     // mgb_nav_classic). The MGB Desk window's own
     // keys (mgb_desk_win_v1 size, mgb_desk_installed_v1, mgb_wb_hub_win:<email>)
     // are cleared like any other saved screen.
@@ -15255,7 +15268,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Slate switches</h3>
         <p className="card-subtitle">
-          Firm-wide, from tk_settings (and the Ask client switch from client_email_settings). Read-only here: the owner flips the standard close set on Slate › Recurring and Ask client emails live on Settings › Firm settings › Emails (Client emails card).
+          Firm-wide, from tk_settings (and the Ask client switch from client_email_settings). Read-only here: the owner flips the standard close set on Slate › Recurring and Ask client emails live on Settings › Firm settings › Emails (Client emails card); admins set the month rhythm on Settings › Firm settings › Month rhythm.
         </p>
         {tkSettingsError ? <p className="card-subtitle">{tkSettingsError}</p> : null}
         {tkSettings === null ? (
@@ -15277,13 +15290,16 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar, plus the Alerts section for real admins. Each person can try it early with Sidebar preview in Feature flags. Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
             ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can try it early with Lato font preview in Feature flags, or opt out with Classic fonts. Setting it to true changes the look for every user right away, so do it only at launch."],
             ["layout_defaults", "Sidebar defaults by role", "What each role (admin, account manager, bookkeeper, temp admin) sees in the left sidebar until they customize it. Admins edit it in Settings › Firm settings › Sidebar defaults (shown once the sidebar is on). Not set means the built-in layout."],
+            ["month_rhythm", "Month rhythm (Slate)", "The three days each month when Slate's monthly tasks come due: Check in, Send reports, Follow up, and what happens on a weekend or firm holiday. Admins edit it on Settings › Firm settings › Month rhythm (every change audited; the database refuses an invalid value). Not set means 4th, 14th, 24th, next business day."],
+            ["month_rhythm_enabled", "Month rhythm tasks on for everyone", "Off (or missing, the default): nothing uses the month rhythm yet. Owner-only; the owner turns it on (true) with one SQL line, never from here, once the monthly rhythm tasks are finished. Each person can try the work early with Month rhythm preview in Feature flags."],
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
             ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Slate › Recurring › One client; off by default. Works while the standard close set is off."],
           ].map(([key, label, desc]) => {
             const row = key === "__close_optin_count" ? (closeOptinCount === null ? null : { value: closeOptinCount }) : tkSettings[key];
             const raw = row ? row.value : undefined;
-            const val = raw === undefined || raw === null ? "Not set" : raw === true ? "On" : raw === false ? "Off" : String(raw);
+            const val = raw === undefined || raw === null ? "Not set" : raw === true ? "On" : raw === false ? "Off"
+              : key === "month_rhythm" && typeof TK_rhythmSummary === "function" ? TK_rhythmSummary(raw) : String(raw);
             return (
               <div className="staff-flag-row" key={key}>
                 <span className={"pill " + (raw === true ? "good" : "neutral")} style={{ flexShrink: 0 }}>{val}</span>

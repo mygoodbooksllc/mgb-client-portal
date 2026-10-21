@@ -2030,6 +2030,13 @@ var TK_api = (function () {
     });
   };
 
+  // One tk_settings row with who/when (null when missing), e.g. month_rhythm.
+  api.getSettingRow = function (key) {
+    return run(function (c) {
+      return c.from("tk_settings").select("key, value, updated_by, updated_at").eq("key", key).maybeSingle();
+    }, { where: "getSettingRow" }).then(function (row) { return row || null; });
+  };
+
   // Owner-only keys (standard_set_live …) are refused for anyone else
   // (tk_owner_only); every change is audited.
   api.setSetting = function (key, value) {
