@@ -31,6 +31,11 @@
 //            localStorage); What's new and the ? menu list the tour anyway.
 //            Use it when the feature only makes sense once the person has
 //            met it, like "unassigned-tasks" (mgb_tk_seen_unassigned_v1).
+//   visible  optional (ctx) => boolean. Unlike `ready`, which only holds the notice
+//            back, an entry that is not visible is hidden everywhere: no notice,
+//            no What's new Launches row, no ? menu tour (ANN_audience in
+//            announcementsLogic.js). Use it for a launch behind a firm switch
+//            (slate-app-launch), so nothing leaks before the owner flips it.
 //   supersedes  optional list of older entry ids this one replaces (a combined
 //            launch). Once the person has been shown this entry, those are no
 //            longer owed (ANN_superseded in announcementsLogic.js); they stay
@@ -67,6 +72,22 @@ function ANN_launchOn() {
     var brand = ls.getItem("mgb_brand_classic") === "1" || ls.getItem("mgb_brand_cache") === "1";
     var hover = ls.getItem("mgb_hovernav_classic") === "1" || ls.getItem("mgb_hovernav_cache") === "1";
     return brand && hover;
+  } catch (e) {
+    return false;
+  }
+}
+
+// True once the owner has switched the Slate app on for everyone AND this
+// person has not chosen Classic tasks page. index.html's inline script caches
+// tk_settings.slate_app_enabled in mgb_slate_cache after its first read (the
+// same single read as Brand colors and Hover menus). Deliberately not the
+// per-person Slate app preview: a preview person sees no launch text. Classic
+// (mgb_slate_classic) wins, as it does in TK_slateAppIsOn.
+function ANN_slateLaunchOn() {
+  try {
+    var ls = window.localStorage;
+    if (ls.getItem("mgb_slate_classic") === "1") return false;
+    return ls.getItem("mgb_slate_cache") === "1";
   } catch (e) {
     return false;
   }
@@ -1456,6 +1477,66 @@ var ANN_REGISTRY = [
               ? "Classic fonts, Classic colors and Classic menus are in Settings › Firm settings › Developer tools › Feature flags, for this browser only."
               : "Classic fonts, colors and menus are in Feature flags, a page only admins open, so tell us through Send feedback if one bothers you.") +
             " To see this again, press ? and pick New: The Desk, a left sidebar and a new look, or read the staff guide.",
+        },
+      ];
+    },
+  },
+  {
+    // Slate app launch. Hidden everywhere (notice, What's new Launches, ? menu) until the owner
+    // turns tk_settings.slate_app_enabled on (visible: ANN_slateLaunchOn), and never for someone
+    // on Classic tasks page. The notice also waits for a computer-width window (ready). No
+    // supersedes: the earlier Slate notices (group, sort and filter; rows you change in place;
+    // task details fields) describe things that still work as they did, so they stay owed.
+    id: "slate-app-launch",
+    date: "2026-10-21",
+    title: "Slate is now its own app",
+    summary:
+      "Slate can open as its own app: a sliver with your current task, a full page with a detail pane, and views, bulk edits, manual order and a board for shaping your work. Look for Open Slate app on the Slate page.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    visible: () => ANN_slateLaunchOn(),
+    ready: () => ANN_deskDocked(),
+    steps: (ctx) => {
+      const canDev = !!(ctx && (ctx.isAdmin || ctx.tempAdmin));
+      return [
+        {
+          id: "ann-welcome",
+          title: "Slate, in its own window",
+          body: () =>
+            "Slate can now open as its own app. Shrink it to your current task, or grow it to a full page with a detail pane. Nothing changes in the portal until you open it. About a minute.",
+        },
+        {
+          id: "ann-open",
+          go: () => {
+            if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+          },
+          targets: ["tk-popout"],
+          wait: true,
+          title: "Open Slate app",
+          body: () =>
+            "This opens Slate in a window of its own, with no rail or top bar. Install Slate app next to it adds an icon to your Dock or Start menu, in Chrome or Edge.",
+        },
+        {
+          id: "ann-sizes",
+          title: "Four sizes",
+          body: () =>
+            "Drag the app window smaller and it becomes a compact list, then a sliver with just your current task and Start and Done. Bigger and it gets a left rail, then a detail pane beside the list. The Sliver, List and Full page buttons in the app jump to a size.",
+        },
+        {
+          id: "ann-shape",
+          title: "Shape your work",
+          body: () =>
+            "In the app, Views saves how your list is set up, bulk edit changes Status, Priority and Section together, Manual order lets you drag rows, and the List | Board switch shows columns by status or section. Links to clients open in this portal window.",
+        },
+        {
+          id: "ann-done",
+          title: "That's the Slate app",
+          body: () =>
+            "Slate in the portal works as before. " +
+            (canDev
+              ? "Classic tasks page, in Settings › Firm settings › Developer tools › Feature flags, keeps the old Slate window for you only, in this browser."
+              : "If you would rather keep the old Slate window, tell us through Send feedback.") +
+            " To see this again, press ? and pick New: Slate is now its own app, or read How do I use the Slate app? in Help.",
         },
       ];
     },

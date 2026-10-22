@@ -1,3 +1,5 @@
+WIRED 2026-10-21 (launch prep): the notice and tour are in components/tour/announcements.js as slate-app-launch, gated by visible(); the guide text is applied at flip time with supabase/staff-guide-slate-launch.sql (built by drafts/slate-launch-patch.mjs from these drafts). The text below stays here as the source for that script.
+
 DRAFT - not live until the owner flips tk_settings.slate_app_enabled. Nothing in this file is synced: docs/staff-guide/sync.mjs only reads the top-level .md files, so this drafts folder is skipped.
 
 AT LAUNCH (mgb-launch-kit, mgb-ui-upkeep), in one commit:

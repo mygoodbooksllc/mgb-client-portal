@@ -1,3 +1,5 @@
+WIRED 2026-10-21 (launch prep): the notice and tour are in components/tour/announcements.js as slate-app-launch, gated by visible(); the guide text is applied at flip time with supabase/staff-guide-slate-launch.sql (built by drafts/slate-launch-patch.mjs from these drafts). The text below stays here as the source for that script.
+
 DRAFT - not live until the owner flips tk_settings.slate_app_enabled. Not published: nothing here is in docs/staff-guide/whats-new.md or the guide table.
 
 AT LAUNCH: paste the entry below at the top of docs/staff-guide/whats-new.md (under the intro, with the launch date in place of DATE), update the article keywords, sync with a targeted guide SQL (upserts only), and add the announcement entry from drafts/tour-slate-app.md. Also replace tasks-own-window.md with drafts/staff-guide-slate-app.md. Owner decides the wording of the next-visit notice (the one-sentence summary at the end of this file).

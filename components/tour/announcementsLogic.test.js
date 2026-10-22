@@ -515,4 +515,126 @@ t("registry: new-look-and-layout ready check (caches, Classic opt-outs, no Lato)
   }
 });
 
+// ---- Slate app launch: invisible until the firm switch is on ---------------------
+const slateEntry = () => ANN_REGISTRY.find((x) => x.id === "slate-app-launch");
+const withWin = (store, narrow, fn) => {
+  global.window = {
+    localStorage: { getItem: (k) => (k in store ? store[k] : null) },
+    matchMedia: () => ({ matches: !!narrow }),
+  };
+  try {
+    return fn();
+  } finally {
+    delete global.window;
+  }
+};
+const SLATE_NOW = Date.parse("2026-10-23T12:00:00Z");
+
+t("registry: slate-app-launch shape, roles, steps and wording", () => {
+  const a = slateEntry();
+  assert.ok(a);
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  assert.ok(!a.roles.includes("client"));
+  assert.strictEqual(a.hash, "#/tasks/my");
+  assert.strictEqual(typeof a.visible, "function");
+  assert.strictEqual(typeof a.ready, "function");
+  assert.strictEqual(a.supersedes, undefined, "the earlier Slate notices still describe live things");
+  const steps = a.steps({ isAdmin: true });
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-open", "ann-sizes", "ann-shape", "ann-done"]);
+  assert.deepStrictEqual(steps[1].targets, ["tk-popout"]);
+  assert.strictEqual(steps[1].wait, true);
+  const sizes = steps[2].body();
+  assert.ok(/sliver/i.test(sizes) && /compact/i.test(sizes) && /detail pane/i.test(sizes) && /Full page/.test(sizes), "window-size step");
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body()), a.steps({}).map((x) => x.body())));
+  assert.ok(!/colour|month rhythm|interaction|template editor|touch drag/i.test(text), "US spelling; nothing held back is promised");
+  assert.ok(/Classic tasks page/.test(JSON.stringify(a.steps({ isAdmin: true }).map((x) => x.body()))));
+  assert.ok(!/Classic tasks page/.test(JSON.stringify(a.steps({ isBookkeeper: true }).map((x) => x.body()))), "non-admins are not sent to Developer tools");
+});
+
+t("slate-app-launch gate: off means nothing shows anywhere", () => {
+  const a = slateEntry();
+  const reg = [a];
+  [admin, bk, tempAdmin, am].forEach((ctx) => {
+    // No cache at all (the switch was never read or is off).
+    withWin({}, false, () => {
+      assert.strictEqual(L.ANN_listed(a, ctx), false);
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), [], "no Launches row, no ? menu tour");
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null, "no notice");
+    });
+    // A person's preview alone is not the launch.
+    withWin({ mgb_slate_app_preview: "1" }, false, () => {
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
+    });
+    // The cache cleared again (switch turned back off).
+    withWin({ mgb_slate_cache: "0" }, false, () => assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null));
+  });
+});
+
+t("slate-app-launch gate: on shows the notice once, for staff only", () => {
+  const a = slateEntry();
+  const reg = [a];
+  withWin({ mgb_slate_cache: "1" }, false, () => {
+    [admin, bk, tempAdmin, am].forEach((ctx) => {
+      assert.strictEqual(L.ANN_listed(a, ctx), true);
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), [a], "listed in Launches and the ? menu");
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), a, "the notice shows");
+      // Shown once it was seen, answered (tour, Skip) it never returns; Later waits for the next visit.
+      assert.strictEqual(L.ANN_pickNext(reg, state({ rows: { [a.id]: { status: "seen", later_count: 0 } } }), ctx, SLATE_NOW), a, "ignored stays owed");
+      assert.strictEqual(L.ANN_pickNext(reg, state({ rows: { [a.id]: { status: "toured", later_count: 0 } } }), ctx, SLATE_NOW), null, "toured: done");
+      assert.strictEqual(L.ANN_pickNext(reg, state({ rows: { [a.id]: { status: "dismissed", later_count: 0 } } }), ctx, SLATE_NOW), null, "skipped: done");
+      assert.strictEqual(L.ANN_pickNext(reg, state({ hidden: [a.id] }), ctx, SLATE_NOW), null, "Later hides it until the next visit");
+      // Never during View as or Preview as, nor while another overlay is up.
+      assert.strictEqual(L.ANN_pickNext(reg, state(), Object.assign({ impersonating: true }, ctx), SLATE_NOW), null, "View as");
+      assert.strictEqual(L.ANN_pickNext(reg, state(), Object.assign({ previewing: true }, ctx), SLATE_NOW), null, "Preview as");
+      assert.strictEqual(L.ANN_pickNext(reg, state(), Object.assign({ busy: true }, ctx), SLATE_NOW), null, "busy");
+    });
+    // Clients (no staff role) never see it.
+    assert.deepStrictEqual(L.ANN_audience(reg, { isAdmin: false, isBookkeeper: false, tempAdmin: false, amCount: 0 }), []);
+    assert.strictEqual(L.ANN_pickNext(reg, state(), { role: "client" }, SLATE_NOW), null);
+    // A new hire made after the launch date is not owed it.
+    assert.strictEqual(L.ANN_pickNext(reg, state({ accountStart: "2026-10-22T00:00:00Z" }), admin, SLATE_NOW), null);
+  });
+  // The notice waits for a computer-width window; the Launches list still shows it.
+  withWin({ mgb_slate_cache: "1" }, true, () => {
+    assert.deepStrictEqual(L.ANN_audience(reg, admin), [a]);
+    assert.strictEqual(L.ANN_pickNext(reg, state(), admin, SLATE_NOW), null, "phone width: no notice");
+  });
+});
+
+t("slate-app-launch gate: Classic tasks page suppresses it, even with the switch on", () => {
+  const a = slateEntry();
+  const reg = [a];
+  [admin, bk, tempAdmin, am].forEach((ctx) => {
+    withWin({ mgb_slate_cache: "1", mgb_slate_classic: "1" }, false, () => {
+      assert.strictEqual(L.ANN_listed(a, ctx), false);
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
+    });
+    // Classic wins over the person's preview as well.
+    withWin({ mgb_slate_cache: "1", mgb_slate_classic: "1", mgb_slate_app_preview: "1" }, false, () =>
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null));
+  });
+  // Blocked storage reads as off.
+  global.window = { localStorage: { getItem: () => { throw new Error("blocked"); } } };
+  try {
+    assert.strictEqual(L.ANN_listed(a, admin), false);
+  } finally {
+    delete global.window;
+  }
+});
+
+t("slate-app-launch gate: an entry with a throwing visible() is hidden", () => {
+  const e = Object.assign(entry("boom", "2026-10-21", ["admin"]), { visible: () => { throw new Error("x"); } });
+  assert.deepStrictEqual(L.ANN_audience([e], admin), []);
+  assert.deepStrictEqual(L.ANN_audience([entry("plain", "2026-10-21", ["admin"])], admin).length, 1, "no visible(): always listed");
+});
+
+t("slate-app-launch: index.html caches the switch in the same single read as brand and hover", () => {
+  const html = require("fs").readFileSync(require("path").join(__dirname, "..", "..", "index.html"), "utf8");
+  assert.ok(/\.in\("key", \["brand_enabled", "hovernav_enabled", "slate_app_enabled"\]\)/.test(html), "one read, three keys");
+  assert.ok(/lsSet\("mgb_slate_cache", isOn\(vals\.slate_app_enabled\) \? "1" : null\)/.test(html));
+  assert.ok(!/from\("tk_settings"\)[^;]*mgb_slate_cache/.test(html), "no second read");
+});
+
 console.log("announcementsLogic: " + n + " checks passed");

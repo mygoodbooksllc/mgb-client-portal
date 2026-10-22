@@ -1065,6 +1065,15 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by TK_slateAppIsOn (components/tasks/TK_viewLogic.js) through TK_slateFlag (TK_store.js);
+    // wins over Slate app preview and the firm switch. Also hides the Slate app launch notice and tour.
+    key: "mgb_slate_classic",
+    label: "Classic tasks page",
+    description:
+      "Keeps Slate the way it was for you only, in this browser, even after the owner switches the Slate app on for everyone: Open in own window opens the old slim window and nothing about the Slate app shows. Wins over Slate app preview. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     key: "mgb_wb_classic",
     label: "Classic Today",
     description:
@@ -14011,10 +14020,10 @@ function resettableLocalStorageKeys() {
     // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
     // mgb_tk_slate_view_v1:<email> / :desk:<email>). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
-    // mgb_wb_classic, mgb_nav_preview, mgb_rhythm_preview, mgb_slate_app_preview, and at launch
+    // mgb_wb_classic, mgb_nav_preview, mgb_rhythm_preview, mgb_slate_app_preview,
     // mgb_slate_classic, mgb_nav_classic). The Slate app's own keys (all start with mgb_ so Reset local state
     // clears them; none holds anything but a per-browser convenience): mgb_slate_app_preview (a flag, kept),
-    // mgb_slate_classic (opt-out, added at launch), mgb_slate_installed_v1 (set when the app is installed),
+    // mgb_slate_classic (opt-out, a flag, kept), mgb_slate_cache (the firm switch as last read, set by index.html, cleared by Reset), mgb_slate_installed_v1 (set when the app is installed),
     // mgb_tk_slate_base_v1 (the Default saved-view baseline), mgb_tk_manual_v1 (Manual order on or off per list),
     // mgb_tk_layout_v1 (List or Board per list, P1), and sessionStorage mgb_slate_size_miss_v1 (size presets hidden
     // this session after a resize miss; sessionStorage is not touched by Reset).
@@ -15382,7 +15391,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["ooo_auto_apply", "Time off hands tasks to backups", "Off (false or not set, the default): only the manual Hand my tasks to backups button moves tasks. Set to true and the tk-ooo-daily cron (11:00 UTC) also moves open tasks due during someone's time off to each client's backup on their first day off (never re-taking a task someone handed back). Handing back after the time off always runs."],
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
-            ["slate_app_enabled", "Slate app on for staff", "Off (or missing, the default) keeps Slate as it is for everyone: Open in own window opens the same small window and nothing new shows. Owner turns it on (true) with one SQL line, never from here, to give every staff member the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app). Read-only here. Each person can try it early with Slate app preview in Feature flags."],
+            ["slate_app_enabled", "Slate app on for staff", "Off (or missing, the default) keeps Slate as it is for everyone: Open in own window opens the same small window and nothing new shows. Owner turns it on (true) with one SQL line, never from here, to give every staff member the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app). Read-only here. Each person can try it early with Slate app preview in Feature flags, or opt out with Classic tasks page. Setting it to true turns the Slate app on for every staff member right away, so do it only at launch."],
             ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar, plus the Alerts section for real admins. Each person can try it early with Sidebar preview in Feature flags. Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
             ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can try it early with Lato font preview in Feature flags, or opt out with Classic fonts. Setting it to true changes the look for every staff member right away, so do it only at launch."],
             ["brand_enabled", "Brand colors for everyone", "Off (or missing, the default) keeps the current colors and headings for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to the brand guide's navy and dark teal with Montserrat headings. Each person can try it early with Brand colors preview in Feature flags, or opt out with Classic colors. Setting it to true changes the look for every staff member right away, so do it only at launch."],
@@ -26624,7 +26633,7 @@ const PAGE_META = {
   // Label only (Usage Stats): the retired MGB Desk window (/desk, deleted in Slate app S5; /desk now redirects to /slate).
   "desk-app": { title: "MGB Desk window (retired)", subtitle: "The Desk in its own window" },
   // Label only (Usage Stats): the Slate app (/slate), preview.
-  "slate-app": { title: "Slate app", subtitle: "Slate as its own app (preview)" },
+  "slate-app": { title: "Slate app", subtitle: "Slate as its own app" },
   dashboard: {
     title: "Home",
     subtitle: "What needs you, and where things stand",

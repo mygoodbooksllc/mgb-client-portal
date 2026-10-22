@@ -1,3 +1,5 @@
+WIRED 2026-10-21 (launch prep): the notice and tour are in components/tour/announcements.js as slate-app-launch, gated by visible(); the guide text is applied at flip time with supabase/staff-guide-slate-launch.sql (built by drafts/slate-launch-patch.mjs from these drafts). The text below stays here as the source for that script.
+
 DRAFT - not live until the owner flips tk_settings.slate_app_enabled. Nothing here is in announcements.js or Tour.jsx.
 
 What is live today (flag-gated, nobody sees it unless they have the Slate app preview on): the existing portal tour step `tk-popout` in components/tour/Tour.jsx and the tip `tk-popout` in Tips.jsx now read "Open Slate app ..." when TK_slateAppOn() is true, and keep the old "Open in own window" wording for everyone else. At launch, drop the gate and keep only the new text (and update the Tips row in docs/staff-guide/tips.md).

@@ -26,11 +26,27 @@ function ANN_roleSet(ctx) {
   return out;
 }
 
-// The announcements aimed at this person, in registry order.
+// Is the entry listed at all yet? An entry may carry visible(ctx) -> boolean
+// (the Slate app launch: nothing about it shows anywhere, not the notice, not
+// What's new's Launches list, not the ? menu tour, until the owner has turned
+// the firm switch on and this person is not on the Classic option). Without
+// one it is always visible. A visible() that throws counts as not visible.
+function ANN_listed(entry, ctx) {
+  if (!entry || typeof entry.visible !== "function") return true;
+  try {
+    return !!entry.visible(ctx || {});
+  } catch (e) {
+    return false;
+  }
+}
+
+// The announcements aimed at this person, in registry order. Entries that are
+// not visible yet (see ANN_listed) are left out, so every list and the notice
+// itself hide them together.
 function ANN_audience(registry, ctx) {
   var mine = ANN_roleSet(ctx);
   return (registry || []).filter(function (a) {
-    return a && Array.isArray(a.roles) && a.roles.some(function (r) { return mine.indexOf(r) !== -1; });
+    return a && Array.isArray(a.roles) && ANN_listed(a, ctx) && a.roles.some(function (r) { return mine.indexOf(r) !== -1; });
   });
 }
 
@@ -192,5 +208,6 @@ if (typeof module !== "undefined" && module.exports) {
     ANN_roleSet: ANN_roleSet, ANN_audience: ANN_audience, ANN_effectiveStatus: ANN_effectiveStatus,
     ANN_apply: ANN_apply, ANN_merge: ANN_merge, ANN_day: ANN_day, ANN_blocked: ANN_blocked, ANN_owed: ANN_owed,
     ANN_pickNext: ANN_pickNext, ANN_report: ANN_report, ANN_ready: ANN_ready, ANN_superseded: ANN_superseded,
+    ANN_listed: ANN_listed,
   };
 }

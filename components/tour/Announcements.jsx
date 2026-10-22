@@ -373,6 +373,8 @@ function ANN_UsageCard() {
       live = false;
     };
   }, []);
+  // A launch behind a firm switch (visible()) is not listed here until it is on.
+  const uctx = typeof TOUR_staffCtx !== "undefined" ? TOUR_staffCtx : {};
   const byId = {};
   ANN_REGISTRY.forEach((a) => {
     byId[a.id] = a;
@@ -401,7 +403,7 @@ function ANN_UsageCard() {
         <p className="card-subtitle">No launches yet.</p>
       ) : (
         <ul className="ann-usage">
-          {res.rows.map((r) => (
+          {res.rows.filter((r) => ANN_listed(byId[r.id], uctx)).map((r) => (
             <li key={r.id}>
               <strong>{byId[r.id].title}</strong>
               <span className="ann-launch-date">{byId[r.id].date}</span>
