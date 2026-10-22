@@ -2,7 +2,7 @@
 title: Admin guide: what admins do, step by step
 section: Admin
 audience: admin
-keywords: [mgb internal, internal permission, admin guide, admin tour, admin walkthrough, bookkeeper tour, temporary admin tour, administrator, what admins see, admin pages, firm settings, members, hours, reply times, feedback, performance, reviews, inventory, view as, temporary admin access, new client, routine, checklist, daily, weekly, monthly, quarterly, waiting on client, ask client, slate, desk]
+keywords: [change bookkeeper, reassign bookkeeper, mgb internal, internal permission, admin guide, admin tour, admin walkthrough, bookkeeper tour, temporary admin tour, administrator, what admins see, admin pages, firm settings, members, hours, reply times, feedback, performance, reviews, inventory, view as, temporary admin access, new client, routine, checklist, daily, weekly, monthly, quarterly, waiting on client, ask client, slate, desk]
 sort: 500
 ---
 As an admin you see everything a bookkeeper sees, plus the pages that run the firm: people, hours and money, and the firm's settings. This is the written version of the **Admin tour**, with a routine to follow.
@@ -34,6 +34,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **MGB (internal)** in the left rail | MyGoodBooks' own books, set up like a client. Open to every admin by default; the owner can switch it off for a person in **HR › Members**. Never counted in client numbers | [MGB (internal)](#/help/mgb-internal) |
 | **Slate › Waiting on client** | Every open Ask client request for every client, longest wait first, with **Send reminder**, **Email again** and **Cancel** | [Ask client](#/help/ask-client) |
 | **Slate › No team yet** | Clients brought over from Asana with no bookkeeper; open one and click **Assign team** to give it one (they own its parked unassigned tasks, which stay claimable; no email) | [Task lists and projects](#/help/task-lists-and-projects) |
+| **Bookkeeper** on a client's Slate list | Click it to change the client's bookkeeper; the old bookkeeper's open tasks there can move too (in-review and private ones stay; no email) | [Task lists and projects](#/help/task-lists-and-projects) |
 | **Slate › Recurring** | Recurring task templates: drafts, **Turn on**, previews, **Make due tasks now**, **Missed periods** and the standard close set | [Recurring tasks](#/help/task-templates) |
 | **Settings › Firm settings** | **Task templates** (a link to Slate › Recurring), **Client roster** (where new clients are added), **Emails**, **QuickBooks usage**, **Usage stats**, **Audit log** and **Developer tools**, plus the **Late tasks** and **Month rhythm** cards (the three monthly Slate dates, 4th, 14th and 24th by default) | [Settings](#/help/staff-settings), [Usage stats and Developer tools](#/help/admin-insight), [Audit log](#/help/audit-log) |
 | **Today** | Every client you can open, which for an admin is all of them, plus birthdays and work anniversaries a week ahead; once the Desk is on, **Mine** or **Everyone** to see every staff member's items | [Today](#/help/home-page), [Desk](#/help/workbench), [Celebrations](#/help/celebrations) |

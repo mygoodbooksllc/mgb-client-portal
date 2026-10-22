@@ -1383,6 +1383,22 @@ var TK_api = (function () {
     );
   };
 
+  // Change the bookkeeper of a client that has one (Slate, admins). Resolves
+  // with { client_id, old_bookkeeper, bookkeeper, tasks_moved, tasks_in_review,
+  // projects_joined, by }. Sends no email.
+  api.changeBookkeeper = function (clientId, newEmail, moveOpenTasks) {
+    return rpcWrite("tk_change_bookkeeper", {
+      p_client_id: String(clientId),
+      p_new_email: lower(newEmail),
+      p_move_open_tasks: moveOpenTasks !== false,
+    }, "changeBookkeeper").then(
+      function (data) {
+        afterWrite(null);
+        return Array.isArray(data) ? data[0] || null : data;
+      },
+    );
+  };
+
   // Approve: ready_for_review -> done (series roll forward). { status, nextId }
   api.approve = function (id, note) {
     return reviewCall(id, "tk_approve", { p_id: id, p_note: note ? String(note) : null }, "approve", {

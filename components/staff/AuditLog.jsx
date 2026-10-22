@@ -43,6 +43,7 @@ const AL_ACTIONS = {
   "client.plan_changed": "Plan changed",
   "client.tier_changed": "Tier changed",
   "client.updated": "Client settings changed",
+  "client.bookkeeper_changed": "Bookkeeper changed",
   "view_as.start": "View as started",
   "view_as.stop": "View as ended",
   "portal_preview.start": "Portal preview started",
@@ -122,6 +123,10 @@ function AL_summary(row) {
   if (a.startsWith("cost_rate.")) return `${AL_money(d.from)} → ${AL_money(d.to)}/h from ${d.effective_from || "?"}`;
   if (a === "profitability.target_changed") return `${d.from ?? "?"}% → ${d.to ?? "?"}%`;
   if (a === "client.plan_changed" || a === "client.tier_changed") return `${d.from ?? "none"} → ${d.to ?? "none"}`;
+  if (a === "client.bookkeeper_changed")
+    return [`${d.from || "none"} → ${d.to || "none"}`, d.tasks_moved ? `${d.tasks_moved} task${d.tasks_moved === 1 ? "" : "s"} moved` : ""]
+      .filter(Boolean)
+      .join(" · ");
   if (a === "client.created" || a === "client.deleted") return [d.name, d.plan].filter(Boolean).join(" · ");
   if (a === "access_grant.requested") return [d.days ? `${d.days} day${d.days === 1 ? "" : "s"}` : "", d.reason].filter(Boolean).join(" · ");
   if (a.startsWith("qbo_customer_map.")) {

@@ -14,6 +14,13 @@
 // S8b: an admin on a client with no bookkeeper gets "Assign team": pick an
 // active staffer, tk_import_assign_team makes them the bookkeeper and hands
 // over the imported Unassigned tasks it owns. No email is sent.
+//
+// Change bookkeeper (2026-10-22a): for an admin the Bookkeeper chip is a
+// button. It opens a panel under the chips: pick another active staffer, an
+// "Also move ... open tasks" box (on by default), then a confirm step;
+// tk_change_bookkeeper does the swap (wording in TK_bookkeeperLogic.js). Esc
+// closes it and returns focus to the chip. Everyone else sees the plain chip;
+// the other chips never change. No email is sent.
 // ----------------------------------------------------------------------------
 
 var TK_vPEOPLE_ROLES = [
@@ -96,8 +103,52 @@ function TK_ClientHeader(props) {
   var abPair = React.useState(false);
   var assignBusy = abPair[0];
   var setAssignBusy = abPair[1];
+  // Change bookkeeper (admins): panel open, pick, move box, confirm step, busy.
+  var cbPair = React.useState(false);
+  var cbOpen = cbPair[0];
+  var setCbOpen = cbPair[1];
+  var cpPair = React.useState("");
+  var cbPick = cpPair[0];
+  var setCbPick = cpPair[1];
+  var cmPair = React.useState(true);
+  var cbMove = cmPair[0];
+  var setCbMove = cmPair[1];
+  var ccPair = React.useState(false);
+  var cbConfirm = ccPair[0];
+  var setCbConfirm = ccPair[1];
+  var cxPair = React.useState(false);
+  var cbBusy = cxPair[0];
+  var setCbBusy = cxPair[1];
+  var cbChipRef = React.useRef(null);
+  var cbSelectRef = React.useRef(null);
+  var cbYesRef = React.useRef(null);
   var isAdmin = !!props.isAdmin;
-  var allStaff = TK_vUseStaff(isAdmin && assignOpen);
+  var allStaff = TK_vUseStaff(isAdmin && (assignOpen || cbOpen));
+
+  // A different client closes the change-bookkeeper panel.
+  React.useEffect(
+    function () {
+      setCbOpen(false);
+      setCbPick("");
+      setCbMove(true);
+      setCbConfirm(false);
+    },
+    [id],
+  );
+
+  // Focus follows the step: the select on open, "Yes, reassign" on confirm.
+  React.useEffect(
+    function () {
+      if (!cbOpen) return;
+      var el = cbConfirm ? cbYesRef.current : cbSelectRef.current;
+      if (el) {
+        try {
+          el.focus();
+        } catch (e) {}
+      }
+    },
+    [cbOpen, cbConfirm],
+  );
 
   React.useEffect(
     function () {
@@ -200,7 +251,7 @@ function TK_ClientHeader(props) {
   var chips = TK_vPEOPLE_ROLES.map(function (r) {
     var hit = null;
     for (var i = 0; i < people.length; i++) if (people[i] && people[i].role === r.key) hit = people[i];
-    return hit ? { key: r.key, label: r.label, name: hit.name || hit.email || "" } : null;
+    return hit ? { key: r.key, label: r.label, name: hit.name || hit.email || "", email: hit.email || "" } : null;
   }).filter(Boolean);
 
   // S8b: no bookkeeper on the client (and the roster agrees) -> Assign team.
@@ -251,6 +302,65 @@ function TK_ClientHeader(props) {
                     : "Couldn't assign the team. Try again.";
         TK_toast(text);
         if (why === "tk_has_team") setRv(function (x) { return x + 1; });
+      },
+    );
+  };
+
+  // Change bookkeeper: admins, a bookkeeper chip with an email, the API and wording loaded.
+  var bkChip = chips.filter(function (c) { return c.key === "bookkeeper"; })[0] || null;
+  var canChangeBk =
+    isAdmin && !!(bkChip && bkChip.email) &&
+    typeof TK_api !== "undefined" && TK_api && typeof TK_api.changeBookkeeper === "function" &&
+    typeof TK_bkEligible === "function";
+  var cbOldName = bkChip ? bkChip.name : "";
+  var cbChoices = canChangeBk ? TK_bkEligible(activeStaff, bkChip.email) : [];
+  var cbWho = cbChoices.filter(function (x) { return String(x.email).toLowerCase() === cbPick; })[0];
+  var cbNewName = (cbWho && cbWho.name) || cbPick;
+  var closeChangeBk = function (refocus) {
+    setCbOpen(false);
+    setCbPick("");
+    setCbMove(true);
+    setCbConfirm(false);
+    if (refocus && cbChipRef.current) {
+      try {
+        cbChipRef.current.focus();
+      } catch (e) {}
+    }
+  };
+  var onChangeBkKey = function (e) {
+    if (e.key !== "Escape" || !cbOpen || cbBusy) return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeChangeBk(true);
+  };
+  var doChangeBk = function () {
+    if (!cbPick || cbBusy) return;
+    var oldName = cbOldName;
+    var newName = cbNewName;
+    setCbBusy(true);
+    TK_api.changeBookkeeper(id, cbPick, cbMove).then(
+      function (res) {
+        setCbBusy(false);
+        closeChangeBk(false);
+        TK_toast(TK_bkSuccessText(res, oldName, newName));
+        setRv(function (x) { return x + 1; });
+        try {
+          window.dispatchEvent(new CustomEvent("mgb:tk-team-assigned", { detail: { clientId: id } }));
+        } catch (e) {}
+        if (typeof props.onTeamChanged === "function") props.onTeamChanged();
+      },
+      function (err) {
+        setCbBusy(false);
+        TK_toast(
+          TK_bkErrorText(err) ||
+            (typeof TK_vErrText === "function" ? TK_vErrText(err) : "Couldn't change the bookkeeper. Try again."),
+        );
+        if (TK_bkErrorReloads(err)) {
+          closeChangeBk(false);
+          setRv(function (x) { return x + 1; });
+        } else {
+          setCbConfirm(false);
+        }
       },
     );
   };
@@ -377,6 +487,31 @@ function TK_ClientHeader(props) {
       {chips.length ? (
         <div className="tk-people" aria-label="People on this client">
           {chips.map(function (c) {
+            if (c.key === "bookkeeper" && canChangeBk) {
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  ref={cbChipRef}
+                  className="tk-chip tk-chip-btn"
+                  aria-expanded={cbOpen ? "true" : "false"}
+                  aria-controls="tk-change-bk"
+                  aria-label={"Change bookkeeper, now " + c.name}
+                  title="Change bookkeeper"
+                  disabled={cbBusy}
+                  onKeyDown={onChangeBkKey}
+                  onClick={function () {
+                    if (cbOpen) closeChangeBk(false);
+                    else setCbOpen(true);
+                  }}
+                >
+                  <TK_vAvatar name={c.name} size="sm" decorative />
+                  <span className="tk-chip-role">{c.label}</span>
+                  <span className="tk-chip-name">{c.name}</span>
+                  <TK_vIcon name="down" size={13} />
+                </button>
+              );
+            }
             return (
               <span key={c.key} className="tk-chip">
                 <TK_vAvatar name={c.name} size="sm" decorative />
@@ -385,6 +520,87 @@ function TK_ClientHeader(props) {
               </span>
             );
           })}
+        </div>
+      ) : null}
+      {canChangeBk && cbOpen ? (
+        <div id="tk-change-bk" className="tk-assign-team tk-change-bk" role="group" aria-label="Change bookkeeper" onKeyDown={onChangeBkKey}>
+          {!cbConfirm ? (
+            <React.Fragment>
+              <label className="tk-select-wrap">
+                <span className="tk-field-label">New bookkeeper</span>
+                <select
+                  ref={cbSelectRef}
+                  className="tk-select"
+                  value={cbPick}
+                  disabled={cbBusy}
+                  onChange={function (e) {
+                    setCbPick(e.target.value);
+                  }}
+                >
+                  <option value="">{allStaff == null ? "Loading…" : "Pick someone"}</option>
+                  {cbChoices.map(function (x) {
+                    var em = String(x.email).toLowerCase();
+                    return (
+                      <option key={em} value={em}>
+                        {x.name || em}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+              <label className="tk-ask-check tk-change-bk-move">
+                <input
+                  type="checkbox"
+                  checked={cbMove}
+                  disabled={cbBusy}
+                  onChange={function (e) {
+                    setCbMove(!!e.target.checked);
+                  }}
+                />
+                <span>{TK_bkMoveLabel(cbOldName, cbPick ? cbNewName : "")}</span>
+              </label>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={!cbPick || cbBusy}
+                onClick={function () {
+                  setCbConfirm(true);
+                }}
+              >
+                Reassign
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={cbBusy}
+                onClick={function () {
+                  closeChangeBk(true);
+                }}
+              >
+                Cancel
+              </button>
+              <span className="tk-field-help">{TK_bkHelpText(cbOldName)}</span>
+            </React.Fragment>
+          ) : (
+            <React.Fragment>
+              <p className="tk-change-bk-confirm" aria-live="polite">
+                {TK_bkConfirmText(cbOldName, cbNewName, name, cbMove)}
+              </p>
+              <button type="button" ref={cbYesRef} className="btn-primary" disabled={cbBusy} onClick={doChangeBk}>
+                {cbBusy ? "Reassigning…" : "Yes, reassign"}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={cbBusy}
+                onClick={function () {
+                  setCbConfirm(false);
+                }}
+              >
+                Back
+              </button>
+            </React.Fragment>
+          )}
         </div>
       ) : null}
       {contactsOpen && phone ? (

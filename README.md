@@ -1936,6 +1936,19 @@ Team Reviews files.
     unassigned series unassigned. `tk_import_assign_team` only takes real (not test) clients that
     have imported (`source = 'asana'`) tasks. The planner's first-name remap never beats an active
     email match and only applies when one Asana user has that first name.
+- **Slate, change a client's bookkeeper** (2026-10-22; spec `docs/slate-change-bookkeeper.md`;
+  `supabase/slate-change-bookkeeper.sql`, applied; schema version unchanged; self-test
+  `slate-change-bookkeeper-tests.sql`, rolled back). Admins click the **Bookkeeper** chip in
+  `TK_ClientHeader` (others see the plain chip). `tk_change_bookkeeper(client, email, move_open_tasks)`
+  updates `clients.assigned_bookkeeper_email` (the existing triggers refresh the display JSON and grant
+  access; the old bookkeeper keeps theirs), adds the new one to live projects, and with the box ticked
+  moves the old bookkeeper's open shared tasks on that client that are on them or on nobody (not in
+  review, private, done, or anyone else's), under the `mgb.offboarding` and `mgb.tk_import` guards, so
+  no email. Refuses non-admins (`tk_forbidden`), inactive staff (`tk_bad_assignee`), MGB (internal) or a
+  missing client (`tk_not_found`), no bookkeeper yet (`tk_no_team`, use Assign team) and the same person
+  (`tk_same_bookkeeper`). One `client.bookkeeper_changed` audit row (labeled in the Audit log); the access trigger also writes `client_access.assigned` when the new bookkeeper had no access before.
+  JS: `TK_api.changeBookkeeper`; wording in `TK_bookkeeperLogic.js` (node test
+  `TK_bookkeeperLogic.test.js`). Guide: `supabase/staff-guide-change-bookkeeper.sql`.
 - **Tasks Phase 3, Manage projects + Group by client** (2026-10-16; `supabase/tasks-p3-manage-projects.sql`,
   applied; schema stays 10; self-test `tasks-p3-manage-projects-tests.sql`, rolled back). Owner decisions:
   no teams yet; "delete" is trash only (restorable, never purged). No feature switch, no edge function.

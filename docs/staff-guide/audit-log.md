@@ -2,10 +2,10 @@
 title: How do I use the Audit log?
 section: Admin
 audience: admin
-keywords: [ledger review, possible duplicates, smart mode, strict mode, gl_review.dup_mode, handbook signatures, audit log, history, who changed, export csv, filters, access changes, fees, rates, mappings, view as]
+keywords: [bookkeeper changed, client.bookkeeper_changed, ledger review, possible duplicates, smart mode, strict mode, gl_review.dup_mode, handbook signatures, audit log, history, who changed, export csv, filters, access changes, fees, rates, mappings, view as]
 sort: 530
 ---
-The **Audit log** (**Settings → Firm settings → Audit log**, admins only) records who changed access, fees, rates, mappings, client settings, staff names, staff profile photos and the Ledger review Possible duplicates mode, and when. The database writes it, so nobody can edit or delete entries.
+The **Audit log** (**Settings → Firm settings → Audit log**, admins only) records who changed access, fees, rates, mappings, client settings, client bookkeepers (**Bookkeeper changed**, with how many tasks moved), staff names, staff profile photos and the Ledger review Possible duplicates mode, and when. The database writes it, so nobody can edit or delete entries.
 
 ### Find something
 

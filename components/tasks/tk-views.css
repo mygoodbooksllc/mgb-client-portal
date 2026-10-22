@@ -553,6 +553,56 @@ body.tk-shell {
   white-space: nowrap;
 }
 
+/* Change bookkeeper (admins): the Bookkeeper chip as a button, and its panel. */
+.tk-chip-btn {
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.tk-chip-btn:hover,
+.tk-chip-btn[aria-expanded="true"] {
+  border-color: var(--muted-line);
+  background: var(--hover-bg);
+}
+
+.tk-chip-btn:focus-visible {
+  outline: 2px solid var(--selected-outline);
+  outline-offset: 2px;
+}
+
+.tk-chip-btn .tk-icon {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.tk-change-bk {
+  display: flex;
+  margin-top: 10px;
+}
+
+.tk-change-bk .tk-field-help,
+.tk-change-bk-confirm {
+  flex-basis: 100%;
+}
+
+.tk-change-bk-confirm {
+  margin: 0;
+  color: var(--text);
+}
+
+.tk-change-bk-move {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+
 /* ---- Headers ---------------------------------------------------------------------- */
 
 .tk-head {

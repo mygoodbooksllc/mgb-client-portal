@@ -2,7 +2,7 @@
 title: How do client task lists and projects work?
 section: Daily work
 audience: staff
-keywords: [task in the desk, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients, slate]
+keywords: [change bookkeeper, reassign bookkeeper, new bookkeeper, bookkeeper chip, task in the desk, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients, slate]
 sort: 114
 ---
 The **Slate** page (the **Slate** button in the top bar, or `#/tasks/my`) has a sidebar of lists down the left. Below about 900 pixels wide, the sidebar sits behind the **Lists** button at the top of the page.
@@ -31,7 +31,7 @@ A client's list starts with the things you reach for most:
 
 - **Open client**, the **SOP**, whether QuickBooks is connected, and **Open Drive folder**.
 - **Contacts (N)**: the client's people, with tags such as **Unsubscribed** and **Gets summaries**.
-- The client's **Bookkeeper**, **Backup** and **Account Manager**.
+- The client's **Bookkeeper**, **Backup** and **Account Manager**. Admins can click the **Bookkeeper** to change it (see below).
 - **New onboarding project** for a new client.
 
 A task nobody is on shows **Unassigned** in the Assignee column with a **Claim** button. See [How do I use my Slate?](#/help/my-tasks).
@@ -49,6 +49,19 @@ Clients brought over from Asana sometimes arrive with no bookkeeper. They're lis
 3. Pick the bookkeeper and click **Assign**.
 
 You'll see *Assigned {name} as bookkeeper.*, and how many unassigned tasks they now own. The client leaves **No team yet**, the bookkeeper joins the client's projects, and the imported tasks that were parked with nobody on them become theirs to look after. They stay **Unassigned**, so anyone on the team can **Claim** them. Tasks already assigned to someone aren't touched. No email is sent. If someone already set a team, you'll see that the client already has a team; reopen it to see who.
+
+### Change a client's bookkeeper (admins)
+
+1. Open the client's list and click the **Bookkeeper** in the header.
+2. Pick the **New bookkeeper**.
+3. Leave **Also move ... open tasks on this client to ...** ticked to hand over the old bookkeeper's open work, or untick it to move nothing.
+4. Click **Reassign**, then **Yes, reassign**. **Esc** or **Cancel** closes it without changing anything.
+
+What moves: open tasks on this client that the old bookkeeper owns and that are on them or on nobody. Unassigned ones stay **Unassigned**. Tasks in review, private tasks, done tasks, and tasks anyone else owns or is on stay as they are; the message after the change says how many in-review tasks stayed. A task someone else owns with the old bookkeeper on it isn't moved: use [select many](#/help/select-many-tasks) to reassign those.
+
+The new bookkeeper gets access to the client and joins its projects. The old bookkeeper keeps their access and stays a follower on the moved tasks. Recurring tasks set to **The client's bookkeeper** go to the new one from the next period; a template that names the old person needs editing in **Slate › Recurring**. No email is sent. The change shows in the **Audit log** as **Bookkeeper changed**.
+
+Only admins see this. A client with no bookkeeper still uses **Assign team** above.
 
 ### Projects
 
