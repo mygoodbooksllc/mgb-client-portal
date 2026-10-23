@@ -1,0 +1,20 @@
+DRAFT - not live until the owner flips tk_settings.org_profile_enabled. Not published: nothing here is in docs/staff-guide/whats-new.md or the guide table.
+
+WIRED (hidden): the next-visit notice and tour are in components/tour/announcements.js as client-org-profile-launch, gated by visible() on mgb_orgprofile_cache (the firm switch as last read; not the per-person preview). The guide article is drafts/client-org-profile.md.
+
+AT LAUNCH: paste the entry below at the top of docs/staff-guide/whats-new.md (with the launch date in place of DATE), move drafts/client-org-profile.md into docs/staff-guide/, sync both with a targeted guide SQL (upserts only), and set the announcement's date to the launch date. Owner decides the wording of the next-visit notice (the summary at the end of this file).
+
+--- whats-new.md entry ---
+
+### DATE: Client organization profiles and anniversary gifts
+
+- **Clients fill in a short profile.** When they sign in, clients are asked for the name for cards, organization type, established date, gift address, who receives deliveries, a main contact and their fiscal year end. **Later** puts it off until the next sign-in. Optional get-to-know questions too.
+- **Organization profile card.** On a client's Overview, under Key dates: their answers, a note when their fiscal year end differs from Key dates (Key dates is not changed), and **Client since**, which you can set by hand.
+- **Onboarding step.** **Client finished organization profile** ticks itself.
+- **Team › Client gifts (admins).** Anniversaries in the next 30 days with **Plan**, **Mark sent** and **Skip**, past gifts, and the line the weekly digest shows. Nothing emails clients or orders gifts.
+
+See [What is a client's organization profile, and how do client gifts work?](#/help/client-org-profile).
+
+--- next-visit notice (one sentence; announcements.js summary) ---
+
+Clients now fill in a short organization profile (card name, gift address, main contact, fiscal year end). Staff see it on the client's Overview, and admins plan anniversary gifts in Team › Client gifts.

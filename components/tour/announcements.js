@@ -93,6 +93,19 @@ function ANN_slateLaunchOn() {
   }
 }
 
+// True once the owner has switched the client org profile on for the firm
+// (tk_settings.org_profile_enabled, cached as mgb_orgprofile_cache by
+// OP_readSwitch in components/client/OP_store.js). Deliberately not the
+// per-person preview flag mgb_orgprofile_preview: a preview person sees no
+// launch text.
+function ANN_orgProfileLaunchOn() {
+  try {
+    return window.localStorage.getItem("mgb_orgprofile_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 // True when the left sidebar's Pinned and Recent clients are on for this person.
 function ANN_sidebarOn() {
   try {
@@ -1364,6 +1377,58 @@ var ANN_REGISTRY = [
         "The new-hire checklist, now next to the Handbook.",
       ),
     ],
+  },
+  {
+    // DRAFT launch notice, hidden until the owner flips the firm switch
+    // tk_settings.org_profile_enabled (cached as mgb_orgprofile_cache by
+    // OP_store). Not the per-person preview. Registered just above slate-app-launch
+    // (tests pin the first entries); it is still the newest by date.
+    id: "client-org-profile-launch",
+    date: "2026-10-23",
+    title: "Client organization profiles",
+    summary:
+      "Clients now fill in a short organization profile (card name, gift address, main contact, fiscal year end). Staff see it on the client's Overview, and admins plan anniversary gifts in Team › Client gifts.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/team",
+    visible: () => ANN_orgProfileLaunchOn(),
+    steps: (ctx) => {
+      const realAdmin = !!(ctx && ctx.isAdmin && !ctx.impersonating);
+      return [
+        {
+          id: "ann-welcome",
+          title: "Client organization profiles",
+          body: () =>
+            "Clients are asked for a few details when they sign in: the name for cards, where gifts go, who receives deliveries, a main contact and their fiscal year end. They can say Later. About half a minute.",
+        },
+        {
+          id: "ann-card",
+          targets: ["op-staff-card"],
+          title: "Organization profile card",
+          body: () =>
+            "On a client's Overview, under Key dates. It shows their answers, flags a fiscal year end that differs from Key dates (Key dates is never changed), and lets you set Client since.",
+        },
+        {
+          id: "ann-gtk",
+          title: "Get to know them",
+          body: () =>
+            "Clients can also share a favorite treat, coffee or tea, allergies and hobbies. Only admins and the client's assigned team see those answers.",
+        },
+        realAdmin
+          ? TOUR_tabStep(
+              "team",
+              "gifts",
+              "Team › Client gifts",
+              "Admins see anniversaries in the next 30 days and Plan, Mark sent or Skip a gift for each. The usual budget is $30-45. Nothing here emails anyone or orders anything.",
+            )
+          : null,
+        {
+          id: "ann-done",
+          title: "That's it",
+          body: () =>
+            "Onboarding also shows Client finished organization profile, ticked by itself. To see this again, press ? and pick New: Client organization profiles.",
+        },
+      ].filter(Boolean);
+    },
   },
   {
     // Slate app launch. Hidden everywhere (notice, What's new Launches, ? menu) until the owner

@@ -466,8 +466,10 @@ t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view
   assert.strictEqual(steps[3].targets[0], "tk-slate-sort");
   const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
   assert.ok(!/colour|!/i.test(text));
-  // The newest by date, so it is picked first for a person with nothing answered.
-  const newest = ANN_REGISTRY.reduce((m, x) => (x.date > m ? x.date : m), "");
+  // The newest by date among ungated entries, so it is picked first for a person with
+  // nothing answered. (Entries with visible(), such as the hidden draft
+  // client-org-profile-launch, do not compete while their switch is off.)
+  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function").reduce((m, x) => (x.date > m ? x.date : m), "");
   assert.strictEqual(a.date, newest);
 });
 
@@ -628,6 +630,76 @@ t("slate-app-launch gate: an entry with a throwing visible() is hidden", () => {
   const e = Object.assign(entry("boom", "2026-10-21", ["admin"]), { visible: () => { throw new Error("x"); } });
   assert.deepStrictEqual(L.ANN_audience([e], admin), []);
   assert.deepStrictEqual(L.ANN_audience([entry("plain", "2026-10-21", ["admin"])], admin).length, 1, "no visible(): always listed");
+});
+
+// ---- Client org profile launch: draft, invisible until the firm switch is on -----
+const opEntry = () => ANN_REGISTRY.find((x) => x.id === "client-org-profile-launch");
+
+t("registry: client-org-profile-launch shape, roles, steps and wording", () => {
+  const a = opEntry();
+  assert.ok(a);
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  assert.strictEqual(typeof a.visible, "function");
+  assert.deepStrictEqual(a.steps({ isAdmin: true }).map((s) => s.id), ["ann-welcome", "ann-card", "ann-gtk", "team-gifts", "ann-done"]);
+  assert.deepStrictEqual(a.steps({ isAdmin: true })[1].targets, ["op-staff-card"]);
+  assert.ok(!a.steps({ isBookkeeper: true }).some((s) => s.id === "team-gifts"), "gifts tab step is for real admins only");
+  assert.ok(!a.steps({ isAdmin: true, impersonating: true }).some((s) => s.id === "team-gifts"), "not during View as");
+  const text = JSON.stringify([a.title, a.summary].concat(a.steps({ isAdmin: true }).map((x) => x.body())));
+  assert.ok(!/colour|favourite|grey/i.test(text), "US spelling");
+  assert.ok(/Nothing here emails anyone or orders anything/.test(text));
+});
+
+t("client-org-profile-launch gate: off means nothing shows anywhere", () => {
+  const a = opEntry();
+  const reg = [a];
+  [admin, bk, tempAdmin, am].forEach((ctx) => {
+    withWin({}, false, () => {
+      assert.strictEqual(L.ANN_listed(a, ctx), false);
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
+    });
+    // The person's preview flag is not the launch.
+    withWin({ mgb_orgprofile_preview: "1" }, false, () => {
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
+    });
+    withWin({ mgb_orgprofile_cache: "0" }, false, () => assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null));
+  });
+  // The whole registry with no org profile cache never picks it.
+  [admin, bk, tempAdmin, am].forEach((ctx) => {
+    withWin({ mgb_slate_cache: "1", mgb_brand_cache: "1", mgb_hovernav_cache: "1" }, false, () => {
+      const rows = {};
+      for (let i = 0; i < 40; i++) {
+        const pick = L.ANN_pickNext(ANN_REGISTRY, state({ rows }), ctx, SLATE_NOW);
+        if (!pick) break;
+        assert.notStrictEqual(pick.id, "client-org-profile-launch");
+        rows[pick.id] = { status: "dismissed", later_count: 0 };
+      }
+    });
+  });
+  // Blocked storage reads as off.
+  global.window = { localStorage: { getItem: () => { throw new Error("blocked"); } } };
+  try {
+    assert.strictEqual(L.ANN_listed(a, admin), false);
+  } finally {
+    delete global.window;
+  }
+});
+
+t("client-org-profile-launch gate: on shows the notice once, for staff only", () => {
+  const a = opEntry();
+  const reg = [a];
+  withWin({ mgb_orgprofile_cache: "1" }, false, () => {
+    [admin, bk, tempAdmin, am].forEach((ctx) => {
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), [a]);
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), a);
+      assert.strictEqual(L.ANN_pickNext(reg, state({ rows: { [a.id]: { status: "toured", later_count: 0 } } }), ctx, SLATE_NOW), null, "toured: done");
+      assert.strictEqual(L.ANN_pickNext(reg, state({ rows: { [a.id]: { status: "dismissed", later_count: 0 } } }), ctx, SLATE_NOW), null, "skipped: done");
+      assert.strictEqual(L.ANN_pickNext(reg, state(), Object.assign({ impersonating: true }, ctx), SLATE_NOW), null, "View as");
+    });
+    assert.deepStrictEqual(L.ANN_audience(reg, { isAdmin: false, isBookkeeper: false, tempAdmin: false, amCount: 0 }), [], "clients never");
+    assert.strictEqual(L.ANN_pickNext(reg, state(), { role: "client" }, SLATE_NOW), null);
+  });
 });
 
 // ---- Notice order among the three 2026-10-21 launches ---------------------------
