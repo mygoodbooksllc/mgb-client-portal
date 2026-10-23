@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { defaultFrom, emailConfigured, esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
+import { orgAnniversaryCount, orgAnniversaryText } from "./orgAnniversaries.ts";
 
 // Weekly admin digest (supabase/weekly-digest.sql has the design + schema).
 //
@@ -315,12 +316,20 @@ function comingUpSection(d: any): Section | null {
     add(r.next_birthday, r.birthday_action, "birthday");
     add(r.next_anniversary, r.anniversary_action, `${r.years} year${r.years === 1 ? "" : "s"} with the firm`);
   }
-  if (items.length === 0) return null;
+  // Client anniversaries (next 30 days): one line, only when the firm switch
+  // is on and the count is positive. Null leaves this section unchanged.
+  const orgLine = orgAnniversaryText(orgAnniversaryCount(d.org_anniversaries));
+  if (items.length === 0 && !orgLine) return null;
   items.sort((a, b) => a.days - b.days || a.who.localeCompare(b.who));
-  const html =
-    tableHtml(["When", "Who", "What"], items.map((i) => [esc(i.when), esc(i.who), esc(i.what)])) +
-    para("Today reminds you a week ahead with Send shout-out, Gift sent and Dismiss.", "muted");
-  const text = textTable(items.map((i) => `${i.when}: ${i.who}, ${i.what}`));
+  let html = items.length
+    ? tableHtml(["When", "Who", "What"], items.map((i) => [esc(i.when), esc(i.who), esc(i.what)])) +
+      para("Today reminds you a week ahead with Send shout-out, Gift sent and Dismiss.", "muted")
+    : "";
+  let text = items.length ? textTable(items.map((i) => `${i.when}: ${i.who}, ${i.what}`)) : "";
+  if (orgLine) {
+    html += para(esc(orgLine));
+    text += (text ? "\n" : "") + textTable([orgLine]);
+  }
   return { title: "Coming up: birthdays and anniversaries", html, text, link: { label: "Open Team › People", href: `${APP_URL}/#/team/people` } };
 }
 
@@ -780,6 +789,16 @@ Deno.serve(async (req) => {
     const { data: cel, error: celErr } = await admin.rpc("staff_celebrations");
     if (!celErr && Array.isArray(cel)) (data as any).celebrations = cel;
     (data as any).today = today;
+  } catch (_e) {
+    // ignore
+  }
+
+  // Client anniversaries count for one "Coming up" line
+  // (org_anniversaries_digest_count in supabase/client-org-profile.sql;
+  // null while the firm switch is off). Optional: an error means no line.
+  try {
+    const { data: orgN, error: orgErr } = await admin.rpc("org_anniversaries_digest_count", { p_today: today });
+    if (!orgErr && typeof orgN === "number") (data as any).org_anniversaries = orgN;
   } catch (_e) {
     // ignore
   }
