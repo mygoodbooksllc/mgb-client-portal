@@ -1381,8 +1381,10 @@ function TK_vRowDue(props) {
   var label = typeof TK_dueLabel === "function" ? TK_dueLabel(task, today) : task.due_date ? String(task.due_date) : "";
   var has = !!label;
   var tone = has && typeof TK_rwDueTone === "function" ? TK_rwDueTone(task, today) : "";
-  var cls = "tk-due" + (has ? " tk-due-chip" : " tk-due-empty") + (tone === "late" ? " tk-due-late is-late" : tone === "today" ? " is-today" : "");
-  var title = has ? (tone === "late" ? "Overdue, due " : "Due ") + String(task.due_date).slice(0, 10) : "No due date";
+  // Month rhythm S6: in Close order the date is a target hint, never red
+  if (props.hint && tone === "late") tone = "";
+  var cls = "tk-due" + (has ? " tk-due-chip" : " tk-due-empty") + (tone === "late" ? " tk-due-late is-late" : tone === "today" ? " is-today" : "") + (props.hint && has ? " is-hint" : "");
+  var title = has ? (props.hint ? "Target " : tone === "late" ? "Overdue, due " : "Due ") + String(task.due_date).slice(0, 10) : "No due date";
   var content = has ? (
     <span>{label}</span>
   ) : (
@@ -1719,7 +1721,7 @@ function TK_TaskRow(props) {
       ? TK_rwAccess(task, { me: props.me || TK_vMe(), isAdmin: !!props.isAdmin, canEdit: props.canEdit !== false && props.editFields !== false })
       : { edit: false, assign: false };
   var assigneeCell = <TK_vRowAssignee task={task} name={props.assigneeName} editable={access.assign} showName={!!props.columns} />;
-  var dueCell = <TK_vRowDue task={task} today={today} editable={access.edit} />;
+  var dueCell = <TK_vRowDue task={task} today={today} editable={access.edit} hint={!!props.dueHint} />;
   var prioCell = <TK_vRowPrio task={task} editable={access.edit} />;
   var moreBtn = (
     <TK_vRowMore
@@ -1770,6 +1772,9 @@ function TK_TaskRow(props) {
   if (task.source === "template") meta.push(<span key="rc" className="tk-meta-recurring" title="Made by a recurring template">Recurring</span>);
   if (props.snippet) meta.push(<span key="sn" className="tk-meta-snippet">{"In a comment: " + props.snippet}</span>);
   if (props.note) meta.push(<span key="nt" className="tk-meta-note">{props.note}</span>);
+  // Month rhythm S6 (Close order): the first open step, or one waiting on the client
+  if (props.pill === "next") meta.unshift(<span key="pl" className="pill good tk-close-pill">Next</span>);
+  else if (props.pill === "waiting") meta.unshift(<span key="pl" className="pill warm tk-close-pill">Waiting on client</span>);
 
   var toggleBtn = hasKids ? (
     <button

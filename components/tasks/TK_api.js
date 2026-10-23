@@ -2845,6 +2845,23 @@ var TK_api = (function () {
     return emailTpls;
   };
 
+  // Template id -> source_ref for the month rhythm rows (the Close order view).
+  var rhythmRefs = null;
+  api.rhythmTemplateRefs = function () {
+    if (rhythmRefs) return rhythmRefs;
+    rhythmRefs = run(function (c) {
+      return c.from("task_templates").select("id, source_ref").like("source_ref", "month_rhythm:%").limit(200);
+    }, { where: "rhythmTemplateRefs" }).then(function (rows) {
+      var out = {};
+      (rows || []).forEach(function (r) { if (r && r.id && r.source_ref) out[r.id] = r.source_ref; });
+      return out;
+    }, function () {
+      rhythmRefs = null;
+      return {};
+    });
+    return rhythmRefs;
+  };
+
   // Bell: second preliminary month notices for the signed-in person (RLS).
   api.listRhythmNotices = function () {
     return run(function (c) {
@@ -2870,6 +2887,7 @@ var TK_api = (function () {
     reportStates.promise = null;
     templateRefs = {};
     emailTpls = null;
+    rhythmRefs = null;
   };
 
   return api;

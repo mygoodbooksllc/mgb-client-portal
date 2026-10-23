@@ -444,7 +444,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-23e", note: "Slate app interactions (preview only): right-click or press-and-hold menu on tasks, Cmd+D duplicate, Cmd+C and Cmd+V copy and paste (no recurring links, no emails, never across clients), drag a box to select, E, Enter and X quick keys, drag onto a date or person, touch drag and row swipes (right done, left snooze), swipe back (trackpad, off in Safari; touch left edge), and a 9-minute Undo in the app. Previous: Month rhythm (preview only): draft the three rhythm emails from the client's month; copy, never send. Emails due chip." };
+      window.MGB_VERSION = { label: "2026-10-23f", note: "Month rhythm (preview only): Close order view on a client's list, your own choice per client." };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -629,6 +629,7 @@
         "components/tasks/TK_api.js",
         "components/tasks/TK_rhythmLogic.js",
         "components/tasks/TK_emailDraft.js",
+        "components/tasks/TK_closeOrderLogic.js",
         "components/tasks/TK_sync.js",
         "components/tasks/TK_viewLogic.js",
         "components/tasks/TK_drawerLogic.js",
@@ -640,6 +641,7 @@
         "components/tasks/TK_rowLogic.js",
         "components/tasks/TK_EmailDraft.jsx",
         "components/tasks/TK_TaskRow.jsx",
+        "components/tasks/TK_CloseOrder.jsx",
         "components/tasks/TK_keys.jsx",
         "components/tasks/TK_Drag.jsx",
         "components/tasks/TK_Board.jsx",

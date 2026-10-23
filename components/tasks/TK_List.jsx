@@ -1109,6 +1109,10 @@ function TK_vListBody(props) {
   var cPair = React.useState({});
   var collapsed = cPair[0];
   var setCollapsed = cPair[1];
+  // Month rhythm S6: Option A (the thirds) or B (close order), per person per client
+  var closeOrder = typeof TK_useCloseOrder === "function"
+    ? TK_useCloseOrder({ email: email, clientId: route.view === "client" ? route.clientId : null, on: route.view === "client", reloadKey: drawerId })
+    : null;
   var focusPair = React.useState(null);
   var focusedId = focusPair[0];
   var setFocusedId = focusPair[1];
@@ -1159,6 +1163,12 @@ function TK_vListBody(props) {
     : sort
     ? [{ key: "\u0000flat", name: "", tasks: sorted }]
     : TK_groupBySection(sorted, { kind: route.view === "project" ? "project" : "client", sections: project ? project.sections : [] });
+  var closePills = null;
+  if (closeOrder && closeOrder.on && closeOrder.choice === "B" && closeOrder.refs && !byClient && !sort && typeof TK_closeOrderGroups === "function") {
+    var co = TK_closeOrderGroups(sorted, { refs: closeOrder.refs, waitingIds: closeOrder.waitingIds });
+    closePills = co.pills;
+    groups = co.groups.concat(co.rest.length ? TK_groupBySection(co.rest, { kind: "client", sections: [] }) : []);
+  }
   // Slate app P2: manual order (drag, Alt+Up / Alt+Down). App only, regular
   // or full width, no column sort; off on the portal page. The order is the
   // person's own (tk_manual_order), never the shared sort_key.
@@ -1447,6 +1457,7 @@ function TK_vListBody(props) {
       ) : (
         <TK_vFilters value={filters} onChange={patchFilters} people={people} hideAssignee={route.view === "person"} />
       )}
+      {closeOrder && closeOrder.on && !boardOn && typeof TK_CloseOrderSwitch === "function" ? <TK_CloseOrderSwitch value={closeOrder.choice} onChange={closeOrder.setChoice} /> : null}
       {route.view === "person" && !boardOn ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
       {boardCan && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardBy} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
       {manualCan && !boardOn ? (
@@ -1574,6 +1585,8 @@ function TK_vListBody(props) {
           selected={bulk.has(t.id)}
           selecting={bulk.count > 0}
           dragHandle={manualOn || undefined}
+          pill={closePills ? closePills[t.id] : undefined}
+          dueHint={!!closePills && !!closeOrder.refs[t.template_id]}
         />
       );
     };
@@ -1624,7 +1637,7 @@ function TK_vListBody(props) {
                   {nothing && !activeFilters && !g.tasks.length && groups.length === 1 ? (
                     <li className="tk-empty tk-empty-inline">{TK_vCopy("emptyList", "Nothing here yet.")}</li>
                   ) : null}
-                  {byClient ? (
+                  {g.close ? null : byClient ? (
                     typeof TK_rwGroupAdd === "function" && TK_rwGroupAdd(g.key, { canCreate: !readOnly }).show ? (
                       <TK_vAddRow sectionName={g.name} ctx={addCtx} group={TK_rwGroupAdd(g.key, { canCreate: !readOnly })} disabled={readOnly} />
                     ) : null

@@ -3648,3 +3648,7 @@ a.tk-card-title:hover {
 @media (max-width: 640px) {
   .tk-email-draft-text { min-height: 240px; }
 }
+
+/* Month rhythm S6: Close order view (Option B) */
+.tk-close-pill { font-size: 11px; padding: 1px 7px; }
+.tk-due.is-hint { color: var(--text-muted); }
