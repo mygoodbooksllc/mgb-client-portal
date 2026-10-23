@@ -1224,4 +1224,25 @@ t("WB_deskMounts: View as, preview, impersonation and the Slate shell never moun
   assert.strictEqual(L.WB_deskMounts(Object.assign({}, base, { tkShell: true })), false);
 });
 
+t("owner rule: an excused late task waits in Today, never overdue", () => {
+  const late = row({ due_date: "2026-10-13", client_id: "grace", source_id: "x1" });
+  assert.strictEqual(L.WB_groupOf(late, TODAY), "overdue");
+  assert.strictEqual(L.WB_groupOf(Object.assign({}, late, { late_excused: true }), TODAY), "today");
+  const keys = { "grace|2026-09-01": true, "zion|2026-09-01": false };
+  const rows = [
+    late,
+    row({ due_date: "2026-10-13", client_id: "zion", source_id: "x2" }),
+    row({ due_date: TODAY, client_id: "grace", source_id: "x3" }),
+    row({ due_date: "2026-10-10", client_id: "grace", source_id: "x4", source: "client_request", kind: "request" }),
+  ];
+  assert.deepStrictEqual(L.WB_excuseCandidates(rows, TODAY, keys), ["x1"]);
+  assert.deepStrictEqual(L.WB_excuseCandidates(rows, TODAY, {}), []);
+  const out = L.WB_applyExcused(rows, ["x1"]);
+  assert.strictEqual(out[0].late_excused, true);
+  assert.strictEqual(out[1], rows[1], "untouched rows keep identity");
+  assert.strictEqual(L.WB_applyExcused(rows, []), rows, "nothing to change returns the same list");
+  assert.strictEqual(L.WB_applyExcused(out, []).length, 4);
+  assert.strictEqual(L.WB_applyExcused(out, [])[0].late_excused, false, "a re-check can clear it");
+});
+
 console.log("WB_logic: " + n + " checks passed");

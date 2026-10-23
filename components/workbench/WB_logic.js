@@ -193,7 +193,9 @@ function WB_groupOf(row, today) {
   if (row.group === "today" || row.group === "week" || row.group === "overdue") return row.group;
   var due = row.due_date ? String(row.due_date).slice(0, 10) : null;
   if (due) {
-    if (due < today) return "overdue";
+    // Owner rule (month rhythm): a task excused from lateness (its client's
+    // month went out preliminary) is never "overdue"; it waits in Today.
+    if (due < today) return row.late_excused === true ? "today" : "overdue";
     if (due === today) return "today";
     return WB_dayDiff(today, due) <= WB_SOON_DAYS ? "week" : "later";
   }
@@ -1658,9 +1660,50 @@ function WB_deskClosedShow(choice, mode) {
   return { rail: c === "both" || c === "rail", bar: c === "both" || c === "bar" };
 }
 
+// ---- Owner rule: waiting on the client is never late -----------------------
+// wb_inbox lists only todo / in_progress tasks, so "waiting on client" never
+// shows. A month task for a client whose month went out preliminary must not
+// count as late either. wb_inbox has no task period, so the store asks for it
+// only for overdue task rows on a client with a preliminary month.
+// keys: TK_reportStateCache.keys ("client|YYYY-MM-01": true).
+function WB_excuseCandidates(rows, today, keys) {
+  var k = keys && typeof keys === "object" ? keys : {};
+  var clients = {};
+  Object.keys(k).forEach(function (key) {
+    if (k[key] === true) clients[key.split("|")[0]] = true;
+  });
+  var out = [];
+  (rows || []).forEach(function (r) {
+    if (!r || r.source !== "task" || r.kind !== "task" || !r.source_id || !r.client_id) return;
+    var due = r.due_date ? String(r.due_date).slice(0, 10) : "";
+    if (!due || !(due < today)) return;
+    if (clients[String(r.client_id)]) out.push(String(r.source_id));
+  });
+  return out;
+}
+
+// rows with late_excused set from the ids given (new objects only where it changes).
+function WB_applyExcused(rows, ids) {
+  var set = {};
+  (ids || []).forEach(function (id) {
+    set[String(id)] = true;
+  });
+  var changed = false;
+  var out = (rows || []).map(function (r) {
+    if (!r || r.source !== "task" || r.kind !== "task") return r;
+    var want = set[String(r.source_id)] === true;
+    if ((r.late_excused === true) === want) return r;
+    changed = true;
+    return Object.assign({}, r, { late_excused: want });
+  });
+  return changed ? out : rows;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     WORKBENCH_NAME: WORKBENCH_NAME,
+    WB_excuseCandidates: WB_excuseCandidates,
+    WB_applyExcused: WB_applyExcused,
     WB_NAME: WB_NAME,
     WB_SLATE: WB_SLATE,
     WB_SOON_DAYS: WB_SOON_DAYS,

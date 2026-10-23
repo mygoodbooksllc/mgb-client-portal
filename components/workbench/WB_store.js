@@ -204,6 +204,31 @@ var WB_store = (function () {
     return (err && err.code === "42501") || /wb_forbidden/.test(String((err && err.message) || ""));
   }
 
+  // Owner rule (month rhythm): mark overdue task rows whose client's month
+  // went out preliminary (TK_lateExcused), so they never count as late.
+  // No preliminary month for any client on the list: no extra read.
+  function excuse(rows) {
+    if (typeof WB_excuseCandidates !== "function" || typeof TK_api === "undefined" || !TK_api.loadReportStates) return;
+    var c = sb();
+    if (!c) return;
+    TK_api.loadReportStates().then(function () {
+      if (state.rows !== rows) return;
+      var keys = typeof TK_reportStateCache !== "undefined" ? TK_reportStateCache.keys : {};
+      var ids = WB_excuseCandidates(rows, WB_today(), keys);
+      if (!ids.length) return null;
+      return c.from("staff_reminders").select("id, client_id, period_kind, period_start, status").in("id", ids).then(function (res) {
+        if (res.error || state.rows !== rows) return;
+        var ok = (res.data || []).filter(function (t) {
+          return typeof TK_lateExcused === "function" && TK_lateExcused(t);
+        }).map(function (t) {
+          return String(t.id);
+        });
+        var next = WB_applyExcused(rows, ok);
+        if (next !== rows) set({ rows: next });
+      });
+    }).catch(function () {});
+  }
+
   function refresh() {
     var c = sb();
     if (!c || !state.on || !state.me) return Promise.resolve();
@@ -227,6 +252,7 @@ var WB_store = (function () {
         if (res.error) throw res.error;
         if (stale()) return;
         set({ rows: res.data || [], status: "ready", error: null, at: Date.now(), offline: false });
+        excuse(state.rows);
       })
       .catch(function (err) {
         if (stale()) return;
