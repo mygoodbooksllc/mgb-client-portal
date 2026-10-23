@@ -1540,6 +1540,11 @@ function TK_DrawerContent(props) {
           </p>
         )}
         <TK_dwCloseLink task={task} readOnly={readOnly} />
+        {typeof TK_EmailDraftButton === "function" ? (
+          <p className="tk-dw-email-draft">
+            <TK_EmailDraftButton task={task} />
+          </p>
+        ) : null}
 
         {/* T3 field grid. Future slot: a task Size field (docs/desk-right-spec.md
             section 17, idea 7) joins TK_DL_GRID_FIELDS later. Not built. */}

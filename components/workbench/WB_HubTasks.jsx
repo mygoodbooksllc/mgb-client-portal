@@ -86,6 +86,8 @@ function WB_HubTasksBody(props) {
   // month and Status folds live here only; the hub state keeps its due groups.
   var useSv = typeof TK_vUseSlateView === "function" ? TK_vUseSlateView : WB_hubNoSlateView;
   var svPair = useSv(email, "desk");
+  // Month rhythm E2: the Emails due chip (null with the rhythm off)
+  var emailTemplates = typeof TK_useEmailTemplates === "function" ? TK_useEmailTemplates() : null;
   var localColPair = React.useState({});
 
   var loader = function () {
@@ -178,6 +180,7 @@ function WB_HubTasksBody(props) {
       today: today,
       clients: props.clients || [],
       flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
+      emailTemplates: emailTemplates,
     });
     var cview = built.groups;
     if (typeof TK_subNestGroups === "function") cview = TK_subNestGroups(cview, subs.kidsOf);

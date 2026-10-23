@@ -96,7 +96,10 @@ function TK_SlateViewBar(props) {
   var v = props.view || { groupBy: "due", sort: null, chip: "" };
   var groups = typeof TK_SLATE_GROUPS !== "undefined" ? TK_SLATE_GROUPS : [{ key: "due", label: "Due date" }, { key: "client", label: "Client" }];
   var sorts = typeof TK_SLATE_SORTS !== "undefined" ? TK_SLATE_SORTS : [];
-  var chips = typeof TK_SLATE_CHIPS !== "undefined" ? TK_SLATE_CHIPS : [];
+  var rhythmChips = typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled();
+  var chips = (typeof TK_SLATE_CHIPS !== "undefined" ? TK_SLATE_CHIPS : []).filter(function (c) {
+    return !c.rhythm || rhythmChips;
+  });
   var isDefault = typeof TK_isDefaultSlateView === "function" ? TK_isDefaultSlateView(v) : v.groupBy === "due" && !v.sort && !v.chip;
   var sortDir = function (col) {
     return v.sort && v.sort.col === col ? v.sort.dir : "";
@@ -441,6 +444,8 @@ function TK_vMyTasksBody(props) {
   // exactly as before (TK_slateBuildView's default path is TK_myGroupsView).
   var svPair = TK_vUseSlateView(email);
   var sv = svPair[0];
+  // Month rhythm E2: the Emails due chip knows the rhythm email templates
+  var emailTemplates = typeof TK_useEmailTemplates === "function" ? TK_useEmailTemplates() : null;
   // Slate app P3: named saved views, only inside the Slate app.
   var slateApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
   var groupBy = sv.groupBy;
@@ -453,6 +458,7 @@ function TK_vMyTasksBody(props) {
           today: today,
           clients: props.clients || [],
           flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
+          emailTemplates: emailTemplates,
         })
       : null;
   var byDue = built ? built.byDue : true;
@@ -499,6 +505,7 @@ function TK_vMyTasksBody(props) {
       today: today,
       clients: props.clients || [],
       flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
+      emailTemplates: emailTemplates,
     }).groups.forEach(function (g) {
       (g.tasks || []).forEach(function (t) {
         boardTasks.push(t);

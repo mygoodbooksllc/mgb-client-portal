@@ -1863,6 +1863,7 @@ function TK_TaskRow(props) {
           <a className="tk-row-title" href={href} onClick={openClick}>
             {task.text || "Untitled task"}
           </a>
+          {typeof TK_EmailDraftButton === "function" ? <TK_EmailDraftButton task={task} compact={true} /> : null}
           {toggleBtn}
           {moreBtn}
         </div>

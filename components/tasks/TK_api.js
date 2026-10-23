@@ -2628,6 +2628,109 @@ var TK_api = (function () {
     return templateRefs[templateId];
   };
 
+  // ---- Month rhythm E1: email draft data ------------------------------------
+  // Everything TK_emailDraftBuild needs for one task's client month. Read only:
+  // staff RLS (can_access_client) covers every table. Each read is soft: a
+  // failure leaves that part empty and adds a warning, so a draft always opens.
+  // Nothing here sends anything.
+  api.emailDraftData = function (task, kind) {
+    var client = db();
+    var cid = task && task.client_id ? String(task.client_id) : "";
+    var period = typeof TK_emailPeriodOf === "function" ? TK_emailPeriodOf(task) : null;
+    if (!client || !cid || !period) return Promise.resolve(null);
+    var warnings = [];
+    var y = Number(period.slice(0, 4));
+    var m = Number(period.slice(5, 7));
+    var next = m === 12 ? (y + 1) + "-01-01" : y + "-" + String(m + 1).padStart(2, "0") + "-01";
+    function soft(label, fn, empty) {
+      return Promise.resolve()
+        .then(fn)
+        .then(function (res) {
+          if (res && res.error) throw res.error;
+          var data = res && Object.prototype.hasOwnProperty.call(res, "data") ? res.data : res;
+          return data === null || data === undefined ? empty : data;
+        })
+        .catch(function () {
+          warnings.push(label);
+          return empty;
+        });
+    }
+    return Promise.all([
+      soft("client", function () {
+        return client.from("clients").select("id, name, account_manager").eq("id", cid).maybeSingle();
+      }, null),
+      soft("client profile", function () {
+        return client.from("client_profile").select("greeting_name, rhythm").eq("client_id", cid).maybeSingle();
+      }, null),
+      soft("accounts", function () {
+        return client.from("qbo_account_status").select("name, kind, last_reconciled_date").eq("client_id", cid).limit(500);
+      }, []),
+      soft("transactions", function () {
+        return client.from("qbo_transactions")
+          .select("qbo_id, txn_type, txn_date, account_name, name, memo, amount, split_account")
+          .eq("client_id", cid).gte("txn_date", period).lt("txn_date", next)
+          .order("txn_date", { ascending: true }).limit(2000);
+      }, []),
+      soft("document requests", function () {
+        return client.from("client_doc_requests").select("title, status").eq("client_id", cid).eq("status", "open").limit(500);
+      }, []),
+      soft("client requests", function () { return api.listClientRequests(null, cid); }, []),
+      soft("close check", function () {
+        return client.from("close_checks").select("status, reasons").eq("client_id", cid).eq("period", period).maybeSingle();
+      }, null),
+      soft("report state", function () {
+        return client.from("tk_report_state").select("state, missing").eq("client_id", cid).eq("period", period).maybeSingle();
+      }, null),
+      soft("rhythm", function () {
+        return typeof TK_rhythmLoad === "function" ? TK_rhythmLoad() : null;
+      }, null),
+      soft("staff", function () { return api.listStaff(); }, []),
+    ]).then(function (r) {
+      var cl = r[0] || {};
+      var prof = r[1] || {};
+      var firm = r[8] && r[8].rhythm ? r[8].rhythm : null;
+      var rhythm = firm && typeof TK_rhythmForClient === "function" ? TK_rhythmForClient(firm, prof.rhythm) || firm : firm;
+      var who = lower(task.assignee_email || "");
+      var signer = (r[9] || []).filter(function (s) { return s && lower(s.email) === who; })[0];
+      var uncategorized = (r[2] || []).filter(function (a) { return a && a.kind === "uncategorized"; })
+        .map(function (a) { return a.name; });
+      return {
+        kind: kind,
+        period: period,
+        clientName: cl.name || task.client_name || cid,
+        greetingName: prof.greeting_name || null,
+        accountManager: cl.account_manager || null,
+        rhythm: rhythm,
+        signerName: signer && signer.name ? signer.name : null,
+        accounts: r[2] || [],
+        uncategorizedNames: uncategorized,
+        transactions: r[3] || [],
+        requests: Array.isArray(r[5]) ? r[5] : [],
+        docRequests: r[4] || [],
+        closeCheck: r[6],
+        reportState: r[7],
+        warnings: warnings,
+      };
+    });
+  };
+
+  // Template id -> email_kind for the rhythm email templates (the Emails due chip).
+  var emailTpls = null;
+  api.emailTemplates = function () {
+    if (emailTpls) return emailTpls;
+    emailTpls = run(function (c) {
+      return c.from("task_templates").select("id, email_kind").not("email_kind", "is", null).limit(500);
+    }, { where: "emailTemplates" }).then(function (rows) {
+      var out = {};
+      (rows || []).forEach(function (r) { if (r && r.id && r.email_kind) out[r.id] = r.email_kind; });
+      return out;
+    }, function () {
+      emailTpls = null;
+      return {};
+    });
+    return emailTpls;
+  };
+
   // Bell: second preliminary month notices for the signed-in person (RLS).
   api.listRhythmNotices = function () {
     return run(function (c) {
@@ -2652,6 +2755,7 @@ var TK_api = (function () {
     reportStates.at = 0;
     reportStates.promise = null;
     templateRefs = {};
+    emailTpls = null;
   };
 
   return api;

@@ -1436,6 +1436,8 @@ var TK_SLATE_SORTS = [
 var TK_SLATE_CHIPS = [
   { key: "mine_today", label: "Mine today" },
   { key: "waiting", label: "Waiting on client" },
+  // Month rhythm E2: shown only with the rhythm on (ctx.emailTemplates set)
+  { key: "emails_due", label: "Emails due", rhythm: true },
 ];
 
 // The month rhythm's part labels, in rhythm order (docs/slate-month-rhythm.md).
@@ -1641,6 +1643,17 @@ function TK_slateChipMatch(t, chip, ctx) {
   if (!chip) return true;
   var st = TK_vStatus(t);
   if (chip === "waiting") return st === "waiting_client";
+  if (chip === "emails_due") {
+    // mine, open, a rhythm email task (template has an email_kind), due by today
+    var ec = ctx || {};
+    var tpls = ec.emailTemplates;
+    if (!tpls || !t.template_id || !tpls[t.template_id]) return false;
+    if (!TK_vLower(ec.email) || TK_vLower(t.assignee_email) !== TK_vLower(ec.email)) return false;
+    if (st === "done" || st === "waiting_client") return false;
+    var edue = t.due_date ? String(t.due_date).slice(0, 10) : "";
+    var etoday = ec.today ? String(ec.today).slice(0, 10) : "";
+    return !!edue && !!etoday && edue <= etoday;
+  }
   if (chip === "mine_today") {
     var c = ctx || {};
     var me = TK_vLower(c.email);
@@ -1658,6 +1671,8 @@ function TK_slateChipMatch(t, chip, ctx) {
 function TK_slateApplyChip(tasks, chip, ctx) {
   var list = Array.isArray(tasks) ? tasks : [];
   if (!chip || !TK_vInList(TK_SLATE_CHIPS, "key", chip)) return list;
+  // a rhythm chip saved while the rhythm was on does nothing once it is off
+  if (chip === "emails_due" && !(ctx && ctx.emailTemplates)) return list;
   return list.filter(function (t) {
     return TK_slateChipMatch(t, chip, ctx);
   });

@@ -3625,3 +3625,26 @@ a.tk-card-title:hover {
 .tk-bulk-report .tk-bulk-report-body { max-height: min(70vh, 640px); overflow-y: auto; }
 .tk-bulk-report-row { border-top: 1px solid var(--border); padding-top: 10px; }
 .tk-bulk-report-bad legend { color: var(--bad); }
+
+/* Month rhythm E2: email drafts (nothing is sent) */
+.tk-dw-email-draft { margin: 6px 0 0; }
+.tk-email-draft-wrap { position: relative; display: inline-flex; flex: none; }
+.tk-email-draft-icon { font-size: 13px; line-height: 1; }
+.tk-email-draft-peek {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40;
+  display: flex; flex-direction: column; gap: 2px;
+  width: min(360px, 80vw); padding: 8px 10px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  font-size: 12px; font-weight: normal; white-space: normal; pointer-events: none;
+}
+.tk-email-draft-compact .tk-email-draft-peek { left: auto; right: 0; }
+.tk-email-draft-peek-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.tk-email-draft .tk-email-draft-body { max-height: min(75vh, 720px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.tk-email-draft-subject { width: 100%; }
+.tk-email-draft-text { width: 100%; min-height: 320px; font-family: inherit; line-height: 1.45; resize: vertical; }
+.tk-email-draft-warn { color: var(--warn, var(--bad)); }
+@media (max-width: 640px) {
+  .tk-email-draft-text { min-height: 240px; }
+}
