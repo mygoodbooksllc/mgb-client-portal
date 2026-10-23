@@ -63,6 +63,19 @@ The sliver shows the task you are on right now: the one you started, else the ne
 - **Manual order.** Turn on **Manual** (My tasks) or **Manual order** (a project, client or person list) and drag rows by their grip handle, or press **Alt+Up** or **Alt+Down** on a row. In a project you can drop a task into another section. **Esc** cancels a drag. The order is yours alone: nobody else's list changes, and the portal keeps its usual order.
 - **List or Board.** The **List | Board** switch shows the same tasks as columns, by **Status** or by **Section**. Drag a card to another column to change that field; the rules are the same as the status pill, so a task that needs review still goes through review. Alt+arrow keys move a focused card. Each list remembers whether you left it as a list or a board.
 
+### Quick actions (in the app)
+
+These work in the Slate app only, on My tasks and on project, client and person lists. Nothing changes in the portal.
+
+- **Right-click menu.** Right-click a task (or press and hold it on a touch screen) for **Open**, **Edit title**, **Mark done**, **Duplicate**, **Copy**, **Paste here**, **Assign to me**, due dates, **Snooze a day**, **Move to section** (projects), **Select** and **Delete**. With several tasks selected, the menu acts on all of them. Shift+right-click shows the browser's own menu.
+- **Duplicate, copy and paste.** **Cmd+D** (Ctrl+D on Windows) duplicates the task, or the selected tasks, right where they are. **Cmd+C** copies them and **Cmd+V** pastes copies into the list you are on; in a project they land in the focused task's section. Copies are new tasks assigned to you, with the same title, notes, due date and subtasks, but they are never part of a recurring template, and nobody gets an email about them. Tasks stay with their own client: you can't paste one client's task into another client's list.
+- **Select several.** Shift-click or Cmd-click (Ctrl-click) rows, or drag a box across empty space beside the rows. Hold Shift while you drag to add to what is already selected.
+- **Quick keys.** **E** edits the title of the focused task, **Enter** opens it, **X** marks it done, and the **Up** and **Down** arrows move between tasks. Press **?** for the full list.
+- **Drag onto a person or a date.** While you drag a task, a panel appears on the right (at the bottom on a phone): drop on **Today**, **Tomorrow**, **Next week**, **No date** or a person's name. Turn on **Manual order** to drag tasks between sections in a list, or use the **Board**.
+- **Swipes on a touch screen.** Swipe a task right to mark it done, or left to snooze it a day. Press and hold to pick a task up and drag it.
+- **Swipe back.** Swipe two fingers right on a trackpad (or from the left edge of a touch screen) to close the open menu, then the open task, then go to the previous page. In Safari, the trackpad swipe is Safari's own Back.
+- **Undo.** In the app, **Undo** (or **Cmd+Z**) works for 9 minutes after a change, instead of 10 seconds. Undoing a duplicate or a paste deletes the copies, the same way **Delete** does.
+
 ### Links open in the portal
 
 A client's page, a chat or a file opens in your portal window and the app stays where it is. If no portal window is open, the link opens in a new tab. **Open full portal** and **Help** in the app's menu do the same.

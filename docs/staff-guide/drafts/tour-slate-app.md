@@ -51,6 +51,12 @@ Launch kit (mgb-launch-kit): one announcement entry, shown once per person at th
           "In the app, Views saves how your list is set up, bulk edit changes Status, Priority and Section together, Manual order lets you drag rows, and the List | Board switch shows columns by status or section. Links to clients open in this portal window.",
       },
       {
+        id: "ann-quick",
+        title: "Quick actions",
+        body: () =>
+          "In the app, right-click a task (or press and hold on a touch screen) for a menu: Duplicate, Copy, due dates, Assign to me and more. Cmd+D duplicates, Cmd+C and Cmd+V copy and paste, drag on empty space to select several, and swipe two fingers right to go back. Undo works for 9 minutes. Press ? for every key.",
+      },
+      {
         id: "ann-done",
         title: "That's the Slate app",
         body: () =>

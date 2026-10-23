@@ -2252,7 +2252,7 @@ t("ix: paste target", () => {
   assert.deepStrictEqual(L.TK_ixPasteTarget({ kind: "project", projectId: "p", bySection: true, section: "Setup" }), { project_id: "p", section: "Setup" });
   assert.deepStrictEqual(L.TK_ixPasteTarget({ kind: "project", projectId: "p", bySection: true, section: "" }), { project_id: "p", section: null });
   assert.deepStrictEqual(L.TK_ixPasteTarget({ kind: "project", projectId: "p", bySection: false, section: "Setup" }), { project_id: "p" });
-  assert.deepStrictEqual(L.TK_ixPasteTarget({ kind: "client", clientId: "c1" }), { client_id: "c1" });
+  assert.deepStrictEqual(L.TK_ixPasteTarget({ kind: "client", clientId: "c1" }), { project_id: null, client_id: "c1" });
   assert.strictEqual(L.TK_ixPasteTarget({ kind: "my" }), null);
   assert.strictEqual(L.TK_ixPasteTarget(null), null);
 });
@@ -2273,7 +2273,9 @@ t("ix: row swipe axis, edge and action", () => {
   assert.strictEqual(L.TK_ixSwipeAxis(12, 10), "y");
   assert.strictEqual(L.TK_ixSwipeAxis(2, 30), "y");
   assert.strictEqual(L.TK_ixAtEdge(10, 400), true);
-  assert.strictEqual(L.TK_ixAtEdge(390, 400), true);
+  assert.strictEqual(L.TK_ixAtEdge(390, 400), false);
+  assert.strictEqual(L.TK_ixAtEdge(24, 400), true);
+  assert.strictEqual(L.TK_ixAtEdge(25, 400), false);
   assert.strictEqual(L.TK_ixAtEdge(200, 400), false);
   assert.strictEqual(L.TK_ixSwipeAction(100, 600), "complete");
   assert.strictEqual(L.TK_ixSwipeAction(-100, 600), "snooze");

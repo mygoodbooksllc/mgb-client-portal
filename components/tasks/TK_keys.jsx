@@ -238,7 +238,7 @@ function TK_KeysSheet(props) {
                   return (
                     <tr key={k[0]}>
                       <td className="tk-keys-cap">
-                        <kbd className="tk-kbd">{k[0].replace("Cmd", mac ? "⌘" : "Ctrl")}</kbd>
+                        <kbd className="tk-kbd">{mac ? k[0].replace(/^Cmd\+(?=.$)/, "⌘").replace("Cmd", "⌘") : k[0].replace("Cmd", "Ctrl")}</kbd>
                       </td>
                       <td className="tk-keys-label">{k[1]}</td>
                       <td className="tk-keys-where">{k[2]}</td>

@@ -64,7 +64,12 @@ function TK__ixFail(e) {
 }
 function TK__ixToday(t) {
   if (t) return t;
-  return typeof TK_vToday === "function" ? TK_vToday() : new Date().toISOString().slice(0, 10);
+  if (typeof TK_vToday === "function") return TK_vToday();
+  var d = new Date();
+  var p2 = function (n) {
+    return (n < 10 ? "0" : "") + n;
+  };
+  return d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
 }
 var TK__IX_INTERACTIVE = "input, textarea, select, button, a[href], label, [contenteditable='true'], [role='checkbox'], [role='menu'], [role='menuitem'], [data-tk-drag-handle]";
 
@@ -113,9 +118,14 @@ function TK_ixRun(action, ids, c) {
     return TK_api.copyRun(clip, target, "Pasted").catch(TK__ixFail);
   }
   if (action === "assign_me") {
-    var me = o.me || TK_vMe();
-    if (!me) return;
-    return TK_api.bulkRun("reassign", list, { assignee_email: me }).catch(TK__ixFail);
+    // the claim path (what anyone on the team may do), one task at a time;
+    // TK_api.claim toasts success and failure itself
+    if (typeof TK_api.claim !== "function") return;
+    return list.slice(0, 25).reduce(function (p, id) {
+      return p.then(function () {
+        return TK_api.claim(id).catch(function () {});
+      });
+    }, Promise.resolve());
   }
   if (action.indexOf("due_") === 0) {
     var due = TK_ixDueFor(action.slice(4), today);
@@ -126,7 +136,7 @@ function TK_ixRun(action, ids, c) {
     var to = one ? TK_ixSnoozeDate(one.due_date, today) : TK_ixDueFor("tomorrow", today);
     return TK_api.bulkUpdate(list, { due_date: to }).then(function (r) {
       var n = r.done.length + (r.review ? r.review.length : 0);
-      var text = n ? (list.length === 1 ? "Snoozed. " + TK_ixDueText(to, today) : "Snoozed " + n + (n === 1 ? " task. " : " tasks. ") + TK_ixDueText(to, today)) : TK_copySkipText(r.skipped);
+      var text = n ? (list.length === 1 ? "Snoozed. " + TK_ixDueText(to, today) : "Snoozed " + n + (n === 1 ? " task. " : " tasks. ") + TK_ixDueText(to, today)) : TK__ixSkipText(r.skipped);
       TK_api.offerUndo(text, r, { ids: list });
     }, TK__ixFail);
   }
@@ -137,6 +147,12 @@ function TK_ixRun(action, ids, c) {
   if (action === "select" && o.bulk) return o.bulk.setMany(list, true);
   if (action === "deselect" && o.bulk) return o.bulk.clear();
   if (action === "delete") return TK_api.bulkRun("delete", list).catch(TK__ixFail);
+}
+
+function TK__ixSkipText(skipped) {
+  var s = Array.isArray(skipped) && skipped[0] ? skipped[0] : null;
+  if (s && s.reason && typeof TK_bulkReasonText === "function") return TK_bulkReasonText(s.reason);
+  return "Nothing changed.";
 }
 
 // ---- The row menu ----------------------------------------------------------
@@ -172,6 +188,15 @@ function TK_IxMenu(props) {
   var sub = subPair[0];
   var posPair = React.useState({ left: props.x, top: props.y });
   var mac = TK__ixMac();
+  // give focus back to where it was when the menu closes
+  React.useEffect(function () {
+    var before = document.activeElement;
+    return function () {
+      try {
+        if (before && before.focus && document.contains(before) && (!document.activeElement || document.activeElement === document.body || (ref.current && ref.current.contains(document.activeElement)))) before.focus({ preventScroll: true });
+      } catch (e) {}
+    };
+  }, []);
   React.useLayoutEffect(
     function () {
       var el = ref.current;
@@ -194,11 +219,19 @@ function TK_IxMenu(props) {
     var closeNow = function () {
       props.onClose();
     };
+    var onEsc = function (e) {
+      if (e.key !== "Escape" || (ref.current && ref.current.contains(e.target))) return;
+      e.preventDefault();
+      e.stopPropagation();
+      props.onClose();
+    };
+    document.addEventListener("keydown", onEsc, true);
     document.addEventListener("pointerdown", close, true);
     document.addEventListener("scroll", close, true);
     window.addEventListener("resize", closeNow);
     window.addEventListener("blur", closeNow);
     return function () {
+      document.removeEventListener("keydown", onEsc, true);
       document.removeEventListener("pointerdown", close, true);
       document.removeEventListener("scroll", close, true);
       window.removeEventListener("resize", closeNow);
@@ -340,7 +373,9 @@ function TK_useSlateIx(opts) {
           projectId: c.projectId,
           clientId: c.clientId,
           section: f ? f.section : null,
-          bySection: (c.kind === "project" || c.kind === "client") && !!f,
+          // a client list paste lands outside projects: keep the focused
+          // row's section only when that row is outside a project too
+          bySection: !!f && (c.kind === "project" || (c.kind === "client" && !f.project_id)),
         });
       },
     };
@@ -494,8 +529,8 @@ function TK_useSlateIx(opts) {
         }, 0);
         var b = ref.current.bulk;
         if (!commit || !b || !b.ready) return;
-        if (!cur.add) b.clear();
-        if (cur.hits && cur.hits.length) b.setMany(cur.hits, true);
+        // a plain drag box replaces the selection; Shift / Cmd / Ctrl adds
+        b.setMany(cur.hits || [], true, cur.add ? null : { replace: true });
       };
       var mqUp = function () {
         mqEnd(true);
@@ -536,7 +571,7 @@ function TK_useSlateIx(opts) {
         var swipeOk = !!c.swipes && !c.readOnly && row.classList.contains("tk-row") && !row.classList.contains("tk-subrow");
         sw.swipeOk = swipeOk;
         // rows the drag can pick up get their menu from the drag's long press
-        if (!inGroup) {
+        if (!inGroup || !c.dock || c.readOnly) {
           var mine = sw;
           sw.hold = window.setTimeout(function () {
             if (sw !== mine || mine.axis) return;
@@ -556,6 +591,11 @@ function TK_useSlateIx(opts) {
       var onTouchMove = function (e) {
         var t = touchOf(e);
         if (!t) return;
+        if (sw.held) {
+          // the long press opened the menu: the finger moving is not a swipe
+          if (e.cancelable) e.preventDefault();
+          return;
+        }
         sw.x = t.clientX;
         sw.y = t.clientY;
         var dx = sw.x - sw.x0;
@@ -592,6 +632,7 @@ function TK_useSlateIx(opts) {
         if (cur.hold) window.clearTimeout(cur.hold);
         if (cur.held) {
           // the long press opened the menu: not a tap on the row
+          swReset(cur.row);
           if (e.cancelable) e.preventDefault();
           return;
         }
@@ -722,7 +763,8 @@ function TK__ixCanScrollLeft(el) {
   return false;
 }
 function TK__ixTopLayer() {
-  var sel = "[role='menu'], .modal-overlay, .tk-cd-layer, [role='dialog'][aria-modal='true']";
+  // the sidebar's hover flyout is not a layer: it closes when the pointer leaves
+  var sel = "[role='menu']:not(.hn-fly), .modal-overlay, .tk-cd-layer, [role='dialog'][aria-modal='true']";
   var all;
   try {
     all = document.querySelectorAll(sel);
@@ -737,19 +779,25 @@ function TK__ixTopLayer() {
   }
   return null;
 }
+function TK__ixSafari() {
+  return /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent || "");
+}
 function TK__ixBack() {
   var layer = TK__ixTopLayer();
   var st = typeof TK_store !== "undefined" && TK_store && TK_store.getState ? TK_store.getState() : null;
   var task = !!(st && st.drawerId);
   // Safari runs its own back swipe on the page history; never step it twice.
-  var safari = /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent || "");
+  var safari = TK__ixSafari();
   var step = TK_ixBackStep({ layer: !!layer, task: task, history: !safari && window.history.length > 1 });
   if (step === "layer") {
     var target = layer.querySelector("[role='menuitem'], button, [tabindex]") || layer;
     var ev = new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true });
     (layer.contains(document.activeElement) ? document.activeElement : target).dispatchEvent(ev);
   } else if (step === "task") {
-    TK_store.dispatch({ type: "drawer", id: null });
+    // Esc on the drawer runs its own close (it checks unsaved edits first)
+    var panel = document.querySelector(".tk-dw");
+    if (panel) panel.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }));
+    else TK_store.dispatch({ type: "drawer", id: null });
   } else if (step === "history") {
     window.history.back();
   }
@@ -763,17 +811,25 @@ function TK_SwipeBackHost() {
       if (!on) return undefined;
       var html = document.documentElement;
       html.classList.add("tk-swipe-back");
-      var sum = { x: 0, y: 0, t: 0, fired: false };
+      // Safari runs its own two-finger back swipe on the page: leave the
+      // trackpad to it there (the touch edge swipe below still works).
+      var safari = TK__ixSafari();
+      // a gesture starts after 300ms of quiet; one that starts where the
+      // page (or a panel under the pointer) can still scroll left never fires
+      var sum = { x: 0, y: 0, t: 0, fired: false, dead: false };
       var onWheel = function (e) {
-        if (e.ctrlKey || e.deltaMode !== 0) return; // pinch zoom, or a mouse wheel
+        if (safari || e.ctrlKey || e.deltaMode !== 0) return; // pinch zoom, or a mouse wheel
         var now = Date.now();
-        if (now - sum.t > 300) sum = { x: 0, y: 0, t: now, fired: false };
+        if (now - sum.t > 300) sum = { x: 0, y: 0, t: now, fired: false, dead: false };
         sum.t = now;
+        if (sum.fired || sum.dead) return;
+        if (TK__ixCanScrollLeft(e.target) || html.classList.contains("tk-dragging") || html.classList.contains("tk-ix-marquee")) {
+          sum.dead = true;
+          return;
+        }
         sum.x += e.deltaX;
         sum.y += e.deltaY;
-        if (sum.fired || !TK_ixWheelBack(sum.x, sum.y)) return;
-        if (html.classList.contains("tk-dragging") || html.classList.contains("tk-ix-marquee")) return;
-        if (TK__ixCanScrollLeft(e.target)) return;
+        if (!TK_ixWheelBack(sum.x, sum.y)) return;
         sum.fired = true;
         TK__ixBack();
       };

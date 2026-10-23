@@ -3073,7 +3073,9 @@ function TK_ixPasteTarget(o) {
   var c = o || {};
   var t = null;
   if (c.kind === "project" && c.projectId) t = { project_id: c.projectId };
-  else if (c.kind === "client" && c.clientId) t = { client_id: c.clientId };
+  // a client list holds the client's tasks outside projects: a paste there
+  // lands outside any project (never in the source's project)
+  else if (c.kind === "client" && c.clientId) t = { project_id: null, client_id: c.clientId };
   if (t && c.bySection) t.section = c.section == null || c.section === "" ? null : String(c.section);
   return t;
 }
@@ -3106,9 +3108,10 @@ function TK_ixSwipeAxis(dx, dy) {
   if (Math.max(ax, ay) < TK_IX_SWIPE_LOCK) return null;
   return ax > ay * 1.5 ? "x" : "y";
 }
-function TK_ixAtEdge(x, screenW) {
-  var w = Number(screenW) || 0;
-  return x <= TK_IX_EDGE || (w > 0 && x >= w - TK_IX_EDGE);
+// Only the left edge is kept for the swipe back; the right edge is a
+// normal row. screenW is kept for callers and ignored.
+function TK_ixAtEdge(x) {
+  return (Number(x) || 0) <= TK_IX_EDGE;
 }
 // dx: how far the row moved; width: the row's width. "complete" (right),
 // "snooze" (left) or null (not far enough: the row springs back).

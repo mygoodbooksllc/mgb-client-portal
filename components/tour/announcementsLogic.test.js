@@ -540,7 +540,7 @@ t("registry: slate-app-launch shape, roles, steps and wording", () => {
   assert.strictEqual(typeof a.ready, "function");
   assert.deepStrictEqual(a.supersedes, ["slate-view-bar"], "the launch tour covers the view bar; the other Slate notices stay owed");
   const steps = a.steps({ isAdmin: true });
-  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-open", "ann-sizes", "ann-shape", "ann-done"]);
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-open", "ann-sizes", "ann-shape", "ann-quick", "ann-done"]);
   assert.deepStrictEqual(steps[1].targets, ["tk-popout"]);
   assert.strictEqual(steps[1].wait, true);
   const sizes = steps[2].body();

@@ -87,12 +87,16 @@ function TK_useBulkSelect(opts) {
     setSel(TK_selEmpty());
   }, []);
   // A group header's box: select (or unselect) every row of that group.
-  var setMany = React.useCallback(function (ids, on) {
+  // how.replace (the Slate drag box): the ids become the whole selection.
+  var setMany = React.useCallback(function (ids, on, how) {
     var max = typeof TK_api !== "undefined" && TK_api && TK_api.BULK_MAX ? TK_api.BULK_MAX : 100;
-    var next = { ids: {}, anchor: selRef.current.anchor };
-    Object.keys(selRef.current.ids).forEach(function (k) {
-      next.ids[k] = true;
-    });
+    var replace = !!(how && how.replace);
+    var next = { ids: {}, anchor: replace ? null : selRef.current.anchor };
+    if (!replace) {
+      Object.keys(selRef.current.ids).forEach(function (k) {
+        next.ids[k] = true;
+      });
+    }
     var capped = false;
     (ids || []).forEach(function (id) {
       var k = String(id);

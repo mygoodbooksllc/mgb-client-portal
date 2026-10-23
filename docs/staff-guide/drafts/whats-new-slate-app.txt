@@ -12,6 +12,7 @@ AT LAUNCH: paste the entry below at the top of docs/staff-guide/whats-new.md (un
 - **Install it.** **Install Slate app** adds Slate to your Dock or Start menu in Chrome or Edge on a computer, as a second app next to MyGoodBooks.
 - **Four sizes.** Shrink the window to a **sliver** with just your current task and **Start** and **Done**, a **compact** list, a **regular** list with a rail, or a **full** page with a detail pane. The **Sliver**, **List** and **Full page** buttons jump to a size.
 - **Shape your work.** In the app: named **Views** you can save and switch, bulk **Status**, **Priority** and **Section**, **Manual order** by dragging rows (or Alt+Up and Alt+Down), and a **List | Board** switch with columns by status or section.
+- **Quick actions.** In the app: a right-click (or press and hold) menu on every task, **Cmd+D** to duplicate, **Cmd+C** and **Cmd+V** to copy and paste, drag a box to select several, **E**, **Enter** and **X** on the focused task, drag a task onto a date or a person, swipe right to finish and left to snooze on a touch screen, a two-finger swipe back, and a 9-minute **Undo**.
 - **Links open in the portal.** A client page, chat or file opens in your portal window and the app stays put.
 
 See [How do I use the Slate app?](#/help/tasks-own-window) and [How do I install MyGoodBooks as an app?](#/help/get-the-app).

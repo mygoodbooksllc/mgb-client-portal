@@ -1,5 +1,7 @@
 # Slate app: interaction options plan
 
+**Status 2026-10-23: built (preview only).** All ten items are in `components/tasks/TK_SlateIx.jsx` plus `TK_Drag.jsx`, `TK_keys.jsx`, `TK_api.js` and `supabase/slate-ix-copy.sql`; see "Interactions" under "MGB Slate app" in the README. Changes from this plan: trackpad row swipes were dropped (a sideways trackpad swipe is swipe back); in list view, dragging between sections needs **Manual order** on (or use the Board); the trackpad swipe back is off in Safari, which has its own.
+
 Requested by the owner 2026-10-21. Everything here is staff-only, lives behind the Slate app preview flag (`mgb_slate_app_preview`) and the `slate_app_enabled` firm switch, and ships with the usual upkeep (guide, tips, What's new, tour, README, Dev Tools). Nothing is live until the Slate app launches.
 
 Already in progress elsewhere: drag to reorder (Slate app P2). This plan builds on it and does not duplicate it.

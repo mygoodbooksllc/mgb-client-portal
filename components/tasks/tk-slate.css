@@ -585,15 +585,18 @@ body:has(.tk-app.is-shell.tk-m-sliver .tk-sl) .toast-stack {
 html.tk-ix [data-tk-id] {
   -webkit-touch-callout: none;
 }
-html.tk-ix .tk-row,
-html.tk-ix .tk-card {
-  -webkit-user-select: none;
-  user-select: none;
-}
-html.tk-ix .tk-row input,
-html.tk-ix .tk-row textarea {
-  -webkit-user-select: text;
-  user-select: text;
+/* touch screens only: a mouse can still select a title's text */
+@media (pointer: coarse) {
+  html.tk-ix .tk-row,
+  html.tk-ix .tk-card {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  html.tk-ix .tk-row input,
+  html.tk-ix .tk-row textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
 
 /* the drag box */
@@ -686,7 +689,8 @@ html.tk-dragging .tk-ix-dock {
   html.tk-dragging .tk-ix-dock {
     top: auto;
     right: 8px;
-    bottom: 8px;
+    /* above the drag's 48px autoscroll band at the bottom of the screen */
+    bottom: 60px;
     left: 8px;
     flex-flow: row wrap;
     width: auto;
