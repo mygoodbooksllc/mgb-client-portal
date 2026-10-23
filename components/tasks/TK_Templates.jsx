@@ -2166,6 +2166,10 @@ function TK_vTemplatesBody(props) {
         </section>
       ) : null}
 
+      {isAdmin && rhythmOn && typeof TK_OptionCPanel === "function" ? (
+        <TK_OptionCPanel clients={props.clients} templates={data.templates} online={online} onDone={reload} />
+      ) : null}
+
       {isAdmin && openMissed.length ? (
         <section className="tk-tpl-card tk-tpl-missed" aria-labelledby="tk-tpl-missed-title" data-tour="tk-recurring-missed">
           <h3 className="tk-group-head" id="tk-tpl-missed-title">

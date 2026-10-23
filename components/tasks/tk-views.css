@@ -3652,3 +3652,15 @@ a.tk-card-title:hover {
 /* Month rhythm S6: Close order view (Option B) */
 .tk-close-pill { font-size: 11px; padding: 1px 7px; }
 .tk-due.is-hint { color: var(--text-muted); }
+
+/* Month rhythm S7: Pre-fill by client type (Templates page, admin) */
+.tk-optc details > summary { cursor: pointer; list-style: none; }
+.tk-optc details > summary::-webkit-details-marker { display: none; }
+.tk-optc details > summary::before { content: "\25B8"; display: inline-block; margin-right: 6px; transition: transform 0.15s; }
+.tk-optc details[open] > summary::before { transform: rotate(90deg); }
+.tk-optc-list { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 8px; }
+.tk-optc-item { display: grid; gap: 2px; }
+.tk-optc-item label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.tk-optc-item input[disabled] + span { opacity: 0.6; }
+.tk-optc-desc { margin-left: 24px; font-size: 0.9em; }
+@media (prefers-reduced-motion: reduce) { .tk-optc details > summary::before { transition: none; } }

@@ -444,7 +444,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-23f", note: "Month rhythm (preview only): Close order view on a client's list, your own choice per client." };
+      window.MGB_VERSION = { label: "2026-10-23g", note: "Month rhythm S7: admins can pre-fill Quarterly and Annual draft templates by client type (preview only)" };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -630,6 +630,7 @@
         "components/tasks/TK_rhythmLogic.js",
         "components/tasks/TK_emailDraft.js",
         "components/tasks/TK_closeOrderLogic.js",
+        "components/tasks/TK_optionCLogic.js",
         "components/tasks/TK_sync.js",
         "components/tasks/TK_viewLogic.js",
         "components/tasks/TK_drawerLogic.js",
@@ -642,6 +643,7 @@
         "components/tasks/TK_EmailDraft.jsx",
         "components/tasks/TK_TaskRow.jsx",
         "components/tasks/TK_CloseOrder.jsx",
+        "components/tasks/TK_OptionC.jsx",
         "components/tasks/TK_keys.jsx",
         "components/tasks/TK_Drag.jsx",
         "components/tasks/TK_Board.jsx",

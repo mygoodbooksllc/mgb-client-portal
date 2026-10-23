@@ -1154,6 +1154,9 @@ function TK_vListBody(props) {
   });
 
   var all = Array.isArray(list.tasks) ? list.tasks : [];
+  // Month rhythm S7: template Quarterly/Annual tasks with no section show under
+  // those headings on a client's list (display only).
+  if (route.view !== "project" && typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled() && typeof TK_optionCApplySections === "function") all = TK_optionCApplySections(all);
   var shown = TK_applyFilters(all, { assignee: filters.assignee, statuses: filters.statuses, showDone: filters.showDone, showOlder: filters.showOlder, today: today });
   var sorted = TK_sortTasks(shown, sort, { nameOf: nameOf });
   var groups = byClient
