@@ -966,6 +966,22 @@ function TK_DrawerContent(props) {
     if (p.focusField === "assignee" && load === "ok" && assigneeRef.current) assigneeRef.current.focus();
   }, [p.focusField, load, taskId]);
 
+  // Slate app E key: open with the title ready to edit (after the panel has
+  // taken focus on open, so a short wait). Only the Slate keys ask for "title".
+  React.useEffect(function () {
+    if (p.focusField !== "title" || load !== "ok") return undefined;
+    var h = setTimeout(function () {
+      var el = titleRef.current;
+      if (!el || el.readOnly) return;
+      el.focus();
+      try {
+        var n = el.value.length;
+        el.setSelectionRange(n, n);
+      } catch (e) {}
+    }, 60);
+    return function () { clearTimeout(h); };
+  }, [p.focusField, load, taskId]);
+
   // ---- Slate rhythm slice 4 (b): which rhythm row this task is (by source_ref)
   var rhythmOn = typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled();
   var templateId = task ? task.template_id || null : null;

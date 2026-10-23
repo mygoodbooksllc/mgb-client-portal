@@ -1324,6 +1324,7 @@ function TK_vListBody(props) {
         return "";
       },
       say: manualSay ? manualSay.say : null,
+      undoGroups: manualGroups,
     });
   };
   if (typeof TK_useRowDrag === "function") {

@@ -2204,4 +2204,133 @@ t("saved views carry layout board, older views unchanged", () => {
   assert.strictEqual(L.TK_activeSavedViewId(merged, { groupBy: "due" }), "__default__");
 });
 
+// ---- Slate app interactions ------------------------------------------------------
+t("ix: copy skip text", () => {
+  assert.strictEqual(L.TK_copySkipText([]), "Nothing to copy.");
+  assert.match(L.TK_copySkipText([{ id: "a", reason: "other_client" }, { id: "b", reason: "no_access" }]), /own client/);
+  assert.match(L.TK_copySkipText([{ id: "a", reason: "subtask" }]), /subtask/);
+  assert.match(L.TK_copySkipText([{ id: "a", reason: "no_access" }]), /can't copy/);
+  assert.match(L.TK_copySkipText([{ id: "a", reason: "weird" }]), /Try again/);
+});
+t("ix: manual undo plan captures neighbors", () => {
+  const gs = [
+    { key: "s1", tasks: [{ id: "a" }, { id: "b" }, { id: "c" }] },
+    { key: "s2", tasks: [{ id: "d" }] },
+  ];
+  assert.deepStrictEqual(L.TK_manualUndoPlan(gs, "b"), { id: "b", fromKey: "s1", beforeId: "a", afterId: "c", orderIds: ["a", "b", "c"] });
+  assert.deepStrictEqual(L.TK_manualUndoPlan(gs, "a").beforeId, null);
+  assert.deepStrictEqual(L.TK_manualUndoPlan(gs, "d"), { id: "d", fromKey: "s2", beforeId: null, afterId: null, orderIds: ["d"] });
+  assert.strictEqual(L.TK_manualUndoPlan(gs, "zz"), null);
+  assert.strictEqual(L.TK_manualUndoPlan(null, "a"), null);
+});
+t("ix: quick due picks", () => {
+  // 2026-10-23 is a Friday
+  assert.strictEqual(L.TK_ixDueFor("today", "2026-10-23"), "2026-10-23");
+  assert.strictEqual(L.TK_ixDueFor("tomorrow", "2026-10-31"), "2026-11-01");
+  assert.strictEqual(L.TK_ixDueFor("next_week", "2026-10-23"), "2026-10-26");
+  assert.strictEqual(L.TK_ixDueFor("next_week", "2026-10-26"), "2026-11-02"); // a Monday: the next one
+  assert.strictEqual(L.TK_ixDueFor("next_week", "2026-10-25"), "2026-10-26"); // Sunday
+  assert.strictEqual(L.TK_ixDueFor("none", "2026-10-23"), null);
+  assert.strictEqual(L.TK_ixDueFor("later", "2026-10-23"), undefined);
+  assert.strictEqual(L.TK_ixDueFor("today", "bad"), undefined);
+});
+t("ix: snooze date", () => {
+  assert.strictEqual(L.TK_ixSnoozeDate(null, "2026-10-23"), "2026-10-24");
+  assert.strictEqual(L.TK_ixSnoozeDate("2026-10-01", "2026-10-23"), "2026-10-24");
+  assert.strictEqual(L.TK_ixSnoozeDate("2026-10-23", "2026-10-23"), "2026-10-24");
+  assert.strictEqual(L.TK_ixSnoozeDate("2026-10-24", "2026-10-23"), "2026-10-25");
+  assert.strictEqual(L.TK_ixSnoozeDate("2026-12-31T00:00:00", "2026-10-23"), "2027-01-01");
+  assert.strictEqual(L.TK_ixSnoozeDate(null, "nope"), null);
+});
+t("ix: due text", () => {
+  assert.strictEqual(L.TK_ixDueText("2026-10-23", "2026-10-23"), "Due today.");
+  assert.strictEqual(L.TK_ixDueText("2026-10-24", "2026-10-23"), "Due tomorrow.");
+  assert.strictEqual(L.TK_ixDueText("2026-11-02", "2026-10-23"), "Due Nov 2.");
+  assert.strictEqual(L.TK_ixDueText(null, "2026-10-23"), "Due date cleared.");
+});
+t("ix: paste target", () => {
+  assert.deepStrictEqual(L.TK_ixPasteTarget({ kind: "project", projectId: "p", bySection: true, section: "Setup" }), { project_id: "p", section: "Setup" });
+  assert.deepStrictEqual(L.TK_ixPasteTarget({ kind: "project", projectId: "p", bySection: true, section: "" }), { project_id: "p", section: null });
+  assert.deepStrictEqual(L.TK_ixPasteTarget({ kind: "project", projectId: "p", bySection: false, section: "Setup" }), { project_id: "p" });
+  assert.deepStrictEqual(L.TK_ixPasteTarget({ kind: "client", clientId: "c1" }), { client_id: "c1" });
+  assert.strictEqual(L.TK_ixPasteTarget({ kind: "my" }), null);
+  assert.strictEqual(L.TK_ixPasteTarget(null), null);
+});
+t("ix: drag box hits", () => {
+  const rows = [
+    { id: "a", left: 0, right: 500, top: 0, bottom: 40 },
+    { id: "b", left: 0, right: 500, top: 40, bottom: 80 },
+    { id: "c", left: 0, right: 500, top: 80, bottom: 120 },
+  ];
+  assert.deepStrictEqual(L.TK_ixMarqueeHits({ left: 10, top: 50, right: 20, bottom: 90 }, rows), ["b", "c"]);
+  assert.deepStrictEqual(L.TK_ixMarqueeHits({ left: 20, top: 90, right: 10, bottom: 50 }, rows), ["b", "c"]); // any corner
+  assert.deepStrictEqual(L.TK_ixMarqueeHits({ left: 600, top: 0, right: 700, bottom: 200 }, rows), []);
+  assert.deepStrictEqual(L.TK_ixMarqueeHits(null, rows), []);
+});
+t("ix: row swipe axis, edge and action", () => {
+  assert.strictEqual(L.TK_ixSwipeAxis(4, 3), null);
+  assert.strictEqual(L.TK_ixSwipeAxis(20, 4), "x");
+  assert.strictEqual(L.TK_ixSwipeAxis(12, 10), "y");
+  assert.strictEqual(L.TK_ixSwipeAxis(2, 30), "y");
+  assert.strictEqual(L.TK_ixAtEdge(10, 400), true);
+  assert.strictEqual(L.TK_ixAtEdge(390, 400), true);
+  assert.strictEqual(L.TK_ixAtEdge(200, 400), false);
+  assert.strictEqual(L.TK_ixSwipeAction(100, 600), "complete");
+  assert.strictEqual(L.TK_ixSwipeAction(-100, 600), "snooze");
+  assert.strictEqual(L.TK_ixSwipeAction(60, 600), null);
+  assert.strictEqual(L.TK_ixSwipeAction(60, 160), "complete"); // narrow row: 35%, at least 48
+  assert.strictEqual(L.TK_ixSwipeAction(40, 100), null);
+});
+t("ix: trackpad swipes and back", () => {
+  assert.strictEqual(L.TK_ixWheelSwipe(-150, 10), "complete");
+  assert.strictEqual(L.TK_ixWheelSwipe(150, 10), "snooze");
+  assert.strictEqual(L.TK_ixWheelSwipe(150, 100), null);
+  assert.strictEqual(L.TK_ixWheelSwipe(100, 0), null);
+  assert.strictEqual(L.TK_ixWheelBack(-130, 10), true);
+  assert.strictEqual(L.TK_ixWheelBack(130, 10), false);
+  assert.strictEqual(L.TK_ixWheelBack(-130, 90), false);
+});
+t("ix: back order", () => {
+  assert.strictEqual(L.TK_ixBackStep({ layer: true, task: true, history: true }), "layer");
+  assert.strictEqual(L.TK_ixBackStep({ task: true, history: true }), "task");
+  assert.strictEqual(L.TK_ixBackStep({ history: true }), "history");
+  assert.strictEqual(L.TK_ixBackStep({}), null);
+});
+t("ix: menu items", () => {
+  const one = L.TK_ixMenuItems({ canEdit: true, count: 1, clip: 0, canClaim: true });
+  assert.deepStrictEqual(one, ["open", "edit", "complete", "-", "duplicate", "copy", "-", "assign_me", "due_today", "due_tomorrow", "due_next_week", "due_none", "snooze", "-", "select", "delete"]);
+  const many = L.TK_ixMenuItems({ canEdit: true, count: 3, clip: 2, sections: ["A"] });
+  assert.ok(many.indexOf("open") < 0 && many.indexOf("edit") < 0);
+  assert.ok(many.indexOf("paste") > 0 && many.indexOf("section") > 0 && many.indexOf("deselect") > 0);
+  assert.deepStrictEqual(L.TK_ixMenuItems({ readOnly: true }), ["open", "copy"]);
+  assert.ok(L.TK_ixMenuItems({ done: true }).indexOf("reopen") > 0);
+});
+t("ix: slate keys only when slateKeys is on", () => {
+  assert.strictEqual(L.TK_slateKeyAction("ArrowDown"), "next");
+  assert.strictEqual(L.TK_slateKeyAction("e"), "edit");
+  assert.strictEqual(L.TK_slateKeyAction("z"), null);
+  const mk = (slateKeys) => {
+    const got = [];
+    const h = L.TK_makeListKeyHandler({
+      slateKeys,
+      getState: () => ({ ids: ["a", "b"], focusedId: "a" }),
+      setFocusedId: (id) => got.push("focus:" + id),
+      onEdit: (id) => got.push("edit:" + id),
+    });
+    const ev = (key) => ({ key, target: null, preventDefault() { got.push("pd"); } });
+    h(ev("ArrowDown"));
+    h(ev("e"));
+    return got;
+  };
+  assert.deepStrictEqual(mk(false), []);
+  assert.deepStrictEqual(mk(true), ["focus:b", "pd", "edit:a", "pd"]);
+});
+t("ix: chord keys", () => {
+  assert.strictEqual(L.TK_ixChordAction({ key: "d", metaKey: true }), "duplicate");
+  assert.strictEqual(L.TK_ixChordAction({ key: "C", ctrlKey: true }), "copy");
+  assert.strictEqual(L.TK_ixChordAction({ key: "v", metaKey: true }), "paste");
+  assert.strictEqual(L.TK_ixChordAction({ key: "v", metaKey: true, shiftKey: true }), null);
+  assert.strictEqual(L.TK_ixChordAction({ key: "d" }), null);
+});
+
 console.log(n + " checks passed");

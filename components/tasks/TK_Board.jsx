@@ -315,7 +315,7 @@ function TK_useBoard(opts) {
     }
     if ((c.action === "reorder" || c.action === "section") && (!o.scope || typeof TK_manualMove !== "function")) return;
     if (c.action === "reorder") {
-      TK_manualMove(plan, { scope: o.scope, labelOf: labelOf, say: say.say }).then(function (r) {
+      TK_manualMove(plan, { scope: o.scope, labelOf: labelOf, say: say.say, undoGroups: cols }).then(function (r) {
         if (r) tracked();
       });
       return;
@@ -329,6 +329,7 @@ function TK_useBoard(opts) {
         },
         labelOf: labelOf,
         say: null,
+        undoGroups: cols,
       }).then(function (r) {
         if (!r) return;
         say.say(TK_boardAnnounce(plan, to.label));

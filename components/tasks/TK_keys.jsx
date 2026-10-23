@@ -112,6 +112,12 @@ function TK_useKeys(opts) {
           if (ref.current.onAssign) ref.current.onAssign(id);
           else TK_vOpenTask(id, { from: "keys", focus: "assignee" });
         },
+        // Slate app only: arrows move between tasks, e opens the title to edit.
+        slateKeys: !!o.slateKeys,
+        onEdit: function (id) {
+          if (ref.current.onEdit) ref.current.onEdit(id);
+          else TK_vOpenTask(id, { from: "keys", focus: "title" });
+        },
         // Lists without selection leave v alone (no onSelect: not handled).
         onSelect: o.onSelect
           ? function (id, shift) {
@@ -133,7 +139,7 @@ function TK_useKeys(opts) {
       return off || undefined;
     },
     // Rebinds when selection turns on (the schema probe can land after mount).
-    [enabled, !!o.onSelect],
+    [enabled, !!o.onSelect, !!o.slateKeys],
   );
 
   // The list's quick add context, for a QuickAddHost that wants to read it.

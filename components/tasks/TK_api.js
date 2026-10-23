@@ -1209,7 +1209,7 @@ var TK_api = (function () {
       key: key,
       opId: r.opId,
       hint: { ids: arr(hint && hint.ids), spawned: arr(hint && hint.spawned).concat(arr(r.spawned)), fields: !!(hint && hint.fields) },
-      until: Date.now() + UNDO_MS,
+      until: Date.now() + undoMs(),
     };
     undoState.live = live;
     raiseToast(text, {
@@ -1248,11 +1248,13 @@ var TK_api = (function () {
     if (undoState.running) return undoState.running;
     if (undoState.live === live) undoState.live = null;
     dismissToast(live.key);
-    var p = api
-      .undo(live.opId, live.hint)
+    // A Slate app undo step (a move or a copy) carries its own run().
+    var call = typeof live.run === "function" ? Promise.resolve().then(live.run) : api.undo(live.opId, live.hint);
+    var p = call
       .then(
         function (res) {
-          raiseToast(undoText(res));
+          if (typeof live.run === "function") raiseToast(typeof res === "string" ? res : (res && res.text) || "Undone.");
+          else raiseToast(undoText(res));
           return res;
         },
         function (e) {
@@ -1271,6 +1273,118 @@ var TK_api = (function () {
   // Undo the live op (Ctrl/Cmd+Z). Resolves null when nothing is live.
   api.undoLive = function () {
     return runUndo(api.liveUndo());
+  };
+
+  // ---- Slate app interactions (docs/slate-app-interactions-plan.md) ---------
+  // Only reached from the Slate app window (preview flag + firm switch); the
+  // portal never calls these, and with the preview off undoMs() is UNDO_MS.
+
+  // In the Slate app Ctrl/Cmd+Z keeps undoing the LAST action after its toast
+  // closes, for 9 minutes (the server keeps an op for 10, once).
+  var SLATE_UNDO_MS = 9 * 60 * 1000;
+  function undoMs() {
+    try {
+      if (typeof TK_slateInApp === "function" && TK_slateInApp()) return SLATE_UNDO_MS;
+    } catch (e) {}
+    return UNDO_MS;
+  }
+
+  // Like offerUndo, for a step the client undoes itself (a move puts the task
+  // back; a copy archives the copies). fn() resolves with the toast text (or
+  // { text }); a throw toasts "Couldn't undo that."
+  api.offerUndoRun = function (text, fn) {
+    if (undoState.live) dismissToast(undoState.live.key);
+    if (typeof fn !== "function") {
+      undoState.live = null;
+      raiseToast(text);
+      return null;
+    }
+    var key = "tk-undo-" + ++undoState.seq;
+    var live = { key: key, opId: null, run: fn, hint: { ids: [], spawned: [], fields: false }, until: Date.now() + undoMs() };
+    undoState.live = live;
+    raiseToast(text, {
+      label: "Undo",
+      onClick: function () {
+        runUndo(live);
+        try {
+          if (typeof TK_vTrack === "function") TK_vTrack("tasks-undo-click");
+        } catch (e) {}
+      },
+    }, key);
+    return live;
+  };
+
+  // tk_copy_tasks (supabase/slate-ix-copy.sql): copies as the signed-in
+  // person (row level security decides), with no recurring links and no
+  // emails. target: null (duplicate in place) or { project_id, client_id,
+  // section } (paste). Resolves { copies: [{source, id, subtasks}], skipped }.
+  var COPY_MAX = 50;
+  api.COPY_MAX = COPY_MAX;
+  api.copyTasks = function (ids, target) {
+    var list = idList(ids);
+    var off = requireOnline();
+    if (off) return off;
+    if (!list.length) return Promise.resolve({ copies: [], skipped: [] });
+    if (list.length > COPY_MAX) {
+      return Promise.reject(errOf("tk_too_many", "Pick " + COPY_MAX + " tasks or fewer.", { reason: "tk_too_many" }));
+    }
+    var t = null;
+    if (target && typeof target === "object") {
+      t = {};
+      ["project_id", "client_id", "section"].forEach(function (k) {
+        if (Object.prototype.hasOwnProperty.call(target, k)) t[k] = target[k] == null ? null : target[k];
+      });
+    }
+    return run(function (c) {
+      return c.rpc("tk_copy_tasks", { p_ids: list, p_target: t });
+    }, { where: "copyTasks" }).then(function (d) {
+      var x = parseJson(d);
+      var copies = arr(x.copies).map(function (c) {
+        return { source: String((c && c.source) || ""), id: String((c && c.id) || ""), subtasks: arr(c && c.subtasks).map(String) };
+      }).filter(function (c) { return c.id; });
+      var res = { copies: copies, skipped: skippedList(x.skipped) };
+      var all = [];
+      copies.forEach(function (c) { all.push(c.id); all = all.concat(c.subtasks); });
+      return refreshMany(all).then(function () { return res; });
+    });
+  };
+
+  // Every id a copy result made (copies and their subtasks).
+  function copyIds(res) {
+    var all = [];
+    arr(res && res.copies).forEach(function (c) {
+      all.push(c.id);
+      all = all.concat(arr(c.subtasks));
+    });
+    return all;
+  }
+  api.copyResultIds = copyIds;
+
+  // Duplicate (target null) or Paste (target set), then toast with Undo.
+  // Undo archives the copies with tk_bulk_delete, the same soft delete as
+  // Delete (nothing is ever hard deleted). verb: "Duplicated" | "Pasted".
+  api.copyRun = function (ids, target, verb) {
+    var word = verb || (target ? "Pasted" : "Duplicated");
+    return api.copyTasks(ids, target).then(function (res) {
+      var n = res.copies.length;
+      var skip = res.skipped.length;
+      var text = !n
+        ? skip
+          ? (typeof TK_copySkipText === "function" ? TK_copySkipText(res.skipped) : "Couldn't copy that.")
+          : "Nothing to copy."
+        : word + (n === 1 ? "." : " " + n + " tasks.") + (skip ? " " + skip + " skipped." : "");
+      if (!n) {
+        api.offerUndoRun(text, null);
+        return res;
+      }
+      var made = copyIds(res);
+      api.offerUndoRun(text, function () {
+        return api.bulkDelete(made).then(function (r) {
+          return r.skipped.length ? "Undone, except " + r.skipped.length + "." : "Undone.";
+        });
+      });
+      return res;
+    });
   };
 
   // Run a bulk action from the bar and toast its summary with Undo.

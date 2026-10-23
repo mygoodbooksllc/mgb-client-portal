@@ -1737,6 +1737,108 @@ t("slate flag: the default singleton exists and survives no window (node)", asyn
   done();
 });
 
+// ---- Slate app interactions: copy, client-side undo steps, Slate undo window --
+
+t("slate ix: the undo window is 10 s outside the Slate app and 9 min inside it", async () => {
+  const x = row();
+  const env = await bulkEnv({ tk_bulk_delete: { op_id: "op-s1", done: [x.id], skipped: [] } }, { [x.id]: x });
+  await env.api.bulkRun("delete", [x.id]);
+  await env.advance(11000);
+  assert.strictEqual(env.api.liveUndo(), null, "portal / preview off: 10 s as before");
+  env.ctx.TK_slateInApp = () => true;
+  await env.api.bulkRun("delete", [x.id]);
+  await env.advance(8 * 60 * 1000);
+  assert.ok(env.api.liveUndo(), "Slate app: Cmd+Z still undoes the last action after 8 min");
+  await env.advance(61 * 1000 + 1000);
+  assert.strictEqual(env.api.liveUndo(), null, "gone after 9 min (server keeps 10)");
+  done();
+});
+
+t("slate ix: copyTasks sends ids + target, re-reads copies and subtasks", async () => {
+  const a = row();
+  const c1 = row({ text: "copy" });
+  const s1 = row({ text: "sub copy", parent_id: c1.id });
+  const env = await bulkEnv(
+    { tk_copy_tasks: { copies: [{ source: a.id, id: c1.id, subtasks: [s1.id] }], skipped: [] } },
+    { [c1.id]: c1, [s1.id]: s1 },
+  );
+  const r = await env.api.copyTasks([a.id, a.id], { section: "Wrap up", bogus: 1 });
+  const call = env.counts.rpcs.filter((c) => c.name === "tk_copy_tasks")[0];
+  same(call.args.p_ids, [a.id]);
+  same(call.args.p_target, { section: "Wrap up" });
+  same(r.copies, [{ source: a.id, id: c1.id, subtasks: [s1.id] }]);
+  assert.ok(env.store.getState().tasks[c1.id], "the copy is in the store");
+  assert.ok(env.store.getState().tasks[s1.id], "its subtask too");
+  await env.api.copyTasks([a.id], null);
+  assert.strictEqual(env.counts.rpcs.filter((c) => c.name === "tk_copy_tasks")[1].args.p_target, null, "duplicate = no target");
+  const many = [];
+  for (let i = 0; i < 51; i++) many.push(uuid(i + 900));
+  await assert.rejects(env.api.copyTasks(many), (e) => e.code === "tk_too_many");
+  done();
+});
+
+t("slate ix: copyRun toasts Duplicated with Undo; undo archives copies + subtasks via tk_bulk_delete", async () => {
+  const a = row();
+  const c1 = row();
+  const s1 = row({ parent_id: c1.id });
+  const env = await bulkEnv(
+    {
+      tk_copy_tasks: { copies: [{ source: a.id, id: c1.id, subtasks: [s1.id] }], skipped: [] },
+      tk_bulk_delete: (args) => ({ data: { op_id: "op-del", done: args.p_ids, skipped: [] }, error: null }),
+    },
+    { [c1.id]: c1, [s1.id]: s1 },
+  );
+  await env.api.copyRun([a.id], null);
+  const toast = env.events("mgb:toast").pop();
+  assert.strictEqual(toast.detail.text, "Duplicated.");
+  assert.strictEqual(toast.detail.action.label, "Undo");
+  assert.strictEqual(env.counts.rpcs.filter((c) => c.name === "tk_undo").length, 0);
+  await env.api.undoLive();
+  const del = env.counts.rpcs.filter((c) => c.name === "tk_bulk_delete");
+  assert.strictEqual(del.length, 1);
+  same(del[0].args.p_ids, [c1.id, s1.id]);
+  assert.strictEqual(env.events("mgb:toast").pop().detail.text, "Undone.");
+  assert.strictEqual(env.api.liveUndo(), null, "used once");
+  assert.ok(!env.counts.rpcs.some((c) => /notify|email/i.test(c.name)), "no notification calls");
+  done();
+});
+
+t("slate ix: paste of several with a skip says so; nothing copied offers no Undo", async () => {
+  const a = row();
+  const b = row();
+  const c1 = row();
+  const c2 = row();
+  let answer = { copies: [{ source: a.id, id: c1.id, subtasks: [] }, { source: b.id, id: c2.id, subtasks: [] }], skipped: [{ id: "x", reason: "other_client" }] };
+  const env = await bulkEnv({ tk_copy_tasks: () => ({ data: answer, error: null }) }, { [c1.id]: c1, [c2.id]: c2 });
+  await env.api.copyRun([a.id, b.id, "x"], { section: "S" });
+  assert.strictEqual(env.events("mgb:toast").pop().detail.text, "Pasted 2 tasks. 1 skipped.");
+  answer = { copies: [], skipped: [{ id: a.id, reason: "other_client" }] };
+  env.ctx.TK_copySkipText = () => "Tasks stay with their own client.";
+  await env.api.copyRun([a.id], { client_id: "C2" });
+  const last = env.events("mgb:toast").pop();
+  assert.strictEqual(last.detail.text, "Tasks stay with their own client.");
+  assert.strictEqual(last.detail.action, null);
+  assert.strictEqual(env.api.liveUndo(), null);
+  done();
+});
+
+t("slate ix: offerUndoRun runs the client step once; a throw says it couldn't", async () => {
+  const env = await bulkEnv();
+  let runs = 0;
+  env.api.offerUndoRun("Moved to Wrap up.", () => {
+    runs++;
+    return Promise.resolve("Moved back.");
+  });
+  assert.strictEqual(env.events("mgb:toast").pop().detail.action.label, "Undo");
+  await Promise.all([env.api.undoLive(), env.api.undoLive()]);
+  assert.strictEqual(runs, 1);
+  assert.strictEqual(env.events("mgb:toast").pop().detail.text, "Moved back.");
+  env.api.offerUndoRun("Moved.", () => Promise.reject(new Error("x")));
+  await env.api.undoLive();
+  assert.strictEqual(env.events("mgb:toast").pop().detail.text, "Couldn't undo that. Try again.");
+  done();
+});
+
 // ===========================================================================
 
 (async () => {

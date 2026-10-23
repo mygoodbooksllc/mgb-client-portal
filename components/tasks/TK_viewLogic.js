@@ -26,6 +26,8 @@
 //   Slate app P3 (preview)                TK_validateViewName, TK_mergeSavedViews, TK_activeSavedViewId (named saved views);
 //                                         TK_bulkSetOffer, TK_bulkSetPlan, TK_bulkSameProject (bulk Status, Priority, Section)
 //   Slate app P2 (preview)                TK_manual* (per-person manual order, drag and Alt+Up/Down)
+//   Slate app interactions (preview)      TK_copySkipText, TK_manualUndoPlan, TK_ix* (menu, due picks, snooze,
+//                                         paste target, drag box, row swipes, swipe back), TK_slateKeyAction
 //   Slate app P1 (preview)                TK_boardAllowed, TK_boardColumns, TK_boardDropCheck, TK_boardKeyMove,
 //                                         TK_boardLayoutRead/Write (List | Board per list), TK_boardAnnounce
 //
@@ -428,6 +430,8 @@ function TK_makeListKeyHandler(o) {
   return function (e) {
     if (!e) return;
     var action = TK_listKeyAction(e.key);
+    // Slate app only (opts.slateKeys): arrows and e. Off, nothing changes.
+    if (!action && opts.slateKeys && typeof TK_slateKeyAction === "function") action = TK_slateKeyAction(e.key);
     if (!action) return;
     if (typeof opts.shouldHandle === "function" && !opts.shouldHandle(e)) return;
     var st = typeof opts.getState === "function" ? opts.getState() || {} : {};
@@ -454,6 +458,10 @@ function TK_makeListKeyHandler(o) {
         fn(cur);
         acted = true;
       }
+    } else if (action === "edit") {
+      if (cur == null || typeof opts.onEdit !== "function") return;
+      opts.onEdit(cur);
+      acted = true;
     } else if (action === "select") {
       if (cur == null || typeof opts.onSelect !== "function") return;
       opts.onSelect(cur, !!e.shiftKey);
@@ -2962,5 +2970,251 @@ if (typeof module !== "undefined" && module.exports) {
     TK_boardMovePlan: TK_boardMovePlan,
     TK_boardKeyMove: TK_boardKeyMove,
     TK_boardAnnounce: TK_boardAnnounce,
+  });
+}
+
+// ---- Slate app interactions (docs/slate-app-interactions-plan.md) -----------
+// Pure helpers for undo of a move, Duplicate / Copy / Paste, the right-click
+// menu, the drag box, the date and person drop dock, row swipes and swipe
+// back. App only: every caller is gated on TK_slateInApp (swipe back on the
+// preview flag), so the portal and the preview-off app never reach these.
+
+// The toast when a copy made nothing. skipped: [{ id, reason }] from
+// tk_copy_tasks (supabase/slate-ix-copy.sql).
+function TK_copySkipText(skipped) {
+  var list = Array.isArray(skipped) ? skipped : [];
+  var has = function (r) {
+    return list.some(function (s) { return s && s.reason === r; });
+  };
+  if (!list.length) return "Nothing to copy.";
+  if (has("other_client")) return "Tasks stay with their own client. Paste them into that client's list.";
+  if (has("subtask")) return "A subtask can only be duplicated where it is.";
+  if (has("project_archived")) return "That project is archived. Restore it first.";
+  if (has("project_trashed") || has("in_trash")) return "That project is in the trash.";
+  if (has("deleted")) return "That task was deleted.";
+  if (has("no_access")) return "You can't copy that task here.";
+  return "Couldn't copy that. Try again.";
+}
+
+// Where task id sits now, so an undo can put it back: { id, fromKey,
+// beforeId, afterId, orderIds } (orderIds: its group as it is now). null when
+// the task is not in the groups.
+function TK_manualUndoPlan(groups, id) {
+  var gs = Array.isArray(groups) ? groups : [];
+  for (var g = 0; g < gs.length; g++) {
+    var ts = (gs[g] && gs[g].tasks) || [];
+    for (var i = 0; i < ts.length; i++) {
+      if (ts[i] && ts[i].id === id) {
+        return {
+          id: id,
+          fromKey: gs[g].key,
+          beforeId: i > 0 && ts[i - 1] ? ts[i - 1].id : null,
+          afterId: i < ts.length - 1 && ts[i + 1] ? ts[i + 1].id : null,
+          orderIds: ts.map(function (t) { return t && t.id; }).filter(function (x) { return x != null; }),
+        };
+      }
+    }
+  }
+  return null;
+}
+
+// "YYYY-MM-DD" plus n calendar days (UTC math, no time zone drift).
+function TK__ixAddDays(ymd, n) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
+  if (!m) return null;
+  var d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]) + Math.round(Number(n) || 0) * 86400000);
+  var p = function (x) { return (x < 10 ? "0" : "") + x; };
+  return d.getUTCFullYear() + "-" + p(d.getUTCMonth() + 1) + "-" + p(d.getUTCDate());
+}
+
+// The due date for a quick pick. choice: "today" | "tomorrow" | "next_week"
+// (the next Monday, never today) | "none" (null). today: "YYYY-MM-DD".
+// undefined for an unknown choice.
+function TK_ixDueFor(choice, today) {
+  if (choice === "none") return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(today || ""))) return undefined;
+  if (choice === "today") return today;
+  if (choice === "tomorrow") return TK__ixAddDays(today, 1);
+  if (choice === "next_week") {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(today);
+    var wd = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).getUTCDay(); // 0 Sunday
+    return TK__ixAddDays(today, wd === 1 ? 7 : (8 - wd) % 7 || 7);
+  }
+  return undefined;
+}
+
+// Snooze (a left row swipe, the menu): to tomorrow; a task already due
+// tomorrow or later moves one more day.
+function TK_ixSnoozeDate(due, today) {
+  var tmr = TK__ixAddDays(today, 1);
+  if (!tmr) return null;
+  var d = /^\d{4}-\d{2}-\d{2}/.test(String(due || "")) ? String(due).slice(0, 10) : null;
+  if (!d || d < tmr) return tmr;
+  return TK__ixAddDays(d, 1);
+}
+
+// The toast after a quick due change. ymd null: "Due date cleared."
+function TK_ixDueText(ymd, today) {
+  if (ymd == null) return "Due date cleared.";
+  if (ymd === today) return "Due today.";
+  if (ymd === TK__ixAddDays(today, 1)) return "Due tomorrow.";
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd));
+  if (!m) return "Due date changed.";
+  var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return "Due " + months[+m[2] - 1] + " " + +m[3] + ".";
+}
+
+// Where Cmd+V puts the clipboard. o: { kind, projectId, clientId, section,
+// bySection }. A project list pastes into that project (and the focused
+// section when the list is grouped by section); a client list onto that
+// client; other lists duplicate in place (null). A copy never changes
+// client: tk_copy_tasks refuses that.
+function TK_ixPasteTarget(o) {
+  var c = o || {};
+  var t = null;
+  if (c.kind === "project" && c.projectId) t = { project_id: c.projectId };
+  else if (c.kind === "client" && c.clientId) t = { client_id: c.clientId };
+  if (t && c.bySection) t.section = c.section == null || c.section === "" ? null : String(c.section);
+  return t;
+}
+
+// The rows a drag box touches. box: { left, top, right, bottom } (page
+// pixels, any corner order); rows: [{ id, left, top, right, bottom }].
+function TK_ixMarqueeHits(box, rows) {
+  if (!box) return [];
+  var l = Math.min(box.left, box.right);
+  var r = Math.max(box.left, box.right);
+  var t = Math.min(box.top, box.bottom);
+  var b = Math.max(box.top, box.bottom);
+  var out = [];
+  (Array.isArray(rows) ? rows : []).forEach(function (x) {
+    if (!x || x.id == null) return;
+    if (x.right < l || x.left > r || x.bottom < t || x.top > b) return;
+    out.push(x.id);
+  });
+  return out;
+}
+
+// Row swipes. The first 10px decide the axis: "x" (a swipe), "y" (scroll) or
+// null (not yet). A swipe that starts within 24px of a screen edge belongs to
+// swipe back.
+var TK_IX_SWIPE_LOCK = 10;
+var TK_IX_EDGE = 24;
+function TK_ixSwipeAxis(dx, dy) {
+  var ax = Math.abs(Number(dx) || 0);
+  var ay = Math.abs(Number(dy) || 0);
+  if (Math.max(ax, ay) < TK_IX_SWIPE_LOCK) return null;
+  return ax > ay * 1.5 ? "x" : "y";
+}
+function TK_ixAtEdge(x, screenW) {
+  var w = Number(screenW) || 0;
+  return x <= TK_IX_EDGE || (w > 0 && x >= w - TK_IX_EDGE);
+}
+// dx: how far the row moved; width: the row's width. "complete" (right),
+// "snooze" (left) or null (not far enough: the row springs back).
+function TK_ixSwipeAction(dx, width) {
+  var w = Number(width) || 0;
+  var need = Math.min(96, w > 0 ? w * 0.35 : 96);
+  if (need < 48) need = 48;
+  if (dx >= need) return "complete";
+  if (dx <= -need) return "snooze";
+  return null;
+}
+
+// Trackpad: horizontal wheel deltas over a row, summed until 400ms idle.
+// One swipe acts once (the caller locks until idle). Positive deltaX scrolls
+// right, so a two-finger swipe to the right sends negative deltaX.
+var TK_IX_WHEEL_SWIPE = 140;
+function TK_ixWheelSwipe(sumX, sumY) {
+  var x = Number(sumX) || 0;
+  if (Math.abs(x) < TK_IX_WHEEL_SWIPE || Math.abs(x) < Math.abs(Number(sumY) || 0) * 2) return null;
+  return x < 0 ? "complete" : "snooze";
+}
+
+// Swipe back on a trackpad: a two-finger swipe right (negative deltaX past
+// 120) that is mostly sideways, where nothing under the pointer can scroll
+// left.
+var TK_IX_WHEEL_BACK = 120;
+function TK_ixWheelBack(sumX, sumY) {
+  var x = Number(sumX) || 0;
+  return x <= -TK_IX_WHEEL_BACK && Math.abs(x) >= Math.abs(Number(sumY) || 0) * 2;
+}
+
+// One "back" order for Slate and the portal: close the top layer (a menu or
+// dialog), then the open task, then go to the previous page.
+// s: { layer, task, history } (booleans). "layer" | "task" | "history" | null.
+function TK_ixBackStep(s) {
+  var o = s || {};
+  if (o.layer) return "layer";
+  if (o.task) return "task";
+  if (o.history) return "history";
+  return null;
+}
+
+// The right-click menu for a row. c: { readOnly, canEdit, done, count (the
+// selected rows this acts on), clip (tasks on the clipboard), sections (the
+// project's sections, when a section move applies), canClaim }. Returns the
+// item keys, in order; "-" is a divider.
+function TK_ixMenuItems(c) {
+  var o = c || {};
+  var many = (Number(o.count) || 0) > 1;
+  var out = [];
+  if (!many) out.push("open");
+  if (o.readOnly) {
+    out.push("copy");
+    return out;
+  }
+  if (!many && o.canEdit) out.push("edit");
+  out.push(o.done && !many ? "reopen" : "complete");
+  out.push("-");
+  out.push("duplicate", "copy");
+  if ((Number(o.clip) || 0) > 0) out.push("paste");
+  out.push("-");
+  if (o.canClaim) out.push("assign_me");
+  out.push("due_today", "due_tomorrow", "due_next_week", "due_none", "snooze");
+  if (Array.isArray(o.sections) && o.sections.length) out.push("section");
+  out.push("-");
+  out.push(many ? "deselect" : "select");
+  out.push("delete");
+  return out;
+}
+
+// Slate list keys on top of j k Enter x (TK_vLIST_KEYS): arrows move between
+// tasks and e opens the task to edit its title. Only bound in the Slate app.
+var TK_vSLATE_KEYS = { ArrowDown: "next", ArrowUp: "prev", e: "edit" };
+function TK_slateKeyAction(key) {
+  return Object.prototype.hasOwnProperty.call(TK_vSLATE_KEYS, key) ? TK_vSLATE_KEYS[key] : null;
+}
+
+// Cmd/Ctrl+D, C, V and Z in the Slate app. e: a keydown event. "duplicate" |
+// "copy" | "paste" | null. Shift or Alt with it leaves it to the browser.
+function TK_ixChordAction(e) {
+  if (!e || !(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return null;
+  var k = String(e.key || "").toLowerCase();
+  if (k === "d") return "duplicate";
+  if (k === "c") return "copy";
+  if (k === "v") return "paste";
+  return null;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  Object.assign(module.exports, {
+    TK_copySkipText: TK_copySkipText,
+    TK_manualUndoPlan: TK_manualUndoPlan,
+    TK_ixDueFor: TK_ixDueFor,
+    TK_ixSnoozeDate: TK_ixSnoozeDate,
+    TK_ixDueText: TK_ixDueText,
+    TK_ixPasteTarget: TK_ixPasteTarget,
+    TK_ixMarqueeHits: TK_ixMarqueeHits,
+    TK_IX_EDGE: TK_IX_EDGE,
+    TK_ixSwipeAxis: TK_ixSwipeAxis,
+    TK_ixAtEdge: TK_ixAtEdge,
+    TK_ixSwipeAction: TK_ixSwipeAction,
+    TK_ixWheelSwipe: TK_ixWheelSwipe,
+    TK_ixWheelBack: TK_ixWheelBack,
+    TK_ixBackStep: TK_ixBackStep,
+    TK_ixMenuItems: TK_ixMenuItems,
+    TK_slateKeyAction: TK_slateKeyAction,
+    TK_ixChordAction: TK_ixChordAction,
   });
 }

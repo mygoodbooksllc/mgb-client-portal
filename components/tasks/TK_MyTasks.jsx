@@ -549,6 +549,7 @@ function TK_vMyTasksBody(props) {
         return "";
       },
       say: manualSay ? manualSay.say : null,
+      undoGroups: view,
     });
   };
   var byId = {};

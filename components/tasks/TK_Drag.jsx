@@ -401,15 +401,59 @@ function TK_useManualOrder(scope, enabled) {
   return pair[0].scope === scope ? pair[0].keys : TK__manualCache[scope] || {};
 }
 
+// Undo of a drag or Alt+Arrow move is a Slate app feature only.
+function TK__ixUndoOn() {
+  try {
+    return typeof TK_slateInApp === "function" && !!TK_slateInApp() && typeof TK_api !== "undefined" && !!TK_api && typeof TK_api.offerUndoRun === "function";
+  } catch (e) {
+    return false;
+  }
+}
+
+// "Moved." with Undo: one more tk_manual_reorder puts the task back between
+// its old neighbors. The section goes back only when the task still sits in
+// the section it was moved to (someone may have changed it since).
+function TK__manualOfferUndo(plan, back, move, c) {
+  var scope = move.scope;
+  var label = plan.crossGroup && c.labelOf ? c.labelOf(plan.groupKey) : "";
+  TK_api.offerUndoRun(label ? "Moved to " + label + "." : "Moved.", function () {
+    var setSection = false;
+    var section = null;
+    if (plan.crossGroup && c.sectionOf) {
+      section = c.sectionOf(back.fromKey);
+      var cur = typeof TK_store !== "undefined" && TK_store && TK_store.getState ? (TK_store.getState().tasks || {})[plan.id] : null;
+      var now = cur ? String(cur.section || "").toLowerCase() : null;
+      setSection = section !== undefined && now === String(move.section || "").toLowerCase();
+      if (section === undefined) section = null;
+    }
+    return TK_api.manualReorder({
+      scope: scope,
+      id: plan.id,
+      beforeId: back.beforeId,
+      afterId: back.afterId,
+      orderIds: back.orderIds,
+      setSection: setSection,
+      section: setSection ? section : null,
+    }).then(function (r) {
+      TK__manualSet(scope, TK_manualApply(TK__manualCache[scope], plan.id, { key: r.key, rows: r.rows }));
+      if (r.skipped > 0) TK__manualReload(scope);
+      return "Undone. The task is back where it was.";
+    });
+  });
+}
+
 // Runs a plan: optimistic move in the person's keys map (and the task store
 // for a section change), tk_manual_reorder, rollback + toast on an error.
 // ctx: { scope, sectionOf(groupKey) -> section name or null, say(text),
-// labelOf(groupKey) }.
+// labelOf(groupKey), undoGroups (Slate app: the groups before the move) }.
 function TK_manualMove(plan, ctx) {
   var c = ctx || {};
   if (!plan || !c.scope || typeof TK_api === "undefined" || !TK_api || typeof TK_api.manualReorder !== "function") return Promise.resolve(null);
   var scope = c.scope;
   var prev = TK__manualCache[scope] || {};
+  // Slate app: where the task was, so Undo (and Cmd+Z) can put it back.
+  // ctx.undoGroups is the list as drawn before this move.
+  var back = c.undoGroups && TK__ixUndoOn() && typeof TK_manualUndoPlan === "function" ? TK_manualUndoPlan(c.undoGroups, plan.id) : null;
   var p = TK_manualPatches(plan, prev);
   TK__manualSet(scope, TK_manualApply(prev, plan.id, p));
   var move = {
@@ -430,6 +474,7 @@ function TK_manualMove(plan, ctx) {
       try {
         if (typeof TK_vTrack === "function") TK_vTrack("tasks-reorder");
       } catch (e) {}
+      if (back) TK__manualOfferUndo(plan, back, move, c);
       return r;
     },
     function (e) {
