@@ -240,7 +240,9 @@ function TK_vBoardCard(props) {
 // opts: { on, kind, by, scope (tk_manual_order scope or null), tasks (in the
 // order to show), sections (the project's), canReorder (no sort, manual order
 // allowed), manualKeys, readOnly, isAdmin, today, clientNames, nameOf(email),
-// subs ({ kidsOf }), focusedId, setFocusedId, showClient, showSection, label }
+// subs ({ kidsOf }), focusedId, setFocusedId, showClient, showSection, label,
+// and (Slate app interactions, optional) ixTouch, ixDrop(value, id),
+// ixLongPress(id, x, y) }
 // -> { ids (focus order), el }
 function TK_useBoard(opts) {
   var o = opts || {};
@@ -405,6 +407,11 @@ function TK_useBoard(opts) {
         if (r && !r.ok) refuse(r.why);
       },
       onMove: run,
+      // Slate app interactions: press and hold on touch, the person / date
+      // dock, the long-press menu (unset: as before)
+      touch: !!o.ixTouch,
+      onDropTarget: o.ixDrop,
+      onLongPress: o.ixLongPress,
     });
   }
 

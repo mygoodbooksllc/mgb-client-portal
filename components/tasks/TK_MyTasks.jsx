@@ -485,6 +485,10 @@ function TK_vMyTasksBody(props) {
     TK_boardAllowed({ inApp: slateApp, mode: manualMode && manualMode.mode, kind: "my" });
   var boardOn = boardCan && boardLay.layout === "board";
   if (boardOn) manualOn = false;
+  // Slate app interactions (TK_SlateIx.jsx), filled in below; the drags read
+  // it at drop time.
+  var ixRef = React.useRef(null);
+  var ixRootRef = React.useRef(null);
   var boardReorder = boardOn && manualCan && !(sv.sort && sv.sort.col);
   var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder("my", manualOn || boardReorder) : {};
   if (manualOn && typeof TK_manualSortGroups === "function") view = TK_manualSortGroups(view, manualKeys);
@@ -535,6 +539,9 @@ function TK_vMyTasksBody(props) {
           setFocusedId: setFocusedId,
           showClient: !clientFilter,
           label: "Slate",
+          ixTouch: slateApp,
+          ixDrop: slateApp ? function (v, id) { if (ixRef.current && ixRef.current.onDropTarget) ixRef.current.onDropTarget(v, id); } : undefined,
+          ixLongPress: slateApp ? function (id, x, y) { if (ixRef.current && ixRef.current.onLongPress) ixRef.current.onLongPress(id, x, y); } : undefined,
         })
       : { ids: [], el: null };
   var ids = boardOn ? board.ids : TK_focusIds(view);
@@ -612,13 +619,46 @@ function TK_vMyTasksBody(props) {
       });
     },
     quickAdd: clientFilter ? { client_id: clientFilter } : {},
+    slateKeys: slateApp,
   });
   if (typeof TK_useRowDrag === "function") {
-    TK_useRowDrag({ enabled: manualOn, containerRef: manualBoxRef, groups: view, crossGroup: false, onMove: manualRun });
+    TK_useRowDrag({
+      enabled: manualOn,
+      containerRef: manualBoxRef,
+      groups: view,
+      crossGroup: false,
+      onMove: manualRun,
+      touch: slateApp,
+      onDropTarget: slateApp ? function (v, id) { if (ixRef.current && ixRef.current.onDropTarget) ixRef.current.onDropTarget(v, id); } : undefined,
+      onLongPress: slateApp ? function (id, x, y) { if (ixRef.current && ixRef.current.onLongPress) ixRef.current.onLongPress(id, x, y); } : undefined,
+    });
   }
   if (typeof TK_useManualKeys === "function") {
     TK_useManualKeys({ enabled: manualOn && keysOn, groups: view, focusedId: focusedId, crossGroup: false, onMove: manualRun });
   }
+  // Slate app interactions: right-click menu, Cmd+D / C / V, drag box,
+  // row swipes, the person / date dock. Preview off: nothing attached.
+  var ix =
+    typeof TK_useSlateIx === "function"
+      ? TK_useSlateIx({
+          enabled: slateApp && !embedded,
+          rootRef: ixRootRef,
+          ids: ids,
+          byId: byId,
+          focusedId: focusedId,
+          setFocusedId: setFocusedId,
+          bulk: bulk,
+          kind: "my",
+          today: today,
+          isAdmin: isAdmin,
+          readOnly: !online,
+          keysOn: keysOn,
+          people: [],
+          dock: manualOn || boardOn,
+          swipes: !boardOn,
+        })
+      : { el: null };
+  ixRef.current = ix;
 
   var toggleGroup = function (key, isCollapsed) {
     setCollapsed(function (c) {
@@ -763,7 +803,7 @@ function TK_vMyTasksBody(props) {
   }
 
   return (
-    <div className={"tk-view tk-my" + (embedded ? " tk-embedded" : "")}>
+    <div ref={ixRootRef} className={"tk-view tk-my" + (embedded ? " tk-embedded" : "")}>
       <div className="tk-view-head">
         {embedded ? null : <h2 className="tk-view-title">Slate</h2>}
         <div className="tk-toolbar" role="toolbar" aria-label="Slate options">
@@ -869,6 +909,7 @@ function TK_vMyTasksBody(props) {
       {manualOn && manualSay ? manualSay.el : null}
       <TK_BulkBar select={bulk} tasksById={byId} staff={bulkStaff} projects={projects} readOnly={!online} clientNames={clientNames} />
       {keys.sheet}
+      {ix.el}
     </div>
   );
 }

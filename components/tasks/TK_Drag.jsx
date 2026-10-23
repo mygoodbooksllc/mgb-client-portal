@@ -62,10 +62,31 @@ function TK_dragRowBottom(row) {
 //              the container itself scrolls sideways near its edges
 //   canDrop(fromIndex, toIndex, id) -> false marks that group .tk-drop-no
 //   onBlocked(fromIndex, toIndex, id) when the drop lands on such a group
+// Slate app interactions add, all optional (unset: nothing changes):
+//   touch            a 400ms press on a row or card starts the drag on a
+//                    touch screen; moving first scrolls as usual; a press
+//                    held without moving calls onLongPress(id, x, y)
+//   onDropTarget(value, id)  dropping on a [data-tk-drop-target] element
+//                    (the person / date dock) instead of a group
+function TK__dragDropEl(x, y) {
+  try {
+    var el = document.elementFromPoint(x, y);
+    return el && el.closest ? el.closest("[data-tk-drop-target]") : null;
+  } catch (e) {
+    return null;
+  }
+}
+function TK__dragClearDock() {
+  var on = document.querySelectorAll("[data-tk-drop-target].is-over");
+  for (var i = 0; i < on.length; i++) on[i].classList.remove("is-over");
+}
+var TK_DRAG_HOLD_MS = 400; // touch: press this long to pick a row up
+var TK_DRAG_HOLD_SLOP = 8; // touch: moving more than this first scrolls instead
 function TK_useRowDrag(opts) {
   var ref = React.useRef(opts || {});
   ref.current = opts || {};
   var enabled = !!(opts && opts.enabled);
+  var useTouch = !!(opts && opts.enabled && opts.touch);
 
   React.useEffect(
     function () {
@@ -81,6 +102,10 @@ function TK_useRowDrag(opts) {
         return out;
       }
       function target(x, y) {
+        if (typeof ref.current.onDropTarget === "function") {
+          var dock = TK__dragDropEl(x, y);
+          if (dock) return { drop: dock.getAttribute("data-tk-drop-target"), dropEl: dock };
+        }
         var els = groupEls();
         if (!ref.current.crossGroup) {
           els = els.filter(function (g) { return g.getAttribute("data-tk-group") === d.fromGroup; });
@@ -115,6 +140,16 @@ function TK_useRowDrag(opts) {
         if (!d || !d.active) return;
         var t = target(d.x, d.y);
         d.target = t;
+        if (typeof ref.current.onDropTarget === "function") {
+          TK__dragClearDock();
+          if (t && t.drop) {
+            t.dropEl.classList.add("is-over");
+            d.line.style.display = "none";
+            var into = box.querySelectorAll(".tk-drop-into, .tk-drop-no");
+            for (var q = 0; q < into.length; q++) into[q].classList.remove("tk-drop-into", "tk-drop-no");
+            return;
+          }
+        }
         var no = box.querySelectorAll(".tk-drop-no");
         for (var n = 0; n < no.length; n++) if (!t || no[n] !== t.groupEl || !t.blocked) no[n].classList.remove("tk-drop-no");
         if (!t || t.blocked) {
@@ -173,6 +208,7 @@ function TK_useRowDrag(opts) {
         document.removeEventListener("pointerup", onUp, true);
         document.removeEventListener("pointercancel", onCancel, true);
         document.removeEventListener("keydown", onKey, true);
+        if (cur && cur.hold) window.clearTimeout(cur.hold);
         if (!cur || !cur.active || !box) return;
         if (cur.raf) window.cancelAnimationFrame(cur.raf);
         cur.row.classList.remove("tk-drag-src");
@@ -180,7 +216,9 @@ function TK_useRowDrag(opts) {
         if (cur.line && cur.line.parentNode) cur.line.parentNode.removeChild(cur.line);
         var on = box.querySelectorAll(".tk-drop-into, .tk-drop-no");
         for (var i = 0; i < on.length; i++) on[i].classList.remove("tk-drop-into", "tk-drop-no");
-        // the click that ends a drag must not open the task
+        if (typeof ref.current.onDropTarget === "function") TK__dragClearDock();
+        // the click that ends a drag must not open the task (a touch drag's
+        // synthetic click comes later, so it is swallowed for longer)
         var swallow = function (e) {
           e.stopPropagation();
           e.preventDefault();
@@ -188,8 +226,12 @@ function TK_useRowDrag(opts) {
         document.addEventListener("click", swallow, true);
         window.setTimeout(function () {
           document.removeEventListener("click", swallow, true);
-        }, 0);
+        }, cur.touch ? 450 : 0);
         if (!commit || !cur.target) return;
+        if (cur.target.drop) {
+          if (typeof ref.current.onDropTarget === "function") ref.current.onDropTarget(cur.target.drop, cur.id);
+          return;
+        }
         if (cur.target.blocked) {
           if (ref.current.onBlocked) ref.current.onBlocked(Number(cur.fromGroup), Number(cur.target.group), cur.id);
           return;
@@ -227,6 +269,8 @@ function TK_useRowDrag(opts) {
       }
       function onDown(e) {
         if (d || e.button !== 0 || !e.isPrimary) return;
+        // touch screens use the press-and-hold path below instead
+        if (useTouch && e.pointerType === "touch") return;
         var h = e.target && e.target.closest ? e.target.closest("[data-tk-drag-handle]") : null;
         box = ref.current.containerRef && ref.current.containerRef.current;
         if (!h || !box || !box.contains(h)) return;
@@ -251,12 +295,105 @@ function TK_useRowDrag(opts) {
         document.addEventListener("keydown", onKey, true);
       }
       document.addEventListener("pointerdown", onDown);
+
+      // ---- touch (Slate app, opts.touch): press and hold to pick up -------
+      function touchOf(e) {
+        if (!d || !d.touch) return null;
+        var list = e.changedTouches || [];
+        for (var i = 0; i < list.length; i++) if (list[i].identifier === d.touchId) return list[i];
+        return null;
+      }
+      function onTouchStart(e) {
+        if (d || !e.touches || e.touches.length !== 1) return;
+        var t0 = e.touches[0];
+        if (typeof TK_ixAtEdge === "function" && TK_ixAtEdge(t0.clientX, window.innerWidth)) return; // swipe back
+        box = ref.current.containerRef && ref.current.containerRef.current;
+        var el = e.target && e.target.closest ? e.target : null;
+        if (!el || !box || !box.contains(el)) return;
+        if (el.closest("input, textarea, select, button, a[href], [contenteditable='true'], [role='checkbox']")) return;
+        var row = el.closest("[data-tk-id]");
+        var grp = row && row.parentElement && row.parentElement.closest("[data-tk-group]");
+        if (!row || !grp || !box.contains(grp) || (row.classList && row.classList.contains("tk-subrow"))) return;
+        d = {
+          id: row.getAttribute("data-tk-id"),
+          row: row,
+          fromGroup: grp.getAttribute("data-tk-group"),
+          touch: true,
+          touchId: t0.identifier,
+          x0: t0.clientX,
+          y0: t0.clientY,
+          x: t0.clientX,
+          y: t0.clientY,
+          active: false,
+          moved: false,
+        };
+        var mine = d;
+        d.hold = window.setTimeout(function () {
+          if (d !== mine || d.active) return;
+          d.hold = null;
+          start();
+          try {
+            if (navigator.vibrate) navigator.vibrate(12);
+          } catch (err) {}
+          place();
+        }, TK_DRAG_HOLD_MS);
+        document.addEventListener("keydown", onKey, true);
+      }
+      function onTouchMove(e) {
+        var t = touchOf(e);
+        if (!t) return;
+        d.x = t.clientX;
+        d.y = t.clientY;
+        if (!d.active) {
+          // moved before the hold: it is a scroll (or a row swipe), not a drag
+          if (Math.abs(d.x - d.x0) > TK_DRAG_HOLD_SLOP || Math.abs(d.y - d.y0) > TK_DRAG_HOLD_SLOP) end(false);
+          return;
+        }
+        if (e.cancelable) e.preventDefault(); // no page scroll while carrying
+        if (Math.abs(d.x - d.x0) > TK_DRAG_HOLD_SLOP || Math.abs(d.y - d.y0) > TK_DRAG_HOLD_SLOP) d.moved = true;
+        place();
+      }
+      function onTouchEnd(e) {
+        var t = touchOf(e);
+        if (!t) return;
+        var cur = d;
+        if (cur.active && !cur.moved) {
+          // held without moving: the row menu, not a drop
+          end(false);
+          if (typeof ref.current.onLongPress === "function") ref.current.onLongPress(cur.id, cur.x, cur.y);
+          return;
+        }
+        end(!!cur.active);
+      }
+      function onTouchCancel() {
+        if (d && d.touch) end(false);
+      }
+      function onContextMenu(e) {
+        // a long press on Android also fires contextmenu; the drag owns it
+        if (d && d.touch) e.preventDefault();
+      }
+      // only registered when asked for (the Slate app), so other callers
+      // keep the exact listeners they had
+      if (useTouch) {
+        document.addEventListener("touchstart", onTouchStart, { passive: true });
+        document.addEventListener("touchmove", onTouchMove, { passive: false });
+        document.addEventListener("touchend", onTouchEnd, true);
+        document.addEventListener("touchcancel", onTouchCancel, true);
+        document.addEventListener("contextmenu", onContextMenu, true);
+      }
       return function () {
         document.removeEventListener("pointerdown", onDown);
+        if (useTouch) {
+          document.removeEventListener("touchstart", onTouchStart, { passive: true });
+          document.removeEventListener("touchmove", onTouchMove, { passive: false });
+          document.removeEventListener("touchend", onTouchEnd, true);
+          document.removeEventListener("touchcancel", onTouchCancel, true);
+          document.removeEventListener("contextmenu", onContextMenu, true);
+        }
         end(false);
       };
     },
-    [enabled],
+    [enabled, useTouch],
   );
 }
 

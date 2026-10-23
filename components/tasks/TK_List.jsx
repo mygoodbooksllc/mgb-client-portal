@@ -1179,6 +1179,10 @@ function TK_vListBody(props) {
   var boardLay = typeof TK_useBoardLayout === "function" ? TK_useBoardLayout(email, "list:" + (listKey || ""), manualKind) : null;
   var boardCan = !!boardLay && !!manualKind && !!listKey && typeof TK_boardAllowed === "function" && TK_boardAllowed({ inApp: manualInApp, mode: manualMode && manualMode.mode, kind: manualKind });
   var boardOn = boardCan && boardLay.layout === "board";
+  // Slate app interactions (TK_SlateIx.jsx), filled in below; the board's
+  // drag reads it at drop time.
+  var ixRef = React.useRef(null);
+  var ixRootRef = React.useRef(null);
   if (boardOn) manualOn = false;
   var boardReorder = boardOn && manualCan && !sort;
   var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder(manualScope, manualOn || boardReorder) : {};
@@ -1210,6 +1214,9 @@ function TK_vListBody(props) {
           showClient: route.view !== "client",
           showSection: boardBy !== "section" && route.view === "project",
           label: route.view === "project" ? (project && project.name) || "Project" : route.view === "client" ? (client && client.name) || "Client" : "List",
+          ixTouch: manualInApp,
+          ixDrop: manualInApp ? function (v, id) { if (ixRef.current && ixRef.current.onDropTarget) ixRef.current.onDropTarget(v, id); } : undefined,
+          ixLongPress: manualInApp ? function (id, x, y) { if (ixRef.current && ixRef.current.onLongPress) ixRef.current.onLongPress(id, x, y); } : undefined,
         })
       : { ids: [], el: null };
   var ids = [];
@@ -1293,6 +1300,7 @@ function TK_vListBody(props) {
       });
     },
     quickAdd: archived ? {} : quickAddDetail,
+    slateKeys: manualInApp,
   });
 
   // Slate app P2 (continued): drag and keys for the manual order set up above.
@@ -1316,6 +1324,14 @@ function TK_vListBody(props) {
       TK_vToast("That section isn't in this project. Add it to the project first.");
       return;
     }
+    // Slate app: dragging one of several selected rows to another section
+    // moves the whole selection there (one bulk change, one Undo).
+    if (manualInApp && plan.crossGroup && bulk.count > 1 && bulk.has(String(plan.id)) && typeof TK_api !== "undefined" && TK_api && TK_api.bulkRun) {
+      TK_api.bulkRun("set_section", bulk.ids(), { section: manualSection(plan.groupKey) }).catch(function (e) {
+        TK_vToast(TK_vErrText(e));
+      });
+      return;
+    }
     TK_manualMove(plan, {
       scope: manualScope,
       sectionOf: manualSection,
@@ -1328,11 +1344,46 @@ function TK_vListBody(props) {
     });
   };
   if (typeof TK_useRowDrag === "function") {
-    TK_useRowDrag({ enabled: manualOn, containerRef: manualBoxRef, groups: manualGroups, crossGroup: manualCross, onMove: manualRun });
+    TK_useRowDrag({
+      enabled: manualOn,
+      containerRef: manualBoxRef,
+      groups: manualGroups,
+      crossGroup: manualCross,
+      onMove: manualRun,
+      touch: manualInApp,
+      onDropTarget: manualInApp ? function (v, id) { if (ixRef.current && ixRef.current.onDropTarget) ixRef.current.onDropTarget(v, id); } : undefined,
+      onLongPress: manualInApp ? function (id, x, y) { if (ixRef.current && ixRef.current.onLongPress) ixRef.current.onLongPress(id, x, y); } : undefined,
+    });
   }
   if (typeof TK_useManualKeys === "function") {
     TK_useManualKeys({ enabled: manualOn && keysOn, groups: manualGroups, focusedId: focusedId, crossGroup: manualCross, onMove: manualRun });
   }
+  // Slate app interactions: right-click menu, Cmd+D / C / V, drag box,
+  // row swipes, the person / date dock. Preview off: nothing attached.
+  var ix =
+    typeof TK_useSlateIx === "function"
+      ? TK_useSlateIx({
+          enabled: manualInApp,
+          rootRef: ixRootRef,
+          ids: ids,
+          byId: byId,
+          focusedId: focusedId,
+          setFocusedId: setFocusedId,
+          bulk: bulk,
+          kind: manualKind,
+          projectId: route.view === "project" ? route.projectId : null,
+          clientId: route.view === "client" ? route.clientId : null,
+          sections: project && Array.isArray(project.sections) ? project.sections : null,
+          today: today,
+          isAdmin: isAdmin,
+          readOnly: readOnly,
+          keysOn: keysOn,
+          people: people,
+          dock: manualOn || boardOn,
+          swipes: !boardOn,
+        })
+      : { el: null };
+  ixRef.current = ix;
 
   var clickSort = function (col) {
     var next = TK_toggleSort(sort, col);
@@ -1590,7 +1641,7 @@ function TK_vListBody(props) {
   }
 
   return (
-    <div className={"tk-view tk-list tk-list-" + route.view + (archived ? " is-archived" : "")}>
+    <div ref={ixRootRef} className={"tk-view tk-list tk-list-" + route.view + (archived ? " is-archived" : "")}>
       {header}
       {toolbar}
       {!online ? <TK_vOfflineBanner /> : null}
@@ -1646,6 +1697,7 @@ function TK_vListBody(props) {
         </TK_vModal>
       ) : null}
       {keys.sheet}
+      {ix.el}
     </div>
   );
 }

@@ -31086,6 +31086,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onOpenTemplates={() => { window.location.hash = "#/tasks/templates"; }}
         />
       )}
+      {/* Slate app interactions: swipe back (preview only; renders nothing). */}
+      {tkHosts && typeof TK_SwipeBackHost === "function" && <TK_SwipeBackHost />}
       {/* The client tasks panel: t, the strip and the top bar's Tasks pill open it. */}
       {tkHosts && !tkShell && typeof TK_ClientDrawerHost === "function" && (
         <TK_ClientDrawerHost

@@ -173,9 +173,26 @@ function TK_useKeys(opts) {
   };
 }
 
+// Slate app interactions: shown in the sheet only inside the Slate app.
+var TK_SLATE_KEYS_HELP = [
+  ["↑ ↓", "Move between tasks", "Lists"],
+  ["E", "Open the task to edit its title", "Lists"],
+  ["Cmd+D", "Duplicate the task (or the selected tasks)", "Lists"],
+  ["Cmd+C", "Copy the task (or the selected tasks)", "Lists"],
+  ["Cmd+V", "Paste copies into this list, in the focused task's section", "Lists"],
+  ["Shift+click", "Select a range of tasks", "Lists"],
+  ["Cmd+click", "Select or unselect one task", "Lists"],
+  ["Right-click", "Task menu (long press on a touch screen)", "Lists and boards"],
+  ["Drag", "Drag across rows to select them", "Lists"],
+  ["Swipe", "Swipe a row right to complete it, left to snooze it a day (touch)", "Lists"],
+  ["Swipe back", "Two fingers right on a trackpad, or in from the left edge: close, then go back", "Anywhere"],
+];
+
 // The shortcuts sheet: a ModalShell listing TK_KEYMAP.
 function TK_KeysSheet(props) {
   var map = typeof TK_KEYMAP !== "undefined" && Array.isArray(TK_KEYMAP) ? TK_KEYMAP : [];
+  var slate = typeof TK_slateInApp === "function" && !!TK_slateInApp();
+  var mac = typeof TK__ixMac === "function" ? TK__ixMac() : false;
   var where = function (k) {
     var s = Array.isArray(k.scopes) ? k.scopes : [k.scope];
     // t opens the client panel, which the Tasks window doesn't have.
@@ -212,9 +229,29 @@ function TK_KeysSheet(props) {
             })}
           </tbody>
         </table>
+        {slate ? (
+          <React.Fragment>
+            <h4 className="tk-keys-sub">In the Slate app</h4>
+            <table className="tk-keys-table tk-keys-slate">
+              <tbody>
+                {TK_SLATE_KEYS_HELP.map(function (k) {
+                  return (
+                    <tr key={k[0]}>
+                      <td className="tk-keys-cap">
+                        <kbd className="tk-kbd">{k[0].replace("Cmd", mac ? "⌘" : "Ctrl")}</kbd>
+                      </td>
+                      <td className="tk-keys-label">{k[1]}</td>
+                      <td className="tk-keys-where">{k[2]}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </React.Fragment>
+        ) : null}
         <p className="tk-keys-note">
           <kbd className="tk-kbd">Ctrl</kbd> or <kbd className="tk-kbd">⌘</kbd> + <kbd className="tk-kbd">Z</kbd> undoes your last
-          Tasks action while its Undo message is on screen.
+          Tasks action while its Undo message is on screen{slate ? " (in the Slate app, your last action for up to 9 minutes)" : ""}.
         </p>
         <p className="tk-keys-note">Shortcuts pause while you type in a box or have a menu open.</p>
       </div>

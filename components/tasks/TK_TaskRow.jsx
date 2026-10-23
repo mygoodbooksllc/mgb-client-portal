@@ -1567,6 +1567,10 @@ function TK_vRowMore(props) {
   var items = [{ key: "open", label: "Open", run: props.onOpen }];
   if (props.allowDone) items.push({ key: "done", label: props.done ? "Mark not done" : "Mark done", run: function () { props.onToggleDone(task); } });
   if (props.canClaim) items.push({ key: "claim", label: "Assign to me", run: function () { props.onClaim(task); } });
+  // Slate app interactions: Duplicate (Cmd+D). Off the app, the menu is as before.
+  if (props.allowDone && typeof TK_slateInApp === "function" && TK_slateInApp() && typeof TK_api !== "undefined" && TK_api && typeof TK_api.copyRun === "function") {
+    items.push({ key: "dup", label: "Duplicate", run: function () { TK_api.copyRun([task.id], null).catch(function (e) { TK_vToast(TK_vErrText(e)); }); } });
+  }
   items.push({ key: "link", label: "Copy link", run: copy });
   return (
     <span className="tk-pop-wrap tk-more-wrap">

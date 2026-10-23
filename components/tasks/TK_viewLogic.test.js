@@ -2282,10 +2282,6 @@ t("ix: row swipe axis, edge and action", () => {
   assert.strictEqual(L.TK_ixSwipeAction(40, 100), null);
 });
 t("ix: trackpad swipes and back", () => {
-  assert.strictEqual(L.TK_ixWheelSwipe(-150, 10), "complete");
-  assert.strictEqual(L.TK_ixWheelSwipe(150, 10), "snooze");
-  assert.strictEqual(L.TK_ixWheelSwipe(150, 100), null);
-  assert.strictEqual(L.TK_ixWheelSwipe(100, 0), null);
   assert.strictEqual(L.TK_ixWheelBack(-130, 10), true);
   assert.strictEqual(L.TK_ixWheelBack(130, 10), false);
   assert.strictEqual(L.TK_ixWheelBack(-130, 90), false);
@@ -2331,6 +2327,18 @@ t("ix: chord keys", () => {
   assert.strictEqual(L.TK_ixChordAction({ key: "v", metaKey: true }), "paste");
   assert.strictEqual(L.TK_ixChordAction({ key: "v", metaKey: true, shiftKey: true }), null);
   assert.strictEqual(L.TK_ixChordAction({ key: "d" }), null);
+});
+
+t("ix: dock people: me first, list people, then staff; 8 max, no repeats", () => {
+  const staff = [];
+  for (let i = 0; i < 12; i++) staff.push({ email: "S" + i + "@x.com", name: "Staff " + i, active: i !== 1 });
+  const got = L.TK_ixDockPeople("Me@x.com", [{ email: "b@x.com", name: "Bea" }, { email: "me@x.com", name: "Self" }], staff);
+  assert.strictEqual(got.length, 8);
+  assert.deepStrictEqual(got[0], { email: "me@x.com", name: "Me" });
+  assert.deepStrictEqual(got[1], { email: "b@x.com", name: "Bea" });
+  assert.strictEqual(got[2].email, "s0@x.com");
+  assert.ok(!got.some((p) => p.email === "s1@x.com"), "inactive staff left out");
+  assert.deepStrictEqual(L.TK_ixDockPeople("", null, null), []);
 });
 
 console.log(n + " checks passed");

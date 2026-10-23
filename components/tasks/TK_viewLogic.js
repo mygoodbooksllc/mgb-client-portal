@@ -3121,16 +3121,6 @@ function TK_ixSwipeAction(dx, width) {
   return null;
 }
 
-// Trackpad: horizontal wheel deltas over a row, summed until 400ms idle.
-// One swipe acts once (the caller locks until idle). Positive deltaX scrolls
-// right, so a two-finger swipe to the right sends negative deltaX.
-var TK_IX_WHEEL_SWIPE = 140;
-function TK_ixWheelSwipe(sumX, sumY) {
-  var x = Number(sumX) || 0;
-  if (Math.abs(x) < TK_IX_WHEEL_SWIPE || Math.abs(x) < Math.abs(Number(sumY) || 0) * 2) return null;
-  return x < 0 ? "complete" : "snooze";
-}
-
 // Swipe back on a trackpad: a two-finger swipe right (negative deltaX past
 // 120) that is mostly sideways, where nothing under the pointer can scroll
 // left.
@@ -3197,6 +3187,28 @@ function TK_ixChordAction(e) {
   return null;
 }
 
+// Who the drop dock offers: me first ("Me"), then the people on this list,
+// then the rest of the active staff; eight at most, no repeats.
+function TK_ixDockPeople(me, people, staff) {
+  var out = [];
+  var seen = {};
+  var self = String(me || "").trim().toLowerCase();
+  var add = function (email, name) {
+    var e = String(email || "").trim().toLowerCase();
+    if (!e || seen[e] || out.length >= 8) return;
+    seen[e] = 1;
+    out.push({ email: e, name: e === self ? "Me" : name || e });
+  };
+  if (self) add(self, "Me");
+  (people || []).forEach(function (x) {
+    if (x) add(x.email, x.name);
+  });
+  (staff || []).forEach(function (x) {
+    if (x && x.active !== false) add(x.email, x.name);
+  });
+  return out;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   Object.assign(module.exports, {
     TK_copySkipText: TK_copySkipText,
@@ -3210,11 +3222,11 @@ if (typeof module !== "undefined" && module.exports) {
     TK_ixSwipeAxis: TK_ixSwipeAxis,
     TK_ixAtEdge: TK_ixAtEdge,
     TK_ixSwipeAction: TK_ixSwipeAction,
-    TK_ixWheelSwipe: TK_ixWheelSwipe,
     TK_ixWheelBack: TK_ixWheelBack,
     TK_ixBackStep: TK_ixBackStep,
     TK_ixMenuItems: TK_ixMenuItems,
     TK_slateKeyAction: TK_slateKeyAction,
     TK_ixChordAction: TK_ixChordAction,
+    TK_ixDockPeople: TK_ixDockPeople,
   });
 }
