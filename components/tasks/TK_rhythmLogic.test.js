@@ -161,7 +161,7 @@ t("problem text exists for every code and empty for none", () => {
   assert.strictEqual(R.TK_rhythmProblemText(null), "");
   Object.values(R.TK_RHYTHM_PROBLEM_TEXT).forEach((s) => {
     assert.ok(!/!/.test(s), "no exclamation marks");
-    assert.ok(!/colour/i.test(s));
+    assert.ok(!/colour|\bgrey/i.test(s));
   });
 });
 

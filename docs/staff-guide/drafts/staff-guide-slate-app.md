@@ -81,7 +81,7 @@ Click **Dock in portal**. Your portal window opens Slate on the same list and th
 
 - **"Your browser blocked the new window. Allow pop-ups for this site and try again."** Allow pop-ups for the portal's address in your browser's settings, then click **Open Slate app** again.
 - **I don't see Open Slate app.** Use a computer. Until the owner turns the app on for the team, only people with the preview switch see it.
-- **Templates, projects or bulk edits are greyed out.** Make the window wider (Regular or Full) or click **Full page**.
+- **Templates, projects or bulk edits are grayed out.** Make the window wider (Regular or Full) or click **Full page**.
 - **The size buttons are missing.** They only work in the app window. In a normal browser tab, drag the window's edge instead.
 
 --- WORKBENCH LINE (workbench.md, under "Want your list in a small window?") ---

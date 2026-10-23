@@ -91,7 +91,7 @@ t("errors: which ones reload the header", () => {
 t("copy: no exclamation marks, US spelling", () => {
   const all = Object.values(L.TK_BK_ERRORS).join(" ") + L.TK_bkHelpText("A") + L.TK_bkConfirmText("A", "B", "C", true);
   assert.ok(all.indexOf("!") < 0);
-  assert.ok(!/colour/i.test(all));
+  assert.ok(!/colour|\bgrey/i.test(all));
 });
 
 console.log(n + " checks passed");

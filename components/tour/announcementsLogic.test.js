@@ -490,7 +490,7 @@ t("registry: new-look-and-layout is one combined staff notice for the five launc
   assert.strictEqual(steps[3].targets, undefined);
   assert.deepStrictEqual(steps[4].targets, ["staff-nav"]);
   const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body()), a.steps({}).map((x) => x.body())));
-  assert.ok(!/colour|slate app|month rhythm/i.test(text), "US spelling; nothing about the held Slate app or Month rhythm");
+  assert.ok(!/colour|grey|slate app|month rhythm/i.test(text), "US spelling; nothing about the held Slate app or Month rhythm");
   assert.ok(/Classic Today/.test(text) && /Classic fonts/.test(text) && /Customize/.test(text) && /press D/i.test(text));
 });
 
@@ -538,7 +538,7 @@ t("registry: slate-app-launch shape, roles, steps and wording", () => {
   assert.strictEqual(a.hash, "#/tasks/my");
   assert.strictEqual(typeof a.visible, "function");
   assert.strictEqual(typeof a.ready, "function");
-  assert.strictEqual(a.supersedes, undefined, "the earlier Slate notices still describe live things");
+  assert.deepStrictEqual(a.supersedes, ["slate-view-bar"], "the launch tour covers the view bar; the other Slate notices stay owed");
   const steps = a.steps({ isAdmin: true });
   assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-open", "ann-sizes", "ann-shape", "ann-done"]);
   assert.deepStrictEqual(steps[1].targets, ["tk-popout"]);
@@ -546,7 +546,7 @@ t("registry: slate-app-launch shape, roles, steps and wording", () => {
   const sizes = steps[2].body();
   assert.ok(/sliver/i.test(sizes) && /compact/i.test(sizes) && /detail pane/i.test(sizes) && /Full page/.test(sizes), "window-size step");
   const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body()), a.steps({}).map((x) => x.body())));
-  assert.ok(!/colour|month rhythm|interaction|template editor|touch drag/i.test(text), "US spelling; nothing held back is promised");
+  assert.ok(!/colour|grey|month rhythm|interaction|template editor|touch drag/i.test(text), "US spelling; nothing held back is promised");
   assert.ok(/Classic tasks page/.test(JSON.stringify(a.steps({ isAdmin: true }).map((x) => x.body()))));
   assert.ok(!/Classic tasks page/.test(JSON.stringify(a.steps({ isBookkeeper: true }).map((x) => x.body()))), "non-admins are not sent to Developer tools");
 });
@@ -628,6 +628,85 @@ t("slate-app-launch gate: an entry with a throwing visible() is hidden", () => {
   const e = Object.assign(entry("boom", "2026-10-21", ["admin"]), { visible: () => { throw new Error("x"); } });
   assert.deepStrictEqual(L.ANN_audience([e], admin), []);
   assert.deepStrictEqual(L.ANN_audience([entry("plain", "2026-10-21", ["admin"])], admin).length, 1, "no visible(): always listed");
+});
+
+// ---- Notice order among the three 2026-10-21 launches ---------------------------
+t("order: slate-app-launch is registered above slate-view-bar and new-look-and-layout", () => {
+  const ids = ANN_REGISTRY.map((x) => x.id);
+  assert.ok(ids.indexOf("slate-app-launch") < ids.indexOf("slate-view-bar"));
+  assert.ok(ids.indexOf("slate-app-launch") < ids.indexOf("new-look-and-layout"));
+});
+
+const ORDER_CACHES = { mgb_brand_cache: "1", mgb_hovernav_cache: "1" };
+const ORDER_IDS = ["slate-app-launch", "slate-view-bar", "new-look-and-layout"];
+// Walk the real registry like the app does: show one notice per visit, the person closes it (Skip), repeat.
+function walk(ctx, store, narrow, first) {
+  const seq = [];
+  const rows = {};
+  withWin(store, narrow, () => {
+    for (let i = 0; i < 40; i++) {
+      const pick = L.ANN_pickNext(ANN_REGISTRY, state({ rows }), ctx, SLATE_NOW);
+      if (!pick) break;
+      seq.push(pick.id);
+      rows[pick.id] = { status: "dismissed", later_count: 0 };
+    }
+  });
+  return seq;
+}
+
+t("order: with all three eligible, slate-app-launch comes first and supersedes the view bar", () => {
+  [admin, bk, tempAdmin, am].forEach((ctx) => {
+    const seq = walk(ctx, Object.assign({ mgb_slate_cache: "1" }, ORDER_CACHES), false);
+    assert.strictEqual(seq[0], "slate-app-launch");
+    assert.ok(seq.indexOf("new-look-and-layout") > 0, "new look and layout still reaches them afterwards");
+    assert.strictEqual(seq.indexOf("slate-view-bar"), -1, "the view bar is no longer shown after the launch");
+    ORDER_IDS.forEach((id) => assert.ok(seq.filter((x) => x === id).length <= 1));
+  });
+  // Direct pick: only the three, all eligible.
+  withWin(Object.assign({ mgb_slate_cache: "1" }, ORDER_CACHES), false, () => {
+    const reg = ORDER_IDS.map((id) => ANN_REGISTRY.find((x) => x.id === id));
+    assert.strictEqual(L.ANN_pickNext(reg, state(), admin, SLATE_NOW).id, "slate-app-launch");
+    const seenOnly = state({ rows: { "slate-app-launch": { status: "seen", later_count: 0 } } });
+    assert.strictEqual(L.ANN_pickNext(reg, seenOnly, admin, SLATE_NOW).id, "slate-app-launch", "ignored stays owed, ahead of the rest");
+    assert.ok(L.ANN_superseded(reg, reg[1], seenOnly), "the view bar is already covered once the launch was shown");
+    const after = state({ rows: { "slate-app-launch": { status: "dismissed", later_count: 0 } } });
+    assert.strictEqual(L.ANN_pickNext(reg, after, admin, SLATE_NOW).id, "new-look-and-layout");
+    assert.ok(L.ANN_superseded(reg, reg[1], after), "slate-view-bar is covered once the launch was shown");
+    assert.ok(!L.ANN_superseded(reg, reg[2], after), "new-look-and-layout is not");
+  });
+});
+
+t("order: slate-app-launch shown only after a computer-width window; view bar still owed before that", () => {
+  const seq = walk(admin, Object.assign({ mgb_slate_cache: "1" }, ORDER_CACHES), true);
+  assert.ok(seq.indexOf("slate-app-launch") === -1, "phone width: no launch notice");
+  assert.ok(seq.indexOf("slate-view-bar") !== -1, "view bar not superseded when the launch was never shown");
+});
+
+t("order: while the Slate switch is off, the pick order is the same as without the entry", () => {
+  const without = ANN_REGISTRY.filter((x) => x.id !== "slate-app-launch");
+  const seqIds = (reg, ctx, store) => {
+    const out = [];
+    const rows = {};
+    withWin(store, false, () => {
+      for (let i = 0; i < 40; i++) {
+        const pick = L.ANN_pickNext(reg, state({ rows }), ctx, SLATE_NOW);
+        if (!pick) break;
+        out.push(pick.id);
+        rows[pick.id] = { status: "dismissed", later_count: 0 };
+      }
+    });
+    return out;
+  };
+  [admin, bk, tempAdmin, am].forEach((ctx) => {
+    [{}, { mgb_slate_cache: "0" }, ORDER_CACHES, Object.assign({ mgb_slate_cache: "0" }, ORDER_CACHES)].forEach((store) => {
+      const withEntry = seqIds(ANN_REGISTRY, ctx, store);
+      assert.deepStrictEqual(withEntry, seqIds(without, ctx, store));
+      assert.ok(withEntry.indexOf("slate-app-launch") === -1);
+    });
+  });
+  // And the view bar still precedes new-look-and-layout there, as before.
+  const seq = seqIds(ANN_REGISTRY, admin, ORDER_CACHES);
+  assert.ok(seq.indexOf("slate-view-bar") !== -1 && seq.indexOf("slate-view-bar") < seq.indexOf("new-look-and-layout"));
 });
 
 t("slate-app-launch: index.html caches the switch in the same single read as brand and hover", () => {

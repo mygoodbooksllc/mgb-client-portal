@@ -926,7 +926,7 @@ t("bulkReasonText covers every server reason", () => {
   assert.ok(/Review/.test(L.TK_bulkReasonText("in_review")));
   assert.strictEqual(L.TK_bulkReasonText("toString"), L.TK_BULK_REASONS.error);
   assert.strictEqual(L.TK_bulkReasonText(null), L.TK_BULK_REASONS.error);
-  assert.ok(!/colour/i.test(JSON.stringify(L.TK_BULK_REASONS)));
+  assert.ok(!/colour|\bgrey/i.test(JSON.stringify(L.TK_BULK_REASONS)));
 });
 
 t("bulkSummary: plain, mixed, all skipped", () => {
@@ -1607,7 +1607,7 @@ t("view name: the Default entry in the list is not a duplicate source", () => {
 t("view name: error texts exist for every code and a fallback", () => {
   ["empty", "too_long", "reserved", "duplicate", "too_many"].forEach((c) => assert.ok(L.TK_viewNameErrorText(c).length > 5, c));
   assert.ok(L.TK_viewNameErrorText("zzz").length > 5);
-  assert.ok(!/colour/i.test(JSON.stringify(L.TK_VIEW_NAME_ERRORS)));
+  assert.ok(!/colour|\bgrey/i.test(JSON.stringify(L.TK_VIEW_NAME_ERRORS)));
 });
 t("saved views: the cap is 30 saved rows, Default does not count", () => {
   const rows = [];
