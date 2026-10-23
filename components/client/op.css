@@ -1,0 +1,50 @@
+/* Client org profile + anniversary gifts (OP_ClientPrompt, OP_StaffCard,
+   OP_GiftsTab). Hidden behind OP_isOn(); nothing here styles existing UI. */
+.op-form { display: grid; gap: 14px; }
+.op-form h4 { margin: 8px 0 0; font-size: 14px; }
+.op-field label,
+.op-field .op-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+.op-field input[type="text"],
+.op-field input[type="email"],
+.op-field input[type="tel"],
+.op-field input[type="date"],
+.op-field input[type="number"],
+.op-field select,
+.op-field textarea { width: 100%; box-sizing: border-box; }
+.op-field textarea { min-height: 64px; resize: vertical; }
+.op-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .op-row2 { grid-template-columns: 1fr; } }
+.op-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin-top: 6px; }
+.op-check input:disabled + span { color: var(--text-muted); }
+.op-err { color: var(--bad); font-size: 12.5px; margin-top: 4px; }
+.op-hint { color: var(--text-muted); font-size: 12.5px; margin: 4px 0 0; }
+.op-req { color: var(--text-muted); font-weight: 400; }
+.op-note { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+.op-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.op-panel { max-width: 640px; }
+
+/* Staff card */
+.op-card-grid { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 13.5px; margin: 0; }
+.op-card-grid dt { color: var(--text-muted); }
+.op-card-grid dd { margin: 0; white-space: pre-line; word-break: break-word; }
+.op-flag { color: var(--warm-text); background: var(--warm-bg); border-radius: 6px; padding: 6px 10px; font-size: 13px; margin-top: 10px; }
+.op-since { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* Client gifts tab */
+.op-gifts table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.op-gifts th,
+.op-gifts td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.op-gifts th { color: var(--text-muted); font-weight: 600; font-size: 12.5px; }
+.op-gifts .op-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.op-plan { display: grid; gap: 8px; grid-template-columns: 2fr 1fr; margin-top: 8px; }
+.op-plan textarea { grid-column: 1 / -1; }
+.op-digest { font-size: 13px; color: var(--text-muted); margin: 0 0 12px; }
+.op-import textarea { width: 100%; min-height: 140px; box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.op-import ul { margin: 6px 0 12px; padding-left: 18px; font-size: 13px; }
+.op-counts { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+@media (max-width: 760px) {
+  .op-gifts table, .op-gifts thead, .op-gifts tbody, .op-gifts tr, .op-gifts td { display: block; }
+  .op-gifts thead { display: none; }
+  .op-gifts tr { border-bottom: 1px solid var(--border); padding: 8px 0; }
+  .op-gifts td { border: 0; padding: 4px 0; }
+}

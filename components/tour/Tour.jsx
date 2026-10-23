@@ -2093,12 +2093,25 @@ function TOUR_Root({
     if (saved.status) return;
     // The flag is set when the timer fires, so a re-render that reschedules
     // this effect can't cancel the only start.
-    const t = setTimeout(() => {
+    // Held while the organization profile form is open or about to open
+    // (OP_promptPending, components/client/OP_store.js; false whenever that
+    // feature's gate is off, so the start is unchanged then).
+    let hold = null;
+    let tries = 0;
+    const start = () => {
       if (autoStarted.current) return;
+      if (typeof OP_promptPending === "function" && OP_promptPending() && tries++ < 600) {
+        hold = setTimeout(start, 1000);
+        return;
+      }
       autoStarted.current = true;
       begin(true);
-    }, 600);
-    return () => clearTimeout(t);
+    };
+    const t = setTimeout(start, 600);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(hold);
+    };
   }, [isRealClient, ownSettings, st.status, saved.status, run, begin]);
 
   // Manual start (Settings > Help, "Restart the tour"), or with "pro" the

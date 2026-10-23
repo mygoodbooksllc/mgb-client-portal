@@ -7,6 +7,12 @@
 //   'qbo'         qbo_connections has a 'connected' row for the client
 //   'first_close' month_close has a 'done' row for the client (Close tracker)
 //
+// Client org profile (hidden, components/client/OP_store.js): only while
+// OP_isOn() is true, every client also gets a VIRTUAL last step "Client
+// finished organization profile", ticked from client_org_profile.completed_at.
+// It is never written to onboarding_steps or client_onboarding (its checkbox
+// is always disabled). With the gate off the list is exactly as before.
+//
 // One shared store (OB_store) loads everything the signed-in staff member can
 // see once, so the client overview card and the client picker badges read the
 // same data. Writes here, and Close tracker saves (CT_ fires
@@ -24,7 +30,15 @@
 // ----------------------------------------------------------------------------
 
 const OB_CHANGED_EVENT = "mgb:onboarding-changed";
-const OB_AUTO_LABEL = { qbo: "Auto: QuickBooks", first_close: "Auto: Close tracker" };
+const OB_AUTO_LABEL = { qbo: "Auto: QuickBooks", first_close: "Auto: Close tracker", org_profile: "Auto: Org profile" };
+const OB_OP_STEP = { key: "__op_profile", label: "Client finished organization profile", description: null, auto_source: "org_profile", active: true, virtual: true };
+function OB_opOn() {
+  try {
+    return typeof OP_isOn === "function" && !!OP_isOn();
+  } catch (e) {
+    return false;
+  }
+}
 
 const OB_store = {
   data: null, // { steps, rows: {clientId: {stepKey: row}}, qbo: Set, closed: Set, missing }
@@ -47,11 +61,13 @@ const OB_store = {
     if (this.loading) return;
     this.loading = true;
     const safe = (p) => Promise.resolve(p).then((r) => r, (e) => ({ data: null, error: e }));
-    const [steps, rows, qbo, closed] = await Promise.all([
+    const opOn = OB_opOn() && typeof OP_api !== "undefined";
+    const [steps, rows, qbo, closed, op] = await Promise.all([
       safe(sb.from("onboarding_steps").select("key, label, description, sort_order, auto_source, active").order("sort_order")),
       safe(sb.from("client_onboarding").select("client_id, step_key, done, done_by, done_at")),
       safe(sb.from("qbo_connections").select("client_id, status")),
       safe(sb.from("month_close").select("client_id").eq("period_kind", "month").eq("status", "done")),
+      opOn ? safe(OP_api.completedIds()) : Promise.resolve(null),
     ]);
     this.loading = false;
     const byClient = {};
@@ -65,6 +81,8 @@ const OB_store = {
       closed: new Set((closed.data || []).map((r) => r.client_id)),
       missing: !!steps.error,
     };
+    // Client org profile: only loaded (and only shown) while its gate is on.
+    if (op && !op.error) this.data.opDone = new Set((op.data || []).map((r) => r.client_id));
     this.emit();
   },
 };
@@ -98,7 +116,12 @@ function OB_clientSteps(data, clientId) {
         (s.auto_source === "qbo" && data.qbo.has(clientId)) ||
         (s.auto_source === "first_close" && data.closed.has(clientId));
       return { ...s, row, manual, auto, done: manual || auto };
-    });
+    })
+    .concat(
+      data.opDone && OB_opOn()
+        ? [{ ...OB_OP_STEP, row: null, manual: false, auto: data.opDone.has(clientId), done: data.opDone.has(clientId) }]
+        : [],
+    );
 }
 
 function OB_progress(data, clientId) {
@@ -410,7 +433,7 @@ function OB_OnboardingCard({ client, staffUser, collapsed }) {
 
   const toggle = async (s) => {
     const sb = window.mgbSupabase;
-    if (!sb) return;
+    if (!sb || s.virtual) return;
     setBusy(s.key);
     const { error } = await sb
       .from("client_onboarding")
@@ -464,7 +487,7 @@ function OB_OnboardingCard({ client, staffUser, collapsed }) {
               <input
                 type="checkbox"
                 checked={s.done}
-                disabled={busy === s.key || (s.auto && !s.manual)}
+                disabled={busy === s.key || (s.auto && !s.manual) || !!s.virtual}
                 onChange={() => toggle(s)}
               />
               <span className="ob-step-text">

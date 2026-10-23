@@ -603,8 +603,12 @@ function CLIENT_LockedCard({ title, text, onSeePlans, onTakeTour }) {
 // dashboard's own KPI cards below are the tiles. `needs` items:
 // { key, text, sub?, action, onClick, tone? } — built in App from data it
 // already loads (unread messages, document requests, budget approval).
-function CLIENT_HomeTop({ client, access, needs, onOpenMilestone, onSeePlans }) {
+function CLIENT_HomeTop({ client, access, needs: baseNeeds, onOpenMilestone, onSeePlans, realClient }) {
   const { byId } = useMilestones(client ? [client.id] : []);
+  // Client org profile (hidden, OP_store.js): "Finish your organization
+  // profile" while the gate is on and the profile is incomplete; else nothing.
+  const opNeed = typeof OP_useNeedsItem === "function" ? OP_useNeedsItem(!!realClient) : null;
+  const needs = opNeed ? baseNeeds.concat([opNeed]) : baseNeeds;
   const ms = client ? byId[client.id] : null;
   const cur = ms && ms.current;
   const msText = cur && !ms.unconfirmed ? (cur.churchPlant ? cur.name : cur.roman + " · " + cur.name) : null;
@@ -738,8 +742,10 @@ function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) 
 // only when TB_useMenu exists. Styles: styles.css .client-help. Tour hook:
 // data-tour="client-help" (Tour.jsx, the client tour's last step).
 const CLIENT_SUPPORT_MAILTO = "mailto:admin@mygoodbooks.org?subject=MyGoodBooks%20Support";
-function CLIENT_HelpButton({ plan, preview, canMessage, onOpenMessages, onOpenNeeds, onOpenHelp }) {
+function CLIENT_HelpButton({ plan, preview, canMessage, onOpenMessages, onOpenNeeds, onOpenHelp, realClient }) {
   const menu = TB_useMenu();
+  // Client org profile (hidden, OP_store.js): null unless the gate is on.
+  const opItem = typeof OP_useHelpItem === "function" ? OP_useHelpItem(!preview && !!realClient) : null;
   const hasTour = typeof TOUR_start === "function";
   const belowPro = planShownKey(plan || "basic") !== "premium";
   const items = [];
@@ -749,6 +755,7 @@ function CLIENT_HelpButton({ plan, preview, canMessage, onOpenMessages, onOpenNe
   if (canMessage) items.push({ key: "messages", label: "Message your bookkeeper", run: onOpenMessages });
   // Tasks p2 S6: Messages › Requests (ClientNeeds.jsx), where they answer.
   if (canMessage && onOpenNeeds) items.push({ key: "needs", label: "What we need from you", run: onOpenNeeds });
+  if (opItem) items.push(opItem);
   items.push({ key: "help", label: "Help and settings", run: onOpenHelp });
   items.push({
     key: "support",
@@ -994,6 +1001,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by OP_previewOn / OP_isOn (components/client/OP_store.js).
+    key: "mgb_orgprofile_preview",
+    label: "Client org profile + gifts (preview)",
+    description:
+      "Turns the client org profile build on for you only, in this browser, while the firm-wide org_profile_enabled switch is off: the Organization profile card on a client's Overview, Team › Client gifts (real admins), the onboarding step, and the client prompt if you sign in as a test client here. Nothing emails anyone or orders gifts. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     // Read by TK_slateAppIsOn (components/tasks/TK_viewLogic.js) through TK_slateFlag (TK_store.js).
     key: "mgb_slate_app_preview",
     label: "Slate app preview",
@@ -1205,6 +1220,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Tasks unassigned + Asana import)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "supabase/tasks-p2-10-asana-import-v2.sql: tasks can have no assignee (is_unassigned); tk_claim_task (Claim; only way a non-admin sets the assignee on an unassigned task) · tk_save_template takes assignee_email and leave_unassigned · tk_import_no_team_clients and tk_import_assign_team (admins: No team yet, Assign team; no email sent) · the import apply stays behind asana_import_apply_enabled (Tasks switches below) · ran once 2026-10-16: run 49b3186a (1132 tasks, 16 projects, 749 draft templates; roster clients from supabase/asana-import-roster-clients.sql); undo: select tk_import_asana_undo('<run id>', 'UNDO 49b3186a') · no edge function",
+  },
+  {
+    name: "Supabase SQL (Client org profile + gifts)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Client org profile (preview): supabase/client-org-profile.sql (+ -tests.sql). RPCs client_org_profile_mine/save, staff_client_org_profile, staff_set_client_since, admin_upcoming_anniversaries, org_anniversaries_digest_count (service_role, weekly digest). Firm switch tk_settings.org_profile_enabled (owner-only, off/missing). No email, no gift orders.",
   },
   {
     name: "Intuit developer (QuickBooks)",
@@ -8512,6 +8532,10 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
             )}
           </OV_Card>
 
+          {/* Client org profile (components/client/OP_StaffCard.jsx). Renders
+              nothing unless OP_isOn() (firm switch or preview). */}
+          {typeof OP_StaffCard === "function" && <OP_StaffCard client={client} />}
+
           <OV_Card
             anchor="ov-notes"
             title="Pinned notes"
@@ -14027,6 +14051,10 @@ function resettableLocalStorageKeys() {
     // mgb_tk_slate_base_v1 (the Default saved-view baseline), mgb_tk_manual_v1 (Manual order on or off per list),
     // mgb_tk_layout_v1 (List or Board per list, P1), and sessionStorage mgb_slate_size_miss_v1 (size presets hidden
     // this session after a resize miss; sessionStorage is not touched by Reset).
+    // Client org profile (hidden preview): mgb_orgprofile_preview (a flag, kept),
+    // mgb_orgprofile_cache (the firm switch as last read by OP_store, cleared by Reset),
+    // mgb_orgprofile_client_cache (a client's last-known gate, holds the client tour; cleared by Reset),
+    // and sessionStorage mgb_op_later:<email> (the client's "Later" for this sign-in; not touched by Reset).
     return Object.keys(localStorage).filter(
       (k) =>
         (k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_")) &&
@@ -15391,6 +15419,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["ooo_auto_apply", "Time off hands tasks to backups", "Off (false or not set, the default): only the manual Hand my tasks to backups button moves tasks. Set to true and the tk-ooo-daily cron (11:00 UTC) also moves open tasks due during someone's time off to each client's backup on their first day off (never re-taking a task someone handed back). Handing back after the time off always runs."],
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
+            ["org_profile_enabled", "Client org profile + gifts", "Owner-only; off = hidden. Off (or missing, the default) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Each person can try it early with Client org profile + gifts (preview) in Feature flags. Nothing emails clients and nothing orders gifts either way."],
             ["slate_app_enabled", "Slate app on for staff", "Off (or missing, the default) keeps Slate as it is for everyone: Open in own window opens the same small window and nothing new shows. Owner turns it on (true) with one SQL line, never from here, to give every staff member the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app). Read-only here. Each person can try it early with Slate app preview in Feature flags, or opt out with Classic tasks page. Setting it to true turns the Slate app on for every staff member right away, so do it only at launch."],
             ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar, plus the Alerts section for real admins. Each person can try it early with Sidebar preview in Feature flags. Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
             ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can try it early with Lato font preview in Feature flags, or opt out with Classic fonts. Setting it to true changes the look for every staff member right away, so do it only at launch."],
@@ -29497,6 +29526,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       if (base) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + base);
     } catch (e) {}
   };
+  // A real client session (the client tour's isRealClient rule). Client org
+  // profile pieces (OP_ClientPrompt, its Needs-you item and ? entry) only run here.
+  const opRealClient = !!(clientPortalUser && !isStaffSession && !impersonating && !isPreviewingUser);
   // Home's "Needs you" list (CLIENT_HomeTop), most urgent first.
   const clientNeeds = (() => {
     const out = [];
@@ -30147,6 +30179,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     setPage("messages");
                   }}
                   onOpenHelp={() => openClientSettings("help")}
+                  realClient={opRealClient}
                 />
               )}
               {/* §170: the honest version of this badge. A client whose
@@ -30273,6 +30306,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {typeof TOUR_Root === "function" && !NON_CLIENT_PAGES.has(effectivePage) && (
             <TOUR_Root client={client} access={access} page={effectivePage} onSelectPage={setPage} onOpenSettings={openClientSettings} setMobileNavOpen={setMobileNavOpen} clientPortalUser={clientPortalUser} isStaffSession={isStaffSession} isPreviewingUser={Boolean(isPreviewingUser)} impersonating={Boolean(impersonating)} />
           )}
+          {/* Client org profile form (components/client/OP_ClientPrompt.jsx):
+              real client sessions only; it renders nothing unless the gate
+              (OP_isOn: firm switch or preview) is on and the RPC says eligible. */}
+          {typeof OP_ClientPrompt === "function" && opRealClient && <OP_ClientPrompt email={clientPortalUser.email} />}
           {/* The full-page profile photo gate (components/staff/StaffPhotoGate.jsx,
               PG_Gate) is no longer mounted: it was too intrusive. Staff get a
               "Finish setting up your portal profile" task instead. */}
@@ -30367,6 +30404,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               client={client}
               access={access}
               needs={clientNeeds}
+              realClient={opRealClient}
               onOpenMilestone={() => setPage("milestone")}
               onSeePlans={() => setPage("enterprise-upgrade")}
             />
