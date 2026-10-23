@@ -862,9 +862,19 @@ function TK_closeOptinStartsText(status) {
   return "First tasks: the " + month + " close, due early " + due + ".";
 }
 
+// Slate rhythm 4d: once the owner turns on the month rhythm it makes this client's
+// month-end tasks, so the close set's five steps stop being created for them.
+// status: tk_close_optin_status (rhythm_replaces).
+function TK_closeOptinRhythmText(status) {
+  var s = status || {};
+  if (s.rhythm_replaces !== true) return "";
+  return "The month rhythm now makes this client's month-end tasks, so these close steps are not created as separate tasks. Ticking a step on the Close tab still works.";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_TPL_CADENCES: TK_TPL_CADENCES,
+    TK_closeOptinRhythmText: TK_closeOptinRhythmText,
     TK_TPL_ROLES: TK_TPL_ROLES,
     TK_TPL_SOP: TK_TPL_SOP,
     TK_TPL_RULES_BY_CADENCE: TK_TPL_RULES_BY_CADENCE,

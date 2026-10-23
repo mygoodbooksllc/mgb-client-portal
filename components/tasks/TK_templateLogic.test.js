@@ -502,6 +502,10 @@ t("P4-2: month labels, drawer link text, starts line", () => {
     "First tasks: the November 2026 close, due early December 2026.",
   );
   assert.ok(T.TK_closeOptinStartsText({ enabled: true, starts: "2026-11-01", set_live: true }).indexOf("live for every client") >= 0);
+  assert.strictEqual(T.TK_closeOptinRhythmText({ enabled: true }), "");
+  assert.strictEqual(T.TK_closeOptinRhythmText(null), "");
+  assert.strictEqual(T.TK_closeOptinRhythmText({ rhythm_replaces: "true" }), "");
+  assert.ok(T.TK_closeOptinRhythmText({ rhythm_replaces: true }).indexOf("month rhythm") >= 0);
 });
 
 t("P4-2: row chip, checked state and toast", () => {

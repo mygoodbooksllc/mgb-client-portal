@@ -1216,6 +1216,11 @@ function TK_tplCloseOptin(props) {
           : "Off. When on, bank feed, bank rec, card rec, entries and review become tasks each month, and ticking a step on the Close tab moves its task."}
         {!canEdit ? " Only an admin or this client's account manager can change this." : ""}
       </p>
+      {TK_closeOptinRhythmText(status) ? (
+        <p className="tk-muted tk-tpl-close-note" role="note">
+          {TK_closeOptinRhythmText(status)}
+        </p>
+      ) : null}
       {on && overlaps.length ? (
         <div className="tk-tpl-close-warn" role="note">
           <p>
