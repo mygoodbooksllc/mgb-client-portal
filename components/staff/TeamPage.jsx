@@ -661,6 +661,8 @@ function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, rend
     body = typeof TI_TechTab === "function" ? <TI_TechTab staffUser={staffUser} isAdmin={realAdmin} /> : missing("Inventory");
   else if (current === "ledger")
     body = typeof LR_SettingsPanel === "function" ? <LR_SettingsPanel staffUser={staffUser} isAdmin={realAdmin} /> : missing("Ledger review");
+  else if (current === "gifts")
+    body = typeof OP_GiftsTab === "function" && realAdmin ? <OP_GiftsTab staffUser={staffUser} clients={clients} /> : missing("Client gifts");
   else if (current === "members") body = typeof renderMembers === "function" ? renderMembers() : missing("Members");
   else if (current === "employees")
     body = typeof HR_RecordsTab === "function" && realAdmin ? <HR_RecordsTab staffUser={staffUser} /> : missing("Employee records");

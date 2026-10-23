@@ -444,7 +444,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-23h", note: "Month rhythm review fixes: pre-fill reads real client types, draft email modal no longer opens the task, Workbench excuse rule waits for the rhythm (preview only)" };
+      window.MGB_VERSION = { label: "2026-10-23i", note: "Client org profile + gifts (hidden preview, mgb_orgprofile_preview): client profile prompt, staff card, Team › Client gifts, import dry run. Also: Month rhythm review fixes: pre-fill reads real client types, draft email modal no longer opens the task, Workbench excuse rule waits for the rhythm (preview only)" };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -511,6 +511,7 @@
       document.write('<link rel="stylesheet" href="components/tasks/tk-slate.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/workbench/WB.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/ledger/ledger.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/client/op.css?v=' + Date.now() + '">');
 
       // Kick every source fetch off HERE, in <head>, so all five download in
       // parallel with React/Babel/jsPDF instead of after them. Previously each
@@ -609,6 +610,12 @@
         "components/client/ClientNeeds.jsx",
         "components/client/basicHomeLogic.js",
         "components/client/BasicHome.jsx",
+        "components/client/OP_logic.js",
+        "components/client/OP_importLogic.js",
+        "components/client/OP_store.js",
+        "components/client/OP_ClientPrompt.jsx",
+        "components/client/OP_StaffCard.jsx",
+        "components/staff/OP_GiftsTab.jsx",
         "components/ledger/GLR_config.js",
         "components/ledger/GLR_rules.js",
         "components/ledger/GLR_fingerprint.js",

@@ -95,6 +95,15 @@ const NAV_PLACES = [
       // Feedback and Ledger review are not HR; they stay here for now.
       { key: "feedback", label: "Feedback", help: "feedback-page", admin: true, visible: () => typeof FB_FeedbackPage === "function" },
       { key: "ledger", label: "Ledger review", help: "ledger-review", admin: true, visible: () => typeof LR_SettingsPanel === "function" },
+      // Client org profile + gifts (hidden): real admins only (client_gifts RLS), and only while OP_isOn().
+      {
+        key: "gifts",
+        label: "Client gifts",
+        help: "client-org-profile",
+        admin: true,
+        realAdmin: true,
+        visible: () => typeof OP_GiftsTab === "function" && typeof OP_isOn === "function" && !!OP_isOn(),
+      },
     ],
   },
   // HR (2026-10-19): the people-and-paperwork tabs that used to sit under Team.

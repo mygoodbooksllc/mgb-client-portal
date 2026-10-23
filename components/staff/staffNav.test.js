@@ -276,4 +276,25 @@ t("app.jsx and DeepLink.jsx actually use the restore and remap helpers", () => {
   assert.ok((dl.match(/LK_remapStored\(JSON\.parse/g) || []).length >= 2, "saved arrivals are not remapped on read");
 });
 
+// ---- Client org profile: Team › Client gifts (hidden) ----------------------
+t("Client gifts tab: real admins only, and only while OP_isOn()", () => {
+  const box = {};
+  ["PF_PerformanceTab", "TI_TechTab", "RT_ReplyTimesTab", "FB_FeedbackPage", "LR_SettingsPanel"].forEach((k) => (box[k] = function () {}));
+  vm.createContext(box);
+  const nav2 = vm.runInContext(cut + "\n({ NAV_visibleTabs })", box);
+  const teamKeys = (ctx) => keys(nav2.NAV_visibleTabs("team", ctx));
+  // No OP files loaded at all: hidden.
+  assert.ok(!teamKeys(realAdmin).includes("gifts"));
+  box.OP_GiftsTab = function () {};
+  box.OP_isOn = () => false;
+  assert.ok(!teamKeys(realAdmin).includes("gifts"), "gate off");
+  box.OP_isOn = () => true;
+  assert.ok(teamKeys(realAdmin).includes("gifts"), "gate on: real admin");
+  assert.strictEqual(teamKeys(realAdmin)[teamKeys(realAdmin).length - 1], "gifts", "last Team tab");
+  assert.ok(!teamKeys(tempAdmin).includes("gifts"), "temporary admin");
+  assert.ok(!teamKeys(bookkeeper).includes("gifts"), "bookkeeper");
+  // The default sandbox (no OP stubs) keeps the old Team tabs.
+  assert.ok(!keys(nav.NAV_visibleTabs("team", realAdmin)).includes("gifts"));
+});
+
 console.log("staffNav: " + n + " checks passed");
