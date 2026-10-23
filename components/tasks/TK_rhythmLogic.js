@@ -446,9 +446,94 @@ function TK_clientReportBadges(rows) {
   return out;
 }
 
+// ---- Before flip (b): bulk complete asks Full or Preliminary too -------------
+// rows: the Send reports tasks the bulk bar is about to complete (only those
+// that need the picker). names: { client_id: name }. Sorted by client, then month.
+function TK_bulkReportRows(tasks, names) {
+  var out = [];
+  var seen = {};
+  var map = names && typeof names === "object" ? names : {};
+  var list = Array.isArray(tasks) ? tasks : [];
+  for (var i = 0; i < list.length; i++) {
+    var t = list[i];
+    if (!t || !t.id || seen[t.id] || !t.client_id) continue;
+    var period = TK_reportPeriodOf(t);
+    if (!period) continue;
+    seen[t.id] = true;
+    var cid = String(t.client_id);
+    out.push({
+      id: t.id,
+      client_id: cid,
+      clientName: String(map[cid] || t.client_name || cid),
+      period: period,
+      month: TK_reportMonthLabel(period),
+    });
+  }
+  out.sort(function (a, b) {
+    var x = a.clientName.toLowerCase();
+    var y = b.clientName.toLowerCase();
+    if (x !== y) return x < y ? -1 : 1;
+    return a.period < b.period ? -1 : a.period > b.period ? 1 : 0;
+  });
+  return out;
+}
+
+// choices: { task id: { state, items } }. null when every row can save, else
+// { id, text } for the first row that cannot.
+function TK_bulkReportProblem(rows, choices) {
+  var list = Array.isArray(rows) ? rows : [];
+  var c = choices && typeof choices === "object" ? choices : {};
+  if (!list.length) return { id: null, text: "Nothing to save." };
+  for (var i = 0; i < list.length; i++) {
+    var ch = c[list[i].id] || {};
+    var problem = TK_reportPickerProblem(ch.state, ch.items);
+    if (problem) {
+      var who = list[i].clientName + (list[i].month ? ", " + list[i].month : "");
+      return { id: list[i].id, text: who + ": " + problem };
+    }
+  }
+  return null;
+}
+
+// What to save, one entry per row: { id, client_id, period, state, missing }.
+function TK_bulkReportPlan(rows, choices) {
+  var list = Array.isArray(rows) ? rows : [];
+  var c = choices && typeof choices === "object" ? choices : {};
+  var out = [];
+  for (var i = 0; i < list.length; i++) {
+    var ch = c[list[i].id] || {};
+    if (ch.state !== "full" && ch.state !== "preliminary") continue;
+    out.push({
+      id: list[i].id,
+      client_id: list[i].client_id,
+      period: list[i].period,
+      state: ch.state,
+      missing: ch.state === "preliminary" ? TK_reportMissingClean(ch.items) : [],
+    });
+  }
+  return out;
+}
+
+// After the saves: the ids to complete (every selected id except a row whose
+// save failed) and the toast for the failures ("" when none failed).
+function TK_bulkReportAfter(ids, failedIds) {
+  var failed = {};
+  (Array.isArray(failedIds) ? failedIds : []).forEach(function (id) { failed[id] = true; });
+  var keep = (Array.isArray(ids) ? ids : []).filter(function (id) { return !failed[id]; });
+  var n = Object.keys(failed).length;
+  var text = !n ? "" : n === 1
+    ? "One Send reports task could not save Full or Preliminary, so it was left open."
+    : n + " Send reports tasks could not save Full or Preliminary, so they were left open.";
+  return { ids: keep, text: text };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_RHYTHM_KEY: TK_RHYTHM_KEY,
+    TK_bulkReportRows: TK_bulkReportRows,
+    TK_bulkReportProblem: TK_bulkReportProblem,
+    TK_bulkReportPlan: TK_bulkReportPlan,
+    TK_bulkReportAfter: TK_bulkReportAfter,
     TK_RHYTHM_SWITCH_KEY: TK_RHYTHM_SWITCH_KEY,
     TK_RHYTHM_PREVIEW_KEY: TK_RHYTHM_PREVIEW_KEY,
     TK_RHYTHM_PART_KEYS: TK_RHYTHM_PART_KEYS,

@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------------
 // TK_BulkBar.jsx — multi-select and the bulk bar (Phase 4, P4-3).
 //
-// Exports: TK_useBulkSelect, TK_BulkBar
+// Exports: TK_useBulkSelect, TK_BulkBar, TK_BulkReportPick
 //
 // Lists (My Tasks, client / project / person lists) call TK_useBulkSelect
 // with their row order and the ids still loaded; rows get onSelect /
@@ -193,7 +193,8 @@ var TK_vDUE_CHOICES = [
 ];
 
 // props: { select (TK_useBulkSelect), tasksById: { id: task }, staff,
-//          projects, readOnly }
+//          projects, readOnly, clientNames: { client_id: name } (the
+//          Full or Preliminary picker's row labels) }
 function TK_BulkBar(props) {
   var select = props.select || {};
   var byId = props.tasksById || {};
@@ -213,6 +214,11 @@ function TK_BulkBar(props) {
   var pickDate = dPair[0];
   var setPickDate = dPair[1];
   var showDate = pickDate !== "";
+  // Before flip (b): Send reports tasks waiting on Full or Preliminary.
+  // { rows, ids, kind, patch, names } while the picker is open.
+  var kPair = React.useState(null);
+  var reportPick = kPair[0];
+  var setReportPick = kPair[1];
 
   // Slate app P3: Status, Priority and Section, only inside the Slate app.
   var inApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
@@ -227,6 +233,7 @@ function TK_BulkBar(props) {
       } else {
         setConfirmDelete(false);
         setPickDate("");
+        setReportPick(null);
       }
     },
     [count > 0],
@@ -245,17 +252,12 @@ function TK_BulkBar(props) {
   var off = busy || !!props.readOnly;
   var offer = inApp && typeof TK_bulkSetOffer === "function" ? TK_bulkSetOffer(tasks, props.projects) : null;
 
-  var run = function (kind, patch) {
-    if (off || !ids.length) return;
-    var names = {};
-    ids.forEach(function (id) {
-      names[id] = byId[id] && byId[id].text ? byId[id].text : "";
-    });
+  var send = function (kind, list, patch, names) {
     setBusy(true);
     setConfirmDelete(false);
     setPickDate("");
     TK_vTrack("tasks-bulk-" + kind);
-    TK_api.bulkRun(kind, ids, patch).then(
+    TK_api.bulkRun(kind, list, patch).then(
       function (r) {
         setBusy(false);
         select.clear();
@@ -268,6 +270,56 @@ function TK_BulkBar(props) {
         TK_vToast(TK_vErrText(err));
       },
     );
+  };
+
+  var run = function (kind, patch) {
+    if (off || !ids.length) return;
+    var names = {};
+    ids.forEach(function (id) {
+      names[id] = byId[id] && byId[id].text ? byId[id].text : "";
+    });
+    // Before flip (b): completing a Send reports task asks Full or Preliminary
+    // first, for each one selected. Feature off: reportPickTasks resolves [].
+    if (kind !== "complete" || typeof TK_api.reportPickTasks !== "function" || typeof TK_bulkReportRows !== "function") {
+      send(kind, ids, patch, names);
+      return;
+    }
+    setBusy(true);
+    TK_api.reportPickTasks(tasks).then(
+      function (need) {
+        setBusy(false);
+        var rows = TK_bulkReportRows(need, props.clientNames);
+        if (!rows.length) send(kind, ids, patch, names);
+        else setReportPick({ rows: rows, ids: ids.slice(), kind: kind, patch: patch, names: names });
+      },
+      function () {
+        setBusy(false);
+        TK_vToast("Could not check the Send reports tasks. Try again.");
+      },
+    );
+  };
+
+  // Save Full or Preliminary for each row, one at a time, then complete
+  // everything selected except a row whose save failed.
+  var confirmReports = function (plan) {
+    var pick = reportPick;
+    if (!pick) return Promise.resolve();
+    var failed = [];
+    var chain = Promise.resolve();
+    plan.forEach(function (it) {
+      chain = chain.then(function () {
+        return TK_api.setReportState(it.client_id, it.period, it.state, it.missing).then(
+          function () {},
+          function () { failed.push(it.id); },
+        );
+      });
+    });
+    return chain.then(function () {
+      var after = TK_bulkReportAfter(pick.ids, failed);
+      setReportPick(null);
+      if (after.text) TK_vToast(after.text);
+      if (after.ids.length) send(pick.kind, after.ids, pick.patch, pick.names);
+    });
   };
 
   var staff = (Array.isArray(props.staff) ? props.staff : []).filter(function (s) {
@@ -605,6 +657,276 @@ function TK_BulkBar(props) {
         Clear
       </button>
       {skipBlock}
+      {reportPick ? (
+        <TK_BulkReportPick
+          rows={reportPick.rows}
+          onCancel={function () {
+            setReportPick(null);
+          }}
+          onConfirm={confirmReports}
+        />
+      ) : null}
     </div>
   );
+}
+
+// Before flip (b): the bulk bar's Full or Preliminary picker. One row per Send
+// reports task being completed (client and month). Preliminary needs at least
+// one missing item, prefilled from that client's open Ask client requests and
+// editable, the same as the task pane's picker (TK_dwReportState). Nothing is
+// saved or completed until "Save and complete"; Cancel leaves every task open.
+// props: { rows (TK_bulkReportRows), onConfirm(plan) -> Promise, onCancel }
+function TK_BulkReportPick(props) {
+  var rows = Array.isArray(props.rows) ? props.rows : [];
+  var cPair = React.useState({});
+  var choices = cPair[0];
+  var setChoices = cPair[1];
+  var fPair = React.useState({});
+  var prefill = fPair[0]; // { client_id: items }
+  var setPrefill = fPair[1];
+  var tPair = React.useState(false);
+  var tried = tPair[0];
+  var setTried = tPair[1];
+  var bPair = React.useState(false);
+  var busy = bPair[0];
+  var setBusy = bPair[1];
+
+  var clientKey = rows
+    .map(function (r) {
+      return r.client_id;
+    })
+    .join("|");
+  React.useEffect(
+    function () {
+      var live = true;
+      var seen = {};
+      rows.forEach(function (r) {
+        if (seen[r.client_id]) return;
+        seen[r.client_id] = true;
+        var load =
+          TK_api && typeof TK_api.listClientRequests === "function"
+            ? TK_api.listClientRequests(null, r.client_id)
+            : Promise.resolve([]);
+        load.then(
+          function (list) {
+            if (!live) return;
+            setPrefill(function (prev) {
+              var next = Object.assign({}, prev);
+              next[r.client_id] = TK_reportMissingPrefill(list);
+              return next;
+            });
+          },
+          function () {
+            if (!live) return;
+            setPrefill(function (prev) {
+              var next = Object.assign({}, prev);
+              next[r.client_id] = [];
+              return next;
+            });
+          },
+        );
+      });
+      return function () {
+        live = false;
+      };
+    },
+    [clientKey],
+  );
+
+  if (typeof ModalShell !== "function") return null;
+
+  var itemsOf = function (row) {
+    var ch = choices[row.id] || {};
+    if (Array.isArray(ch.items)) return ch.items;
+    var pre = prefill[row.client_id];
+    return Array.isArray(pre) ? pre : null; // null = still loading
+  };
+  var setRow = function (id, patch) {
+    setChoices(function (prev) {
+      var next = Object.assign({}, prev);
+      next[id] = Object.assign({}, prev[id] || {}, patch);
+      return next;
+    });
+  };
+  // Snapshot the prefill into the row the first time it is edited.
+  var editItems = function (row, fn) {
+    var cur = itemsOf(row) || [];
+    setRow(row.id, { items: fn(cur.slice()) });
+  };
+  var effective = {};
+  rows.forEach(function (r) {
+    var ch = choices[r.id] || {};
+    effective[r.id] = { state: ch.state, items: itemsOf(r) || [] };
+  });
+  var problem = TK_bulkReportProblem(rows, effective);
+
+  var submit = function () {
+    if (busy) return;
+    if (problem) {
+      setTried(true);
+      return;
+    }
+    setBusy(true);
+    Promise.resolve(props.onConfirm(TK_bulkReportPlan(rows, effective))).then(
+      function () {
+        setBusy(false);
+      },
+      function () {
+        setBusy(false);
+      },
+    );
+  };
+  var allFull = function () {
+    setChoices(function (prev) {
+      var next = Object.assign({}, prev);
+      rows.forEach(function (r) {
+        next[r.id] = Object.assign({}, prev[r.id] || {}, { state: "full" });
+      });
+      return next;
+    });
+  };
+
+  var node = (
+    <ModalShell onClose={busy ? function () {} : props.onCancel} labelledBy="tk-bulk-report-title" className="tk-dw-modal tk-bulk-report">
+      <div className="modal-header">
+        <h3 className="card-title" id="tk-bulk-report-title" style={{ margin: 0 }}>
+          {rows.length === 1 ? "Reports: Full or Preliminary" : "Reports for " + rows.length + " clients"}
+        </h3>
+        <button type="button" className="modal-close" onClick={props.onCancel} disabled={busy} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div className="modal-body tk-bulk-report-body">
+        <p className="tk-dw-hint">
+          Before these Send reports tasks are done, say how each client's reports went out. Preliminary lists what is
+          still missing; the client sees those items next to the reports.
+        </p>
+        {rows.length > 1 ? (
+          <button type="button" className="btn-secondary btn-sm" onClick={allFull} disabled={busy}>
+            Set all to Full
+          </button>
+        ) : null}
+        {rows.map(function (row) {
+          var ch = choices[row.id] || {};
+          var items = itemsOf(row);
+          var list = items || [];
+          var name = "tk-bulk-report-" + row.id;
+          var bad = tried && problem && problem.id === row.id;
+          return (
+            <fieldset key={row.id} className={"tk-dw-report-pick tk-bulk-report-row" + (bad ? " tk-bulk-report-bad" : "")}>
+              <legend className="tk-dw-label">{row.clientName + (row.month ? " · " + row.month : "")}</legend>
+              <label className="tk-dw-report-opt">
+                <input
+                  type="radio"
+                  name={name}
+                  value="full"
+                  checked={ch.state === "full"}
+                  disabled={busy}
+                  onChange={function () {
+                    setRow(row.id, { state: "full" });
+                  }}
+                />
+                <span>
+                  <strong>Full</strong> Everything for the month was in.
+                </span>
+              </label>
+              <label className="tk-dw-report-opt">
+                <input
+                  type="radio"
+                  name={name}
+                  value="preliminary"
+                  checked={ch.state === "preliminary"}
+                  disabled={busy}
+                  onChange={function () {
+                    setRow(row.id, { state: "preliminary" });
+                  }}
+                />
+                <span>
+                  <strong>Preliminary</strong> Sent before everything arrived.
+                </span>
+              </label>
+              {ch.state === "preliminary" ? (
+                <div className="tk-dw-report-missing">
+                  <p className="tk-dw-label">Still missing</p>
+                  {items === null ? (
+                    <p className="tk-dw-hint">Loading open requests…</p>
+                  ) : (
+                    <ul className="tk-dw-report-list">
+                      {list.map(function (it, i) {
+                        return (
+                          <li key={i} className="tk-dw-report-item">
+                            <input
+                              type="text"
+                              className="tk-dw-input"
+                              maxLength={200}
+                              aria-label={row.clientName + ", missing item " + (i + 1)}
+                              value={it.label}
+                              disabled={busy}
+                              onChange={function (e) {
+                                var v = e.target.value;
+                                editItems(row, function (cur) {
+                                  cur[i] = { label: v, request_id: (cur[i] && cur[i].request_id) || null };
+                                  return cur;
+                                });
+                              }}
+                            />
+                            <button
+                              type="button"
+                              className="btn-secondary btn-sm"
+                              disabled={busy}
+                              aria-label={row.clientName + ", remove missing item " + (i + 1)}
+                              onClick={function () {
+                                editItems(row, function (cur) {
+                                  return cur.filter(function (_, j) {
+                                    return j !== i;
+                                  });
+                                });
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  {items !== null && list.length < TK_REPORT_MISSING_MAX ? (
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm"
+                      disabled={busy}
+                      onClick={function () {
+                        editItems(row, function (cur) {
+                          return cur.concat([{ label: "", request_id: null }]);
+                        });
+                      }}
+                    >
+                      Add item
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </fieldset>
+          );
+        })}
+        {tried && problem ? (
+          <p role="alert" className="tk-dw-hint tk-field-error">
+            {problem.text}
+          </p>
+        ) : null}
+      </div>
+      <div className="modal-footer">
+        <button type="button" className="btn-secondary" onClick={props.onCancel} disabled={busy}>
+          Cancel
+        </button>
+        <button type="button" className="btn-primary" onClick={submit} disabled={busy}>
+          {busy ? "Saving…" : "Save and complete"}
+        </button>
+      </div>
+    </ModalShell>
+  );
+  if (typeof ReactDOM !== "undefined" && ReactDOM.createPortal && typeof document !== "undefined") {
+    return ReactDOM.createPortal(node, document.body);
+  }
+  return node;
 }

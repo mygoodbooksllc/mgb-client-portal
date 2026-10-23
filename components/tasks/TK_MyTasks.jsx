@@ -859,7 +859,7 @@ function TK_vMyTasksBody(props) {
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
       {manualOn && manualSay ? manualSay.el : null}
-      <TK_BulkBar select={bulk} tasksById={byId} staff={bulkStaff} projects={projects} readOnly={!online} />
+      <TK_BulkBar select={bulk} tasksById={byId} staff={bulkStaff} projects={projects} readOnly={!online} clientNames={clientNames} />
       {keys.sheet}
     </div>
   );

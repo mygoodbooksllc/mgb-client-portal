@@ -3620,3 +3620,8 @@ a.tk-card-title:hover {
     transition: none;
   }
 }
+
+/* Before flip (b): bulk Full or Preliminary picker (TK_BulkReportPick) */
+.tk-bulk-report .tk-bulk-report-body { max-height: min(70vh, 640px); overflow-y: auto; }
+.tk-bulk-report-row { border-top: 1px solid var(--border); padding-top: 10px; }
+.tk-bulk-report-bad legend { color: var(--bad); }

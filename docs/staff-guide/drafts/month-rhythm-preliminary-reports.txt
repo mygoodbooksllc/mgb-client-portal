@@ -11,7 +11,7 @@ The client sees a **Preliminary** note next to that month's reports, with each m
 
 When the last Follow up task for that month is done, the month counts as full and the note goes away.
 
-If you tick the task done from a list, Today or the Overview, Slate opens the task so you can answer the question first. Selecting several tasks and completing them together skips the question, so complete Send reports tasks one at a time.
+If you tick the task done from a list, Today or the Overview, Slate opens the task so you can answer the question first. Selecting several tasks and choosing Complete asks the same question for each Send reports task in the selection, one row per client and month, with Set all to Full as a shortcut. Nothing is completed until you choose Save and complete; Cancel leaves every task open.
 
 ### Follow up (the 24th unless your firm changed the day)
 

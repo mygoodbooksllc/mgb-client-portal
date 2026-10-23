@@ -1595,7 +1595,7 @@ function TK_vListBody(props) {
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
       {manualOn && manualSay ? manualSay.el : null}
-      <TK_BulkBar select={bulk} tasksById={byId} staff={staff} projects={projects} readOnly={readOnly} />
+      <TK_BulkBar select={bulk} tasksById={byId} staff={staff} projects={projects} readOnly={readOnly} clientNames={clientNames} />
       {filtersOpen && phone ? (
         <TK_vModal
           onClose={function () {

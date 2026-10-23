@@ -838,6 +838,21 @@ var TK_api = (function () {
       .then(function (tpl) { return TK_reportPickerNeeded(task, tpl, true); }, function () { return false; });
   }
 
+  // Before flip (b): the bulk bar asks Full or Preliminary for every selected
+  // Send reports task it would complete (open ones only: the server skips
+  // review and waiting). Resolves with those tasks; [] when the feature is off.
+  api.reportPickTasks = function (tasks) {
+    var list = (Array.isArray(tasks) ? tasks : []).filter(function (t) {
+      if (!t || !t.id) return false;
+      var cur = effectiveStatus(t);
+      return (cur === "todo" || cur === "in_progress") && reportPickMaybe(t, cur);
+    });
+    if (!list.length) return Promise.resolve([]);
+    return Promise.all(list.map(function (t) {
+      return reportPickCheck(t).then(function (needs) { return needs ? t : null; }, function () { return null; });
+    })).then(function (rows) { return rows.filter(Boolean); });
+  };
+
   // One tick through tk_bulk_complete / tk_bulk_reopen. A skip rejects with
   // code tk_skipped and .reason (the optimistic status is rolled back).
   // opts.undo === false: no toast at all (the caller says something itself).

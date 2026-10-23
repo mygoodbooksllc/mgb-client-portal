@@ -62,6 +62,10 @@ of completing straight away:
   the submit itself came from the bulk bar). State then stays as it was (`none`: no badge,
   not excused, and row 8 may auto-close as "Nothing outstanding"). The guide draft says to
   complete Send reports one at a time.
+- Before-flip fix (2026-10-23): bulk complete now asks too. `TK_api.reportPickTasks(tasks)`
+  finds the open Send reports rows (same gate), the bar opens `TK_BulkReportPick` (one row per
+  client and month, Set all to Full), saves each state, then completes every selected task except
+  a row whose save failed. Admin approval of a row 6 still does not ask (the state was asked at submit).
 - Prefill fix (2026-10-21): the list now comes from `tk_list_client_requests(null, client)`,
   all the client's open requests. It was passing the task id, which only returned requests
   linked to the row 6 task itself (usually none).
