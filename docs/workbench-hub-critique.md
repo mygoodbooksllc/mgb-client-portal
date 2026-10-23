@@ -1,5 +1,7 @@
 # Workbench Hub spec: self-critique (2026-10-16)
 
+> History only. The spec it reviews was rewritten on 2026-10-23 as Desk additions (`docs/workbench-hub-spec.md`); the bottom-bar hub is dropped.
+
 This reviews the first draft of `docs/workbench-hub-spec.md` against the code at `0479da2` and the live database (read-only). Every finding below is already fixed in the spec.
 
 | # | Finding in draft 1 | Evidence | Fix in the spec |
