@@ -264,18 +264,25 @@ end $$;
 -- ---------------------------------------------------------------------------
 -- Client-side events (staff only, allow-listed actions)
 -- ---------------------------------------------------------------------------
+-- Kept in step with view-as-last-seen.sql §4.4, which added view_as.blocked
+-- and made view_as.* admin-only. Change both together.
 create or replace function public.log_audit_event(
   p_action text, p_client_id text default null, p_details jsonb default '{}'::jsonb
 ) returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 begin
   if not public.is_active_staff() then
     raise exception 'not allowed' using errcode = '42501';
   end if;
-  if p_action not in ('view_as.start', 'view_as.stop', 'portal_preview.start', 'portal_preview.stop') then
+  -- view_as.* is admin-only (only admins can View as).
+  if p_action like 'view\_as.%' and not public.is_active_staff_admin() then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+  if p_action not in ('view_as.start', 'view_as.stop', 'view_as.blocked',
+                      'portal_preview.start', 'portal_preview.stop') then
     raise exception 'unknown audit action %', p_action using errcode = '22023';
   end if;
   if p_client_id is not null and not public.can_access_client(p_client_id) then
