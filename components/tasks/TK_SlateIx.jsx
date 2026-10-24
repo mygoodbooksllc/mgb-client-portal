@@ -74,6 +74,21 @@ function TK__ixToday(t) {
 // A press on an element's own scrollbar (classic, always-shown scrollbars:
 // Windows, or macOS with a mouse plugged in) lands on the element itself, past
 // its client area.
+// Clears a page text selection that reaches into the list (root), so a
+// Shift + click range select leaves no highlighted text behind.
+function TK__ixDropTextSelection(root) {
+  try {
+    var s = window.getSelection ? window.getSelection() : null;
+    if (!s || s.isCollapsed || !s.rangeCount || !root) return false;
+    var r = s.getRangeAt(0);
+    if (!root.contains(r.startContainer) && !root.contains(r.endContainer)) return false;
+    s.removeAllRanges();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function TK__ixOnScrollbar(e) {
   var el = e && e.target;
   if (!el || el.nodeType !== 1 || typeof e.offsetX !== "number") return false;
@@ -448,6 +463,9 @@ function TK_useSlateIx(opts) {
         e.preventDefault();
         e.stopPropagation();
         c.bulk.toggle(row.getAttribute("data-tk-id"), !!e.shiftKey);
+        // Shift + click also stretches the browser's text selection over the
+        // rows; drop it so Cmd/Ctrl + C copies the tasks, not the page text.
+        TK__ixDropTextSelection(rootEl());
       };
 
       // right click on a row (Shift + right click keeps the browser's menu)

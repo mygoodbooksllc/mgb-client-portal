@@ -141,6 +141,36 @@ t("drag box: a press on a scrollbar never starts a box", () => {
   assert.ok(src.indexOf("if (TK__ixOnScrollbar(e)) return;") > 0, "wired into the drag box start");
 });
 
+t("shift-click select: page text the click stretched over the list is dropped", () => {
+  const src = read("components/tasks/TK_SlateIx.jsx");
+  const a = src.indexOf("function TK__ixDropTextSelection");
+  const b = src.indexOf("function TK__ixOnScrollbar");
+  assert.ok(a > 0 && b > a, "helper found");
+  let cleared = 0;
+  const inList = { id: "row" };
+  const outside = { id: "header" };
+  const root = { contains: (n) => n === inList };
+  const sel = (collapsed, start, end) => ({
+    isCollapsed: collapsed,
+    rangeCount: 1,
+    getRangeAt: () => ({ startContainer: start, endContainer: end }),
+    removeAllRanges: () => cleared++,
+  });
+  const ctx = { window: { getSelection: () => cur } };
+  let cur = sel(false, inList, inList);
+  vm.createContext(ctx);
+  vm.runInContext(src.slice(a, b), ctx);
+  assert.strictEqual(ctx.TK__ixDropTextSelection(root), true, "selection over rows dropped");
+  cur = sel(false, outside, outside);
+  assert.strictEqual(ctx.TK__ixDropTextSelection(root), false, "text elsewhere on the page kept");
+  cur = sel(true, inList, inList);
+  assert.strictEqual(ctx.TK__ixDropTextSelection(root), false, "nothing selected");
+  assert.strictEqual(ctx.TK__ixDropTextSelection(null), false, "no list");
+  assert.strictEqual(cleared, 1);
+  const click = src.slice(src.indexOf("var onClick = function (e)"), src.indexOf("var onCtx = function (e)"));
+  assert.ok(click.indexOf("TK__ixDropTextSelection(rootEl());") > click.indexOf("c.bulk.toggle("), "runs after the toggle");
+});
+
 t("saved views: only the newest list request may land", () => {
   const src = read("components/tasks/TK_SavedViews.jsx");
   const fn = src.slice(src.indexOf("var reqRef = React.useRef(0);"), src.indexOf("React.useEffect(function () {\n    load();"));
