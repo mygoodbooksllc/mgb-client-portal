@@ -53,6 +53,13 @@ begin
   perform set_config('t.sub', v2::text, true);
   perform set_config('t.theirs', v3::text, true);
   perform set_config('t.plain', v4::text, true);
+  -- 1b source: a shared client task of bk with a PRIVATE subtask owned by
+  -- other and assigned to bk (bk can read it; nobody else on the client can)
+  insert into staff_reminders (staff_email, text, client_id, visibility)
+  values (current_setting('t.bk'), 'IX self-test parent of private', current_setting('t.c_in'), 'shared') returning id into v;
+  insert into staff_reminders (staff_email, text, client_id, visibility, parent_id, assignee_email)
+  values (current_setting('t.other'), 'IX self-test private subtask', current_setting('t.c_in'), 'private', v, current_setting('t.bk'));
+  perform set_config('t.pparent', v::text, true);
 end $$;
 
 -- 1. Duplicate in place, as bk through the app role ------------------------
@@ -85,6 +92,25 @@ begin
   perform set_config('t.copy', v_copy::text, true);
   perform set_config('t.copysub', r -> 'copies' -> 0 -> 'subtasks' ->> 0, true);
   raise notice 'ok: duplicate keeps title, notes, assignee, subtasks, checklist; fresh status; no recurring links';
+end $$;
+
+-- 1b. A private subtask stays private on the copy (slate-ix-copy-2) ---------
+do $$
+declare r jsonb; cp staff_reminders%rowtype;
+begin
+  r := public.tk_copy_tasks(array[current_setting('t.pparent')::uuid], null);
+  if jsonb_array_length(r -> 'copies') <> 1 then raise exception 'SELF-TEST FAILED: parent of private not copied: %', r; end if;
+  if jsonb_array_length(r -> 'copies' -> 0 -> 'subtasks') = 1 then
+    select * into cp from staff_reminders where id = (r -> 'copies' -> 0 -> 'subtasks' ->> 0)::uuid;
+    if cp.visibility <> 'private' then
+      raise exception 'SELF-TEST FAILED: private subtask widened to % on the copy', cp.visibility;
+    end if;
+    perform set_config('t.pcase', 'private subtask copied as private', true);
+    raise notice 'ok: a private subtask the caller can read is copied as private';
+  else
+    perform set_config('t.pcase', 'private subtask not readable, not copied', true);
+    raise notice 'ok: the private subtask is not readable by the caller, so it is not copied';
+  end if;
 end $$;
 
 -- 2. Paste targets ------------------------------------------------------------
@@ -149,5 +175,5 @@ begin
   raise notice 'ok: no assignment emails for copies; the undone copy is archived, not deleted';
 end $$;
 
-select 'slate-ix copy self-test passed' as result;
+select 'slate-ix copy self-test passed' as result, current_setting('t.pcase', true) as private_subtask_case;
 rollback;
