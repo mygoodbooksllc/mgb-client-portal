@@ -468,9 +468,20 @@ t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view
   assert.ok(!/colour|!/i.test(text));
   // The newest by date among ungated entries, so it is picked first for a person with
   // nothing answered. (Entries with visible(), such as the hidden draft
-  // client-org-profile-launch, do not compete while their switch is off.)
-  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function").reduce((m, x) => (x.date > m ? x.date : m), "");
+  // client-org-profile-launch, do not compete while their switch is off. The
+  // admins-only view-as-whole-app notice is newer but no bookkeeper gets it.)
+  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
   assert.strictEqual(a.date, newest);
+});
+
+t("registry: view-as-whole-app is an admins-only notice that tours HR > Members", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "view-as-whole-app");
+  assert.ok(a);
+  assert.deepStrictEqual(a.roles, ["admin"]);
+  assert.strictEqual(a.hash, "#/hr/members");
+  assert.strictEqual(a.date, "2026-10-23");
+  const text = JSON.stringify([a.title, a.summary]);
+  assert.ok(!/colour/i.test(text));
 });
 
 t("registry: new-look-and-layout is one combined staff notice for the five launches", () => {
@@ -723,7 +734,8 @@ function walk(ctx, store, narrow, first) {
       rows[pick.id] = { status: "dismissed", later_count: 0 };
     }
   });
-  return seq;
+  // The admins-only View as notice (2026-10-23) is newer than these; leave it out of the order checks.
+  return seq.filter((id) => id !== "view-as-whole-app");
 }
 
 t("order: with all three eligible, slate-app-launch comes first and supersedes the view bar", () => {

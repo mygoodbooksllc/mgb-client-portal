@@ -36,6 +36,8 @@ Tours and the first-30-days tips don't show in the slim window. Use the Slate pa
 
 Click **Dock in portal**. If the portal window that opened it is still open, Slate opens there, on the same list, and the slim window closes. If that window is gone, the slim window turns into the full portal.
 
+**View as** (admins) never opens the own-window Slate, and a new window opened during View as is your own normal app.
+
 ### Troubleshooting
 
 - **"Your browser blocked the new window. Allow pop-ups for this site and try again."** Allow pop-ups for the portal's address in your browser's settings, then click **Open in own window** again.

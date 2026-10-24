@@ -12,7 +12,7 @@ As a bookkeeper you look after your own clients: you keep their books, answer th
 - It starts by itself once, the first time you open the portal. If you did the older staff tour, you still get this one, because it's new.
 - Run it again any time from **?** → **Bookkeeper tour**, from **Ctrl+K** (**⌘K** on a Mac) by typing "bookkeeper tour", or from **Settings › Help**.
 - It opens each part of your day in turn and points at it: **Today**, **Clients**, a client's **Overview** and **Close** tab, the **+** button, the **Inbox**, **Work › Slate** and **Close** (which points you to **Deadlines**), **Team › People**, **HR › Reviews** and **Handbook**, search and the **?** menu. About three minutes.
-- Admins can run it from the **?** menu too. During **View as**, it only visits the pages View as can open (Today, Clients and a client's pages); the Inbox, Work and Team stops are skipped.
+- Admins can run it from the **?** menu too. During **View as**, it walks that bookkeeper's whole app, read-only. Their Inbox, Reviews and Handbook are private, so those stops show a placeholder or are skipped.
 
 If you're also a client's account manager, the **Account manager tour** comes next. If you have temporary admin access, you'll get the **Temporary admin tour** first. See [Account manager guide](#/help/account-manager-guide) and [Temporary access](#/help/temporary-access).
 

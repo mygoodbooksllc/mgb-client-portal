@@ -37,6 +37,8 @@ Once both are in, your reviewer and the admins can see the comparison so they ca
 
 Other admins can follow a review while it happens: they see both forms as they're filled in, drafts included.
 
+An admin using **View as** on someone sees only a private placeholder on **HR › Reviews**; the blind rule holds there too.
+
 ### Meet, reveal, sign
 
 In the meeting, your reviewer (or Jesse or Bailley) clicks **Reveal comparison**. From then on, **My review** shows the comparison: your score, your reviewer's score, the gap, and a flag for each item (**Action step required**, **Discuss** for a gap of 2 or more, or **Aligned**). A reveal can't be undone, and it's recorded in the review's history.

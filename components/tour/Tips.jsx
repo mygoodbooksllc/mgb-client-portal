@@ -603,6 +603,16 @@ const TIPS_CATALOG = [
     adminDoc: true,
   },
   {
+    id: "members-last-seen",
+    roles: "admin",
+    match: (r) => r.page === "hr" && TIPS_tab("tp-tab-members"),
+    // The first row's Last seen button (not on your own row).
+    target: "members-last-seen",
+    text: "Last seen shows when someone last used the app: their page, browser, app version and last error. Check it first when someone says something's broken.",
+    slug: "staff-management",
+    adminDoc: true,
+  },
+  {
     id: "install-app-desktop",
     roles: "all",
     match: (r) => r.page === "today",

@@ -36,8 +36,8 @@ The staff paperwork has its own place: **HR**, right below Team in the left rail
 
 #### Admins only
 
-- **Employee records** (`#/hr/employees`): one record per staff member with job details (title, type, schedule, manager, hire and end dates, work location), personal contact details and an emergency contact, plus their handbook signatures (read only). Admins only: a temporary admin grant and **View as** don't show it. Opening a record is logged. See [How do I keep employee records?](#/help/employee-records).
-- **Members** (`#/hr/members`): add staff, roles, active/inactive, client assignments, temporary admin access, **View as**, and **Offboard**. Temporary admins see it read-only. See [How do I add staff and manage their access?](#/help/staff-management).
+- **Employee records** (`#/hr/employees`): one record per staff member with job details (title, type, schedule, manager, hire and end dates, work location), personal contact details and an emergency contact, plus their handbook signatures (read only). Admins only: a temporary admin grant and **View as** don't show it (nor **Members**). Opening a record is logged. See [How do I keep employee records?](#/help/employee-records).
+- **Members** (`#/hr/members`): add staff, roles, active/inactive, client assignments, temporary admin access, **View as** (read-only, real admins only), **Last seen** (admins only) and **Offboard**. Temporary admins see it read-only, without View as or Last seen. See [How do I add staff and manage their access?](#/help/staff-management).
 
 Client health has no tab of its own any more: the **Clients** page shows every client's score and band, and its **Needs attention** filter picks out the ones to look at. See [What does client health mean?](#/help/client-health).
 
@@ -76,6 +76,10 @@ Client, Plan, QB hours, In app, Avg / mo, Trend (for example "▲ 20% vs avg"), 
 - The line under the table reconciles total hours: on clients, unmapped, ignored or internal.
 
 Click a client to see hours by QuickBooks customer and by person, hours over the period, every QuickBooks Time entry and the **Profitability** card.
+
+### In View as (admins)
+
+**Team** and **HR** both open in **View as**, read-only and showing what that person sees. **People** and **Performance** show their own rows; **Inventory** is read-only; **Handbook** and **Reviews** are private placeholders; **Onboarding** shows their ticks without letting you change them. See [How do I add staff and manage their access?](#/help/staff-management).
 
 ### Troubleshooting
 

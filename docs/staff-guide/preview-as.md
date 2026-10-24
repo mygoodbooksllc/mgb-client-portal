@@ -2,7 +2,7 @@
 title: How do I see the portal the way a client sees it?
 section: Working with a client
 audience: staff
-keywords: [show test clients, test badge, hide test clients, preview as, preview plan, client view, view as client, client view menu, what the client sees, exit preview, plan preview, view as client, test client, test clients, try a change, sample data, sandbox]
+keywords: [show test clients, test badge, hide test clients, preview as, preview plan, client view, view as client, client view menu, what the client sees, exit preview, plan preview, view as client, test client, test clients, try a change, sample data, sandbox, view as a bookkeeper, read-only]
 sort: 260
 ---
 On any client page there are two preview controls. Neither changes anything for the client.
@@ -17,6 +17,10 @@ Inside a client, **View as client…** at the bottom of the **Client view** menu
 4. Click **Exit preview** when you're done.
 
 While previewing, staff-only things are hidden: the top bar (with **+**), the staff tabs (Overview, Close, SOP and so on), **Client setup** and the staff note icons. Bank only shows if that person's plan has it, so a Basic client's person still has no Bank page, even though staff see Bank on every client. The client's **Settings** show read-only, since their personal settings belong to them.
+
+### View as a bookkeeper (admins)
+
+This is different from previewing a client. **HR › Members › View as** shows a bookkeeper's whole staff app (Today, Clients, Work, Team and HR), read-only, with their Inbox, Reviews and Handbook private. Nothing you do there is saved, and blocked attempts go in the Audit log. See [How do I add staff and manage their access?](#/help/staff-management).
 
 ### Preview a different plan
 

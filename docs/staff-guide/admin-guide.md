@@ -12,7 +12,7 @@ As an admin you see everything a bookkeeper sees, plus the pages that run the fi
 - It starts by itself once, the first time you sign in as an admin. If you're new to the portal, it opens with the basics first (the five places, search and the **?** menu), so you learn to get around before the admin pages.
 - Run it again any time from **?** → **Admin tour**, from **Ctrl+K** (**⌘K** on a Mac) by typing "admin tour", or from **Settings › Help**.
 - It opens each admin page in turn and points at it: **HR › Members**, **Team › Hours**, **Reply times**, **Performance**, **HR › Reviews**, **Handbook**, **Team › Ledger review**, **Feedback** and **Inventory**, then **Slate › Review**, **Slate › Manage projects**, **Settings › Firm settings** and **Today**. About two minutes, a little longer with the basics.
-- To see what your bookkeepers see, run the **Bookkeeper tour** from **?**. It's the same walk they get. Inside **View as**, it only visits the pages View as can open (Today, Clients and a client's pages); other stops are skipped. See [Bookkeeper guide](#/help/bookkeeper-guide).
+- To see what your bookkeepers see, run the **Bookkeeper tour** from **?**. It's the same walk they get. Inside **View as**, it walks that bookkeeper's whole app (Today, Clients, Inbox, Work, Team and HR), read-only; the Inbox, Reviews and Handbook stops show a private placeholder, so a stop with nothing to point at is skipped. See [Bookkeeper guide](#/help/bookkeeper-guide).
 
 If you're also a client's account manager, the **Account manager tour** comes next. See [Account manager guide](#/help/account-manager-guide).
 
@@ -20,7 +20,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 
 | Where | What it's for | More |
 |---|---|---|
-| **HR › Members** | Add staff, set roles, assign clients, give temporary admin access, and **View as** a bookkeeper to see exactly what they see | [Staff and access](#/help/staff-management), [Temporary access](#/help/temporary-access) |
+| **HR › Members** | Add staff, set roles, assign clients, give temporary admin access, **View as** a bookkeeper (their whole app, read-only) and check **Last seen** to see exactly what they see and when they were last on | [Staff and access](#/help/staff-management), [Temporary access](#/help/temporary-access) |
 | **Team › Hours** | Hours and tasks by person and by client, monthly hours budgets, capacity, and fees, cost and margin | [Hours budget](#/help/hours-budget), [Capacity](#/help/capacity), [Profitability](#/help/profitability) |
 | **Team › Reply times** | How fast clients hear back, against the 24-hour goal | [Reply times](#/help/reply-times) |
 | **Team › Performance** | Every bookkeeper's score out of 100, as a ranking (bookkeepers see only their own) | [Performance](#/help/performance) |
@@ -78,5 +78,5 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 
 ### Good to know
 
-- Every **View as** is recorded in the Audit log, and your own Settings are read-only while you're viewing as someone.
+- **View as** is read-only: nothing you do there is saved, and each blocked attempt is recorded in the Audit log along with every start and exit. Your own Settings are read-only while you're viewing as someone. Only real admins can use it. See [Staff and access](#/help/staff-management).
 - Staff with temporary admin access see some of these pages but not all, and they have their own **Temporary admin tour** that starts the next time they open the portal while access is active. **Emails**, **QuickBooks usage**, the **Audit log** and money figures stay with admins. See [Temporary access](#/help/temporary-access).

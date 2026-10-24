@@ -39,7 +39,7 @@ Under the switch it says where you stand: **On, 23 days left**, **Off**, or **Yo
 - **Turning off** stops tips right away. Nothing is lost: the tips you've seen stay marked as seen.
 - **Turning on again** (from Off, or after your 30 days ended) starts a fresh 30 days and shows every tip again, including ones you dismissed before.
 
-While an admin uses **View as**, nothing can be saved, so the switch is greyed out in Settings, the **?** menu row is hidden, and the Staff guide (with its switch) isn't available. Stop viewing as first.
+While an admin uses **View as**, nothing can be saved, so the switch is greyed out in Settings and the **?** menu row is hidden. Stop viewing as first.
 
 ### All tips
 
@@ -113,6 +113,7 @@ These show on **Work › Slate** (the Slate pages), after the tips above. The ne
 | Page | Tip | Learn more |
 |---|---|---|
 | HR › Members | Give a bookkeeper the admin pages for 1 hour, 1 day or 1 week, say while you're away. It ends by itself; Revoke ends it early. | [How do I add staff and manage their access?](#/help/staff-management) |
+| HR › Members | Last seen shows when someone last used the app: their page, browser, app version and last error. Check it first when someone says something's broken. | [How do I add staff and manage their access?](#/help/staff-management) |
 
 #### Admins and anyone with temporary admin access
 

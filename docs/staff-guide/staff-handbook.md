@@ -122,6 +122,8 @@ Published versions can't be edited or deleted, so check the preview first. The p
 
 If you leave the editor before publishing, your unsaved text comes back the next time you open it in the same browser tab. If another admin publishes while you're editing, the portal stops you from publishing over their version: copy what you want to keep, click **Cancel** and start again. A bookkeeper who joins after a version is published gets 7 days from the day they joined.
 
+When an admin uses **View as** on a bookkeeper, **Handbook** shows a private placeholder plus who has signed which policy and when. Nothing can be signed or changed there.
+
 ### Troubleshooting
 
 - **"Type your full name exactly as it appears on your staff profile."** Your typed name has to match your name on the staff list (**HR › Members**). Capitals and extra spaces don't matter. Ask an admin if it looks wrong.

@@ -1614,6 +1614,43 @@ var ANN_REGISTRY = [
       ];
     },
   },
+  {
+    // View as now covers the whole staff app, read-only, and HR > Members has an
+    // admin-only Last seen button. Real admins only (a temporary admin's Members
+    // tab is read-only and has neither button). Never shown during View as
+    // (announcementsLogic.js blocks it while impersonating).
+    id: "view-as-whole-app",
+    date: "2026-10-23",
+    title: "View as: the whole app",
+    summary: "See any bookkeeper's whole app, read-only, and check when they were last on with Last seen.",
+    roles: ["admin"],
+    hash: "#/hr/members",
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "View as, and Last seen",
+        body: () =>
+          "View as now shows a bookkeeper's whole app: Today, their clients, Work, Team and HR. It is read-only, so nothing you do there is saved. Last seen is new too. About a minute.",
+      },
+      TOUR_tabStep(
+        "hr",
+        "members",
+        "HR › Members › View as",
+        "Click View as on a bookkeeper's row to see exactly what they see. A bar at the top says Read-only. If you try to save something, you get a note and the attempt goes in the Audit log. Exit View as brings you back.",
+      ),
+      {
+        id: "ann-last-seen",
+        go: () => {
+          if (!/^#\/hr\/members(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/hr/members";
+        },
+        targets: ["members-last-seen"],
+        wait: true,
+        title: "Last seen",
+        body: () =>
+          "Next to View as. It shows the page they were last on and when, their browser and app version, their last sign-in and their last error. Check it first when someone says something is broken.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

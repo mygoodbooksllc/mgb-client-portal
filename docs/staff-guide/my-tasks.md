@@ -160,6 +160,8 @@ See [How do recurring tasks from templates work?](#/help/task-templates).
 
 On a client's pages, a line under the tabs shows the next task, and **t** opens all of the client's tasks in a side panel. With the Desk on, the line is gone and **t** opens the Desk's **Client** tab, and a task you open shows in the Desk instead of the pop-up. See [How do I see a client's tasks without leaving the page?](#/help/client-tasks-drawer).
 
+When an admin uses **View as** on someone, Slate is a read-only snapshot of that person's tasks. Private tasks are hidden, and ticking, adding, dragging and the pop-out window don't work. Group and sort still work but aren't saved.
+
 ### Troubleshooting
 
 - **Clicking a row opened its subtasks, not the details.** That's how a task with subtasks works: click the row to open or close its subtasks, and click the task's name to open its details.

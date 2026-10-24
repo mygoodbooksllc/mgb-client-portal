@@ -31,6 +31,8 @@ The same card lists **Active temporary access**, where an admin or the bookkeepe
 - The account menu (your initials, top right) lists it too: **Temporary access: {client} · …**. Temporary *admin* access shows there as **Temporary admin access · expires …**.
 - When you're done, click **Give up access**. You can always request again later.
 
+Temporary admin access is a page setting, not a full admin. A bookkeeper who has it can't use **View as**, and **Last seen** isn't shown to them; both are for real admins only. If an admin uses View as on a bookkeeper who has it, they see that person's own pages, not the extra admin ones. See [How do I add staff and manage their access?](#/help/staff-management).
+
 ### Temporary admin tour
 
 Temporary *admin* access is different: an admin gives it to a bookkeeper from **HR › Members** (1 hour, 1 day or 1 week), and it opens some admin pages instead of a client. See [Staff and access](#/help/staff-management).

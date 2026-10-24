@@ -9,6 +9,13 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-23: View as covers the whole app, and Last seen (admins)
+
+- **View as covers the whole app.** On **HR › Members**, **View as** now shows a bookkeeper's Today (in its classic form), Clients and each client's pages, Work (with a read-only snapshot of their Slate), Team and HR. Their Inbox, Reviews and Handbook show a private placeholder, and private tasks stay hidden. See [How do I add staff and manage their access?](#/help/staff-management).
+- **It's read-only.** The bar says "Read-only. Nothing you do here is saved." Anything that would save or send is refused with a note, and each blocked attempt is recorded in the [Audit log](#/help/audit-log) as *View as: blocked change*. Budgets show **Approve** greyed out, with a link to exit View as and approve.
+- **Last seen.** A new **Last seen** button next to **View as** shows a person's last page and time, device, browser, app version, last sign-in and last error, with a link to **Recent errors**. Admins only. See [Usage stats and Developer tools](#/help/admin-insight).
+- **Usage stats ignore View as.** Time you spend in View as no longer counts as the bookkeeper's activity.
+
 ### 2026-10-22: Change a client's bookkeeper from its list (admins)
 
 On a client's Slate list, admins can click the **Bookkeeper** in the header, pick someone else and click **Reassign**. A ticked box also moves the old bookkeeper's open tasks on that client to the new one; tasks in review, private tasks and tasks anyone else owns or is on stay put. No email is sent. See [Change a client's bookkeeper](#/help/task-lists-and-projects).

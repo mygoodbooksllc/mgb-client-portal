@@ -88,6 +88,8 @@ The chat button at the bottom right (once the Desk is on, the messages icon on t
 
 Team conversations support attachments and groups (**+ New group**). You can edit your own message within 15 minutes. You can delete your own message for 24 hours after sending it: click **Delete** under it, then **Delete** again to confirm (or **Cancel**). The message then disappears completely for everyone, as if it was never sent (no placeholder, and it drops out of previews, unread and **Seen**). After 24 hours the **Delete** button goes away. You can't undo a delete, and you can't delete someone else's message. A group you no longer need can be retired from the details pane: it drops out of everyone's inbox and becomes read-only, and any member can restore it later.
 
+When an admin uses **View as**, the **Inbox** is private to that person: it shows a placeholder with links to the Messages tab of their clients. Messages from that side can't be sent, and team chat stays closed. See [How do I add staff and manage their access?](#/help/staff-management).
+
 ### Troubleshooting
 
 - **"…these are sample threads and nothing you send is saved."** The portal couldn't reach client messages (or messaging isn't set up yet), so it's showing sample conversations. Refresh; if it continues, tell an admin.

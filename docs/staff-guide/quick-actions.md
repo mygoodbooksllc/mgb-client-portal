@@ -47,7 +47,7 @@ Type **What you need** (for example *September bank statement*), a **Due** date 
 
 ### Message
 
-Opens the small chat drawer for this client. Press **Esc** or click outside it to close. (During an admin's **View as**, it opens the client's **Messages** page instead.) More in [How do I message a client or a teammate?](#/help/inbox).
+Opens the small chat drawer for this client. Press **Esc** or click outside it to close. (During an admin's **View as**, it opens the client's **Messages** page instead.) In View as, **⌘K** searches pages and help (staff articles only) but hides the bookkeeper's private tasks, and actions that save are refused. More in [How do I message a client or a teammate?](#/help/inbox).
 
 ### Where did the Staff bar go?
 

@@ -2,7 +2,7 @@
 title: How do I use the Audit log?
 section: Admin
 audience: admin
-keywords: [bookkeeper changed, client.bookkeeper_changed, ledger review, possible duplicates, smart mode, strict mode, gl_review.dup_mode, handbook signatures, audit log, history, who changed, export csv, filters, access changes, fees, rates, mappings, view as]
+keywords: [bookkeeper changed, client.bookkeeper_changed, ledger review, possible duplicates, smart mode, strict mode, gl_review.dup_mode, handbook signatures, audit log, history, who changed, export csv, filters, access changes, fees, rates, mappings, view as, view_as.blocked, blocked change, read-only]
 sort: 530
 ---
 The **Audit log** (**Settings → Firm settings → Audit log**, admins only) records who changed access, fees, rates, mappings, client settings, client bookkeepers (**Bookkeeper changed**, with how many tasks moved), staff names, staff profile photos and the Ledger review Possible duplicates mode, and when. The database writes it, so nobody can edit or delete entries.
@@ -18,6 +18,10 @@ Use the filters at the top:
 - **From** / **To** dates
 
 **Clear filters** resets them. The table shows When, Person, Action, Client, Target and Details (click **Raw** for the full record). It shows 50 rows per page; use **Newer** / **Older**.
+
+### View as
+
+Filter by the **View as** group. Each View as records a start, an exit and, new, every blocked attempt: *View as: blocked change* (`view_as.blocked`) with what the admin tried. The exit (`view_as.stop`) now says why it ended (they exited, signed out, or closed the tab; closing the tab is best effort). These entries are visible to admins only. See [How do I add staff and manage their access?](#/help/staff-management).
 
 ### Ledger review
 

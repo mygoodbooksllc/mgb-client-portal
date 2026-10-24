@@ -49,6 +49,8 @@ This was done on Oct 7, 2026: the Google project is **MyGoodBooks Auth** and the
 
 Files uploaded before Drive was connected stay in the portal's own storage and keep working. On a client's Documents page staff see **Copy {n} older files to Drive**. It copies up to 50 at a time into the right Drive folders and leaves the originals where they are. The page then shows the Drive copy.
 
+In **View as**, the files list and downloads work as they do for the bookkeeper, but uploads are blocked because View as is read-only.
+
 ### If something goes wrong
 
 - *File storage isn't connected yet; tell the owner.*: a Drive secret was removed or changed. Uploads are paused until the owner fixes it.

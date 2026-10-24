@@ -40,7 +40,7 @@ Use the **↑** and **↓** keys to move through the results and **Enter** to op
   - **Dark mode** / **Light mode**
   - **Preview as a client user** (client pages only): pick a person to see the portal the way they do. See [How do I see the portal the way a client sees it?](#/help/preview-as).
   - **Preview plan** (client pages only, not during View as): **Actual plan (…)**, **Basic** or **Pro**. A check marks the one showing.
-  - **Exit "View as"** when an admin is using View as
+  - **Exit "View as"** when an admin is using View as (the bar says it is read-only: nothing you do there is saved)
   - **Settings**: your profile, notifications, theme, start page and signature. See [How do I change my settings?](#/help/staff-settings).
   - **Sign out**
 

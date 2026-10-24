@@ -19,6 +19,8 @@ A task called **Finish setting up your portal profile** asks you to add a clear 
 - The card goes away by itself once every step is ticked.
 - Click **Hide this card** if you don't need it (for example, you've been here a while). Hiding can't be undone by you, so ask an admin if you want it back.
 
+In **View as** (admins), a bookkeeper's **Onboarding** checklist shows with its ticks, but you can't tick or untick anything.
+
 ### For admins: HR → Onboarding
 
 Open **HR → Onboarding** (`#/hr/onboarding`). Only admins see this tab.

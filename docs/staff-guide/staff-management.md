@@ -2,7 +2,7 @@
 title: How do I add staff and manage their access?
 section: Admin
 audience: admin
-keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, client roster, account manager, payroll, payroll add-on, payroll tab, portal logins, invite, resend invite, fix sign-in, can't sign in, sign-in account, signup disabled, signups not allowed, new sign-ups off]
+keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, client roster, account manager, payroll, payroll add-on, payroll tab, portal logins, invite, resend invite, fix sign-in, can't sign in, sign-in account, signup disabled, signups not allowed, new sign-ups off, last seen, read-only, whole app, exit view as]
 sort: 510
 ---
 The **Members** tab of **Team** (the left rail → **Team** → **Members**, or `#/hr/members`) controls who can sign in and with what role.
@@ -58,11 +58,22 @@ Give a bookkeeper short-term access to the admin pages, for example while you're
 
 The cell then shows **Until {date, time}** with a **Revoke** button. It ends on its own at that time.
 
-It unlocks the admin tabs of **Team** (the Members tab opens **read-only**), and **Task templates**, **Client roster**, **Usage stats** and **Developer tools** under **Settings → Firm settings**. Task templates (Slate › Recurring), Client roster and Developer tools open **read-only**. **Audit log**, **Emails**, **Feedback** and the QuickBooks API usage card stay real-admin-only. Offboarding also ends it.
+It unlocks the admin tabs of **Team** and **HR** (the Members tab opens **read-only**, with no **View as** or **Last seen**), and **Task templates**, **Client roster**, **Usage stats** and **Developer tools** under **Settings → Firm settings**. Task templates (Slate › Recurring), Client roster and Developer tools open **read-only**. **Audit log**, **Emails**, **Feedback** and the QuickBooks API usage card stay real-admin-only. Offboarding also ends it.
 
 ### View as
 
-Click **View as** on an active bookkeeper's row to see exactly what they see, including their assigned clients and reminders. Click **Exit "View as"** to return. Every View as is recorded in the Audit log.
+**Admins only** (real admins; a temporary admin can't use it). On **HR › Members**, click **View as** on an active bookkeeper's row to see the whole app the way they see it: **Today** (in its classic form), **Clients** and each client's pages, **Work** (including a read-only snapshot of their Slate), **Team** and **HR**. It's a way to check what someone sees, not a way to act for them.
+
+- **It's read-only.** A bar at the top says "Read-only. Nothing you do here is saved." Anything that would save, send, tick, upload or sync is refused with a note: "View as is read-only. Exit View as to make changes." Each blocked attempt is recorded in the Audit log.
+- **Some things are private to them.** Their **Inbox**, **Reviews** and **Handbook** show a placeholder (Handbook adds who has signed what). Their private tasks are hidden. A Desk is theirs alone, so Today shows the classic page. **Employee records** and **Members** never show. Help shows the staff articles only.
+- **You're still you.** The session stays yours; you aren't signed in as them, and your own Settings stay read-only ("These are your settings, not {name}'s. Exit View as to change them.").
+- **Budgets.** **Approve** shows greyed out with "{First} can't approve budgets." A link, **Exit View as to approve**, takes you out and leaves you on that budget.
+- **A new window or tab opened during View as is your normal app,** not the bookkeeper's.
+- Click **Exit "View as"** to return. Every View as (start, blocked change and exit) is recorded in the [Audit log](#/help/audit-log), and your View as time doesn't count in Usage stats.
+
+### Last seen
+
+**Admins only** (not temporary admins). On **HR › Members**, **Last seen** sits next to **View as** on each row except your own. It opens a small box with the page they were last on and when, their device, browser and app version (a **behind** tag means they haven't reloaded to the latest), their last sign-in, and their last error (time, page, message and browser). A link goes to **Developer tools › Recent errors**. Check it first when someone says something's broken. See [Usage stats and Developer tools](#/help/admin-insight).
 
 ### Client roster: organization type
 

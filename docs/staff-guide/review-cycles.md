@@ -30,7 +30,7 @@ The Team status page shows, for each person: reviewer, self-review status, the r
 
 Reviewers fill in their reviews from **Reviews → Reviews I'm giving**. The blind rule still applies to the reviewer: you can't see someone's self-review scores until your own review of them is submitted. You get an email when they submit their self-review.
 
-Every other admin can click **Open** on Team status to follow a review as it happens. The **In progress** view shows both forms' scores and comments so far, drafts included. The reviewer can't see the self-review until both are in. The person being reviewed can't see the reviewer's side until it's revealed. An admin who is being reviewed never sees the reviewer's side early.
+An admin using **View as** on a bookkeeper never sees reviews through them: **Reviews** shows a private placeholder and the blind rule is kept. Every other admin can click **Open** on Team status to follow a review as it happens. The **In progress** view shows both forms' scores and comments so far, drafts included. The reviewer can't see the self-review until both are in. The person being reviewed can't see the reviewer's side until it's revealed. An admin who is being reviewed never sees the reviewer's side early.
 
 ### Prep and reveal
 

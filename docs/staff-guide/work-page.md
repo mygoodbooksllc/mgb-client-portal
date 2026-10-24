@@ -15,6 +15,8 @@ sort: 45
 
 Bookkeepers see their own clients. Admins see everyone's.
 
+In **View as** (admins), Work shows the bookkeeper's tabs read-only. **Slate** is a read-only snapshot of their tasks with private tasks hidden, and nothing on it can be changed or popped out.
+
 ### Getting there fast
 
 - Press **Ctrl+K** (**⌘K** on a Mac) and type "close" or "deadlines" to jump to a tab.

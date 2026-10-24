@@ -398,8 +398,9 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     `hasTempAdminAccess` and `tempAdminAccessExpiresAt`), `showsAdminPages` (admin or temp admin),
     `amCount`, `impersonating` and `myClient`. One tour auto-starts per page load, in the order
     temporary admin → bookkeeper → admin → am, each only when pending. The Bookkeeper tour never
-    starts by itself for admins; during View as it visits only what View as can open (Today, Clients
-    and a client's pages) and skips the rest. A bookkeeper's auto-start waits for App's
+    starts by itself for admins; during View as it walks that bookkeeper's whole app, read-only
+    (Today, Clients, Inbox, Work, Team and HR); a stop whose target isn't on a placeholder screen
+    is skipped. A bookkeeper's auto-start waits for App's
     `tempAdminLoaded` (the grant check), and an auto start waits while Today's profile prompt is open.
     New admins get the basic steps first (`newToStaff`). The ? menu, ⌘K and Settings › Help all list
     `TOUR_staffTourList()`.
@@ -695,7 +696,8 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     in the picker, including the one already open, lands by the landing rule (the tab you left,
     else Overview). Everything else stays in
     the drawer.
-  - Bell, Tasks and the task/note search groups step aside during admin "View as".
+  - Bell, Tasks and the task/note search groups step aside during admin "View as", which is
+    read-only (see "View as: whole app, read-only" below).
 
 - **Today** (`components/staff/Today.jsx`, `TD_`, `#/today`): redesigned 2026-10-19j (desk-right-spec
   decision 28, one job per surface). Greeting and date, one count line ("N due today · N late · Open
@@ -869,7 +871,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   Email signature (used by Daily Close reminders and client emails), Dashboards (reset saved
   layouts), Shortcuts, and Firm settings for admins (Team; no Staff Access). Saved per person in
   `user_settings` (`ST_store`: localStorage cache `mygoodbooks_user_settings_v1`, debounced upsert
-  on `user_email`). Read-only during View as.
+  on `user_email`). Read-only during View as ("These are your settings, not {name}'s.").
 - **Admin pages**:
   - **Team** (`components/staff/TeamPage.jsx`): QuickBooks Time hours and tasks by person and by
     client for a period (open, overdue, completed; hours by client with a 3-month average for
@@ -2572,6 +2574,47 @@ Slate as its own installable app at `/slate`, built from spec `spec-desk-fullpag
 - **The retired MGB Desk window (S5).** The Desk in its own window (2026-10-20k, hidden behind `mgb_desk_app_preview` and `tk_settings.desk_app_enabled`, never turned on) was deleted on 2026-10-21: `WB_DeskApp.jsx`, `desk.webmanifest`, the `mgb-desk` channel, its Feature flags row, Slate switches row and tour steps. The useful parts moved into `TK_SlateBridge.jsx`. The Desk itself (right-side column, rail and info bar, D key) is unchanged. Old usage rows `desk-app-*` and the `desk-app` page label stay in Usage stats marked "(retired)".
 - **Upkeep (S6, 2026-10-21).** Live guide text for the removed window fixed (`workbench.md`, `get-the-app.md`, `admin-insight.md`; SQL `supabase/staff-guide-slate-s6.sql`, replacing `staff-guide-desk-app.sql`); the tk-popout tour step and tip read "Open Slate app" only while `TK_slateAppOn()` is true. Developer tools: `PAGE_META` `slate-app`, usage labels `slate-app-open`, `slate-app-install`, `slate-app-forward`, `slate-app-size`, `slate-app-mode`, `slate-sliver-start`, `slate-sliver-done`, `tasks-reorder`, the INFRA note for `/slate`, and the Reset local state comment listing the app's keys (`mgb_slate_app_preview`, `mgb_slate_classic`, `mgb_slate_installed_v1`, `mgb_tk_slate_base_v1`, `mgb_tk_manual_v1`, `mgb_tk_layout_v1`, and sessionStorage `mgb_slate_size_miss_v1`).
 - **Launch kit (2026-10-21, hidden until the switch).** Everything staff would read about the Slate app is invisible until `tk_settings.slate_app_enabled` is true, and never shows for someone on **Classic tasks page**. (a) The notice and tour: `ANN_REGISTRY` entry `slate-app-launch` (roles admin, tempAdmin, bookkeeper, accountManager; never clients; never during View as or Preview as; the notice also waits for a window wider than 760px). It carries the new optional field **`visible(ctx)`**: unlike `ready`, an entry that is not visible is dropped by `ANN_audience`, so the notice, What's new's Launches list, the **?** menu / Cmd+K tour entry and the Usage Stats Announcements row all stay hidden together. `visible` is `ANN_slateLaunchOn()`: `mgb_slate_classic` is not "1" and `mgb_slate_cache` is "1" (the person's Slate app preview alone does not count). (b) `mgb_slate_cache` is set by the same inline script in `index.html` and the same single `tk_settings` read as `mgb_brand_cache` and `mgb_hovernav_cache` (the query now asks for `brand_enabled`, `hovernav_enabled` and `slate_app_enabled`); only the announcement reads it, the app itself is decided by `TK_slateAppIsOn`. No `supersedes`: the older Slate notices still describe live things. The tour's window-size step (`ann-sizes`) is a centered step in the portal; an in-app `tk-size` step is not possible because the Slate app window hides tours, tips and notices (`tkShell`). (c) The tk-popout tour step and tip already switch to "Open Slate app" through `TK_slateAppOn()`, which includes the switch and Classic, so no code changes at launch. (d) Staff guide text is NOT in the live `staff_guide` table or in `docs/staff-guide/*.md`: it is in `docs/staff-guide/drafts/` and applied at flip time with `supabase/staff-guide-slate-launch.sql` (upserts only, seven articles: `tasks-own-window` replaced by the Slate app article, What's new entry dated by the database, the tips row, `workbench`, `get-the-app`, `client-tasks-drawer`, `admin-insight`). After running it, run `node docs/staff-guide/drafts/slate-launch-patch.mjs --write YYYY-MM-DD` (the same day) and `node docs/staff-guide/sync.mjs --check` in a follow-up commit so the repo matches the table. Not promised in any staff text (deferred): the templates editor in the full pane, board drag on touch screens, and a Done column that shows more than the loaded tasks. Owner flips the switch with: `select set_config('mgb.tk_owner_override','on',true); insert into tk_settings (key,value) values ('slate_app_enabled','true') on conflict (key) do update set value=excluded.value;`.
+
+### View as: whole app, read-only, and Last seen (added 2026-10-23)
+
+Spec: `docs/view-as-full-app-spec.md` (§10 and §11 win over older sections). An admin's **View as**
+(HR › Members) now covers the bookkeeper's whole staff app, and is **read-only**.
+
+- **What shows:** Today (always the classic page; the Desk is private), Clients and client pages,
+  an Inbox placeholder, Work (Slate is a read-only snapshot with private tasks hidden), Team, and HR
+  with Handbook and Reviews placeholders and a read-only Onboarding. Employee records and Members
+  never show. Help lists staff articles only. The admin's own Settings stay read-only.
+- **Read-only:** a fetch guard in `components/auth/supabaseClient.js` refuses every write, send,
+  tick, upload and sync with the toast "View as is read-only. Exit View as to make changes." and
+  records the attempt as `view_as.blocked` ("View as: blocked change"). `view_as.stop` records a
+  reason (exit, signout, pagehide; pagehide is best effort). The preview bar says "Read-only.
+  Nothing you do here is saved." Budgets: Approve is disabled with "{First} can't approve
+  budgets." plus an "Exit View as to approve" link. Only real admins (not temporary admins) can
+  start View as.
+- **Last seen (admin-only, not temporary admins):** a button next to View as on HR › Members rows.
+  A dialog shows last page and time, device, browser, app version (with a "behind" pill), last
+  sign-in and last error, with a link to Developer tools › Recent errors. Backed by the admin-only
+  RPC `staff_last_seen(email)`. Tour/tip target `members-last-seen`.
+- **Database changes:** `supabase/view-as-last-seen.sql` (+ `-tests.sql`), idempotent, applied by
+  hand BEFORE the app change (the app sends the new `usage_events` columns).
+  - `usage_events` gains `browser`, `app_version` and `view_as` (View as activity is left out of
+    `usage_summary`, so Usage stats ignore it).
+  - `client_errors` insert policy binds `actor_email` to the session and bounds text sizes;
+    `usage_events.occurred_at` and `client_errors.created_at` are always server time
+    (`telemetry_force_now`).
+  - `log_audit_event` accepts `view_as.blocked`; every `view_as.*` audit action is admin-only.
+- **Security note:** the fetch guard is a UX net, not the boundary. **RLS is the boundary**: the
+  session, JWT and credentials always belong to the real admin, so View as never grants more than
+  the admin could already read. Every new read RPC that a bookkeeper page calls must be classified
+  (allow, or silent deny) in the View as read allow-list in `components/auth/supabaseClient.js`,
+  or it will be refused in View as. Developer note for the Tasks, Desk and HR sections too.
+- **Known gaps:** the `view_as.stop` write on `pagehide` is best effort; realtime websocket sends
+  (team chat) are not guarded by the fetch guard and are removed by not mounting those components.
+  There is no live watching of a person and no true impersonation.
+- **Upkeep:** guide articles `staff-management` (View as, Last seen), `preview-as`, `audit-log`,
+  `admin-insight` and the other View as mentions; tours (bookkeeper tour covers the whole app;
+  admin Members stop), the `members-last-seen` tip, the `view-as-whole-app` launch notice (admins
+  only), What's new 2026-10-23.
 
 ## Staff guide
 

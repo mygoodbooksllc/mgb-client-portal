@@ -913,7 +913,7 @@ function TOUR_helpStep() {
 }
 
 // Can the viewer open this place? ctx.placeKeys comes from NAV_visiblePlaces
-// ("View as" hides Inbox, Work and Team).
+// ("View as" shows the bookkeeper's places, read-only; only MGB internal is hidden).
 function TOUR_hasPlace(place, ctx) {
   return !ctx || !Array.isArray(ctx.placeKeys) || ctx.placeKeys.indexOf(place) !== -1;
 }
@@ -964,8 +964,9 @@ function TOUR_tabStep(place, tab, title, body, when) {
 // Bookkeeper tour: a bookkeeper's day, about three minutes (owner request
 // 2026-10-09; it replaced the short generic staff tour, and "staff" still
 // starts it). Each step opens its page first (`go`). Admins can run it from
-// the menu; during "View as" it shows what that bookkeeper sees, so steps on
-// a place they can't open (Inbox, Work, Team) are left out. `wait` keeps a
+// the menu; during "View as" it shows what that bookkeeper sees, read-only
+// (Inbox, Reviews and Handbook are private placeholders there, so a step
+// whose target isn't on screen is left out). `wait` keeps a
 // step whose target may still be loading; `spot: "top"` lights up only the
 // top of a tall target.
 function TOUR_bookkeeperSteps(ctx) {
@@ -981,8 +982,7 @@ function TOUR_bookkeeperSteps(ctx) {
     {
       id: "welcome",
       title: ctx.firstName ? `Welcome, ${ctx.firstName}` : "Welcome to MyGoodBooks",
-      // Names only the places this person has ("View as" hides Inbox, Work
-      // and Team).
+      // Names only the places this person has.
       body: () => {
         const parts = [
           ["today", "Today"],
@@ -1131,7 +1131,7 @@ function TOUR_adminSteps(ctx) {
     hr(
       "members",
       "HR › Members",
-      "Add staff, set roles, assign clients, give temporary admin access, and use View as to see exactly what a bookkeeper sees. Every View as is in the Audit log.",
+      "Add staff, set roles, assign clients, give temporary admin access, and use View as to see exactly what a bookkeeper sees. View as is read-only: nothing you do there is saved, and every View as is in the Audit log. Last seen shows when someone was last on and the last error they hit.",
     ),
     team(
       "hours",
@@ -1480,8 +1480,9 @@ const TOUR_STAFF_TOURS = [
     key: "bookkeeper",
     setting: "bookkeeperTour",
     label: "Bookkeeper tour",
-    // During "View as" the Inbox, Work and Team stops are left out.
-    sub: (ctx) => (ctx.impersonating ? "Their day: Today, their clients and a client's pages" : "Your day: Today, your clients, Inbox, Work and Team"),
+    // During "View as" this walks their whole app, read-only (Inbox, Reviews
+    // and Handbook show a private placeholder).
+    sub: (ctx) => (ctx.impersonating ? "Their day: Today, Clients, Inbox, Work, Team and HR" : "Your day: Today, your clients, Inbox, Work, Team and HR"),
     // Everyone, admins too (during "View as" it previews what that
     // bookkeeper sees), but it only starts by itself for a bookkeeper. A
     // new setting key, so bookkeepers who did the old staff tour get it once.

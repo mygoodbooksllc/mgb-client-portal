@@ -140,6 +140,8 @@ The file is read in your browser. Nothing is uploaded, stored or sent to QuickBo
 - **Possible duplicates**: **Smart (fewer false alarms)** or **Strict (flag every same-date, same-amount match)**, the firm default for every client, with **Save**. Each change is written to **Settings › Firm settings › Audit log**. A single client can be set differently from their Ledger review tab (admins only). See *Possible duplicates: Smart or Strict* above.
 - **Vendor watch list**: names that get a *Watch-list vendor* flag for every client. Add a name with a category, edit it, or turn it off.
 
+In **View as** (admins) the tab doesn't pull from QuickBooks by itself. It shows the last pull with "Read-only: showing the last pull." and Pull, Clear, Ask, Send back, Mark reviewed and Approve are disabled.
+
 ### Troubleshooting
 
 - **There's nothing to pull.** The client's QuickBooks isn't connected. Reconnect it, or use **Review a file**.

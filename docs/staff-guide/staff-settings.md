@@ -78,7 +78,7 @@ Click your picture or initials at the top right of the page, then **Sign out**. 
 
 ### Troubleshooting
 
-- **Everything is greyed out with a note about View as.** An admin using **View as** sees their own Settings, read-only, so nothing they change there affects the person they're viewing as. Stop viewing as first.
+- **Everything is greyed out with a note about View as.** An admin using **View as** sees their own Settings, read-only ("These are your settings, not {name}'s. Exit View as to change them."), so nothing they change there affects the person they're viewing as. Exit View as first.
 - **It says "Couldn't save".** Check your connection and change the setting again.
 - **My photo didn't upload.** It must be PNG, JPEG or WebP and under 2 MB.
 - **A client's Dashboard doesn't show my card.** The cards show for the client's assigned bookkeeper and account manager. Check **Key dates and coverage** on the Client overview. If you're both, there's one card, **Your account manager and bookkeeper**. The client may also have hidden the card with **Customize dashboard**. Pro clients with the Financial Overview as their Dashboard don't show the cards.

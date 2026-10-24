@@ -42,6 +42,8 @@ At the bottom, **Also show** has a switch for each card: **Clients needing atten
 - Shout-outs, your time off and who's out: **Team › People**. Your onboarding checklist: **HR › Onboarding**. See [What's on the Team page?](#/help/team-page).
 - Custom cards and **Customize dashboard** are not on Today. A client's Dashboard still has **Customize dashboard**.
 
+In **View as** (admins), Today is always the classic page, read-only, and a line under the bar says the person's Desk is private to them.
+
 ### Troubleshooting
 
 - **Do next is empty, but I know something's due.** Today only covers clients you can open. If one is missing, ask an admin to assign you from that client's settings.

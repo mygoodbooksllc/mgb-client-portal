@@ -151,6 +151,8 @@ Admins get **Mine** and **Everyone** next to the chips. **Everyone** shows every
 
 The Desk lives on the right of the portal. For a small window of your own beside QuickBooks or on a second screen, use Slate's own window instead: see [Can I keep Slate in its own window?](#/help/tasks-own-window).
 
+**View as** (admins): the Desk is private to each person, so it never opens there. Today shows the classic page with the note "{First}'s Desk is private to them, so View as shows the classic Today."
+
 ### Troubleshooting
 
 - **Something I expected isn't there.** The Desk and Today's Do next card only show clients you can open, and tasks waiting on the client stay on Slate. Check **Snoozed** too.
