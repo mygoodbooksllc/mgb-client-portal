@@ -1156,7 +1156,7 @@ function TK_vListBody(props) {
   var all = Array.isArray(list.tasks) ? list.tasks : [];
   // Month rhythm S7: template Quarterly/Annual tasks with no section show under
   // those headings on a client's list (display only).
-  if (route.view !== "project" && typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled() && typeof TK_optionCApplySections === "function") all = TK_optionCApplySections(all);
+  if (route.view === "client" && typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled() && typeof TK_optionCApplySections === "function") all = TK_optionCApplySections(all);
   var shown = TK_applyFilters(all, { assignee: filters.assignee, statuses: filters.statuses, showDone: filters.showDone, showOlder: filters.showOlder, today: today });
   var sorted = TK_sortTasks(shown, sort, { nameOf: nameOf });
   var groups = byClient
@@ -1197,6 +1197,8 @@ function TK_vListBody(props) {
   var ixRef = React.useRef(null);
   var ixRootRef = React.useRef(null);
   if (boardOn) manualOn = false;
+  // Close order keeps the rhythm step order (and "Next" first): no manual order.
+  if (closePills) manualOn = false;
   var boardReorder = boardOn && manualCan && !sort;
   var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder(manualScope, manualOn || boardReorder) : {};
   if (manualOn && typeof TK_manualSortGroups === "function") groups = TK_manualSortGroups(groups, manualKeys);
@@ -1463,7 +1465,7 @@ function TK_vListBody(props) {
       {closeOrder && closeOrder.on && !boardOn && typeof TK_CloseOrderSwitch === "function" ? <TK_CloseOrderSwitch value={closeOrder.choice} onChange={closeOrder.setChoice} /> : null}
       {route.view === "person" && !boardOn ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
       {boardCan && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardBy} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
-      {manualCan && !boardOn ? (
+      {manualCan && !boardOn && !closePills ? (
         <button
           type="button"
           className={"tk-tool-btn tk-manual-btn" + (manualOn ? " is-on" : "")}

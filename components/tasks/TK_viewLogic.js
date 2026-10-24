@@ -1679,8 +1679,10 @@ function TK_slateChipMatch(t, chip, ctx) {
 function TK_slateApplyChip(tasks, chip, ctx) {
   var list = Array.isArray(tasks) ? tasks : [];
   if (!chip || !TK_vInList(TK_SLATE_CHIPS, "key", chip)) return list;
-  // a rhythm chip saved while the rhythm was on does nothing once it is off
-  if (chip === "emails_due" && !(ctx && ctx.emailTemplates)) return list;
+  // a rhythm chip saved while the rhythm was on does nothing once it is off;
+  // while the email templates are still loading (rhythm on) it shows nothing
+  // rather than every task
+  if (chip === "emails_due" && !(ctx && ctx.emailTemplates)) return ctx && ctx.emailsLoading ? [] : list;
   return list.filter(function (t) {
     return TK_slateChipMatch(t, chip, ctx);
   });

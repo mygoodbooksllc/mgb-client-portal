@@ -20,6 +20,15 @@ var clients = [
   { id: "c6", org_type: "church", entity_type: "" },
   { id: "c7", org_type: "Organization", entity_type: "for_profit", is_internal: true },
 ];
+// window.CLIENTS shape (camelCase), what the Templates page really passes
+var camel = [
+  { id: "k1", orgType: "Church", entityType: "nonprofit" },
+  { id: "k2", orgType: "Organization", entityType: "nonprofit" },
+  { id: "k3", orgType: "Organization", entityType: "for_profit" },
+  { id: "k4", orgType: "Church", entityType: "nonprofit", testOnly: true },
+  { id: "k5", orgType: "Bookkeeping Firm", entityType: "for_profit", isInternal: true },
+  { id: "k6", orgType: "Organization", entityType: "for_profit", testOnly: true },
+];
 
 test("type of a client", function () {
   assert.strictEqual(L.TK_optionCTypeOf(clients[0]), "church");
@@ -34,6 +43,26 @@ test("test, internal and firm rows are never included", function () {
   assert.deepStrictEqual(L.TK_optionCClientsOf("nonprofit", clients), ["c2"]);
   assert.deepStrictEqual(L.TK_optionCClientsOf("for_profit", clients), ["c3"]);
   assert.deepStrictEqual(L.TK_optionCClientsOf("church", null), []);
+});
+
+test("camelCase client rows (window.CLIENTS) classify and filter the same", function () {
+  assert.deepStrictEqual(L.TK_optionCClientsOf("church", camel), ["k1"]);
+  assert.deepStrictEqual(L.TK_optionCClientsOf("nonprofit", camel), ["k2"]);
+  assert.deepStrictEqual(L.TK_optionCClientsOf("for_profit", camel), ["k3"]);
+});
+
+test("a same-title template for other clients does not block this type", function () {
+  var tpls = [{ title: "Year-end close and adjusting entries", status: "draft", client_ids: ["c1", "c6"] }];
+  var byType = function (type) {
+    var m = {};
+    L.TK_optionCPlan(type, clients, tpls).items.forEach(function (it) { m[it.title] = it.exists; });
+    return m["Year-end close and adjusting entries"];
+  };
+  assert.strictEqual(byType("church"), true);
+  assert.strictEqual(byType("nonprofit"), false);
+  assert.strictEqual(byType("for_profit"), false);
+  var all = [{ title: "Year-end close and adjusting entries", status: "active", client_ids: [] }];
+  assert.strictEqual(L.TK_optionCPlan("nonprofit", clients, all).items.filter(function (i) { return i.exists; }).length, 1, "no client list = every client");
 });
 
 test("plan marks titles that already exist (retired ones do not count)", function () {
@@ -114,7 +143,7 @@ test("wiring: rhythm-gated, admin only, drafts only, source order", function () 
   assert.ok(/TK_api\.saveTemplate\(null,/.test(panel), "new templates only");
   assert.ok(!/activateTemplate|setTemplateStatus|tk_set_template_status|"active"/.test(panel), "never activates");
   var list = fs.readFileSync(path.join(__dirname, "TK_List.jsx"), "utf8");
-  assert.ok(/TK_rhythmEnabled\(\)[^\n]*TK_optionCApplySections/.test(list), "section fallback rhythm-gated");
+  assert.ok(/route\.view === "client"[^\n]*TK_rhythmEnabled\(\)[^\n]*TK_optionCApplySections/.test(list), "section fallback: client lists, rhythm-gated");
 });
 
 console.log("all " + n + " passed");

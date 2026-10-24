@@ -62,19 +62,24 @@ var TK_OPTION_C_OCCASIONAL = {
   for_profit: ["New loan or vehicle: set up the liability and asset", "New hire: confirm payroll setup"],
 };
 
+// Client rows come camelCase from window.CLIENTS (orgType, entityType,
+// testOnly, isInternal) and snake_case from the database; both are read.
+function TK__ocOrg(c) {
+  return String(c.org_type || c.orgType || "").trim().toLowerCase();
+}
+
 function TK_optionCTypeOf(client) {
   var c = client || {};
-  var org = String(c.org_type || "").toLowerCase();
-  if (org === "church") return "church";
-  if (String(c.entity_type || "").toLowerCase() === "nonprofit") return "nonprofit";
+  if (TK__ocOrg(c) === "church") return "church";
+  if (String(c.entity_type || c.entityType || "").toLowerCase() === "nonprofit") return "nonprofit";
   return "for_profit";
 }
 
 // Real clients only: not test, not internal, not the firm's own row.
 function TK_optionCEligible(client) {
   var c = client || {};
-  if (c.id == null || c.test_only || c.is_internal) return false;
-  return String(c.org_type || "").toLowerCase() !== "bookkeeping firm";
+  if (c.id == null || c.test_only || c.testOnly || c.is_internal || c.isInternal) return false;
+  return TK__ocOrg(c) !== "bookkeeping firm";
 }
 
 function TK_optionCClientsOf(type, clients) {
@@ -89,13 +94,20 @@ function TK__ocNorm(s) {
 }
 
 // What pre-fill would make for one type: each suggestion with exists=true when
-// a template (any status, not retired) already has the same title.
+// a template (any status, not retired) already has the same title AND reaches
+// any of this type's clients (no client list = every client). So "Year-end
+// close" made for churches does not block it for nonprofits.
 function TK_optionCPlan(type, clients, templates) {
+  var ids = TK_optionCClientsOf(type, clients);
+  var mine = {};
+  ids.forEach(function (id) { mine[id] = true; });
   var have = {};
   (Array.isArray(templates) ? templates : []).forEach(function (t) {
-    if (t && t.status !== "retired") have[TK__ocNorm(t.title)] = true;
+    if (!t || t.status === "retired") return;
+    var cids = Array.isArray(t.client_ids) ? t.client_ids : [];
+    var hits = !cids.length || cids.some(function (id) { return mine[String(id)]; });
+    if (hits) have[TK__ocNorm(t.title)] = true;
   });
-  var ids = TK_optionCClientsOf(type, clients);
   var items = (TK_OPTION_C_SUGGESTIONS[type] || []).map(function (s) {
     return { title: s.title, cadence: s.cadence, days: s.days, description: s.description, exists: !!have[TK__ocNorm(s.title)] };
   });

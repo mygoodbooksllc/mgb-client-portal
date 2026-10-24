@@ -459,6 +459,7 @@ function TK_vMyTasksBody(props) {
           clients: props.clients || [],
           flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
           emailTemplates: emailTemplates,
+          emailsLoading: !emailTemplates && typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled(),
         })
       : null;
   var byDue = built ? built.byDue : true;
@@ -510,6 +511,7 @@ function TK_vMyTasksBody(props) {
       clients: props.clients || [],
       flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
       emailTemplates: emailTemplates,
+          emailsLoading: !emailTemplates && typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled(),
     }).groups.forEach(function (g) {
       (g.tasks || []).forEach(function (t) {
         boardTasks.push(t);

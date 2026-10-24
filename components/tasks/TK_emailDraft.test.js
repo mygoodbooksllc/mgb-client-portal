@@ -208,6 +208,7 @@ t("emails due chip: mine, open, an email template, due by today", () => {
   const list = [base, Object.assign({}, base, { template_id: null })];
   assert.strictEqual(V.TK_slateApplyChip(list, "emails_due", ctx).length, 1);
   assert.strictEqual(V.TK_slateApplyChip(list, "emails_due", { email: "me@x.com", today: "2026-10-23" }), list, "rhythm off: the chip does nothing");
+  assert.deepStrictEqual(V.TK_slateApplyChip(list, "emails_due", { email: "me@x.com", today: "2026-10-23", emailsLoading: true }), [], "still loading: nothing, not everything");
   assert.strictEqual(V.TK_normalizeSlateView({ chip: "emails_due" }).chip, "emails_due");
 });
 

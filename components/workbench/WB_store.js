@@ -207,7 +207,10 @@ var WB_store = (function () {
   // Owner rule (month rhythm): mark overdue task rows whose client's month
   // went out preliminary (TK_lateExcused), so they never count as late.
   // No preliminary month for any client on the list: no extra read.
+  // Month rhythm only: with the preview/switch off nothing changes and no
+  // extra read is made.
   function excuse(rows) {
+    if (typeof TK_rhythmEnabled !== "function" || !TK_rhythmEnabled()) return;
     if (typeof WB_excuseCandidates !== "function" || typeof TK_api === "undefined" || !TK_api.loadReportStates) return;
     var c = sb();
     if (!c) return;

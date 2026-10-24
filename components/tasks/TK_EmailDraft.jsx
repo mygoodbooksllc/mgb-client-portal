@@ -215,24 +215,45 @@ function TK_EmailDraftButton(props) {
   var peek = peekPair[0];
   var setPeek = peekPair[1];
   var timer = React.useRef(null);
+  // Each hover gets a token; a draft that arrives after the pointer left (or
+  // after unmount) is dropped, so the preview never sticks open.
+  var hoverTok = React.useRef(0);
+  var peekId = React.useRef("tk-email-peek-" + Math.random().toString(36).slice(2, 9));
   React.useEffect(function () {
-    return function () { if (timer.current) clearTimeout(timer.current); };
+    return function () {
+      hoverTok.current++;
+      if (timer.current) clearTimeout(timer.current);
+    };
   }, []);
   if (!kind) return null;
   var label = TK_emailKindLabel(kind);
 
+  // The row icon (one per row in long lists) never builds a draft on hover:
+  // its title shows the kind. Only the drawer button previews the draft.
   function showPeek() {
+    if (props.compact) return;
     if (timer.current) clearTimeout(timer.current);
+    var tok = ++hoverTok.current;
     timer.current = setTimeout(function () {
+      if (tok !== hoverTok.current) return;
       setPeek({ state: "loading" });
       TK_emailLoadDraft(task, kind).then(function (d) {
+        if (tok !== hoverTok.current) return;
         setPeek(d ? { state: "ok", subject: d.subject, lines: d.body.split("\n").slice(0, 6) } : null);
-      }, function () { setPeek(null); });
+      }, function () {
+        if (tok === hoverTok.current) setPeek(null);
+      });
     }, 450);
   }
   function hidePeek() {
+    hoverTok.current++;
     if (timer.current) clearTimeout(timer.current);
     setPeek(null);
+  }
+  // The modal is portaled but is still a React child of the task row, whose
+  // click, key and pointer handlers would otherwise get its events.
+  function stop(e) {
+    e.stopPropagation();
   }
   function onOpen(e) {
     if (e) {
@@ -254,13 +275,14 @@ function TK_EmailDraftButton(props) {
         onFocus={showPeek}
         onBlur={hidePeek}
         aria-label={"Draft email: " + label + " (nothing is sent)"}
+        aria-describedby={peek ? peekId.current : undefined}
         title={props.compact ? "Draft email: " + label : undefined}
         data-tour="tk-email-draft"
       >
         {props.compact ? <span aria-hidden="true">{"✉"}</span> : "Draft email: " + label}
       </button>
       {peek ? (
-        <span className="tk-email-draft-peek" role="tooltip">
+        <span className="tk-email-draft-peek" role="tooltip" id={peekId.current}>
           {peek.state === "loading" ? (
             "Building the draft…"
           ) : (
@@ -271,7 +293,20 @@ function TK_EmailDraftButton(props) {
           )}
         </span>
       ) : null}
-      {open ? <TK_EmailDraftModal task={task} kind={kind} onClose={function () { setOpen(false); }} /> : null}
+      {open ? (
+        <span
+          className="tk-email-draft-stop"
+          onClick={stop}
+          onDoubleClick={stop}
+          onMouseDown={stop}
+          onPointerDown={stop}
+          onTouchStart={stop}
+          onKeyDown={stop}
+          onContextMenu={stop}
+        >
+          <TK_EmailDraftModal task={task} kind={kind} onClose={function () { setOpen(false); }} />
+        </span>
+      ) : null}
     </span>
   );
 }

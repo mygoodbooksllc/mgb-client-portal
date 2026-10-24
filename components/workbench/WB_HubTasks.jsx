@@ -181,6 +181,7 @@ function WB_HubTasksBody(props) {
       clients: props.clients || [],
       flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
       emailTemplates: emailTemplates,
+          emailsLoading: !emailTemplates && typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled(),
     });
     var cview = built.groups;
     if (typeof TK_subNestGroups === "function") cview = TK_subNestGroups(cview, subs.kidsOf);
