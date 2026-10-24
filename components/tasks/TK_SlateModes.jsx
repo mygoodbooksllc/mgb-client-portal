@@ -531,7 +531,9 @@ function TK__smMiss(id) {
 
 // Size the window to a preset. Checks a frame later (and up to 500 ms for the
 // resize to land) that the inner size is within 4px; a miss hides the presets
-// for this session and says "Drag the window bigger".
+// for this session and says "Drag the window bigger". A newer preset click
+// retires the older check, so two quick clicks never count as a miss.
+var TK__smPresetGen = 0;
 function TK_slateApplyPreset(id) {
   if (!TK_slatePresetsOk()) return;
   var scr = {};
@@ -555,8 +557,14 @@ function TK_slateApplyPreset(id) {
   if (typeof TK__slTrack === "function") TK__slTrack("slate-app-size", { preset: id });
   var done = false;
   var started = Date.now();
+  var gen = ++TK__smPresetGen;
   var check = function () {
     if (done) return;
+    if (gen !== TK__smPresetGen) {
+      done = true;
+      window.removeEventListener("resize", check);
+      return;
+    }
     var got = { w: window.innerWidth, h: window.innerHeight };
     if (typeof TK_slateSizeHit === "function" && TK_slateSizeHit(want, got)) {
       done = true;
