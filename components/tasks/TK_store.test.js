@@ -1362,6 +1362,7 @@ async function bulkEnv(answers, rowsById) {
     },
   });
   env.store.dispatch({ type: "me", email: ME });
+  env.ctx.TK_ixUndoCheck = require("./TK_viewLogic.js").TK_ixUndoCheck;
   await env.api.probe();
   return env;
 }
@@ -1836,6 +1837,68 @@ t("slate ix: offerUndoRun runs the client step once; a throw says it couldn't", 
   env.api.offerUndoRun("Moved.", () => Promise.reject(new Error("x")));
   await env.api.undoLive();
   assert.strictEqual(env.events("mgb:toast").pop().detail.text, "Couldn't undo that. Try again.");
+  done();
+});
+
+t("slate ix: a late Undo of a duplicate refuses when the copy changed since; a deleted copy is skipped", async () => {
+  const a = row();
+  const c1 = row({ updated_at: "2026-10-23T14:00:00.000001Z" });
+  const c2 = row({ updated_at: "2026-10-23T14:00:00.000002Z" });
+  const rows = { [c1.id]: c1, [c2.id]: c2 };
+  const env = await bulkEnv(
+    {
+      tk_copy_tasks: { copies: [{ source: a.id, id: c1.id, subtasks: [] }], skipped: [] },
+      tk_bulk_delete: (args) => ({ data: { op_id: "op-del", done: args.p_ids, skipped: [] }, error: null }),
+    },
+    rows,
+  );
+  await env.api.copyRun([a.id], null);
+  // someone renamed the copy after it was made (server stamp moved on)
+  rows[c1.id] = Object.assign({}, c1, { text: "renamed", updated_at: "2026-10-23T14:03:00.5+00:00" });
+  await env.api.undoLive();
+  assert.strictEqual(env.counts.rpcs.filter((c) => c.name === "tk_bulk_delete").length, 0, "nothing archived");
+  assert.strictEqual(env.events("mgb:toast").pop().detail.text, "Not undone: the copy was changed since. Delete it yourself if you don't need it.");
+  assert.strictEqual(env.store.getState().tasks[c1.id].text, "renamed", "the store took the server copy");
+
+  // same stamp spelled differently still undoes; an already deleted copy is left out
+  const env2 = await bulkEnv(
+    {
+      tk_copy_tasks: { copies: [{ source: a.id, id: c1.id, subtasks: [c2.id] }], skipped: [] },
+      tk_bulk_delete: (args) => ({ data: { op_id: "op-del", done: args.p_ids, skipped: [] }, error: null }),
+    },
+    { [c1.id]: c1, [c2.id]: c2 },
+  );
+  await env2.api.copyRun([a.id], null);
+  c1.updated_at = "2026-10-23T14:00:00.000001+00:00";
+  c2.deleted_at = "2026-10-23T14:02:00Z";
+  await env2.api.undoLive();
+  const del = env2.counts.rpcs.filter((c) => c.name === "tk_bulk_delete");
+  assert.strictEqual(del.length, 1);
+  same(del[0].args.p_ids, [c1.id]);
+  assert.strictEqual(env2.events("mgb:toast").pop().detail.text, "Undone.");
+  done();
+});
+
+t("slate ix: undoCheck fails closed when the checker is missing; no stamps checks nothing", async () => {
+  const c1 = row();
+  const env = await bulkEnv({}, { [c1.id]: c1 });
+  delete env.ctx.TK_ixUndoCheck;
+  const chk = await env.api.undoCheck({ [c1.id]: c1.updated_at });
+  same(chk.changed, [c1.id]);
+  same(await env.api.undoCheck({}), { changed: [], gone: [] });
+  done();
+});
+
+t("slate ix: manualReorder hands back the server stamp a late move Undo checks against", async () => {
+  const x = row({ section: "Prep" });
+  const env = await bulkEnv({
+    tk_manual_reorder: { sort_key: 2048, rows: [{ id: x.id, sort_key: 2048 }], skipped: 0, section_changed: true, section: "Wrap up", updated_at: "2026-10-23T14:00:00.000009+00:00" },
+  });
+  env.store.dispatch({ type: "upsert", task: env.api.normalize(x) });
+  const r = await env.api.manualReorder({ scope: "mine", id: x.id, setSection: true, section: "Wrap up" });
+  assert.strictEqual(r.updatedAt, "2026-10-23T14:00:00.000009+00:00");
+  assert.strictEqual(env.store.getState().tasks[x.id].updated_at, "2026-10-23T14:00:00.000009+00:00");
+  assert.strictEqual(env.store.getState().tasks[x.id].section, "Wrap up");
   done();
 });
 

@@ -3192,6 +3192,49 @@ function TK_ixChordAction(e) {
   return null;
 }
 
+// ---- Late Undo guard (Slate app) --------------------------------------------
+// The app keeps Undo for 9 minutes, so a move or a copy can be undone long
+// after someone (or the person) changed the task. These decide whether the
+// rows still look exactly as the action left them.
+
+// Two server timestamps name the same instant (to the microsecond), whatever
+// their spelling ("Z" or "+00:00", short or long fractions). Missing: false.
+function TK__ixStampKey(s) {
+  var m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.(\d+))?\s*(Z|[+-]\d{2}(?::?\d{2})?)?$/i.exec(String(s == null ? "" : s).trim());
+  if (!m) return null;
+  var tz = m[4] || "Z";
+  if (/^[+-]\d{2}$/.test(tz)) tz += ":00";
+  else if (/^[+-]\d{4}$/.test(tz)) tz = tz.slice(0, 3) + ":" + tz.slice(3);
+  var ms = Date.parse(m[1] + "T" + m[2] + (tz.toUpperCase() === "Z" ? "Z" : tz));
+  if (!isFinite(ms)) return null;
+  return ms + "." + ((m[3] || "") + "000000").slice(0, 6);
+}
+function TK_ixSameStamp(a, b) {
+  if (a == null || b == null || a === "" || b === "") return false;
+  if (a === b) return true;
+  var x = TK__ixStampKey(a);
+  return x != null && x === TK__ixStampKey(b);
+}
+
+// stamps: { id: updated_at as the action left it }; rows: the same tasks as
+// the server has them now. -> { changed: [ids edited since], gone: [ids no
+// longer there or deleted] }. An id without a stamp is not checked.
+function TK_ixUndoCheck(stamps, rows) {
+  var st = stamps && typeof stamps === "object" ? stamps : {};
+  var now = {};
+  (Array.isArray(rows) ? rows : []).forEach(function (r) {
+    if (r && r.id != null) now[String(r.id)] = r;
+  });
+  var out = { changed: [], gone: [] };
+  Object.keys(st).forEach(function (id) {
+    if (st[id] == null || st[id] === "") return;
+    var r = now[id];
+    if (!r || r.deleted_at) out.gone.push(id);
+    else if (!TK_ixSameStamp(st[id], r.updated_at)) out.changed.push(id);
+  });
+  return out;
+}
+
 // Who the drop dock offers: me first ("Me"), then the people on this list,
 // then the rest of the active staff; eight at most, no repeats.
 function TK_ixDockPeople(me, people, staff) {
@@ -3233,5 +3276,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_slateKeyAction: TK_slateKeyAction,
     TK_ixChordAction: TK_ixChordAction,
     TK_ixDockPeople: TK_ixDockPeople,
+    TK_ixSameStamp: TK_ixSameStamp,
+    TK_ixUndoCheck: TK_ixUndoCheck,
   });
 }

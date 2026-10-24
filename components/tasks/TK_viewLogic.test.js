@@ -2343,4 +2343,28 @@ t("ix: dock people: me first, list people, then staff; 8 max, no repeats", () =>
   assert.deepStrictEqual(L.TK_ixDockPeople("", null, null), []);
 });
 
+t("ix: same stamp ignores Z vs +00:00 and fraction length; null never matches", () => {
+  assert.strictEqual(L.TK_ixSameStamp("2026-10-23T14:00:00.123456Z", "2026-10-23T14:00:00.123456+00:00"), true);
+  assert.strictEqual(L.TK_ixSameStamp("2026-10-23T14:00:00.1+00:00", "2026-10-23T14:00:00.100000Z"), true);
+  assert.strictEqual(L.TK_ixSameStamp("2026-10-23 16:00:00.5+0200", "2026-10-23T14:00:00.500000Z"), true);
+  assert.strictEqual(L.TK_ixSameStamp("2026-10-23T14:00:00.123456Z", "2026-10-23T14:00:00.123457Z"), false, "one microsecond apart");
+  assert.strictEqual(L.TK_ixSameStamp(null, null), false);
+  assert.strictEqual(L.TK_ixSameStamp("", ""), false);
+  assert.strictEqual(L.TK_ixSameStamp("x", "y"), false);
+  assert.strictEqual(L.TK_ixSameStamp("same", "same"), true);
+});
+
+t("ix: undo check sorts changed and gone; unstamped ids are not checked", () => {
+  const st = { a: "2026-10-23T14:00:00.000001Z", b: "2026-10-23T14:00:00.000001Z", c: "2026-10-23T14:00:00.000001Z", d: "2026-10-23T14:00:00Z", e: null };
+  const rows = [
+    { id: "a", updated_at: "2026-10-23T14:00:00.000001+00:00" },
+    { id: "b", updated_at: "2026-10-23T14:05:00.000001+00:00" },
+    { id: "d", updated_at: "2026-10-23T14:00:00Z", deleted_at: "2026-10-23T14:01:00Z" },
+    { id: "e", updated_at: "2026-10-23T15:00:00Z" },
+  ];
+  assert.deepStrictEqual(L.TK_ixUndoCheck(st, rows), { changed: ["b"], gone: ["c", "d"] });
+  assert.deepStrictEqual(L.TK_ixUndoCheck(null, rows), { changed: [], gone: [] });
+  assert.deepStrictEqual(L.TK_ixUndoCheck({ a: "2026-10-23T14:00:00Z" }, null), { changed: [], gone: ["a"] });
+});
+
 console.log(n + " checks passed");

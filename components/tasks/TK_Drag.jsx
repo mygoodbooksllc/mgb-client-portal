@@ -548,35 +548,52 @@ function TK__ixUndoOn() {
 }
 
 // "Moved." with Undo: one more tk_manual_reorder puts the task back between
-// its old neighbors. The section goes back only when the task still sits in
-// the section it was moved to (someone may have changed it since).
-function TK__manualOfferUndo(plan, back, move, c) {
+// its old neighbors. A move into another section also changed the task
+// itself, and the app keeps Undo for 9 minutes, so that undo first re-reads
+// the task: if anyone changed it since the move (r.updatedAt, the stamp the
+// move left), it is not undone. A move inside one section only touched the
+// person's own order, so it always goes back.
+function TK__manualOfferUndo(plan, back, move, c, r) {
   var scope = move.scope;
   var label = plan.crossGroup && c.labelOf ? c.labelOf(plan.groupKey) : "";
+  var stamp = r && r.updatedAt ? String(r.updatedAt) : null;
   TK_api.offerUndoRun(label ? "Moved to " + label + "." : "Moved.", function () {
-    var setSection = false;
-    var section = null;
-    if (plan.crossGroup && c.sectionOf) {
-      section = c.sectionOf(back.fromKey);
-      var cur = typeof TK_store !== "undefined" && TK_store && TK_store.getState ? (TK_store.getState().tasks || {})[plan.id] : null;
-      var now = cur ? String(cur.section || "").toLowerCase() : null;
-      setSection = section !== undefined && now === String(move.section || "").toLowerCase();
-      if (section === undefined) section = null;
-    }
-    return TK_api.manualReorder({
-      scope: scope,
-      id: plan.id,
-      beforeId: back.beforeId,
-      afterId: back.afterId,
-      orderIds: back.orderIds,
-      setSection: setSection,
-      section: setSection ? section : null,
-    }).then(function (r) {
-      TK__manualSet(scope, TK_manualApply(TK__manualCache[scope], plan.id, { key: r.key, rows: r.rows }));
-      if (r.skipped > 0) TK__manualReload(scope);
-      return "Undone. The task is back where it was.";
+    var cross = !!(plan.crossGroup && c.sectionOf);
+    var check = cross && stamp && typeof TK_api.undoCheck === "function" ? TK_api.undoCheck(TK__manualStamp(plan.id, stamp)) : Promise.resolve(null);
+    return check.then(function (chk) {
+      if (chk && chk.gone.length) return "Not undone: that task was deleted.";
+      if (chk && chk.changed.length) return "Not undone: the task was changed after the move, so it stays where it is.";
+      var setSection = false;
+      var section = null;
+      if (cross) {
+        section = c.sectionOf(back.fromKey);
+        var cur = typeof TK_store !== "undefined" && TK_store && TK_store.getState ? (TK_store.getState().tasks || {})[plan.id] : null;
+        var now = cur ? String(cur.section || "").toLowerCase() : null;
+        setSection = section !== undefined && (chk ? true : now === String(move.section || "").toLowerCase());
+        if (section === undefined) section = null;
+        // no stamp to check and the section moved on: leave the task alone
+        if (!chk && !setSection) return "Not undone: the task was moved again since.";
+      }
+      return TK_api.manualReorder({
+        scope: scope,
+        id: plan.id,
+        beforeId: back.beforeId,
+        afterId: back.afterId,
+        orderIds: back.orderIds,
+        setSection: setSection,
+        section: setSection ? section : null,
+      }).then(function (res) {
+        TK__manualSet(scope, TK_manualApply(TK__manualCache[scope], plan.id, { key: res.key, rows: res.rows }));
+        if (res.skipped > 0) TK__manualReload(scope);
+        return "Undone. The task is back where it was.";
+      });
     });
   });
+}
+function TK__manualStamp(id, stamp) {
+  var m = {};
+  m[String(id)] = stamp;
+  return m;
 }
 
 // Runs a plan: optimistic move in the person's keys map (and the task store
@@ -611,7 +628,7 @@ function TK_manualMove(plan, ctx) {
       try {
         if (typeof TK_vTrack === "function") TK_vTrack("tasks-reorder");
       } catch (e) {}
-      if (back) TK__manualOfferUndo(plan, back, move, c);
+      if (back) TK__manualOfferUndo(plan, back, move, c, r);
       return r;
     },
     function (e) {

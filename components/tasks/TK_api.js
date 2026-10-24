@@ -1157,7 +1157,7 @@ var TK_api = (function () {
         (Array.isArray(r.rows) ? r.rows : []).forEach(function (x) {
           if (x && x.id && x.sort_key != null && isFinite(Number(x.sort_key))) rows[x.id] = Number(x.sort_key);
         });
-        return { key: r.sort_key == null ? null : Number(r.sort_key), rows: rows, skipped: Number(r.skipped) || 0 };
+        return { key: r.sort_key == null ? null : Number(r.sort_key), rows: rows, skipped: Number(r.skipped) || 0, updatedAt: r.updated_at || null };
       },
       function (e) {
         if (opId) dispatch({ type: "rollback", opId: opId });
@@ -1368,7 +1368,38 @@ var TK_api = (function () {
       var res = { copies: copies, skipped: skippedList(x.skipped) };
       var all = [];
       copies.forEach(function (c) { all.push(c.id); all = all.concat(c.subtasks); });
-      return refreshMany(all).then(function () { return res; });
+      return refreshMany(all).then(function (rows) {
+        // the copies as the server stored them: a late Undo checks these
+        res.stamps = stampsOf(rows);
+        return res;
+      });
+    });
+  };
+
+  // { id: updated_at } for rows read back from the server.
+  function stampsOf(rows) {
+    var m = {};
+    arr(rows).forEach(function (t) {
+      if (t && t.id != null && t.updated_at) m[String(t.id)] = String(t.updated_at);
+    });
+    return m;
+  }
+
+  // Slate app late Undo guard: re-reads the stamped tasks and resolves
+  // { changed, gone } (TK_ixUndoCheck). A read error rejects, so the Undo
+  // toasts "Couldn't undo that" instead of guessing.
+  api.undoCheck = function (stamps) {
+    var ids = Object.keys(stamps || {}).filter(function (k) { return stamps[k]; });
+    if (!ids.length) return Promise.resolve({ changed: [], gone: [] });
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.from("staff_reminders").select(TK_TASK_COLS).in("id", ids);
+    }, { where: "undoCheck" }).then(function (rows) {
+      var out = arr(rows).map(normalize).filter(Boolean);
+      out.forEach(function (t) { if (!t.deleted_at) dispatch({ type: "upsert", task: t }); });
+      // Without the checker, refuse rather than risk undoing over newer work.
+      return typeof TK_ixUndoCheck === "function" ? TK_ixUndoCheck(stamps, out) : { changed: ids, gone: [] };
     });
   };
 
@@ -1401,9 +1432,23 @@ var TK_api = (function () {
         return res;
       }
       var made = copyIds(res);
+      var stamps = res.stamps || {};
       api.offerUndoRun(text, function () {
-        return api.bulkDelete(made).then(function (r) {
-          return r.skipped.length ? "Undone, except " + r.skipped.length + "." : "Undone.";
+        // Undo can come minutes later (Cmd+Z in the app): never archive a
+        // copy that someone has worked on since.
+        return api.undoCheck(stamps).then(function (chk) {
+          if (chk.changed.length) {
+            return n === 1 && made.length === chk.changed.length
+              ? "Not undone: the copy was changed since. Delete it yourself if you don't need it."
+              : "Not undone: " + chk.changed.length + (chk.changed.length === 1 ? " copy was" : " copies were") + " changed since. Delete them yourself if you don't need them.";
+          }
+          var gone = {};
+          chk.gone.forEach(function (id) { gone[id] = 1; });
+          var left = made.filter(function (id) { return !gone[id]; });
+          if (!left.length) return "Already deleted.";
+          return api.bulkDelete(left).then(function (r) {
+            return r.skipped.length ? "Undone, except " + r.skipped.length + "." : "Undone.";
+          });
         });
       });
       return res;
