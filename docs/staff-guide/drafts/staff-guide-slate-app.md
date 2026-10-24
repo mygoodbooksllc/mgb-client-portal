@@ -74,7 +74,7 @@ These work in the Slate app only, on My tasks and on project, client and person 
 - **Drag onto a person or a date.** While you drag a task, a panel appears on the right (at the bottom on a phone): drop on **Today**, **Tomorrow**, **Next week**, **No date** or a person's name. Turn on **Manual order** to drag tasks between sections in a list, or use the **Board**.
 - **Swipes on a touch screen.** Swipe a task right to mark it done, or left to snooze it a day. Press and hold to pick a task up and drag it.
 - **Swipe back.** Swipe two fingers right on a trackpad (or from the left edge of a touch screen) to close the open menu, then the open task, then go to the previous page. In Safari, the trackpad swipe is Safari's own Back.
-- **Undo.** In the app, **Undo** (or **Cmd+Z**) works for 9 minutes after a change, instead of 10 seconds. Undoing a duplicate or a paste deletes the copies, the same way **Delete** does.
+- **Undo.** In the app, **Undo** (or **Cmd+Z**) works for 9 minutes after a change, instead of 10 seconds. Undoing a duplicate or a paste deletes the copies, the same way **Delete** does. If someone changed the task since (you or a teammate), a late **Undo** leaves it alone and says so, so it never wipes out newer work.
 
 ### Links open in the portal
 
