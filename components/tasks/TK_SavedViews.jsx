@@ -78,13 +78,19 @@ function TK_SavedViewsMenu(props) {
   var busy = yPair[0];
   var setBusy = yPair[1];
 
+  // Only the newest list request may land: a slow older answer (another
+  // scope, or before Retry) never overwrites a newer one.
+  var reqRef = React.useRef(0);
   var load = function () {
     setLoadErr("");
+    var req = ++reqRef.current;
     TK_api.savedViewsList(scope).then(
       function (list) {
+        if (req !== reqRef.current) return;
         setRows(list);
       },
       function (err) {
+        if (req !== reqRef.current) return;
         setRows(function (cur) {
           return cur || [];
         });

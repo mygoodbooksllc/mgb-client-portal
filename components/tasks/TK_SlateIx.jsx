@@ -71,6 +71,16 @@ function TK__ixToday(t) {
   };
   return d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
 }
+// A press on an element's own scrollbar (classic, always-shown scrollbars:
+// Windows, or macOS with a mouse plugged in) lands on the element itself, past
+// its client area.
+function TK__ixOnScrollbar(e) {
+  var el = e && e.target;
+  if (!el || el.nodeType !== 1 || typeof e.offsetX !== "number") return false;
+  var vbar = el.offsetWidth - el.clientWidth;
+  var hbar = el.offsetHeight - el.clientHeight;
+  return (vbar > 2 && e.offsetX >= el.clientWidth) || (hbar > 2 && e.offsetY >= el.clientHeight);
+}
 var TK__IX_INTERACTIVE = "input, textarea, select, button, a[href], label, [contenteditable='true'], [role='checkbox'], [role='menu'], [role='menuitem'], [data-tk-drag-handle]";
 
 // ---- One action on a set of task ids ---------------------------------------
@@ -545,6 +555,7 @@ function TK_useSlateIx(opts) {
         var root = rootEl();
         if (!root || !root.contains(e.target)) return;
         if (e.target.closest && e.target.closest(TK__IX_INTERACTIVE + ", .tk-bulkbar, .tk-toolbar, .tk-list-head")) return;
+        if (TK__ixOnScrollbar(e)) return; // dragging a scrollbar scrolls, never draws a box
         mq = { x0: e.clientX, y0: e.clientY, active: false, add: e.shiftKey || e.metaKey || e.ctrlKey, hits: [] };
         document.addEventListener("pointermove", mqMove, true);
         document.addEventListener("pointerup", mqUp, true);

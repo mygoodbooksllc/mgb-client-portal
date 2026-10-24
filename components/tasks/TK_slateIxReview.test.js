@@ -122,6 +122,32 @@ t("late undo wiring: a move between sections re-reads the task before putting it
   assert.ok(src.indexOf("if (back) TK__manualOfferUndo(plan, back, move, c, r);") > 0, "passes the server answer");
 });
 
+t("drag box: a press on a scrollbar never starts a box", () => {
+  const src = read("components/tasks/TK_SlateIx.jsx");
+  const a = src.indexOf("function TK__ixOnScrollbar");
+  const b = src.indexOf("var TK__IX_INTERACTIVE");
+  assert.ok(a > 0 && b > a, "helper found");
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(src.slice(a, b), ctx);
+  const el = { nodeType: 1, offsetWidth: 415, clientWidth: 400, offsetHeight: 600, clientHeight: 600 };
+  assert.strictEqual(ctx.TK__ixOnScrollbar({ target: el, offsetX: 405, offsetY: 10 }), true, "on the vertical bar");
+  assert.strictEqual(ctx.TK__ixOnScrollbar({ target: el, offsetX: 200, offsetY: 10 }), false, "in the list");
+  const flat = { nodeType: 1, offsetWidth: 402, clientWidth: 400, offsetHeight: 600, clientHeight: 598 };
+  assert.strictEqual(ctx.TK__ixOnScrollbar({ target: flat, offsetX: 399, offsetY: 597 }), false, "overlay bars / thin borders");
+  const wide = { nodeType: 1, offsetWidth: 800, clientWidth: 800, offsetHeight: 615, clientHeight: 600 };
+  assert.strictEqual(ctx.TK__ixOnScrollbar({ target: wide, offsetX: 10, offsetY: 606 }), true, "on the board's horizontal bar");
+  assert.strictEqual(ctx.TK__ixOnScrollbar({ target: null }), false);
+  assert.ok(src.indexOf("if (TK__ixOnScrollbar(e)) return;") > 0, "wired into the drag box start");
+});
+
+t("saved views: only the newest list request may land", () => {
+  const src = read("components/tasks/TK_SavedViews.jsx");
+  const fn = src.slice(src.indexOf("var reqRef = React.useRef(0);"), src.indexOf("React.useEffect(function () {\n    load();"));
+  assert.ok(fn.indexOf("var req = ++reqRef.current;") > 0);
+  assert.strictEqual((fn.match(/if \(req !== reqRef\.current\) return;/g) || []).length, 2, "both answers check it");
+});
+
 (async () => {
   for (const item of queue) {
     try {
