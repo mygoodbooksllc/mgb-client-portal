@@ -1,0 +1,35 @@
+DRAFT, not published. Staff-guide notes for the month rhythm finish (email drafts, Close order view, Pre-fill by client type). Add them to the Slate task-details article (Draft email), the client task list article (Month view) and the admin recurring-templates article (Pre-fill) on the day the owner turns on the month rhythm switch, together with the other month-rhythm-*.txt drafts. Until then the live guide is unchanged, because staff without Month rhythm preview see nothing new.
+
+### Draft email (Check in, Send reports, Follow up)
+
+Three month rhythm tasks come with a ready-made client email:
+
+- **Request for information** on the second Check in task: what the client still owes us for the month (open Ask client requests, uncategorized bank items, open document requests).
+- **Reports email** on the second Send reports task: the month's reports, with a Preliminary note listing what is still missing when the reports went out early.
+- **Mid-month update** on the first Follow up task: where the month stands and what is still open.
+
+Open the task and choose **Draft email: …**, or click the envelope next to the task's name in a list. Slate builds the email from the client's latest data, signed with your name. Edit the subject and body if you like, then choose **Copy email** (or **Copy subject**) and paste it into your own email. **Slate never sends anything.** **Start over** rebuilds the draft from the data.
+
+If some data could not be read (for example QuickBooks is not connected), the draft says so under the body so you can fill that part in yourself.
+
+**Emails due** on your Slate shows only your open email tasks that are due today or earlier.
+
+### Month view: The thirds or Close order (a client's task list)
+
+A client's task list has a **Month view** choice:
+
+- **The thirds** (the default): the month's tasks under Check in, Send reports and Follow up, as before.
+- **Close order**: each client month as one group ("September 2026 close"), its steps in the order you work them. A green **Next** pill marks the first open step; **Waiting on client** marks a step that is waiting or has an open Ask client request. Due dates show as a target and are never red.
+
+The choice is yours for that client, in this browser. Nobody else's view changes and no task changes. Close order steps aside while you sort by a column, use Board, or group by client, and it turns off manual order for that list.
+
+### Pre-fill Quarterly and Annual work by client type (admins)
+
+On **Slate › Recurring**, admins see **Pre-fill Quarterly and Annual work by client type**. Pick Churches, Other nonprofits or For-profit businesses, tick the suggestions you want, and choose **Make N drafts**.
+
+- Each suggestion becomes a **draft** template for every real client of that type (test clients and the firm's own record are left out). A draft never makes tasks until you open it, check its clients and dates, and activate it.
+- A suggestion that already exists for those clients shows as **already a template** and is not made again.
+- Filings (990, 1099, W-2, 941, 940) are not suggested. They keep their one date on **Work › Deadlines**.
+- Occasional work (a new pastor, a new grant, a new loan) is listed as ideas only. Add it as a one-off task when it comes up.
+
+While the month rhythm is on, a template task for a quarter or a year that has no section shows under **Quarterly** or **Annual** on the client's list.
