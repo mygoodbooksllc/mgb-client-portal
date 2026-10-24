@@ -180,7 +180,7 @@ function OP_GiftsBody({ clients }) {
                   <td>{OP_fmtDate(g.occasion_date)}</td>
                   <td>
                     <span className={"pill " + (g.status === "sent" ? "good" : g.status === "planned" ? "warm" : "neutral")}>{OP_giftStatus({ gift_status: g.status }).label}</span>
-                    {g.status === "sent" && g.sent_at ? <div className="op-hint">{OP_fmtDate(g.sent_at) + (g.sent_by ? " by " + g.sent_by : "")}</div> : null}
+                    {g.status === "sent" && g.sent_at ? <div className="op-hint">{OP_fmtStamp(g.sent_at) + (g.sent_by ? " by " + g.sent_by : "")}</div> : null}
                   </td>
                   <td>
                     {[g.item, g.amount != null ? "$" + Number(g.amount).toFixed(2) : ""].filter(Boolean).join(" · ")}

@@ -44,7 +44,9 @@ function OP_StaffCardBody({ client }) {
   }, [cid]);
 
   const d = st.data || {};
-  const p = d.profile || null;
+  // A row made only by staff_set_client_since (no client save yet: updated_by
+  // is set by the client's save only) still counts as "Not started".
+  const p = d.profile && d.profile.updated_by ? d.profile : null;
 
   const saveSince = async (iso) => {
     setBusy(true);
@@ -100,7 +102,7 @@ function OP_StaffCardBody({ client }) {
               {row("Courier phone", p.courier_phone)}
               {row("Main contact", [p.contact_name, p.contact_email, p.contact_phone].filter(Boolean).join(" · "))}
               {row("Fiscal year end", fye(p.fiscal_year_end))}
-              {row("Updated", p.updated_at ? OP_fmtDate(p.updated_at) + (p.updated_by ? " by " + p.updated_by : "") : "")}
+              {row("Updated", p.updated_at ? OP_fmtStamp(p.updated_at) + (p.updated_by ? " by " + p.updated_by : "") : "")}
             </dl>
           )}
           {d.fiscal_year_mismatch && (
@@ -155,7 +157,7 @@ function OP_StaffCardBody({ client }) {
             d.get_to_know && Object.keys(d.get_to_know).length ? (
               <dl className="op-card-grid">
                 {OP_GTK_FIELDS.map((f) => row(f.label, d.get_to_know[f.key]))}
-                {row("Sent", d.get_to_know_submitted_at ? OP_fmtDate(d.get_to_know_submitted_at) : "")}
+                {row("Sent", d.get_to_know_submitted_at ? OP_fmtStamp(d.get_to_know_submitted_at) : "")}
               </dl>
             ) : (
               <p className="card-subtitle">No answers yet.</p>

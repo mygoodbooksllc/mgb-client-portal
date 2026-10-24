@@ -186,6 +186,9 @@ t("prefill: profile first, then RPC prefill", () => {
   const noAddr = L.OP_initialForm({ profile: { gift_same_as_org: true }, prefill: { org_address: "" } });
   assert.strictEqual(noAddr.gift_same_as_org, false, "can't keep same-as-org with no org address");
   assert.doesNotThrow(() => L.OP_initialForm(null));
+  // Key dates is free text: only a valid MM-DD prefills the picker.
+  assert.strictEqual(L.OP_initialForm({ profile: null, prefill: { fiscal_year_end: "12/31" } }).fiscal_year_end, "");
+  assert.strictEqual(L.OP_initialForm({ profile: null, prefill: { fiscal_year_end: " 06-30 " } }).fiscal_year_end, "06-30");
 });
 
 // ---- Anniversaries (server: base + make_interval(years => n))
@@ -231,6 +234,11 @@ t("formatting", () => {
   assert.strictEqual(L.OP_fmtDate("2027-03-04"), "Mar 4, 2027");
   assert.strictEqual(L.OP_fmtDate("2027-03-04T10:00:00Z"), "Mar 4, 2027");
   assert.strictEqual(L.OP_fmtDate(""), "");
+  // Timestamps show the LOCAL day (a US evening is already tomorrow in UTC).
+  const ev = new Date(2026, 9, 23, 21, 30); // local 9:30 pm, Oct 23
+  assert.strictEqual(L.OP_fmtStamp(ev.toISOString()), "Oct 23, 2026");
+  assert.strictEqual(L.OP_fmtStamp("2027-03-04"), "Mar 4, 2027");
+  assert.strictEqual(L.OP_fmtStamp(null), "");
   assert.strictEqual(L.OP_fmtMonthDay("06-30"), "June 30");
   assert.strictEqual(L.OP_fmtMonthDay("02-30"), "");
   assert.strictEqual(L.OP_yearsLabel(1), "1 year");

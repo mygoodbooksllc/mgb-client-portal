@@ -89,6 +89,12 @@ const OB_store = {
 
 try {
   window.addEventListener(OB_CHANGED_EVENT, () => OB_store.load());
+  // Client org profile: OP_store fires this only when the firm switch's cached
+  // answer CHANGES (never while it stays off), so the virtual step appears on
+  // the first page load after the switch flips instead of the next one.
+  window.addEventListener("mgb:orgprofile", () => {
+    if (OB_store.data) OB_store.load();
+  });
 } catch (e) {}
 
 function OB_useOnboarding() {

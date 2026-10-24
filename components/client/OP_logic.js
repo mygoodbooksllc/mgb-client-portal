@@ -134,7 +134,9 @@ function OP_initialForm(mine) {
     contact_name: pick(p.contact_name, pre.user_name),
     contact_email: pick(p.contact_email, pre.user_email),
     contact_phone: pick(p.contact_phone, ""),
-    fiscal_year_end: pick(p.fiscal_year_end, pre.fiscal_year_end),
+    // Key dates is free text ("Fiscal year end (MM-DD)"): only a valid MM-DD
+    // prefills, so "12/31" can't block the save behind empty month/day pickers.
+    fiscal_year_end: pick(p.fiscal_year_end, OP_validFye(pre.fiscal_year_end) ? OP_trim(pre.fiscal_year_end) : ""),
     gtk: gtk,
   };
 }
@@ -288,6 +290,17 @@ function OP_fmtDate(iso) {
   return OP_MONTHS[p.m - 1].slice(0, 3) + " " + p.d + ", " + p.y;
 }
 
+// A timestamp (timestamptz, e.g. "2026-10-23T23:30:00+00:00") -> its LOCAL
+// day, "Oct 23, 2026". Slicing the UTC string would show tomorrow on a US
+// evening. A plain "YYYY-MM-DD" goes through OP_fmtDate unchanged.
+function OP_fmtStamp(ts) {
+  var s = String(ts || "");
+  if (!/T|\s\d{2}:/.test(s)) return OP_fmtDate(s);
+  var d = new Date(s);
+  if (isNaN(d.getTime())) return OP_fmtDate(s);
+  return OP_fmtDate(OP_isoDate(d));
+}
+
 // "MM-DD" -> "June 30". Empty for bad input.
 function OP_fmtMonthDay(mmdd) {
   if (!OP_validFye(mmdd)) return "";
@@ -346,6 +359,7 @@ if (typeof module !== "undefined" && module.exports) {
     OP_daysBetween: OP_daysBetween,
     OP_budgetWarning: OP_budgetWarning,
     OP_fmtDate: OP_fmtDate,
+    OP_fmtStamp: OP_fmtStamp,
     OP_fmtMonthDay: OP_fmtMonthDay,
     OP_yearsLabel: OP_yearsLabel,
     OP_occasionLabel: OP_occasionLabel,
