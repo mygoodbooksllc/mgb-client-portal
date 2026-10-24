@@ -108,23 +108,28 @@ function TR_poss(name) {
 // (TeamPage.jsx TP_ReviewsBadge) and the "Review due" notice. One request
 // serves all three.
 // ---------------------------------------------------------------------------
-const TR_store = { data: null, error: "", at: 0, pending: null, subs: new Set() };
+const TR_store = { data: null, error: "", at: 0, pending: null, subs: new Set(), gen: 0 };
 
 function TR_loadOverview(force) {
   if (!force && TR_store.pending) return TR_store.pending;
   if (!force && TR_store.data && Date.now() - TR_store.at < 60000) return Promise.resolve(TR_store.data);
+  // A load that started before TR_clearOverviewCache is dropped when it lands.
+  const gen = TR_store.gen;
+  const live = () => gen === TR_store.gen;
   TR_store.pending = TR_api
     .rpc("tr_my_overview")
     .then((d) => {
+      if (!live()) return null;
       TR_store.data = d;
       TR_store.error = "";
       return d;
     })
     .catch((e) => {
-      TR_store.error = TR_errText(e);
+      if (live()) TR_store.error = TR_errText(e);
       return null;
     })
     .finally(() => {
+      if (!live()) return;
       TR_store.at = Date.now();
       TR_store.pending = null;
       TR_store.subs.forEach((f) => f());
@@ -132,9 +137,14 @@ function TR_loadOverview(force) {
   return TR_store.pending;
 }
 
-function TR_useOverview() {
+// enabled=false (and always in View as) makes no tr_my_overview call and
+// returns nothing: the overview is the signed-in admin's, never the viewed
+// bookkeeper's, and reviews keep the blind rule (docs/view-as-full-app-spec.md D6).
+function TR_useOverview(enabled) {
+  const on = enabled !== false && !(typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly());
   const [, bump] = React.useReducer((x) => x + 1, 0);
   React.useEffect(() => {
+    if (!on) return undefined;
     TR_store.subs.add(bump);
     TR_loadOverview(false);
     const onChange = () => TR_loadOverview(true);
@@ -145,8 +155,20 @@ function TR_useOverview() {
       clearInterval(t);
       window.removeEventListener(TR_CHANGED_EVENT, onChange);
     };
-  }, []);
+  }, [on]);
+  if (!on) return { data: null, error: "", loading: false };
   return { data: TR_store.data, error: TR_store.error, loading: !TR_store.data && !TR_store.error };
+}
+
+// View as start and stop: drop the cached overview, so neither the viewed
+// bookkeeper's screen nor the admin's afterwards shows the wrong person's.
+function TR_clearOverviewCache() {
+  TR_store.gen++;
+  TR_store.data = null;
+  TR_store.error = "";
+  TR_store.at = 0;
+  TR_store.pending = null;
+  TR_store.subs.forEach((f) => f());
 }
 
 // True while "View as" shows someone else's page. Compares by email (names

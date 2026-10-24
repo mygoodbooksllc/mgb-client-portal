@@ -162,9 +162,11 @@ function CF_usePicked(list, emailIn, keepId) {
 // Same switch, two homes. `compact` is the switcher footer version.
 function CF_Toggle({ email, compact, count }) {
   const [show, setShow] = CF_useShowTest(email);
+  // View as is read-only: the switch is the viewed person's saved setting.
+  const ro = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
   return (
-    <label className={"cf-toggle" + (compact ? " cf-toggle-compact" : "")} data-tour="show-test-clients">
-      <input type="checkbox" checked={!!show} onChange={(e) => setShow(e.target.checked)} />
+    <label className={"cf-toggle" + (compact ? " cf-toggle-compact" : "")} data-tour="show-test-clients" title={ro ? "Read-only in View as" : undefined}>
+      <input type="checkbox" checked={!!show} disabled={ro} onChange={(e) => { if (!ro) setShow(e.target.checked); }} />
       <span className="cf-toggle-text">
         Show test clients{typeof count === "number" && count > 0 ? ` (${count})` : ""}
         <small className="cf-toggle-hint">Test clients are hidden unless this is on</small>

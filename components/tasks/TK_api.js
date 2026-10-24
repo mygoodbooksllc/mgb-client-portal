@@ -470,6 +470,29 @@ var TK_api = (function () {
     });
   };
 
+  // View as (an admin previewing a bookkeeper): their open tasks, assignee
+  // only like listScope, never a private one (Q3). A row with no visibility
+  // is dropped too (fail closed). Read-only snapshot, kept out of TK_store.
+  api.listFor = function (email) {
+    var who = lower(email);
+    if (!who) return Promise.resolve([]);
+    var rows = run(function (c) {
+      return c
+        .from("tk_tasks")
+        .select(TK_TASK_COLS)
+        .eq("assignee_email", who)
+        .eq("done", false)
+        .neq("visibility", "private")
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .limit(1000);
+    }, { where: "listFor" });
+    return Promise.all([rows, api.loadReportStates()]).then(function (res) {
+      return (res[0] || [])
+        .filter(function (r) { return r && r.visibility && r.visibility !== "private"; })
+        .map(normalize);
+    });
+  };
+
   api.listChildren = function (parentId) {
     return api.listScope({ parentId: parentId }, { showDone: true, showOlder: true });
   };

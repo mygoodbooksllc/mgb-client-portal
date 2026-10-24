@@ -38,6 +38,12 @@ function TI_errMsg(error) {
 const TI_day = (v) => (v ? new Date(v).toLocaleDateString() : "");
 const TI_money = (n) => (n == null ? "" : "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }));
 
+// View as is read-only: requests, items and edits are off.
+function TI_ro() {
+  return typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+}
+const TI_RO_TITLE = "Read-only in View as";
+
 function TI_TechTab({ staffUser, isAdmin }) {
   const sb = window.mgbSupabase;
   const me = String((staffUser && staffUser.email) || "").toLowerCase();
@@ -69,8 +75,12 @@ function TI_TechTab({ staffUser, isAdmin }) {
   }, [sb, isAdmin]);
   React.useEffect(load, [load]);
 
-  const run = (p, okMsg) =>
-    Promise.resolve(p).then(({ error }) => {
+  const run = (p, okMsg) => {
+    if (TI_ro()) {
+      say(TI_RO_TITLE);
+      return Promise.resolve(false);
+    }
+    return Promise.resolve(p).then(({ error }) => {
       if (error) {
         setError(error.message);
         return false;
@@ -80,6 +90,7 @@ function TI_TechTab({ staffUser, isAdmin }) {
       load();
       return true;
     });
+  };
 
   const { requests, assets, setup, staff, contacts } = data;
   const nameOf = (email) => {
@@ -249,7 +260,7 @@ function TI_MyTech({ me, requests, assets, setup, categories, sb, run }) {
                     <td data-label="Requested">{TI_day(r.created_at)}</td>
                     <td className="ti-actions">
                       {r.status === "Open" && (
-                        <button type="button" className="link-btn" onClick={() => window.confirm("Withdraw this request?") && run(sb.from("tech_requests").update({ archived_at: new Date().toISOString() }).eq("id", r.id), "Request withdrawn")}>
+                        <button type="button" className="link-btn" disabled={TI_ro()} title={TI_ro() ? TI_RO_TITLE : undefined} onClick={() => window.confirm("Withdraw this request?") && run(sb.from("tech_requests").update({ archived_at: new Date().toISOString() }).eq("id", r.id), "Request withdrawn")}>
                           Withdraw
                         </button>
                       )}
@@ -268,7 +279,7 @@ function TI_MyTech({ me, requests, assets, setup, categories, sb, run }) {
             <h3 className="card-title">My items</h3>
             <p className="card-subtitle">The equipment you have now. Keep it current so admins know what to replace.</p>
           </div>
-          {!logging && <button type="button" className="btn-primary" onClick={() => setLogging(true)}>Log an item</button>}
+          {!logging && <button type="button" className="btn-primary" disabled={TI_ro()} title={TI_ro() ? TI_RO_TITLE : undefined} onClick={() => setLogging(true)}>Log an item</button>}
         </div>
         {logging && (
           <TI_AssetForm categories={categories} setup={setup} onCancel={() => setLogging(false)}
@@ -371,7 +382,7 @@ function TI_Inventory({ assets, staff, setup, categories, nameOf, personFilter, 
         <div className="ti-head-actions">
           <input type="search" className="ti-search" placeholder="Search items" aria-label="Search items" value={q} onChange={(e) => setQ(e.target.value)} />
           <button type="button" className="link-btn" onClick={() => setShowArchived(!showArchived)}>{showArchived ? "Show current" : "Show archived"}</button>
-          {!logging && <button type="button" className="btn-primary" onClick={() => setLogging(true)}>Log an item</button>}
+          {!logging && <button type="button" className="btn-primary" disabled={TI_ro()} title={TI_ro() ? TI_RO_TITLE : undefined} onClick={() => setLogging(true)}>Log an item</button>}
         </div>
       </div>
       {logging && (
@@ -676,7 +687,7 @@ function TI_RequestForm({ setup, onSubmit, onCancel }) {
       <label className="task-field ti-wide"><span>Why</span><textarea id="ti-req-reason" rows={2} value={d.reason} onChange={set("reason")} /></label>
       <datalist id="ti-setup-items">{setup.map((s) => <option key={s.id} value={s.item} />)}</datalist>
       <div className="ti-btns">
-        <button type="submit" className="btn-primary">Send request</button>
+        <button type="submit" className="btn-primary" disabled={TI_ro()} title={TI_ro() ? TI_RO_TITLE : undefined}>Send request</button>
         {onCancel && <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>}
       </div>
     </form>
@@ -722,7 +733,7 @@ function TI_AssetForm({ categories, setup, withPerson, initial, isNew, onSubmit,
       <datalist id="ti-setup-items-2">{setup.map((s) => <option key={s.id} value={s.item} />)}</datalist>
       {err && <p className="cv-err ti-wide" role="alert">{err}</p>}
       <div className="ti-btns">
-        <button type="submit" className="btn-primary">{editing ? "Save" : "Log item"}</button>
+        <button type="submit" className="btn-primary" disabled={TI_ro()} title={TI_ro() ? TI_RO_TITLE : undefined}>{editing ? "Save" : "Log item"}</button>
         {onCancel && <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>}
       </div>
     </form>

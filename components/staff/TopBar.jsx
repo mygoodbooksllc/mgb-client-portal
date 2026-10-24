@@ -269,7 +269,11 @@ function TB_useMyItems(email, enabled) {
     staffItemsApi
       .list(sb, email)
       .then(({ data, error }) => {
-        if (!error && data) setRows(data);
+        if (error || !data) return;
+        // View as: never a private row, and a row with no visibility is
+        // dropped too (fail closed, spec §10.8).
+        const ro = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+        setRows(ro ? data.filter((r) => r && r.visibility && r.visibility !== "private") : data);
       })
       .catch(() => {});
   }, [email, enabled]);
@@ -445,7 +449,7 @@ function TB_actionRows({ client, showMine, effectiveTheme, onToggleTheme, onSign
 // navCtx ({ role, isAdmin, impersonating }) picks the Pages rows; client,
 // effectiveTheme, onToggleTheme, onSignOut and onOpenSettings feed the
 // Actions rows. All optional: without them those groups are just shorter.
-function TB_Search({ clients, items, showMine, isAdmin, clientSearch, navCtx, client, effectiveTheme, onToggleTheme, onSignOut, onOpenSettings }) {
+function TB_Search({ clients, items, taskItems, showMine, isAdmin, clientSearch, navCtx, client, effectiveTheme, onToggleTheme, onSignOut, onOpenSettings }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -534,7 +538,10 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch, navCtx, cl
   useEffect(() => {
     const seq = ++tkSeqRef.current;
     const canSearch =
-      showMine && q.length >= 2 && TB_tkSchemaOk() && typeof TK_api !== "undefined" && TK_api && typeof TK_api.search === "function";
+      showMine &&
+      !(typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) &&
+      q.length >= 2 &&
+      TB_tkSchemaOk() && typeof TK_api !== "undefined" && TK_api && typeof TK_api.search === "function";
     if (!canSearch) {
       setTkHits((h) => (h.q || h.rows.length ? { q: "", rows: [] } : h));
       return undefined;
@@ -591,9 +598,11 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch, navCtx, cl
         })),
       });
     }
-    if (showMine) {
+    // View as: taskItems is the viewed person's non-private list (search only).
+    const taskList = showMine ? items : taskItems;
+    if (taskList) {
       const isOpen = typeof TK_isOpen === "function" ? TK_isOpen : (t) => !t.done;
-      const mine = (items || []).filter((t) => isOpen(t) && TB_lc(t.text).includes(ql));
+      const mine = (taskList || []).filter((t) => isOpen(t) && TB_lc(t.text).includes(ql));
       // With the Tasks module ready a pick opens the task drawer; otherwise
       // the old Work › Tasks page.
       const openTask = (id) => {
@@ -648,7 +657,10 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch, navCtx, cl
         key: "help",
         label: "Help",
         items: remote.help
-          .filter((h) => isAdmin || h.audience !== "admin")
+          // View as: staff articles only, an unknown audience is dropped (§3.7).
+          .filter((h) =>
+            typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly() ? h && h.audience === "staff" : isAdmin || h.audience !== "admin",
+          )
           .map((h) => ({
             key: "h:" + h.slug,
             title: h.title,
@@ -1738,6 +1750,8 @@ function TB_StaffTopBar({
   // reachable during "View as", so their pieces step aside then.
   const own = !impersonating;
   const items = TB_useMyItems(me, own);
+  // View as: the viewed person's tasks for ⌘K (TB_useMyItems drops private).
+  const vaItems = TB_useMyItems(impersonating && staffUser ? staffUser.email : "", !own);
   // L2: the left sidebar's Alerts section has taken over the QuickBooks usage
   // warning, but only while it is really on screen (never both, never neither).
   const ssAlertsShown = TB_useSidebarAlertsShown();
@@ -1772,6 +1786,7 @@ function TB_StaffTopBar({
         <TB_Search
           clients={clients}
           items={items}
+          taskItems={own ? null : vaItems}
           showMine={own}
           isAdmin={isAdmin}
           clientSearch={client ? clientSearch : null}
@@ -1788,7 +1803,7 @@ function TB_StaffTopBar({
         {own && <TB_Bell clients={typeof window.mgbRealClients === "function" ? window.mgbRealClients(clients) : clients} items={items} me={me} isAdmin={isAdmin} isRealAdmin={isRealAdmin} page={page} />}
         {own && (deskOn ? <TB_SlateLink /> : <TB_TasksBadge items={items} me={me} client={client} />)}
         {!deskDocked && <TB_QuickAdd client={client} />}
-        <TB_HelpButton page={page} isAdmin={isAdmin} />
+        <TB_HelpButton page={page} isAdmin={isAdmin && !impersonating} />
         {typeof FB_FeedbackHost === "function" && <FB_FeedbackHost clientId={client ? client.id : null} />}
         <TB_AvatarMenu
           staffUser={staffUser}

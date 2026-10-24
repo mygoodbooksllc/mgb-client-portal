@@ -273,7 +273,11 @@ function FB_FeedbackModal({ clientId, onClose }) {
   const shotsRef = React.useRef(shots);
   shotsRef.current = shots;
   const isBug = kind === "bug";
-  const canSend = message.trim().length > 0 && !sending;
+  // View as: this modal stays the admin's own, so "My feedback" reads "Your
+  // feedback" (it is not the viewed person's). Sending is a write, so it's off.
+  const va = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+  const mineLabel = va ? "Your feedback" : "My feedback";
+  const canSend = message.trim().length > 0 && !sending && !va;
 
   // Free the preview URLs when the modal closes.
   React.useEffect(
@@ -442,7 +446,7 @@ function FB_FeedbackModal({ clientId, onClose }) {
     <ModalShell onClose={onClose} labelledBy="fb-modal-title" className="fb-modal">
       <div className="modal-header">
         <h3 className="card-title" id="fb-modal-title" style={{ margin: 0 }}>
-          {view === "send" ? "Report a bug or send feedback" : "My feedback"}
+          {view === "send" ? "Report a bug or send feedback" : mineLabel}
         </h3>
         <button className="modal-close" onClick={onClose} aria-label="Close">
           ×
@@ -566,12 +570,12 @@ function FB_FeedbackModal({ clientId, onClose }) {
         {view === "send" ? (
           <>
             <button type="button" className="link-btn fb-mine-link" onClick={() => setView("mine")}>
-              My feedback
+              {mineLabel}
             </button>
             <button type="button" className="btn-secondary" onClick={onClose} disabled={sending}>
               Cancel
             </button>
-            <button type="button" className="btn-primary" disabled={!canSend} onClick={send}>
+            <button type="button" className="btn-primary" disabled={!canSend} title={va ? "Read-only in View as" : undefined} onClick={send}>
               {sending ? (shots.length ? "Uploading…" : "Sending…") : "Send"}
             </button>
           </>

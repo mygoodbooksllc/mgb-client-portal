@@ -328,7 +328,11 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   const [sel, setSel] = useState(() => new Set());
   const [type, setType] = useState("all");
   const [dialog, setDialog] = useState(null);
-  const [actionBusy, setActionBusy] = useState(false);
+  const [actionBusyRaw, setActionBusy] = useState(false);
+  // View as is read-only: no pull (an edge call), and every action that
+  // writes is disabled through actionBusy (docs/view-as-full-app-spec.md §10.4).
+  const ro = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+  const actionBusy = actionBusyRaw || ro;
 
   const alive = useRef(true);
   const ctxRef = useRef(null);
@@ -380,6 +384,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
     async (force, useDefault) => {
       const c = ctxRef.current;
       if (!c || pullingRef.current) return;
+      if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return;
       pullingRef.current = true;
       setPull({ phase: "pulling" });
       try {
@@ -500,7 +505,9 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         setCtx(c);
         ctxRef.current = c;
         await reloadFlags();
-        if (!off && alive.current && c.connected && !LR_cache().get(client.id)) doPull(false, true);
+        // No auto pull in View as: opening a page never writes.
+        const viewAs = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+        if (!off && alive.current && !viewAs && c.connected && !LR_cache().get(client.id)) doPull(false, true);
       } catch (e) {
         if (!off && alive.current) setCtxErr(e.message || "Couldn't load Ledger review.");
       }
@@ -921,11 +928,12 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         </label>
       )}
       {ctx.connected && (
-        <button type="button" className="btn-secondary" disabled={pulling} onClick={() => doPull(true)}>
+        <button type="button" className="btn-secondary" disabled={pulling || ro} title={ro ? "Read-only in View as" : undefined} onClick={() => doPull(true)}>
           {pull.phase === "pulling" ? "Getting latest…" : pull.phase === "saving" ? "Saving flags…" : "Pull from QuickBooks"}
         </button>
       )}
       {pullLine && <p className="lr-pull-line">{pullLine}</p>}
+      {ro && <p className="lr-pull-line va-ro-label">Read-only: showing the last pull.</p>}
     </div>
   );
 
@@ -958,7 +966,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
     banner = (
       <div className="lr-note is-warn" role="status">
         <p>Someone else is pulling this ledger right now. Try again in a minute.</p>
-        <button type="button" className="btn-secondary lr-btn-sm" onClick={() => doPull(false)}>
+        <button type="button" className="btn-secondary lr-btn-sm" disabled={ro} onClick={() => doPull(false)}>
           Try again
         </button>
       </div>
@@ -969,7 +977,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       <div className="lr-note is-bad" role="alert">
         <p>{pull.error}</p>
         <div className="lr-note-actions">
-          <button type="button" className="btn-secondary lr-btn-sm" onClick={() => doPull(true)}>
+          <button type="button" className="btn-secondary lr-btn-sm" disabled={ro} onClick={() => doPull(true)}>
             Try again
           </button>
           {notConnected && <a href={reviewFileHref}>Review a file instead</a>}
@@ -1227,6 +1235,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       onSaved={reloadMonth}
       openDialog={setDialog}
       toast={toast}
+      readOnly={ro}
     />
   );
 
@@ -1529,6 +1538,7 @@ function LR_SummaryCard({
   onSaved,
   openDialog,
   toast,
+  readOnly,
 }) {
   const sent = summary && summary.status === "sent";
   const draftFor = () => {
@@ -1552,7 +1562,9 @@ function LR_SummaryCard({
   const [text, setText] = useState("");
   const [built, setBuilt] = useState(null);
   const [dirty, setDirty] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busyRaw, setBusy] = useState(false);
+  // View as: nothing saves or sends.
+  const busy = busyRaw || !!readOnly;
 
   // Start from the saved draft, else from the template once the pull is in.
   useEffect(() => {

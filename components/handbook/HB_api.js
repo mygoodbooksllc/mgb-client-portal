@@ -176,23 +176,28 @@ function HB_pdfName(title, versionNo, signedAt) {
 // Shared status store (hb_status). Quiet: an error (schema missing, not
 // staff) leaves data null and the badge / Today rows simply don't show.
 // ---------------------------------------------------------------------------
-const HB_statusStore = { data: null, error: "", at: 0, pending: null, subs: new Set() };
+const HB_statusStore = { data: null, error: "", at: 0, pending: null, subs: new Set(), gen: 0 };
 
 function HB_loadStatus(force) {
   if (!force && HB_statusStore.pending) return HB_statusStore.pending;
   if (!force && HB_statusStore.at && Date.now() - HB_statusStore.at < 60000) return Promise.resolve(HB_statusStore.data);
+  // A load that started before HB_clearStatusCache is dropped when it lands.
+  const gen = HB_statusStore.gen;
+  const live = () => gen === HB_statusStore.gen;
   HB_statusStore.pending = HB_api
     .status()
     .then((d) => {
+      if (!live()) return null;
       HB_statusStore.data = d || null;
       HB_statusStore.error = "";
       return HB_statusStore.data;
     })
     .catch((e) => {
-      HB_statusStore.error = HB_errText(e);
+      if (live()) HB_statusStore.error = HB_errText(e);
       return null;
     })
     .finally(() => {
+      if (!live()) return;
       HB_statusStore.at = Date.now();
       HB_statusStore.pending = null;
       HB_statusStore.subs.forEach((f) => f());
@@ -200,14 +205,29 @@ function HB_loadStatus(force) {
   return HB_statusStore.pending;
 }
 
+// View as start and stop: forget the cached status, which is the signed-in
+// admin's (docs/view-as-full-app-spec.md D6).
+function HB_clearStatusCache() {
+  HB_statusStore.gen++;
+  HB_statusStore.data = null;
+  HB_statusStore.error = "";
+  HB_statusStore.at = 0;
+  HB_statusStore.pending = null;
+  HB_statusStore.subs.forEach((f) => f());
+}
+
 function HB_changed() {
   HB_statusStore.at = 0;
   window.dispatchEvent(new CustomEvent(HB_CHANGED_EVENT));
 }
 
-function HB_useStatus() {
+// enabled=false (and always in View as) makes no hb_status call: it answers
+// for the signed-in admin, not the viewed bookkeeper (view-as spec D6).
+function HB_useStatus(enabled) {
+  const on = enabled !== false && !(typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly());
   const [, bump] = React.useReducer((x) => x + 1, 0);
   React.useEffect(() => {
+    if (!on) return undefined;
     HB_statusStore.subs.add(bump);
     HB_loadStatus(false);
     const onChange = () => HB_loadStatus(true);
@@ -218,7 +238,8 @@ function HB_useStatus() {
       clearInterval(t);
       window.removeEventListener(HB_CHANGED_EVENT, onChange);
     };
-  }, []);
+  }, [on]);
+  if (!on) return { data: null, error: "", loading: false, reload: () => Promise.resolve(null) };
   return {
     data: HB_statusStore.data,
     error: HB_statusStore.error,

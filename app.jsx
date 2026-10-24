@@ -1287,6 +1287,81 @@ function MGB_deviceKind() {
   }
 }
 
+// "Chrome 141 · macOS" from a user-agent string. Same browser parse as
+// signInNotice.js's browserName(), plus the OS. HR › Members › Last seen
+// shows it, and the page-view logger stores it in usage_events.browser.
+// (Tested by components/auth/browserLabel.test.js, which slices this
+// function out of app.jsx by name.)
+function MGB_parseBrowser(uaIn) {
+  const ua = String(uaIn || "");
+  let m;
+  let b = "Unknown browser";
+  if ((m = /Edg(?:e|A|iOS)?\/(\d+)/.exec(ua))) b = "Edge " + m[1];
+  else if ((m = /(?:Firefox|FxiOS)\/(\d+)/.exec(ua))) b = "Firefox " + m[1];
+  else if ((m = /(?:Chrome|CriOS)\/(\d+)/.exec(ua))) b = "Chrome " + m[1];
+  else if ((m = /Version\/(\d+).*Safari/.exec(ua))) b = "Safari " + m[1];
+  // iOS before Mac: iPad Safari reports "Macintosh". Android before Linux.
+  const os = /iPhone|iPad|iPod/.test(ua)
+    ? "iOS"
+    : /Android/.test(ua)
+      ? "Android"
+      : /Windows/.test(ua)
+        ? "Windows"
+        : /Mac OS X|Macintosh/.test(ua)
+          ? "macOS"
+          : /CrOS/.test(ua)
+            ? "ChromeOS"
+            : /Linux/.test(ua)
+              ? "Linux"
+              : "";
+  return (os ? b + " · " + os : b).slice(0, 60);
+}
+let MGB_browserLabelCache = null;
+function MGB_browserLabel() {
+  if (MGB_browserLabelCache == null) {
+    try {
+      MGB_browserLabelCache = MGB_parseBrowser(navigator.userAgent);
+    } catch (e) {
+      MGB_browserLabelCache = "Unknown browser";
+    }
+  }
+  return MGB_browserLabelCache;
+}
+
+// View as (docs/view-as-full-app-spec.md): true only while a real admin is
+// viewing as someone. supabaseClient.js defines MGB_viewAsReadOnly; this
+// wrapper is safe if that file ever fails to load.
+function VA_on() {
+  return typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+}
+// View as hides private tasks (owner decision Q3), failing closed: a row with
+// no visibility value is dropped too.
+function VA_dropPrivate(rows) {
+  return (rows || []).filter((r) => r && r.visibility && r.visibility !== "private");
+}
+// The same, only while View as is on; every staffItemsApi.list reader
+// reachable in View as passes its rows through this.
+function VA_visibleItems(rows) {
+  return VA_on() ? VA_dropPrivate(rows) : rows || [];
+}
+// Disabled-control title while View as is on.
+const VA_RO_TITLE = "Read-only in View as";
+
+// View as: cache the admin's access token for the pagehide view_as.stop (a
+// keepalive fetch can't await getSession while the page unloads).
+function VA_cacheToken() {
+  try {
+    const sb = window.mgbSupabase;
+    if (!sb || !sb.auth) return;
+    Promise.resolve(sb.auth.getSession())
+      .then((r) => {
+        const s = r && r.data && r.data.session;
+        if (window.mgbViewAs) window.mgbViewAs.token = s ? s.access_token : null;
+      })
+      .catch(() => {});
+  } catch (e) {}
+}
+
 // Counts something someone did rather than a page they opened. `name` is the
 // bucket Usage Stats groups by ("palette-open", "guide-miss", ...), `detail`
 // the specifics; stored as "name:detail" in usage_events.detail.
@@ -1306,6 +1381,7 @@ function MGB_track(name, detail) {
         kind: "action",
         detail: d ? name + ":" + d : name,
         device: MGB_deviceKind(),
+        view_as: VA_on(),
       })
       .then(({ error }) => {
         if (error && isFlagOn("mygoodbooks_ff_verbose_logging_v1"))
@@ -2107,7 +2183,8 @@ function Sidebar({
                     >
                       {p.icon ? p.icon() : null}
                       {p.label}
-                      {p.key === "today" && typeof CS_ApprovalsDot === "function" && <CS_ApprovalsDot />}
+                      {/* View as: access requests to approve are the admin's own queue. */}
+                      {p.key === "today" && !impersonating && typeof CS_ApprovalsDot === "function" && <CS_ApprovalsDot />}
                       {p.key === "today" && !impersonating && typeof WB_NavBadge === "function" && <WB_NavBadge />}
                       {p.key === "inbox" && staffMessagesUnread && (
                         <span
@@ -2117,7 +2194,8 @@ function Sidebar({
                         />
                       )}
                       {p.key === "work" && <MyTasksDueCount due={myTasksDue} />}
-                      {p.key === "hr" && typeof TP_HrNavBadge === "function" && <TP_HrNavBadge expanded />}
+                      {/* View as: reviews and handbook are the admin's own (blind rule), so no badge. */}
+                      {p.key === "hr" && !impersonating && typeof TP_HrNavBadge === "function" && <TP_HrNavBadge expanded />}
                       {p.key === "team" &&
                         showsAdminPages &&
                         staffUser.role === "admin" &&
@@ -2447,6 +2525,7 @@ function StaffRail({
           currentClientId: currentClientId,
           clients: clients,
           readOnly: !!impersonating || !!previewing,
+          viewAs: !!impersonating,
         })
       : null;
   const showTip = (e, text) => {
@@ -2544,7 +2623,8 @@ function StaffRail({
     if (p.key === "today") {
       it.extra = (
         <>
-          {typeof CS_ApprovalsDot === "function" && <CS_ApprovalsDot className="nav-badge-dot staff-rail-dot" />}
+          {/* View as: access requests to approve are the admin's own queue. */}
+          {!impersonating && typeof CS_ApprovalsDot === "function" && <CS_ApprovalsDot className="nav-badge-dot staff-rail-dot" />}
           {!impersonating && typeof WB_NavBadge === "function" && <WB_NavBadge expanded={expanded} />}
         </>
       );
@@ -2559,7 +2639,8 @@ function StaffRail({
       it.active = page === "work" || page === "tasks";
     } else if (p.key === "hr") {
       // Reviews and Handbook counts combined (TeamPage.jsx).
-      it.extra = typeof TP_HrNavBadge === "function" ? <TP_HrNavBadge expanded={expanded} /> : null;
+      // View as: reviews and handbook are the admin's own (blind rule), so no badge.
+      it.extra = !impersonating && typeof TP_HrNavBadge === "function" ? <TP_HrNavBadge expanded={expanded} /> : null;
     } else if (p.key === "team") {
       it.extra = (
         <>
@@ -6950,6 +7031,7 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact, ch
   }
   async function toggle(item, forceDone) {
     if (item.key === CLOSE_LEDGER_STEP.key) return; // set by the sign-off RPCs only
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return; // View as: ticks are read-only
     const wasDone = isDone(item.key);
     const want = forceDone === undefined ? !wasDone : !!forceDone;
     const hadOtherDone = steps.some((i) => i.key !== item.key && isDone(i.key));
@@ -7060,7 +7142,7 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact, ch
                   <input
                     type="checkbox"
                     checked={done}
-                    disabled={ledger || busy === item.key}
+                    disabled={ledger || busy === item.key || (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly())}
                     onChange={() => toggle(item)}
                     data-lk-focus=""
                   />
@@ -7096,7 +7178,7 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact, ch
                     <button
                       type="button"
                       className="link-btn"
-                      disabled={busy === item.key}
+                      disabled={busy === item.key || (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly())}
                       onClick={() => toggle(item, true)}
                     >
                       Mark done
@@ -7597,8 +7679,9 @@ function OV_ClientTasks({ client, staffUser }) {
       setRows([]);
       return;
     }
+    // View as: private tasks dropped (Q3).
     setRows(
-      (data || []).filter(
+      VA_visibleItems(data).filter(
         (t) => t && t.client_id === client.id && (tkLogic ? TK_isOpen(t) : !t.done) && t.kind !== "note",
       ),
     );
@@ -14088,6 +14171,169 @@ function formatTempAccessExpiry(isoString) {
   }
 }
 
+// HR › Members "Last seen" (admins only; staff_last_seen in
+// supabase/view-as-last-seen.sql refuses anyone else, temporary admins
+// included). Last page view, last sign-in and last reported error for one
+// person, to answer "did they get the update?" and "what broke for them?".
+// Every value comes from that person's own browser, so it is shown as plain
+// text only. The admin's own View as activity is left out server-side.
+function SA_ago(iso) {
+  if (!iso) return "";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!(ms >= 0)) return "just now";
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+function SA_when(iso) {
+  if (!iso) return "";
+  const full = typeof fmtDateTime === "function" ? fmtDateTime(iso) : new Date(iso).toLocaleString();
+  return `${SA_ago(iso)} (${full})`;
+}
+
+function SA_LastSeenDialog({ row, onClose }) {
+  const [st, setSt] = useState({ loading: true, data: null, error: "" });
+  useEffect(() => {
+    let alive = true;
+    const sb = window.mgbSupabase;
+    if (!sb) {
+      setSt({ loading: false, data: null, error: "Supabase isn't configured." });
+      return undefined;
+    }
+    sb.rpc("staff_last_seen", { p_email: row.email }).then(({ data, error }) => {
+      if (!alive) return;
+      if (error) {
+        const missing = typeof isMissingTableError === "function" && isMissingTableError(error);
+        setSt({
+          loading: false,
+          data: null,
+          error: missing ? "Last seen isn't set up yet (supabase/view-as-last-seen.sql)." : `Couldn't load: ${error.message}`,
+        });
+        return;
+      }
+      setSt({ loading: false, data: data || {}, error: "" });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [row.email]);
+
+  const d = st.data || {};
+  const v = d.last_view || null;
+  const err = d.last_error || null;
+  const current = window.MGB_VERSION && window.MGB_VERSION.label;
+  const behind = !!(v && v.app_version && current && v.app_version !== current);
+  const errBrowser = err && err.user_agent && typeof MGB_parseBrowser === "function" ? MGB_parseBrowser(err.user_agent) : "";
+  const deviceLabel = (k) => (typeof USAGE_DEVICE_LABELS === "object" && USAGE_DEVICE_LABELS[k]) || k || "";
+  const errorsWeek = Number(d.errors_7d || 0);
+
+  return (
+    <ModalShell onClose={onClose} labelledBy="sa-last-seen-title" className="sa-last-seen">
+      <div className="modal-header">
+        <h3 className="card-title" id="sa-last-seen-title" style={{ margin: 0 }}>
+          Last seen: {row.name || row.email}
+        </h3>
+        <button className="modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+      {st.loading ? (
+        <p className="card-subtitle">Loading…</p>
+      ) : st.error ? (
+        <p className="card-subtitle" role="alert">
+          {st.error}
+        </p>
+      ) : (
+        <dl className="staff-info-list">
+          <div>
+            <dt>Last active</dt>
+            <dd>
+              {v ? (
+                <>
+                  {SA_when(v.occurred_at)}
+                  <br />
+                  {[v.page, v.tab].filter(Boolean).join(" › ") || "Unknown page"}
+                  {[deviceLabel(v.device), v.browser].filter(Boolean).length
+                    ? " · " + [deviceLabel(v.device), v.browser].filter(Boolean).join(" · ")
+                    : ""}
+                  <br />
+                  Version {v.app_version || "unknown"}
+                  {behind && (
+                    <span className="sa-behind-pill" title={`The current version is ${current}. A reload picks it up.`}>
+                      behind
+                    </span>
+                  )}
+                </>
+              ) : d.last_action_at ? (
+                SA_when(d.last_action_at)
+              ) : (
+                "No activity recorded yet"
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Last sign-in</dt>
+            <dd>{d.last_sign_in_at ? SA_when(d.last_sign_in_at) : "Never signed in"}</dd>
+          </div>
+          <div>
+            <dt>Last error</dt>
+            <dd>
+              {err ? (
+                <>
+                  {SA_when(err.created_at)}
+                  {err.page ? " · " + err.page : ""}
+                  <span className="sa-err-msg">{String(err.message || "").slice(0, 200)}</span>
+                  {[err.source, err.app_version ? "version " + err.app_version : "", errBrowser].filter(Boolean).join(" · ")}
+                  <br />
+                  {errorsWeek} error{errorsWeek === 1 ? "" : "s"} in the last 7 days.{" "}
+                  <button
+                    type="button"
+                    className="link-btn"
+                    onClick={() => {
+                      onClose();
+                      if (typeof NAV_go === "function") NAV_go("developer-tools");
+                      else window.location.hash = "#/developer-tools";
+                    }}
+                  >
+                    Open Recent errors
+                  </button>
+                </>
+              ) : (
+                "No errors reported"
+              )}
+            </dd>
+          </div>
+        </dl>
+      )}
+    </ModalShell>
+  );
+}
+
+function SA_LastSeenButton({ row }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        className="btn-secondary sa-last-seen-btn"
+        data-tour="members-last-seen"
+        onClick={() => {
+          setOpen(true);
+          if (typeof MGB_track === "function") MGB_track("last-seen", "open");
+        }}
+      >
+        Last seen
+      </button>
+      {open && <SA_LastSeenDialog row={row} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
 function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
@@ -14957,6 +15203,9 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                             View as
                           </button>
                         )}
+                        {/* Last seen: admins only (readOnly covers temporary admins); also
+                            for admin and inactive rows, outside the View as condition. */}
+                        {!isSelf && !readOnly && <SA_LastSeenButton row={row} />}
                         {!isSelf && !readOnly && row.active && typeof OFF_OffboardButton === "function" && (
                           <OFF_OffboardButton row={row} staffRows={rows} onDone={load} disabled={busy} />
                         )}
@@ -17275,6 +17524,7 @@ const USAGE_ACTION_LABELS = {
   "wb-drill": "Task opened in the Desk (by where it was opened from)",
   "wb-glance": "Open Desk glance counts used (messages, reviews, files, mentions)",
   "wb-rightnow": "Open Desk Right now card links used",
+  "last-seen": "Last seen opened (HR › Members)",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -21164,7 +21414,8 @@ function MyTasksPage({
         setTasks([]);
       } else {
         setError("");
-        setTasks(data);
+        // View as: private tasks dropped (Q3).
+        setTasks(VA_visibleItems(data));
       }
     });
   }, [supabase, me]);
@@ -27427,6 +27678,107 @@ try {
   }
 } catch (e) {}
 
+// ---------------------------------------------------------------------------
+// View as (docs/view-as-full-app-spec.md). The bar under the top bar, and
+// the card shown where a place would answer for the admin's own session.
+// ---------------------------------------------------------------------------
+function VA_firstName(name) {
+  return String(name || "").trim().split(/\s+/)[0] || "They";
+}
+
+// D7: a bookkeeper with a live temporary admin grant still previews as a
+// bookkeeper; the bar just says so. Admins can read the grants table.
+function VA_PreviewBar({ who, onExit }) {
+  const [tempUntil, setTempUntil] = useState(null);
+  const email = who && who.email;
+  useEffect(() => {
+    setTempUntil(null);
+    const sb = window.mgbSupabase;
+    if (!sb || !email) return;
+    let alive = true;
+    sb.from("staff_temp_admin_access")
+      .select("expires_at")
+      .eq("staff_email", email)
+      .maybeSingle()
+      .then(
+        ({ data }) => {
+          if (alive && data && data.expires_at && new Date(data.expires_at).getTime() > Date.now())
+            setTempUntil(data.expires_at);
+        },
+        () => {},
+      );
+    return () => {
+      alive = false;
+    };
+  }, [email]);
+  const name = who.name || who.email;
+  return (
+    <div className="preview-bar" data-tour="va-preview-bar">
+      <span>
+        Viewing as <strong>{name}</strong> — {who.role}. This is what they see
+        when they sign in, including their assigned clients and their own
+        tasks.{" "}
+        <span className="va-ro-chip">Read-only. Nothing you do here is saved.</span>
+        {tempUntil && (
+          <span className="va-temp-note">
+            {" "}
+            {name} also has temporary admin access until{" "}
+            {new Date(tempUntil).toLocaleDateString(undefined, { month: "short", day: "numeric" })}. View as shows
+            their bookkeeper view only.
+          </span>
+        )}
+      </span>
+      <button className="preview-exit" onClick={onExit}>
+        Exit "View as"
+      </button>
+    </div>
+  );
+}
+
+// kind: "reviews" | "handbook" | "inbox". clients: [{id, name}] for the
+// inbox's links to each assigned client's Messages tab.
+const VA_PLACEHOLDER_WHAT = {
+  reviews: "reviews",
+  handbook: "handbook to-dos",
+  inbox: "team chat and unread messages",
+};
+function VA_PrivatePlaceholder({ kind, name, clients, children }) {
+  const first = VA_firstName(name);
+  const what = VA_PLACEHOLDER_WHAT[kind] || "page";
+  const list = (clients || []).slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+  return (
+    <div className="card va-private" data-tour={"va-private-" + kind}>
+      <h3 className="va-private-title">Private to {name || first}</h3>
+      <p className="va-private-body">
+        {first} sees their own {what} here. It's private to them, so View as
+        doesn't show it. Exit View as to see yours.
+      </p>
+      {kind === "reviews" && (
+        <p className="va-private-body muted">
+          Reviews are private between {first} and their reviewer, even when you are that reviewer.
+        </p>
+      )}
+      {kind === "inbox" && (
+        <>
+          <p className="va-private-body">Their clients' Messages tabs open as normal (read-only):</p>
+          {list.length === 0 ? (
+            <p className="va-private-body muted">No assigned clients.</p>
+          ) : (
+            <ul className="va-client-links">
+              {list.map((c) => (
+                <li key={c.id}>
+                  <a href={"#/client/" + encodeURIComponent(c.id) + "/messages"}>{c.name}</a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+      {children}
+    </div>
+  );
+}
+
 function App({ staffUser, onSignOut, clientPortalUser }) {
   // Deep link from the URL hash, read once on mount (see parseHashRoute).
   const [initialRoute] = useState(() => {
@@ -27521,6 +27873,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   });
   // Which tab client Settings shows (Settings.jsx ST_ClientSettingsPage).
   const [settingsTab, setSettingsTab] = useState(() => (initialRoute && initialRoute.settingsTab) || null);
+  // View as target ({email, name, role}); see startImpersonating below. Only
+  // a real admin can set it, so every `impersonating` branch is inert for
+  // everyone else.
+  const [impersonating, setImpersonating] = useState(null);
+  const effectiveStaffUser = impersonating || staffUser;
   // Sidebar dot for Team Chat — recomputed on every page change and on any
   // Team Chat activity (cheap, single-purpose query) rather than polling,
   // same posture as the rest of this app's Supabase reads. "Read" is now a
@@ -27530,7 +27887,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const [staffMessagesUnread, setStaffMessagesUnread] = useState(false);
   const checkStaffMessagesUnread = useCallback(() => {
     const supabase = window.mgbSupabase;
-    if (!supabase || !staffUser) {
+    // View as: chat is private to them and read state is the admin's, so the
+    // dot stays off (spec D6).
+    if (!supabase || !staffUser || impersonating) {
       setStaffMessagesUnread(false);
       return;
     }
@@ -27570,10 +27929,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               const readAt = readByConv[m.conversation_id];
               return !readAt || new Date(m.created_at) > new Date(readAt);
             });
-            setStaffMessagesUnread(unread);
+            // A reply that lands after View as started stays off.
+            setStaffMessagesUnread(unread && !VA_on());
           });
       });
-  }, [staffUser]);
+  }, [staffUser, impersonating]);
   useEffect(() => {
     checkStaffMessagesUnread();
   }, [checkStaffMessagesUnread, page]);
@@ -27586,8 +27946,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // query.
   const [myTasksDue, setMyTasksDue] = useState({ overdue: 0, due: 0 });
   const myTasksRowsRef = useRef([]);
+  // In View as this counts the viewed person's tasks (admins can read them),
+  // private ones dropped (owner decision Q3), failing closed on rows with no
+  // visibility.
   const recountMyTasksDue = useCallback(() => {
-    if (!staffUser) return;
+    if (!effectiveStaffUser) return;
     setMyTasksDue((prev) => {
       // Tasks tied to a test client or MGB (internal) don't count toward the badge.
       const flagged = typeof CF_excludedIds === "function" ? CF_excludedIds() : null;
@@ -27595,7 +27958,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         flagged && flagged.size
           ? myTasksRowsRef.current.filter((r) => !(r && r.client_id && flagged.has(r.client_id)))
           : myTasksRowsRef.current,
-        staffUser.email,
+        effectiveStaffUser.email,
         todayLocal(),
         Date.now(),
       );
@@ -27603,39 +27966,44 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         ? prev
         : next;
     });
-  }, [staffUser]);
+  }, [effectiveStaffUser]);
   const refreshMyTasksDue = useCallback(() => {
     const supabase = window.mgbSupabase;
-    if (!supabase || !staffUser) {
-      myTasksRowsRef.current = [];
+    myTasksRowsRef.current = [];
+    if (!supabase || !effectiveStaffUser) {
       setMyTasksDue({ overdue: 0, due: 0 });
       return;
     }
-    staffItemsApi.list(supabase, staffUser.email).then(({ data, error }) => {
+    const viewing = !!impersonating;
+    const email = effectiveStaffUser.email;
+    staffItemsApi.list(supabase, email).then(({ data, error }) => {
       if (error || !data) return;
-      myTasksRowsRef.current = data;
+      // A late answer for the person we just stopped (or started) viewing.
+      const cur = window.mgbViewAs;
+      if (viewing !== !!(cur && cur.on) || (viewing && cur.email !== email)) return;
+      myTasksRowsRef.current = viewing ? VA_dropPrivate(data) : data;
       recountMyTasksDue();
     });
-  }, [staffUser, recountMyTasksDue]);
+  }, [effectiveStaffUser, impersonating, recountMyTasksDue]);
   useEffect(() => {
     refreshMyTasksDue();
   }, [refreshMyTasksDue, page]);
   useStaffItemsChanged(refreshMyTasksDue);
   useEffect(() => {
-    if (!staffUser) return;
+    if (!effectiveStaffUser) return;
     const id = setInterval(recountMyTasksDue, 60 * 1000);
     return () => clearInterval(id);
-  }, [staffUser, recountMyTasksDue]);
+  }, [effectiveStaffUser, recountMyTasksDue]);
 
   // Live refresh for My Tasks / Home / the badge when a teammate (or another
   // tab) changes a row this person can see. Private channel, same pattern as
   // Team Chat (audit2-realtime-private-channels.sql); RLS on staff_reminders
   // decides which rows' events reach whom. Silent no-op until
   // staff-reminders-v2.sql adds the table to the supabase_realtime
-  // publication.
+  // publication. Off in View as (it refreshes on page change instead).
   useEffect(() => {
     const supabase = window.mgbSupabase;
-    if (!supabase || !staffUser) return;
+    if (!supabase || !staffUser || impersonating) return;
     const channel = supabase
       .channel("staff-reminders-" + staffUser.email, {
         config: { private: true },
@@ -27649,7 +28017,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [staffUser]);
+  }, [staffUser, impersonating]);
   // Same for staff-only client notes (dated notes + handoff summaries), so
   // My Tasks, Home and Client details pick up a teammate's edit. No-op until
   // tasks-notes-v3.sql adds the tables to the publication.
@@ -27891,21 +28259,135 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // made while impersonating (a note, a reminder) still carry the real
   // signed-in admin's session for RLS purposes; only what's DISPLAYED and
   // which rows get READ (assigned clients, that person's own reminders)
-  // change.
-  const [impersonating, setImpersonating] = useState(null);
-  const effectiveStaffUser = impersonating || staffUser;
-
-  const startImpersonating = (row) => {
-    if (typeof AL_logEvent === "function") AL_logEvent("view_as.start", null, { target: row.email, name: row.name });
-    setImpersonating({ email: row.email, name: row.name, role: row.role });
-    setPage("today");
+  // change. (The state itself is declared further up, before the rail
+  // badges that read it.)
+  //
+  // View as is read-only (docs/view-as-full-app-spec.md D1): the fetch guard
+  // in supabaseClient.js reads window.mgbViewAs, so it's set synchronously
+  // here (the first request after the click is already guarded) and kept in
+  // step by the effect below. The TR / HB caches hold the admin's own
+  // reviews and handbook queue, so they're dropped on the way in and out.
+  const VA_clearCaches = () => {
+    try {
+      if (typeof TR_clearOverviewCache === "function") TR_clearOverviewCache();
+      if (typeof HB_clearStatusCache === "function") HB_clearStatusCache();
+    } catch (e) {}
   };
-  const stopImpersonating = () => {
+  const vaStartingRef = useRef(false);
+  const startImpersonating = async (row) => {
+    // Real admins only (not a temporary admin, who can open HR › Members),
+    // and only an active, non-admin teammate who isn't you. Nothing else
+    // runs before this, so for everyone else the guard stays off.
+    const me = String((staffUser && staffUser.email) || "").toLowerCase();
+    const target = String((row && row.email) || "").toLowerCase();
+    if (!staffUser || staffUser.role !== "admin" || clientPortalUser) return;
+    if (!row || !target || !row.active || row.role === "admin" || target === me) return;
+    if (impersonating || vaStartingRef.current) return;
+    vaStartingRef.current = true;
+    try {
+      // Audit first: no row, no View as.
+      const r =
+        typeof AL_logEvent === "function"
+          ? await AL_logEvent("view_as.start", null, { target: row.email, name: row.name })
+          : { error: { message: "Audit log isn't loaded." } };
+      if (!r || r.error) {
+        try {
+          window.dispatchEvent(new CustomEvent("mgb:toast", { detail: { text: "Couldn't start View as. Try again." } }));
+        } catch (e) {}
+        return;
+      }
+      window.mgbViewAs = { on: true, name: row.name, email: row.email, blockedPages: {}, token: null };
+      VA_cacheToken();
+      VA_clearCaches();
+      setImpersonating({ email: row.email, name: row.name, role: row.role });
+      setPage("today");
+    } finally {
+      vaStartingRef.current = false;
+    }
+  };
+  // opts.keepPage: stay where you are (the budget's "Exit View as to approve").
+  // opts.reason: "exit" (default) or "signout"; pagehide logs separately.
+  // Returns the log's promise so sign-out can await it.
+  const stopImpersonating = (opts) => {
+    const reason = (opts && opts.reason) || "exit";
+    let logged = Promise.resolve();
     if (impersonating && typeof AL_logEvent === "function")
-      AL_logEvent("view_as.stop", null, { target: impersonating.email, name: impersonating.name });
+      logged = Promise.resolve(
+        AL_logEvent("view_as.stop", null, { target: impersonating.email, name: impersonating.name, reason }),
+      ).catch(() => {});
+    window.mgbViewAs = null;
+    VA_clearCaches();
     setImpersonating(null);
-    setPage("today");
+    // The admin's own Desk was frozen while viewing as; bring it up to date.
+    try {
+      if (typeof WB_store === "object" && WB_store && typeof WB_store.refresh === "function") WB_store.refresh();
+    } catch (e) {}
+    if (!opts || !opts.keepPage) setPage("today");
+    return logged;
   };
+  // Signing out mid-View-as logs the stop first, then signs out (the JWT is
+  // gone afterwards).
+  const signOutApp = async () => {
+    if (impersonating) {
+      try {
+        await stopImpersonating({ reason: "signout", keepPage: true });
+      } catch (e) {}
+    }
+    return onSignOut && onSignOut();
+  };
+
+  useEffect(() => {
+    window.mgbViewAs = impersonating
+      ? Object.assign({ blockedPages: {}, token: null }, window.mgbViewAs || {}, {
+          on: true,
+          name: impersonating.name,
+          email: impersonating.email,
+        })
+      : null;
+    if (!impersonating) return undefined;
+    VA_cacheToken();
+    // Closing the tab or reloading mid-View-as: a raw keepalive fetch with
+    // the cached token, since an awaited sb.rpc dies with the page (D4).
+    // Best-effort; the audit log can show a start with no stop.
+    const onHide = () => {
+      const va = window.mgbViewAs;
+      const cfg = window.SUPABASE_CONFIG;
+      if (!va || !va.on || !va.token || !cfg || !cfg.url || !cfg.anonKey) return;
+      try {
+        fetch(`${cfg.url}/rest/v1/rpc/log_audit_event`, {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            "Content-Type": "application/json",
+            apikey: cfg.anonKey,
+            Authorization: `Bearer ${va.token}`,
+          },
+          body: JSON.stringify({
+            p_action: "view_as.stop",
+            p_client_id: null,
+            p_details: { target: va.email, name: va.name, reason: "pagehide" },
+          }),
+        }).catch(() => {});
+      } catch (e) {}
+    };
+    window.addEventListener("pagehide", onHide);
+    let authSub = null;
+    try {
+      const sb = window.mgbSupabase;
+      if (sb && sb.auth && typeof sb.auth.onAuthStateChange === "function") {
+        const r = sb.auth.onAuthStateChange((_event, session) => {
+          if (window.mgbViewAs) window.mgbViewAs.token = session ? session.access_token : null;
+        });
+        authSub = r && r.data && r.data.subscription;
+      }
+    } catch (e) {}
+    return () => {
+      window.removeEventListener("pagehide", onHide);
+      try {
+        if (authSub) authSub.unsubscribe();
+      } catch (e) {}
+    };
+  }, [impersonating]);
 
   useEffect(() => {
     setClientAccessError(false);
@@ -28071,7 +28553,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     liveGrantClientIds.forEach((id) => ids.add(id));
     return ids;
   }, [assignedClientIds, liveGrantClientIds]);
-  window.mgbViewerEmail = staffUser && staffUser.email ? staffUser.email : null;
+  // View as: the viewed person's email, so CF_useShowTest (which prefers
+  // this) reads their "Show test clients" key, normally absent, so off.
+  window.mgbViewerEmail = impersonating
+    ? impersonating.email
+    : staffUser && staffUser.email
+      ? staffUser.email
+      : null;
   const [showTestClients] = CF_useShowTest(staffUser && staffUser.email);
   const flagMe = String((effectiveStaffUser && effectiveStaffUser.email) || "").toLowerCase();
   const listClients = useMemo(
@@ -28623,14 +29111,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // for HR > Members (see supabase/staff-admin-policies.sql) and
   // developer-tools only ever touches this browser's own localStorage, but
   // the page-level gate still keeps a demoted admin's stale stored page
-  // from rendering either. Inbox, Work, Team and Help are open to any staff
-  // role (a bookkeeper has their own thread, tasks and reviews too) but,
-  // like the admin pages, unreachable while impersonating — "view as" is
-  // about seeing a bookkeeper's CLIENT-facing view, and whose Team Chat
-  // thread or task list should show during that (the real admin's, or the
-  // impersonated bookkeeper's) has no clean answer, so it's simplest to
-  // just not offer them mid-impersonation. Today and Clients stay, so the
-  // admin can still get around while viewing as someone.
+  // from rendering either. Inbox, Work, Team, HR and Help are open to any
+  // staff role (a bookkeeper has their own thread, tasks and reviews too),
+  // and since 2026-10-23 to View as as well (docs/view-as-full-app-spec.md):
+  // the whole app shows read-only, with the fetch guard in supabaseClient.js
+  // refusing writes. Places that would answer for the admin's session (team
+  // chat, HR › Reviews, Handbook status) show a "Private to {name}" card
+  // instead. The admin pages stay unreachable while viewing as someone, and
+  // /tasks (the full Tasks app, the admin's own) bounces to Work, whose
+  // Slate tab shows a read-only snapshot of their tasks.
   // A staff session asking for a key this build doesn't know (a stale
   // stored page from before the 2026-10-08 nav redesign) lands on Today,
   // never on a client's Dashboard.
@@ -28662,13 +29151,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         ? page
         : (page === "audit-log" || page === "emails") && staffUser && staffUser.role === "admin" && !impersonating
           ? page
-        // Tasks: staff only. While viewing as someone it bounces to Today; a
-        // client falls through to their Home below.
+        // Tasks: staff only. While viewing as someone it bounces to Work
+        // (Slate is its default tab); a client falls through to their Home.
         : page === "tasks" && staffUser && !clientPortalUser
           ? impersonating
-            ? "today"
+            ? "work"
             : page
-        : (page === "inbox" || page === "work" || page === "team" || page === "hr" || page === "help") && staffUser && !impersonating
+        : (page === "inbox" || page === "work" || page === "team" || page === "hr" || page === "help") && staffUser
           ? page
         : (page === "today" || page === "clients") && staffUser
           ? page
@@ -28718,7 +29207,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // rather than page so it reflects what actually rendered, not a page key
   // that got bounced by the access checks above. Impersonation logs under
   // the real staffUser doing the impersonating (not the impersonated
-  // bookkeeper) since that's whose browser/session generated the view.
+  // bookkeeper) since that's whose browser/session generated the view, with
+  // view_as set so Usage Stats and Last seen leave those rows out. browser
+  // and app_version feed HR › Members › Last seen.
   // Fire-and-forget: a logging failure should never surface to the viewer.
   // A tab switch inside a hub (#/work/tasks → #/work/close) counts as its
   // own view, so Usage Stats can tell the tabs apart.
@@ -28759,12 +29250,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         page: usagePlace ? usagePlace.key : effectivePage,
         tab: usagePlace ? effectivePage : MGB_currentTab(effectivePage),
         device: MGB_deviceKind(),
+        browser: MGB_browserLabel(),
+        app_version: window.MGB_VERSION ? String(window.MGB_VERSION.label || "").slice(0, 40) || null : null,
+        view_as: !!impersonating,
       })
       .then(({ error }) => {
         if (error) console.warn("Couldn't log usage event:", error.message);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectivePage, usageTab]);
+  }, [effectivePage, usageTab, impersonating]);
 
   // Keep the URL hash in step with what's actually on screen (effectivePage,
   // so a bounced deep link shows where the viewer really landed). pushState /
@@ -29786,7 +30280,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         )}
         {impersonating && (
           <button
-            onClick={stopImpersonating}
+            onClick={() => stopImpersonating()}
             style={{
               marginTop: 16,
               background: "none",
@@ -29801,7 +30295,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           </button>
         )}
         <button
-          onClick={onSignOut}
+          onClick={signOutApp}
           style={{
             marginTop: 16,
             background: "none",
@@ -29831,6 +30325,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           staffUser: effectiveStaffUser,
           // Name of the staffer an admin is viewing as ("View as"), else null.
           viewingAsName: impersonating ? impersonating.name || impersonating.email : null,
+          // ProBudget's "Exit View as to approve": stays on the page.
+          exitViewAs: impersonating ? () => stopImpersonating({ keepPage: true }) : null,
         }}
       >
       <div className="mesh-bg" aria-hidden="true">
@@ -29948,7 +30444,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           mobileOpen={mobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}
           staffUser={effectiveStaffUser}
-          onSignOut={onSignOut}
+          onSignOut={signOutApp}
           staffMessagesUnread={staffMessagesUnread}
           myTasksDue={myTasksDue}
           hasPendingAccessRequests={hasPendingAccessRequests}
@@ -29971,7 +30467,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               staffUser={effectiveStaffUser}
               realStaffUser={staffUser}
               impersonating={impersonating}
-              onStopImpersonating={stopImpersonating}
+              onStopImpersonating={() => stopImpersonating()}
               clients={listClients}
               client={onStaffPage ? null : client}
               page={effectivePage}
@@ -29981,7 +30477,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               pendingRequestsByClient={pendingRequestsByClient}
               effectiveTheme={effectiveTheme}
               onToggleTheme={() => chooseTheme(effectiveTheme === "dark" ? "light" : "dark")}
-              onSignOut={onSignOut}
+              onSignOut={signOutApp}
               onPreviewAs={setViewAsUserId}
               onOpenSettings={() => setPage("settings")}
               previewPlan={!onStaffPage && !impersonating ? getPreviewPlan(client.id) : undefined}
@@ -30015,19 +30511,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {!impersonating && !NON_CLIENT_PAGES.has(effectivePage) && (
             <CS_TempAccessNote clientId={client.id} clientName={client.name} />
           )}
-          {impersonating && (
-            <div className="preview-bar">
-              <span>
-                Viewing as <strong>{impersonating.name}</strong> —{" "}
-                {impersonating.role}. This is exactly what they see when they
-                sign in, including their assigned clients and their own
-                reminders.
-              </span>
-              <button className="preview-exit" onClick={stopImpersonating}>
-                Exit "View as"
-              </button>
-            </div>
-          )}
+          {impersonating && <VA_PreviewBar who={impersonating} onExit={() => stopImpersonating()} />}
           {isPreviewingUser && (
             <div className="preview-bar">
               <span>
@@ -30659,7 +31143,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               staffUser={staffUser}
               readOnlyReason={
                 impersonating
-                  ? `You're viewing as ${impersonating.name}. Settings here are yours, not theirs, so they can't be changed until you stop viewing as.`
+                  ? `These are your settings, not ${impersonating.name || impersonating.email}'s. Exit View as to change them.`
                   : null
               }
               isAdmin={!!staffUser && staffUser.role === "admin" && !impersonating}
@@ -30667,7 +31151,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               clients={listClients}
               theme={theme}
               onChooseTheme={chooseTheme}
-              onSignOut={onSignOut}
+              onSignOut={signOutApp}
               onSelectPage={setPage}
             />
           )}
@@ -30684,7 +31168,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               renderMilestone={() => <MilestonePage client={client} isStaff={isStaffSession && !isPreviewingUser} key={"milestone-" + client.id} />}
               theme={theme}
               onChooseTheme={chooseTheme}
-              onSignOut={onSignOut}
+              onSignOut={signOutApp}
               onSelectPage={setPage}
               renderPlan={() => (
                 <EnterpriseUpgradePage
@@ -30722,6 +31206,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               staffUser={effectiveStaffUser}
               isAdmin={staffIsAdmin}
               isRealAdmin={staffUser.role === "admin" && !impersonating}
+              viewingAs={impersonating}
               clients={listClients}
               renderMembers={() => (
                 <StaffAccessPage
@@ -30735,7 +31220,16 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "client-access" && (
             <ClientAccessPage readOnly={staffUser.role !== "admin"} />
           )}
-          {effectivePage === "inbox" && (
+          {/* View as: team chat and read state are the admin's own (JWT), so
+              the Inbox shows a placeholder plus the person's client links. */}
+          {effectivePage === "inbox" && impersonating && (
+            <VA_PrivatePlaceholder
+              kind="inbox"
+              name={impersonating.name || impersonating.email}
+              clients={listClients.filter((c) => c && !c.isInternal)}
+            />
+          )}
+          {effectivePage === "inbox" && !impersonating && (
             <StaffMessagesPage
               staffUser={staffUser}
               onActivity={checkStaffMessagesUnread}
@@ -30766,8 +31260,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               clients={listClients}
               taskClients={visibleClients}
               staffUser={effectiveStaffUser}
+              viewingAs={impersonating}
               statusOverrides={statusOverrides}
-              canManageTemplates={staffIsAdmin}
+              canManageTemplates={staffIsAdmin && !impersonating}
               canCreateTemplates={staffUser.role === "admin" && !impersonating}
               onOpenTemplates={() => { window.location.hash = "#/tasks/templates"; }}
             />
@@ -30850,7 +31345,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {effectivePage === "emails" && typeof EM_EmailsPage === "function" && <EM_EmailsPage />}
           {effectivePage === "task-templates" && <TT_TaskTemplatesPage clients={visibleClients} />}
-          {effectivePage === "help" && typeof HLP_StaffGuidePage === "function" && <HLP_StaffGuidePage />}
+          {effectivePage === "help" && typeof HLP_StaffGuidePage === "function" && (
+            <HLP_StaffGuidePage impersonating={Boolean(impersonating)} />
+          )}
           {/* Today (components/staff/Today.jsx): what needs this person, in
               order, across every client they can see. */}
           {effectivePage === "today" && typeof TD_TodayPage === "function" && (

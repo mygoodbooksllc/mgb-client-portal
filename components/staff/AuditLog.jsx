@@ -46,6 +46,7 @@ const AL_ACTIONS = {
   "client.bookkeeper_changed": "Bookkeeper changed",
   "view_as.start": "View as started",
   "view_as.stop": "View as ended",
+  "view_as.blocked": "View as: blocked change",
   "portal_preview.start": "Portal preview started",
   "portal_preview.stop": "Portal preview ended",
   "handbook.signed": "Handbook policy signed",
@@ -138,6 +139,15 @@ function AL_summary(row) {
     return `${d.name || ""}: ${d.from_staff || "none"} → ${d.to_staff || "none"}`;
   }
   if (a.startsWith("qbo_firm.")) return [d.company, d.from && d.to ? `${d.from} → ${d.to}` : "", d.error].filter(Boolean).join(" · ");
+  if (a === "view_as.blocked")
+    return [d.target, d.page ? `on ${d.page}` : "", d.name ? `${d.kind || "write"} ${d.name}` : ""].filter(Boolean).join(" · ");
+  if (a === "view_as.stop")
+    return [
+      d.name || d.target || "",
+      d.reason === "pagehide" ? "(tab closed)" : d.reason === "signout" ? "(signed out)" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
   if (a.startsWith("view_as.") || a.startsWith("portal_preview.")) return d.name || d.target || "";
   if (a === "handbook.countersigner_changed" || a === "handbook.approver_changed") return `${d.from || "none"} → ${d.to || "none"}`;
   if (a === "handbook.policy_approved") return [d.policy, d.version_no ? "v" + d.version_no : ""].filter(Boolean).join(" · ");
@@ -194,23 +204,34 @@ function AL_fmtWhen(iso) {
 
 // ---------------------------------------------------------------------------
 // Client-side events. Fire-and-forget: a failed log never blocks the UI.
+// Returns a promise that always resolves to { error } (null when the row was
+// written), so View as can refuse to start without its audit row and
+// sign-out can await view_as.stop. Other callers ignore it.
 // ---------------------------------------------------------------------------
 function AL_logEvent(action, clientId, details) {
   const supabase = window.mgbSupabase;
-  if (!supabase) return;
+  if (!supabase) return Promise.resolve({ error: { message: "Supabase isn't configured." } });
   try {
-    Promise.resolve(
+    return Promise.resolve(
       supabase.rpc("log_audit_event", {
         p_action: action,
         p_client_id: clientId || null,
         p_details: details || {},
       }),
     ).then(
-      (r) => r && r.error && console.warn("Audit log:", r.error.message),
-      (e) => console.warn("Audit log:", e && e.message),
+      (r) => {
+        const error = (r && r.error) || null;
+        if (error) console.warn("Audit log:", error.message);
+        return { error };
+      },
+      (e) => {
+        console.warn("Audit log:", e && e.message);
+        return { error: e || { message: "Audit log failed" } };
+      },
     );
   } catch (e) {
     console.warn("Audit log:", e && e.message);
+    return Promise.resolve({ error: e || { message: "Audit log failed" } });
   }
 }
 

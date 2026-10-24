@@ -818,10 +818,15 @@ function ProBudgetWhatIfCard({ client }) {
 // ---------------------------------------------------------------- workspace
 
 function ProBudgetWorkspace({ client, access, clientPortalUser }) {
-  const { staff, staffUser } = useContext(StaffToolsContext);
+  const { staff, staffUser, viewingAsName, exitViewAs } = useContext(StaffToolsContext);
   const showToast = useToast();
   const acc = access || { isFullAccess: true, categories: null };
   const fiscalYear = pbNextFiscalYear();
+  // View as (an admin previewing a bookkeeper) is read-only: every button
+  // that writes is disabled, and Approve says why (view-as spec D3).
+  const viewAsRO = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+  const viewAsFirst = String(viewingAsName || "").trim().split(/\s+/)[0] || "They";
+  const roTitle = viewAsRO ? "Read-only in View as" : undefined;
   const period = pbPeriod();
   const clientId = client && client.id;
   const budget = (client.budget || []).filter(
@@ -1713,33 +1718,51 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
               <div className="pb-actions">
                 <button className="btn-secondary" onClick={downloadPdf}>Download Draft PDF</button>
                 {canEditLines && (
-                  <button className="btn-secondary" disabled={saving || mode === "loading" || (!dirty && !!row)}
+                  <button className="btn-secondary" disabled={viewAsRO || saving || mode === "loading" || (!dirty && !!row)}
+                    title={roTitle}
                     onClick={() => setModal({ kind: "save" })}>
                     {saving ? "Saving…" : "Save draft"}
                   </button>
                 )}
                 {canEditLines && (
-                  <button className="btn-primary" disabled={saving || mode === "loading"}
+                  <button className="btn-primary" disabled={viewAsRO || saving || mode === "loading"}
+                    title={roTitle}
                     onClick={() => setModal({ kind: "submit" })}>
                     Submit for approval
                   </button>
                 )}
                 {status === "submitted" && canDecide && (
                   <>
-                    <button className="btn-secondary" disabled={saving} onClick={() => setModal({ kind: "changes" })}>
+                    <button className="btn-secondary" disabled={saving || viewAsRO} title={roTitle}
+                      onClick={() => setModal({ kind: "changes" })}>
                       Request changes
                     </button>
                     {canApprove ? (
-                      <button className="btn-primary" disabled={saving} onClick={() => setModal({ kind: "approve" })}>
+                      <button className="btn-primary" disabled={saving || viewAsRO} title={roTitle} onClick={() => setModal({ kind: "approve" })}>
                         Approve
                       </button>
+                    ) : staff && viewingAsName ? (
+                      <>
+                        <button className="btn-primary" disabled aria-describedby="pb-approve-view-as">
+                          Approve
+                        </button>
+                        <span className="pb-muted" id="pb-approve-view-as" data-tour="va-budget-approve">
+                          {viewAsFirst} can't approve budgets.{" "}
+                          {typeof exitViewAs === "function" && (
+                            <button type="button" className="link-btn" onClick={exitViewAs}>
+                              Exit View as to approve
+                            </button>
+                          )}
+                        </span>
+                      </>
                     ) : (
                       <span className="pb-muted" id="pb-approve-admin-only">Only a MyGoodBooks admin or the organization's full-access contact can approve a budget.</span>
                     )}
                   </>
                 )}
                 {locked && canDecide && (status !== "approved" || canApprove) && (
-                  <button className="link-btn" disabled={saving} onClick={() => setModal({ kind: "reopen" })}>
+                  <button className="link-btn" disabled={saving || viewAsRO} title={roTitle}
+                    onClick={() => setModal({ kind: "reopen" })}>
                     Reopen draft
                   </button>
                 )}

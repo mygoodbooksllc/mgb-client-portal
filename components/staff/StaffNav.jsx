@@ -6,6 +6,11 @@
 // the top bar's ⌘K "Pages" group (TopBar.jsx) and the staff tour (Tour.jsx)
 // all read this list, so a place is added or renamed in exactly one spot.
 //
+// View as (docs/view-as-full-app-spec.md, 2026-10-23): Inbox, Work, Team and
+// HR show while an admin views as someone, read-only. Places that would show
+// the admin's own data (team chat, reviews, handbook status) render a
+// "Private to {name}" card instead. MGB (internal) stays hidden.
+//
 // Prefix: NAV_. Like every component file, it only touches app.jsx globals
 // (icons, NON_CLIENT_PAGES) at render time, never at the top level.
 //
@@ -47,8 +52,8 @@ const NAV_PLACES = [
     hint: "Client messages",
     help: "inbox",
     icon: () => <ChatIcon width="16" height="16" strokeWidth="1.8" />,
-    // Not the signed-in person's own while an admin is in "View as".
-    visible: (ctx) => !ctx.impersonating,
+    // In "View as" the page is a "Private to {name}" card with links to
+    // their clients' Messages (team chat is theirs alone).
   },
   {
     key: "work",
@@ -57,7 +62,6 @@ const NAV_PLACES = [
     hint: "Slate, month-end close and deadlines",
     help: "work-page",
     icon: () => <ChecklistIcon width="16" height="16" strokeWidth="1.8" />,
-    visible: (ctx) => !ctx.impersonating,
     tabs: [
       { key: "tasks", label: "Slate", keywords: ["tasks", "my tasks", "to-do"], help: "my-tasks" },
       // Client notes and SOPs (#/work/notes), which used to sit under the task
@@ -85,7 +89,6 @@ const NAV_PLACES = [
     hint: "People, performance, hours and inventory",
     help: "team-page",
     icon: () => <TeamIcon />,
-    visible: (ctx) => !ctx.impersonating,
     tabs: [
       { key: "people", label: "People", help: "time-off-coverage" },
       { key: "performance", label: "Performance", help: "performance", visible: () => typeof PF_PerformanceTab === "function" },
@@ -117,7 +120,8 @@ const NAV_PLACES = [
     hint: "Handbook, reviews and onboarding",
     help: "team-page",
     icon: () => <HRIcon />,
-    visible: (ctx) => !ctx.impersonating,
+    // In "View as" Handbook and Reviews show a "Private to {name}" card;
+    // Employee records and Members are admin tabs, so they're hidden.
     tabs: [
       { key: "handbook", label: "Handbook", help: "staff-handbook", visible: () => typeof HB_HandbookTab === "function" },
       { key: "reviews", label: "Reviews", help: "quarterly-reviews", visible: () => typeof TR_TeamReviewsPage === "function" },

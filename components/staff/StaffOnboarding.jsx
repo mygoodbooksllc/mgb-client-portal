@@ -91,6 +91,11 @@ async function SON_setDone(email, key, done) {
   return error;
 }
 
+// View as is read-only: steps show, ticks are off.
+function SON_ro() {
+  return typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+}
+
 function SON_StepList({ steps, summary, email, canTick, onError }) {
   const [busy, setBusy] = useState("");
   async function toggle(key, done) {
@@ -153,6 +158,7 @@ function SON_HomeCard({ staffUser, className, dragProps }) {
   const summary = OPS_onboardingSummary(st.steps, st.rows, me);
   if (steps.length === 0 || summary.complete || summary.dismissed) return null;
   async function hide() {
+    if (SON_ro()) return;
     setHiding(true);
     const error = await SON_setDone(me, OPS_ONBOARDING_DISMISSED, true);
     setHiding(false);
@@ -164,8 +170,14 @@ function SON_HomeCard({ staffUser, className, dragProps }) {
       <h3 className="card-title">Your onboarding</h3>
       <p className="card-subtitle">Your first steps at MyGoodBooks. Tick each one off as you go.</p>
       <SON_Bar summary={summary} />
-      <SON_StepList steps={steps} summary={summary} email={me} canTick onError={(m) => showToast("Couldn't save: " + m)} />
-      <button type="button" className="link-btn son-hide" disabled={hiding} onClick={hide}>
+      <SON_StepList steps={steps} summary={summary} email={me} canTick={!SON_ro()} onError={(m) => showToast("Couldn't save: " + m)} />
+      <button
+        type="button"
+        className="link-btn son-hide"
+        disabled={hiding || SON_ro()}
+        title={SON_ro() ? "Read-only in View as" : undefined}
+        onClick={hide}
+      >
         Hide this card
       </button>
     </div>
@@ -193,7 +205,7 @@ function SON_MyStepsTab({ staffUser, st, steps }) {
         </p>
         {steps.length > 0 && <SON_Bar summary={summary} />}
         {steps.length > 0 && (
-          <SON_StepList steps={steps} summary={summary} email={me} canTick onError={(m) => showToast("Couldn't save: " + m)} />
+          <SON_StepList steps={steps} summary={summary} email={me} canTick={!SON_ro()} onError={(m) => showToast("Couldn't save: " + m)} />
         )}
       </section>
     </div>
@@ -401,7 +413,7 @@ function SON_ProgressTab() {
                   </span>
                 </button>
                 {open === p.email && (
-                  <SON_StepList steps={steps} summary={p.sum} email={p.email} canTick onError={(m) => showToast("Couldn't save: " + m)} />
+                  <SON_StepList steps={steps} summary={p.sum} email={p.email} canTick={!SON_ro()} onError={(m) => showToast("Couldn't save: " + m)} />
                 )}
               </li>
             ))}

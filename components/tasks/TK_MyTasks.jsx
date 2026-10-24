@@ -330,7 +330,123 @@ function TK_MyTasks(props) {
       </div>
     );
   }
+  if (props.snapshotFor) return <TK_vSnapshotBody {...props} />;
   return <TK_vMyTasksBody {...props} />;
+}
+
+// View as (snapshotFor = the viewed person's email): their open tasks loaded
+// once into local state, never TK_store (it may hold the admin's own list).
+// Rows are read-only: no drawer, no Done, no status menu, no quick add, no
+// saved view prefs. Private tasks are left out (TK_api.listFor, Q3).
+function TK_vSnapshotBody(props) {
+  var email = TK_vLower(props.snapshotFor);
+  var embedded = !!props.embedded;
+  var today = TK_vToday();
+  var sPair = React.useState({ tasks: [], loading: true, error: null });
+  var st = sPair[0];
+  var setSt = sPair[1];
+  React.useEffect(
+    function () {
+      var alive = true;
+      setSt({ tasks: [], loading: true, error: null });
+      if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.listFor !== "function" || !email) {
+        setSt({ tasks: [], loading: false, error: null });
+        return undefined;
+      }
+      Promise.resolve(TK_api.listFor(email)).then(
+        function (rows) {
+          if (alive) setSt({ tasks: Array.isArray(rows) ? rows : [], loading: false, error: null });
+        },
+        function (e) {
+          if (alive) setSt({ tasks: [], loading: false, error: e || { code: "tk_error" } });
+        },
+      );
+      return function () {
+        alive = false;
+      };
+    },
+    [email],
+  );
+  var projects = TK_vUseProjects();
+  var clientNames = React.useMemo(
+    function () {
+      return TK_vNameMap(props.clients, "id", "name");
+    },
+    [props.clients],
+  );
+  var projectNames = React.useMemo(
+    function () {
+      return TK_vNameMap(projects, "id", "name");
+    },
+    [projects],
+  );
+  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(st.tasks, today, { email: email, todayGroup: true }) : {};
+  var view = TK_myGroupsView(groups, { collapsed: {}, showDone: false });
+  // Links and buttons inside the rows would open the drawer or a menu.
+  var stopClicks = function (e) {
+    var t = e.target;
+    if (t && t.closest && t.closest("a, button")) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
+  var body;
+  if (st.loading) body = <TK_vSkeletonRows count={6} />;
+  else if (st.error) body = <TK_vErrorState />;
+  else if (!view.length) {
+    body = (
+      <div className="tk-empty">
+        <p>No open tasks.</p>
+      </div>
+    );
+  } else {
+    body = (
+      <div className="tk-groups" onClickCapture={stopClicks}>
+        {view.map(function (g) {
+          var gid = "tk-snap-group-" + String(g.key).replace(/[^a-zA-Z0-9_-]/g, "_");
+          return (
+            <section key={g.key} className={"tk-group tk-group-" + g.key} aria-labelledby={gid}>
+              <h3 className="tk-group-head" id={gid}>
+                <span className="tk-group-btn">
+                  <span className="tk-group-name">{g.label}</span>
+                  <span className="tk-count">{g.tasks.length}</span>
+                </span>
+              </h3>
+              <ul className="tk-rows" role="grid" aria-label={g.label}>
+                {g.tasks.map(function (t) {
+                  return (
+                    <TK_TaskRow
+                      key={t.id}
+                      task={t}
+                      today={today}
+                      clientName={t.client_id != null ? clientNames[String(t.client_id)] || "" : ""}
+                      projectName={t.project_id ? projectNames[t.project_id] || "" : ""}
+                      showClient={true}
+                      focused={false}
+                      checklist={null}
+                      isAdmin={false}
+                      canEdit={false}
+                      editFields={false}
+                    />
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+    );
+  }
+  return (
+    <div className={"tk-view tk-my" + (embedded ? " tk-embedded" : "")} data-tour="va-slate-snapshot">
+      <div className="tk-view-head">
+        {embedded ? null : <h2 className="tk-view-title">Slate</h2>}
+        <p className="va-ro-label">Read-only preview. Private tasks are not shown.</p>
+      </div>
+      {body}
+    </div>
+  );
 }
 
 function TK_vMyTasksBody(props) {

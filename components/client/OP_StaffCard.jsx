@@ -43,6 +43,9 @@ function OP_StaffCardBody({ client }) {
     };
   }, [cid]);
 
+  // View as is read-only, and the get-to-know check runs on the admin's JWT,
+  // so those answers stay hidden there (fail closed, view-as spec §10.8).
+  const ro = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
   const d = st.data || {};
   // A row made only by staff_set_client_since (no client save yet: updated_by
   // is set by the client's save only) still counts as "Not started".
@@ -119,6 +122,8 @@ function OP_StaffCardBody({ client }) {
               <button
                 type="button"
                 className="link-btn"
+                disabled={ro}
+                title={ro ? "Read-only in View as" : undefined}
                 onClick={() => {
                   setSince(d.client_since ? String(d.client_since).slice(0, 10) : "");
                   setEditing(true);
@@ -153,7 +158,9 @@ function OP_StaffCardBody({ client }) {
           {msg && <p className="op-err">{msg}</p>}
 
           <h4 style={{ margin: "14px 0 6px", fontSize: 13.5 }}>Get to know them</h4>
-          {d.can_see_get_to_know ? (
+          {ro ? (
+            <p className="card-subtitle">Hidden in View as.</p>
+          ) : d.can_see_get_to_know ? (
             d.get_to_know && Object.keys(d.get_to_know).length ? (
               <dl className="op-card-grid">
                 {OP_GTK_FIELDS.map((f) => row(f.label, d.get_to_know[f.key]))}

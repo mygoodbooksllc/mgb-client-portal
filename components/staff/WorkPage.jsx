@@ -3,7 +3,10 @@
 // 2026-10-08; Notes & SOPs and the new My Tasks, 2026-10-11).
 //
 //   WK_WorkPage({ clients, staffUser, statusOverrides, canManageTemplates,
-//                 canCreateTemplates, onOpenTemplates })
+//                 canCreateTemplates, onOpenTemplates, myTasksDue, viewingAs })
+//
+// View as (viewingAs set): the Tasks tab shows a read-only snapshot of the
+// viewed person's open tasks (TK_MyTasks snapshotFor), never TK_store.
 //
 // App mounts it for the "work" page. The open tab lives in the hash
 // (#/work/tasks, #/work/notes, #/work/close, #/work/deadlines) through
@@ -61,7 +64,7 @@ function WK_TasksBadge({ due }) {
 // clients: the clients staff can open. Close and Deadlines (firm-wide counts) read
 // only the real ones: no test clients, no MGB (internal). taskClients: all of them,
 // so tasks and notes tied to a test client or MGB (internal) still show a name.
-function WK_WorkPage({ clients, taskClients, staffUser, statusOverrides, canManageTemplates, canCreateTemplates, onOpenTemplates, myTasksDue }) {
+function WK_WorkPage({ clients, taskClients, staffUser, statusOverrides, canManageTemplates, canCreateTemplates, onOpenTemplates, myTasksDue, viewingAs }) {
   const isAdmin = !!(staffUser && staffUser.role === "admin");
   const tabs = NAV_visibleTabs("work", { isAdmin });
   const keys = tabs.map((t) => t.key);
@@ -84,7 +87,13 @@ function WK_WorkPage({ clients, taskClients, staffUser, statusOverrides, canMana
   let body = null;
   if (tab === "tasks") {
     body = useTk ? (
-      <TK_MyTasks embedded staffUser={staffUser} clients={taskClients || clients} isAdmin={isAdmin} />
+      <TK_MyTasks
+        embedded
+        staffUser={staffUser}
+        clients={taskClients || clients}
+        isAdmin={isAdmin}
+        snapshotFor={viewingAs ? viewingAs.email : null}
+      />
     ) : typeof MyTasksPage === "function" ? (
       <MyTasksPage
         mode="tasks"

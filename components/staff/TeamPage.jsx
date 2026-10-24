@@ -556,17 +556,20 @@ const TP_roleLabel = (role) =>
 // does, so the hook calls are stable across renders. The hub only hands a
 // badge to NAV_TabRow when the count is above zero: the row draws the pill
 // around whatever it is given, so an empty badge would show as an empty pill.
-function TP_useReviewsDue() {
+// `enabled` is false in View as: tr_my_overview and hb_status answer for the
+// signed-in admin, so they're never called there (view-as spec D6).
+function TP_useReviewsDue(enabled) {
   const can = typeof TR_useOverview === "function" && typeof TR_dueCount === "function";
-  const ov = can ? TR_useOverview() : null;
-  return can ? TR_dueCount(ov && ov.data) : 0;
+  const ov = can ? TR_useOverview(enabled) : null;
+  return can && enabled !== false ? TR_dueCount(ov && ov.data) : 0;
 }
 // Handbook: my unsigned policies plus signatures I countersign, plus (the
 // policy approver) drafts waiting for approval (hb_status). One badge; the
 // spoken label names both parts.
-function TP_useHandbookDue() {
+function TP_useHandbookDue(enabled) {
   const can = typeof HB_useStatus === "function" && typeof HB_badgeCount === "function";
-  const st = can ? HB_useStatus() : null;
+  const st = can ? HB_useStatus(enabled) : null;
+  if (enabled === false) return { n: 0, sign: 0, approve: 0 };
   const data = st && st.data;
   const n = can ? HB_badgeCount(data) : 0;
   const parts = can && typeof HB_badgeParts === "function" ? HB_badgeParts(data) : { sign: n, approve: 0 };
@@ -585,13 +588,15 @@ function TP_useFeedbackNew(enabled) {
 }
 // The HR rail item's badge: Reviews and Handbook counts added together, in the
 // same look as TR_NavBadge (TeamReviews.jsx). Hooks only call the shared stores
-// that exist, as above.
-function TP_HrNavBadge({ expanded }) {
-  const reviews = TP_useReviewsDue();
+// that exist, as above. Nothing in View as (the counts are the admin's); the
+// rail also skips it there.
+function TP_HrNavBadge({ expanded, viewingAs }) {
+  const on = !viewingAs && !(typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly());
+  const reviews = TP_useReviewsDue(on);
   // TP_useHandbookDue returns { n, sign, approve }; adding the object to a number printed "0[object Object]".
-  const handbook = TP_useHandbookDue().n || 0;
+  const handbook = TP_useHandbookDue(on).n || 0;
   const n = reviews + handbook;
-  if (!n) return null;
+  if (!on || !n) return null;
   const parts = [];
   if (reviews) parts.push(`${reviews} review item${reviews === 1 ? "" : "s"} due`);
   if (handbook) parts.push(`${handbook} handbook item${handbook === 1 ? "" : "s"} to sign`);
@@ -614,11 +619,99 @@ function TP_TabBadge({ n, label }) {
   );
 }
 
-function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, renderMembers }) {
+// View as, HR › Handbook: which policies they've signed, from tables an
+// admin can already read. Only version ids and dates are selected, never the
+// typed name, IP or user agent on a signature (view-as spec D6).
+function TP_ViewAsHandbookList({ email }) {
+  const [st, setSt] = useState({ loading: true, rows: [], error: "" });
+  useEffect(() => {
+    const sb = window.mgbSupabase;
+    if (!sb || !email) {
+      setSt({ loading: false, rows: [], error: "" });
+      return;
+    }
+    let alive = true;
+    setSt({ loading: true, rows: [], error: "" });
+    Promise.all([
+      sb.from("handbook_policies").select("id, title, sort").eq("active", true),
+      sb.from("handbook_versions").select("id, policy_id, version_no, requires_resign"),
+      sb
+        .from("handbook_signatures")
+        .select("version_id, signed_at, countersigned_at")
+        .eq("staff_email", String(email).toLowerCase()),
+    ]).then(
+      ([p, v, g]) => {
+        if (!alive) return;
+        const err = p.error || v.error || g.error;
+        if (err) {
+          setSt({ loading: false, rows: [], error: "Couldn't load the handbook." });
+          return;
+        }
+        const versions = v.data || [];
+        const sigByVersion = {};
+        (g.data || []).forEach((r) => {
+          sigByVersion[r.version_id] = r;
+        });
+        const rows = (p.data || [])
+          .slice()
+          .sort((a, b) => (a.sort || 0) - (b.sort || 0) || String(a.title).localeCompare(String(b.title)))
+          .map((pol) => {
+            const mine = versions.filter((x) => x.policy_id === pol.id);
+            const latest = mine.reduce((m, x) => Math.max(m, x.version_no), 0);
+            // The version they must have signed: the newest that asked for it.
+            const required = mine.filter((x) => x.requires_resign).reduce((m, x) => Math.max(m, x.version_no), 0);
+            const signed = mine
+              .filter((x) => x.version_no >= required && sigByVersion[x.id])
+              .sort((a, b) => b.version_no - a.version_no)
+              .map((x) => sigByVersion[x.id])[0];
+            return { id: pol.id, title: pol.title, latest, signed };
+          })
+          .filter((r) => r.latest > 0);
+        setSt({ loading: false, rows, error: "" });
+      },
+      () => alive && setSt({ loading: false, rows: [], error: "Couldn't load the handbook." }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [email]);
+  if (st.loading) return <p className="card-subtitle">Loading…</p>;
+  if (st.error) return <p className="card-subtitle">{st.error}</p>;
+  if (!st.rows.length) return <p className="card-subtitle">No policies published yet.</p>;
+  return (
+    <>
+      <p className="va-ro-label">Read-only preview: signed or not</p>
+      <ul className="va-signed-list" data-tour="va-handbook-signed">
+        {st.rows.map((r) => (
+          <li key={r.id}>
+            <span>
+              <b>{r.title}</b>
+              {r.latest ? ` · v${r.latest}` : ""}
+            </span>
+            <span>
+              {r.signed
+                ? "Signed " +
+                  fmtDate(String(r.signed.signed_at).slice(0, 10)) +
+                  (r.signed.countersigned_at ? " · countersigned" : "")
+                : "Not signed"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+// viewingAs: the staff row App is viewing as, or null (view-as spec §10.3).
+function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, renderMembers, viewingAs }) {
   const placeKey = place === "hr" ? "hr" : "team";
   const admin = !!isAdmin;
   const realAdmin = isRealAdmin != null ? !!isRealAdmin : !!(staffUser && staffUser.role === "admin");
-  const tabs = NAV_visibleTabs(placeKey, { isAdmin: admin, isRealAdmin: realAdmin });
+  // View as never offers Employee records or Members, even if a hash names
+  // them (isAdmin is already false there; this is the backstop).
+  const tabs = NAV_visibleTabs(placeKey, { isAdmin: admin, isRealAdmin: realAdmin }).filter(
+    (t) => !viewingAs || (t.key !== "employees" && t.key !== "members"),
+  );
   const keys = tabs.map((t) => t.key);
   const [current, setTab] = NAV_useHashSub(placeKey, keys, placeKey === "hr" ? keys[0] || "handbook" : "people");
 
@@ -628,9 +721,9 @@ function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, rend
     // eslint-disable-next-line
   }, [tab]);
 
-  const reviewsDue = TP_useReviewsDue();
-  const feedbackNew = TP_useFeedbackNew(admin);
-  const handbookDue = TP_useHandbookDue();
+  const reviewsDue = TP_useReviewsDue(!viewingAs);
+  const feedbackNew = TP_useFeedbackNew(admin && !viewingAs);
+  const handbookDue = TP_useHandbookDue(!viewingAs);
   const badgeFor = (key) => {
     if (key === "reviews" && reviewsDue > 0)
       return <TP_TabBadge n={reviewsDue} label={`${reviewsDue} review item${reviewsDue === 1 ? "" : "s"} due`} />;
@@ -647,7 +740,22 @@ function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, rend
 
   const missing = (what) => <p className="card-subtitle">{what} isn't available right now.</p>;
   let body = null;
-  if (current === "people") body = <TP_PeopleTab staffUser={staffUser} isAdmin={realAdmin} clients={clients} />;
+  const vaName = viewingAs ? viewingAs.name || viewingAs.email : "";
+  const vaCard = viewingAs && typeof VA_PrivatePlaceholder === "function";
+  if (viewingAs && (current === "employees" || current === "members")) body = null;
+  else if (current === "people") body = <TP_PeopleTab staffUser={staffUser} isAdmin={realAdmin} clients={clients} />;
+  // View as: Reviews and Handbook would show the admin's own (blind rule),
+  // so a placeholder; Handbook adds a read-only signed / not signed list.
+  else if (current === "reviews" && viewingAs)
+    body = vaCard ? <VA_PrivatePlaceholder kind="reviews" name={vaName} /> : missing("Reviews");
+  else if (current === "handbook" && viewingAs)
+    body = vaCard ? (
+      <VA_PrivatePlaceholder kind="handbook" name={vaName}>
+        <TP_ViewAsHandbookList email={viewingAs.email} />
+      </VA_PrivatePlaceholder>
+    ) : (
+      missing("Handbook")
+    );
   else if (current === "reviews") body = typeof TR_TeamReviewsPage === "function" ? <TR_TeamReviewsPage /> : missing("Reviews");
   else if (current === "onboarding") body = typeof SON_ProgressTab === "function" ? <SON_ProgressTab /> : missing("Onboarding");
   else if (current === "handbook")
@@ -702,7 +810,12 @@ function TP_UpcomingCard() {
     }
     let alive = true;
     sb.rpc("staff_celebrations").then(({ data, error }) => {
-      if (alive) setSt({ loading: false, rows: error || !Array.isArray(data) ? [] : data });
+      let rows = error || !Array.isArray(data) ? [] : data;
+      // View as: drop the admin-only full birthday (with the year), so the
+      // preview holds only what a bookkeeper's own call returns.
+      if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly())
+        rows = rows.map((r) => Object.assign({}, r, { birthday: null }));
+      if (alive) setSt({ loading: false, rows });
     });
     return () => {
       alive = false;

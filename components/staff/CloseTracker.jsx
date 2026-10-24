@@ -1206,7 +1206,11 @@ function CT_CellEditor({ isAdmin, client, period, row, late, deadline, check, on
           <button type="button" className="btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary" disabled={saving || (reopening && reason.trim().length < 3)}>
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={saving || (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) || (reopening && reason.trim().length < 3)}
+          >
             {saving ? "Saving…" : status === "done" && prevStatus !== "done" ? "Sign off" : reopening ? "Reopen" : "Save"}
           </button>
         </div>

@@ -182,8 +182,10 @@ function CV_TimeOffForm({ me, isAdmin, onDone }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const ro = CV_ro();
   async function save(e) {
     e.preventDefault();
+    if (ro) return;
     const problem = OPS_timeOffError(from, to, today);
     if (problem) return setErr(problem);
     if (!who) return setErr("Pick who's out.");
@@ -229,7 +231,7 @@ function CV_TimeOffForm({ me, isAdmin, onDone }) {
       </label>
       {err && <p className="cv-err" role="alert">{err}</p>}
       <div className="cv-form-actions">
-        <button type="submit" className="btn-primary" disabled={busy}>
+        <button type="submit" className="btn-primary" disabled={busy || ro} title={ro ? CV_RO_TITLE : undefined}>
           {busy ? "Saving…" : "Save time off"}
         </button>
         {onDone && (
@@ -260,6 +262,12 @@ function CV_CancelButton({ row, onCancelled }) {
     CV_coverageChanged();
     if (onCancelled) onCancelled();
   }
+  if (CV_ro())
+    return (
+      <button type="button" className="link-btn" disabled title={CV_RO_TITLE}>
+        Cancel
+      </button>
+    );
   if (!confirming)
     return (
       <button type="button" className="link-btn" onClick={() => setConfirming(true)}>
@@ -286,6 +294,10 @@ function CV_CancelButton({ row, onCancelled }) {
 // hands off on the first day off when tk_settings.ooo_auto_apply = true (off by default).
 // Wording: TK_coverageLogic.js.
 const CV_NO_ROWS = [];
+const CV_RO_TITLE = "Read-only in View as";
+function CV_ro() {
+  return typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+}
 const CV_cov = { rows: null, promise: null, at: 0, subs: new Set(), listening: false };
 
 function CV_loadCoverage(force) {
@@ -331,7 +343,17 @@ function CV_useMyCoverage() {
       CV_cov.subs.delete(fn);
     };
   }, []);
-  return CV_cov.rows || CV_NO_ROWS;
+  const rows = CV_cov.rows || CV_NO_ROWS;
+  // View as: the admin's JWT returns everyone's hand-offs. Keep only the
+  // viewed person's (from or to them); no email means none (fail closed).
+  if (CV_ro()) {
+    const va = String((window.mgbViewAs && window.mgbViewAs.email) || "").toLowerCase();
+    if (!va) return CV_NO_ROWS;
+    return rows.filter(
+      (c) => c && (String(c.from_email || "").toLowerCase() === va || String(c.to_email || "").toLowerCase() === va),
+    );
+  }
+  return rows;
 }
 
 function CV_coverageChanged() {
@@ -353,6 +375,19 @@ function CV_Handoff({ row, isAdmin, coveredCount }) {
   const [confirmBack, setConfirmBack] = useState(false);
   const ready = typeof TK_api !== "undefined" && TK_api && typeof TK_api.oooPreview === "function";
   if (!ready || !row || row.cancelled_at) return null;
+  // View as is read-only: no preview (an RPC), hand-off or hand-back.
+  if (CV_ro()) {
+    if (!(coveredCount > 0)) return null;
+    return (
+      <div className="cv-handoff">
+        <div className="cv-handoff-bar">
+          <span className="pill cv-pill-good" title="These go back automatically when the time off ends">
+            {coveredCount} task{coveredCount === 1 ? "" : "s"} with backups
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   const errText = (e) => {
     const code = (e && (e.reason || e.code)) || "";
@@ -577,7 +612,7 @@ function CV_MyTimeOffBody({ staffUser }) {
         <CV_TimeOffForm me={me} isAdmin={false} onDone={() => setAdding(false)} />
       ) : (
         !st.error && (
-          <button type="button" className="btn-secondary cv-add" onClick={() => setAdding(true)}>
+          <button type="button" className="btn-secondary cv-add" disabled={CV_ro()} title={CV_ro() ? CV_RO_TITLE : undefined} onClick={() => setAdding(true)}>
             + Add time off
           </button>
         )
@@ -624,6 +659,7 @@ function CV_CoverageTab() {
   }, [tick, stamp]);
 
   async function grant(t, c) {
+    if (CV_ro()) return;
     const key = t.id + "|" + c.client_id;
     setBusyKey(key);
     const { error } = await window.mgbSupabase.rpc("grant_coverage_access", { p_time_off_id: t.id, p_client_id: c.client_id });
@@ -695,7 +731,7 @@ function CV_CoverageTab() {
                       </td>
                       <td data-label="">
                         {c.backup_access === "none" || short ? (
-                          <button type="button" className="btn-secondary cv-grant" disabled={busyKey === key} onClick={() => grant(t, c)}>
+                          <button type="button" className="btn-secondary cv-grant" disabled={busyKey === key || CV_ro()} title={CV_ro() ? CV_RO_TITLE : undefined} onClick={() => grant(t, c)}>
                             {busyKey === key ? "Giving access…" : "Give access for this time off"}
                           </button>
                         ) : c.backup_access === "none_set" || c.backup_access === "not_staff" ? (
@@ -728,7 +764,7 @@ function CV_CoverageTab() {
             </p>
           </div>
           {!adding && (
-            <button type="button" className="btn-secondary" onClick={() => setAdding(true)}>
+            <button type="button" className="btn-secondary" disabled={CV_ro()} title={CV_ro() ? CV_RO_TITLE : undefined} onClick={() => setAdding(true)}>
               + Add time off
             </button>
           )}

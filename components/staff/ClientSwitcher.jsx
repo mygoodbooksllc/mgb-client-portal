@@ -380,6 +380,8 @@ function CS_pushRecent(key, id) {
     0,
     CS_RECENT_MAX + 1, // +1 so the current client can be skipped in the list
   );
+  // View as is read-only: the admin's recents stay as they were.
+  if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return next;
   try {
     localStorage.setItem(key, JSON.stringify(next));
   } catch (e) {}

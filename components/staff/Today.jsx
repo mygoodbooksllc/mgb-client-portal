@@ -210,7 +210,9 @@ function TD_useMyItems(me) {
         setState({ items: [], error: TD_errText("your tasks", error) });
         return;
       }
-      setState({ items: (data || []).filter((r) => isMyStaffItem(r, me)), error: "" });
+      // View as: private tasks dropped, failing closed (VA_visibleItems, Q3).
+      const rows = typeof VA_visibleItems === "function" ? VA_visibleItems(data) : data || [];
+      setState({ items: rows.filter((r) => isMyStaffItem(r, me)), error: "" });
     });
   }, [me]);
   TD_useRefresh(load, [STAFF_ITEMS_CHANGED_EVENT]);
@@ -333,9 +335,10 @@ function TD_useCoverageGaps(enabled) {
 const TD_NONE = [];
 // Staff Handbook: "Sign", "Countersign" and (the policy approver) one
 // "Review" row for drafts to approve, from the shared hb_status store (HB_api.js). Quiet: no schema, no access or no module = no rows.
-function TD_useHandbookItems() {
+// enabled=false in View as: hb_status is the signed-in admin's.
+function TD_useHandbookItems(enabled) {
   const can = typeof HB_useStatus === "function" && typeof HB_todayItems === "function";
-  const st = can ? HB_useStatus() : null;
+  const st = can ? HB_useStatus(enabled) : null;
   const data = st && st.data;
   return React.useMemo(() => {
     if (!can || !data) return { me: null, items: TD_NONE };
@@ -893,7 +896,7 @@ function TD_Band({ tone, title, rows, expanded }) {
               {r.actions && r.actions.length > 0 && (
                 <span className="td-row-actions">
                   {r.actions.map((a) => (
-                    <button key={a.label} type="button" className={a.primary ? "btn-primary" : "btn-secondary"} disabled={a.disabled} onClick={a.onClick}>
+                    <button key={a.label} type="button" className={a.primary ? "btn-primary" : "btn-secondary"} disabled={a.disabled} title={a.title} onClick={a.onClick}>
                       {a.label}
                     </button>
                   ))}
@@ -913,7 +916,8 @@ function TD_Band({ tone, title, rows, expanded }) {
 
 // Your reminders: the same staff_reminders rows as Work › Tasks, just the
 // quick add-and-tick view. Private to you and admins unless shared.
-function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }) {
+function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today, readOnly }) {
+  const roTitle = readOnly ? "Read-only in View as" : undefined;
   const [text, setText] = React.useState("");
   const [date, setDate] = React.useState("");
   const [adding, setAdding] = React.useState(false);
@@ -959,13 +963,15 @@ function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }
           aria-label="New reminder"
           placeholder="Follow up with Grace Community about..."
           value={text}
+          disabled={readOnly}
+          title={roTitle}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") add();
+            if (e.key === "Enter" && !readOnly) add();
           }}
         />
-        <input type="date" aria-label="Due date" value={date} onChange={(e) => setDate(e.target.value)} />
-        <button type="button" className="btn-primary" disabled={adding || !text.trim()} onClick={add}>
+        <input type="date" aria-label="Due date" value={date} disabled={readOnly} title={roTitle} onChange={(e) => setDate(e.target.value)} />
+        <button type="button" className="btn-primary" disabled={readOnly || adding || !text.trim()} title={roTitle} onClick={add}>
           + Add
         </button>
       </div>
@@ -978,7 +984,7 @@ function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }
           {sorted.map((r) => (
             <li className="staff-audit-row" key={r.id}>
               <label className="staff-active-toggle td-reminder">
-                <input type="checkbox" checked={!!r.done} onChange={() => onToggle(r)} />
+                <input type="checkbox" checked={!!r.done} disabled={readOnly} title={roTitle} onChange={() => onToggle(r)} />
                 <span className={r.done ? "td-reminder-done" : ""}>
                   {r.text}
                   {r.due_date && !r.done ? (
@@ -991,7 +997,7 @@ function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }
                   )}
                 </span>
               </label>
-              <button type="button" className="row-remove-btn" onClick={() => onRemove(r)} aria-label={`Remove reminder: ${r.text}`}>
+              <button type="button" className="row-remove-btn" disabled={readOnly} title={roTitle} onClick={() => onRemove(r)} aria-label={`Remove reminder: ${r.text}`}>
                 ×
               </button>
             </li>
@@ -1001,6 +1007,18 @@ function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }
       )}
     </section>
   );
+}
+
+// View as: the same rows with every action disabled and titled read-only.
+function TD_readOnlyRows(rows) {
+  const lock = (r) =>
+    r && r.actions && r.actions.length
+      ? Object.assign({}, r, { actions: r.actions.map((a) => Object.assign({}, a, { disabled: true, title: "Read-only in View as" })) })
+      : r;
+  return { now: (rows.now || []).map(lock), week: (rows.week || []).map(lock) };
+}
+function TD_firstName(name) {
+  return String(name || "").trim().split(/\s+/)[0] || "Their";
 }
 
 // "This week": birthdays and anniversaries coming up (the celebration rows
@@ -1240,7 +1258,10 @@ function TD_useCelebrations(admin, today) {
     if (!sb || typeof sb.rpc !== "function") return;
     let alive = true;
     sb.rpc("staff_celebrations").then(({ data, error }) => {
-      if (alive && !error) setRows(Array.isArray(data) ? data : []);
+      let rows = Array.isArray(data) ? data : [];
+      // View as: no full birthday (with the year), as a bookkeeper's call.
+      if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) rows = rows.map((r) => Object.assign({}, r, { birthday: null }));
+      if (alive && !error) setRows(rows);
     });
     return () => {
       alive = false;
@@ -1278,6 +1299,9 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const me = TD_lc(staffUser && staffUser.email);
   const admin = !!(isAdmin || (staffUser && staffUser.role === "admin"));
   const today = todayLocal();
+  // View as (docs/view-as-full-app-spec.md): read-only, and nothing here may
+  // answer for the signed-in admin's own session.
+  const ro = !!impersonating || (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly());
   // Totals and "my clients" lists count real clients only: no test clients, no
   // MGB (internal). The Recent card keeps the wider list so a test client you
   // opened still shows up there.
@@ -1310,15 +1334,17 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const coverage = TD_useCoverageGaps(admin);
   const grants = typeof CS_useAccessGrants === "function" ? CS_useAccessGrants() : null;
   const dl = typeof DL_useStore === "function" ? DL_useStore(true) : null;
-  const reviews = typeof TR_useOverview === "function" ? TR_useOverview() : null;
-  const handbook = TD_useHandbookItems();
+  const reviews = typeof TR_useOverview === "function" ? TR_useOverview(!ro) : null;
+  const handbook = TD_useHandbookItems(!ro);
   const health = typeof HL_useHealth === "function" ? HL_useHealth() : null;
   const sopStatus = typeof SF_useSopStatus === "function" ? SF_useSopStatus(true) : null;
   const st = typeof ST_useSettings === "function" ? ST_useSettings() : null;
   // Celebrations to act on (admins) and whether my own profile still needs
   // its birthday and start date (everyone; stays on the list until done).
   const cel = TD_useCelebrations(admin, today);
-  const myProfile = typeof ST_useMyProfile === "function" ? ST_useMyProfile(me) : null;
+  // View as: no profile load and no "finish your profile" prompt (its Save is
+  // a write and its seen-key is per person).
+  const myProfile = typeof ST_useMyProfile === "function" ? ST_useMyProfile(ro ? null : me) : null;
   const profileIncomplete = !!(myProfile && myProfile.loaded && !(myProfile.row && myProfile.row.birthday && myProfile.row.start_date));
   // First sign-in: one welcome prompt per browser, then the Today item
   // carries the reminder until both dates are filled in.
@@ -1327,10 +1353,10 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // The profile photo gate (#pg-gate) comes first. Wait for the photo status to
   // load, then hold the prompt until the gate is gone (it unmounts a beat after
   // the photo is saved, so re-check on the change event and on a short timer).
-  const photoMine = typeof SP_useMyStatus === "function" ? SP_useMyStatus(me) : null;
+  const photoMine = typeof SP_useMyStatus === "function" ? SP_useMyStatus(ro ? null : me) : null;
   const photoReady = !photoMine || photoMine.loaded || !!photoMine.error;
   React.useEffect(() => {
-    if (!profileIncomplete || !me || !photoReady) return undefined;
+    if (ro || !profileIncomplete || !me || !photoReady) return undefined;
     let seen = false;
     try {
       seen = !!localStorage.getItem(promptKey);
@@ -1357,9 +1383,10 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       clearTimeout(timer);
       window.removeEventListener("sp:changed", onChanged);
     };
-  }, [profileIncomplete, me, photoReady]);
+  }, [profileIncomplete, me, photoReady, ro]);
   const dismissProfilePrompt = () => {
     setProfilePrompt(false);
+    if (ro) return;
     try {
       localStorage.setItem(promptKey, "1");
     } catch (e) {}
@@ -1378,7 +1405,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // wait for the Tasks tables). The old staffItemsApi path stays the else.
   const toggleItem = React.useCallback(
     async (item) => {
-      if (!sb) return;
+      if (!sb || ro) return;
       if (typeof TK_api !== "undefined" && TK_api && typeof TK_api.complete === "function" && typeof TK_isOpen === "function") {
         try {
           await TK_api.complete(item, { done: TK_isOpen(item), isAdmin: admin });
@@ -1390,11 +1417,11 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       const { error } = await staffItemsApi.toggleDone(sb, me, item);
       if (error) showToast(`Couldn't update that: ${error.message}`);
     },
-    [sb, me, showToast, admin],
+    [sb, me, showToast, admin, ro],
   );
   const addItem = React.useCallback(
     async (item) => {
-      if (!sb) return false;
+      if (!sb || ro) return false;
       if (TD_tkReady()) {
         try {
           await TK_api.create({ text: item.text, due_date: item.due_date || null, kind: "reminder" });
@@ -1411,11 +1438,11 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       }
       return true;
     },
-    [sb, me, showToast],
+    [sb, me, showToast, ro],
   );
   const removeItem = React.useCallback(
     async (item) => {
-      if (!sb) return;
+      if (!sb || ro) return;
       if (TD_tkReady()) {
         try {
           await TK_api.remove(item.id);
@@ -1427,7 +1454,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       const { error } = await staffItemsApi.remove(sb, item.id);
       if (error) showToast(`Couldn't remove reminder: ${error.message}`);
     },
-    [sb, me, showToast],
+    [sb, me, showToast, ro],
   );
   const decideGrant = React.useCallback(
     async (g, approve) => {
@@ -1474,6 +1501,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const photosKey = photosItem ? photosItem.key + ":" + photosItem.count + ":" + photosItem.detail : "";
 
   const celebrate = async (row, kind, action) => {
+    if (ro) return;
     const error = await cel.act(row, kind, action, me);
     showToast(error ? "Couldn't save: " + (error.message || "try again") : action === "gift" ? "Marked as gift sent" : "Dismissed");
   };
@@ -1486,7 +1514,11 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const nowMs = Date.now();
   // Out-of-office hand-offs (Tasks Phase 2 S7): "Covering for Ann" on tasks I hold for someone.
   const coverRows = typeof CV_useMyCoverage === "function" ? CV_useMyCoverage() : TD_NO_ROWS;
-  const rows = React.useMemo(
+  // View as: requests are scoped to the person's own clients (an admin's RLS
+  // returns every client's), and the admin's own approvals queue is left out.
+  const vaIds = React.useMemo(() => new Set(openableClients.map((c) => c && c.id)), [openableClients]);
+  const inScope = (r) => !ro || (r && vaIds.has(r.client_id));
+  const rowsAll = React.useMemo(
     () =>
       TD_buildRows({
         clients: allClients,
@@ -1499,10 +1531,10 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         openShoutout,
         profileIncomplete,
         goProfile,
-        toApprove: grants && grants.status === "ready" ? grants.toApprove.filter(notHidden) : [],
+        toApprove: !ro && grants && grants.status === "ready" ? grants.toApprove.filter(notHidden) : [],
         grantBusy,
         decideGrant,
-        accessRequests: (access.rows || []).filter(notHidden),
+        accessRequests: (access.rows || []).filter(notHidden).filter(inScope),
         waiting: waiting.rows,
         items: (mine.items || []).filter(notHidden),
         toggleItem,
@@ -1512,7 +1544,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         reviews: reviewData,
         handbook: handbookItems,
         photosItem,
-        upgrades: (upgrades.rows || []).filter(notHidden),
+        upgrades: (upgrades.rows || []).filter(notHidden).filter(inScope),
         upgradeBusyId: upgrades.busyId,
         setUpgradeStatus: upgrades.setStatus,
         health: health && health.status === "ready" ? health.byId : null,
@@ -1550,8 +1582,12 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       profileIncomplete,
       onNavigateToClient,
       admin,
+      ro,
+      vaIds,
     ],
   );
+  // View as: every row action is disabled (the guard would refuse it anyway).
+  const rows = React.useMemo(() => (ro ? TD_readOnlyRows(rowsAll) : rowsAll), [rowsAll, ro]);
 
   // Header line. Late = everything late that's mine: tasks, filing deadlines
   // and bills (the old Overdue tile).
@@ -1611,7 +1647,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
     allClients.forEach((c) => (nameOf[c.id] = c.name));
     const out = [];
     // Teammates asking me for temporary access: Approve or Deny on the row.
-    (grants && grants.status === "ready" ? grants.toApprove.filter(notHidden) : []).forEach((g) =>
+    (!ro && grants && grants.status === "ready" ? grants.toApprove.filter(notHidden) : []).forEach((g) =>
       out.push({
         key: "grant-" + g.id,
         title: (g.staff_name || g.staff_email) + " · " + (nameOf[g.client_id] || g.client_id),
@@ -1619,7 +1655,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         onClick: () => reveal("grant-" + g.id),
       }),
     );
-    (access.rows || []).filter(notHidden).forEach((r) =>
+    (access.rows || []).filter(notHidden).filter(inScope).forEach((r) =>
       out.push({
         key: "acc-" + r.id,
         title: nameOf[r.client_id] || r.client_id,
@@ -1627,7 +1663,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         onClick: () => LK_go({ clientId: r.client_id, tab: "settings", sub: "client", item: "setup:access.requests" }),
       }),
     );
-    (upgrades.rows || []).filter(notHidden).forEach((r) =>
+    (upgrades.rows || []).filter(notHidden).filter(inScope).forEach((r) =>
       out.push({
         key: "upg-" + r.id,
         title: nameOf[r.client_id] || r.client_id,
@@ -1644,7 +1680,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         onClick: () => NAV_go("inbox"),
       });
     return out;
-  }, [allClients, grants && grants.status, grants && grants.toApprove, access.rows, upgrades.rows, waiting.rows, hiddenIds]);
+  }, [allClients, grants && grants.status, grants && grants.toApprove, access.rows, upgrades.rows, waiting.rows, hiddenIds, ro, vaIds]);
   const celebrationRows = rows.now.concat(rows.week).filter((r) => r.kind === "celebrate");
 
   // Optional cards: saved per person; a toggle still works for this visit
@@ -1718,7 +1754,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
 
   return (
     <div className="td-page">
-      {profilePrompt && typeof ModalShell === "function" && (
+      {profilePrompt && !ro && typeof ModalShell === "function" && (
         <ModalShell onClose={dismissProfilePrompt} labelledBy="td-profile-title" className="confirm-modal">
           <div className="modal-header">
             <h3 className="card-title" id="td-profile-title" style={{ margin: 0 }}>
@@ -1757,6 +1793,12 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         <TD_SummaryLine due={sumDue} late={sumLate} ready={sumReady} />
       </div>
 
+      {/* View as never mounts the Desk (§10.1): say why when it's on. */}
+      {impersonating && wbSwitch && (
+        <p className="wb-classic-note va-desk-note" data-tour="va-desk-note">
+          {TD_firstName(staffUser && staffUser.name)}'s Desk is private to them, so View as shows the classic Today.
+        </p>
+      )}
       {!wbOn && wbClassic && (
         <p className="wb-classic-note">
           You're using classic Today in this browser.{" "}
@@ -1815,11 +1857,12 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
           {cards.waiting && (
             <TD_ListCard id="td-waiting-title" title="Waiting on others" subtitle="Teammates and clients waiting on the firm: access and upgrade requests, and replies." lines={waitingLines} loaded={settled} emptyText="Nothing is waiting." />
           )}
-          {cards.reminders && <TD_RemindersCard me={me} items={mine.items} error={mine.error} today={today} onAdd={addItem} onToggle={toggleItem} onRemove={removeItem} />}
+          {cards.reminders && <TD_RemindersCard me={me} items={mine.items} error={mine.error} today={today} onAdd={addItem} onToggle={toggleItem} onRemove={removeItem} readOnly={ro} />}
           {cards.milestones && <TD_MilestonesCard clients={allClients} onOpenClientMilestone={onOpenClientMilestone} celebrations={celebrationRows} />}
         </div>
       )}
-      {cards.recent && !ssOn && <TD_RecentCard clients={openableClients} />}
+      {/* View as: this browser's visit history is the admin's, not theirs. */}
+      {cards.recent && !ssOn && !ro && <TD_RecentCard clients={openableClients} />}
 
       <div className="td-cards-bar">
         <span className="td-cards-label" id="td-cards-label">

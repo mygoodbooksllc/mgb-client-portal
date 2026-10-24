@@ -63,11 +63,11 @@ t("places: Team and HR are both left-rail places, HR right after Team", () => {
   assert.strictEqual(nav.NAV_PLACE_BY_SLUG.hr.label, "HR");
 });
 
-t("NAV_visiblePlaces: everyone who sees Team sees HR; View as hides both", () => {
-  for (const ctx of [bookkeeper, tempAdmin, realAdmin]) {
+t("NAV_visiblePlaces: everyone who sees Team sees HR; View as shows the whole app but MGB (internal)", () => {
+  for (const ctx of [bookkeeper, tempAdmin, realAdmin, viewAs]) {
     assert.deepStrictEqual(keys(nav.NAV_visiblePlaces(ctx)), ["today", "inbox", "work", "clients", "team", "hr"]);
   }
-  assert.deepStrictEqual(keys(nav.NAV_visiblePlaces(viewAs)), ["today", "clients"]);
+  assert.ok(!keys(nav.NAV_visiblePlaces({ ...viewAs, canViewInternal: true })).includes("internal"));
   assert.ok(keys(nav.NAV_visiblePlaces({ ...realAdmin, canViewInternal: true })).includes("internal"));
 });
 
@@ -86,6 +86,10 @@ t("NAV_visibleTabs team: real admin; Feedback and Ledger review stay in Team", (
 });
 t("NAV_visibleTabs hr: bookkeeper", () => {
   assert.deepStrictEqual(keys(nav.NAV_visibleTabs("hr", bookkeeper)), ["handbook", "reviews", "onboarding"]);
+});
+t("NAV_visibleTabs hr and team: View as gets no admin tabs", () => {
+  assert.deepStrictEqual(keys(nav.NAV_visibleTabs("hr", viewAs)), ["handbook", "reviews", "onboarding"]);
+  assert.deepStrictEqual(keys(nav.NAV_visibleTabs("team", viewAs)), ["people", "performance", "inventory"]);
 });
 t("NAV_visibleTabs hr: temporary admin gets Members but never Employee records", () => {
   assert.deepStrictEqual(keys(nav.NAV_visibleTabs("hr", tempAdmin)), ["handbook", "reviews", "onboarding", "members"]);

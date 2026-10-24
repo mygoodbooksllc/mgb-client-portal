@@ -263,7 +263,15 @@ function HLP_fmtDate(iso) {
   }
 }
 
-function HLP_StaffGuidePage() {
+// View as: the admin's JWT can read admin articles, so keep staff ones only
+// (a missing or unknown audience is dropped, spec §3.7).
+function HLP_staffOnly(rows, on) {
+  if (!on) return rows || [];
+  return (rows || []).filter((r) => r && r.audience === "staff");
+}
+
+function HLP_StaffGuidePage({ impersonating } = {}) {
+  const va = !!impersonating || (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly());
   const [slug, setSlug] = React.useState(HLP_slugFromHash);
   const [list, setList] = React.useState({ loading: true, error: null, rows: [] });
   const [query, setQuery] = React.useState("");
@@ -364,7 +372,9 @@ function HLP_StaffGuidePage() {
     };
   }, [query]);
 
-  const groups = React.useMemo(() => HLP_groupBySection(list.rows), [list.rows]);
+  const listRows = React.useMemo(() => HLP_staffOnly(list.rows, va), [list.rows, va]);
+  const searchRows = HLP_staffOnly(search.rows, va);
+  const groups = React.useMemo(() => HLP_groupBySection(listRows), [listRows]);
   const searching = query.trim().length >= 2;
 
   const openArticle = (s) => {
@@ -388,7 +398,7 @@ function HLP_StaffGuidePage() {
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Escape") setQuery("");
-          if (e.key === "Enter" && search.rows.length && !search.loading) openArticle(search.rows[0].slug);
+          if (e.key === "Enter" && searchRows.length && !search.loading) openArticle(searchRows[0].slug);
         }}
         autoComplete="off"
         spellCheck="false"
@@ -407,15 +417,15 @@ function HLP_StaffGuidePage() {
       <div className="card hlp-results" aria-live="polite">
         {search.error ? (
           <p className="hlp-error" role="alert">{search.error}</p>
-        ) : search.loading && !search.rows.length ? (
+        ) : search.loading && !searchRows.length ? (
           <p className="hlp-dim">Searching…</p>
-        ) : !search.rows.length ? (
+        ) : !searchRows.length ? (
           <p className="hlp-dim">
             Nothing matches “{query.trim()}”. Try a shorter word, or browse the sections below the search box once you clear it.
           </p>
         ) : (
           <ul className="hlp-result-list">
-            {search.rows.map((r) => (
+            {searchRows.map((r) => (
               <li key={r.slug}>
                 <a
                   href={"#/help/" + r.slug}
@@ -440,6 +450,7 @@ function HLP_StaffGuidePage() {
     );
   } else if (slug) {
     const row = article.row;
+    const adminOnly = va && !!row && row.audience !== "staff";
     const siblings = row ? groups.find((g) => g.section === row.section) : null;
     body = (
       <div className="hlp-article-layout">
@@ -453,6 +464,8 @@ function HLP_StaffGuidePage() {
             <p className="hlp-error" role="alert">{article.error}</p>
           ) : !row ? (
             <p className="hlp-dim">This article doesn’t exist or isn’t available to you.</p>
+          ) : adminOnly ? (
+            <p className="hlp-dim">This article is for admins.</p>
           ) : (
             <>
               <div className="hlp-article-meta">
@@ -466,7 +479,7 @@ function HLP_StaffGuidePage() {
             </>
           )}
         </article>
-        {siblings && siblings.items.length > 1 && (
+        {siblings && !adminOnly && siblings.items.length > 1 && (
           <aside className="card hlp-related" aria-label={"More in " + siblings.section}>
             <h3 className="hlp-related-title">More in {siblings.section}</h3>
             <ul>
@@ -491,7 +504,7 @@ function HLP_StaffGuidePage() {
       <div className="card"><p className="hlp-dim">Loading…</p></div>
     ) : list.error ? (
       <div className="card"><p className="hlp-error" role="alert">{list.error}</p></div>
-    ) : !list.rows.length ? (
+    ) : !listRows.length ? (
       <div className="card"><p className="hlp-dim">The guide hasn’t been loaded yet. Ask an admin to run the staff guide sync.</p></div>
     ) : (
       <div className="hlp-sections">

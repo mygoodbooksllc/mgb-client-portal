@@ -45,6 +45,12 @@ const SI_POLL_MS = 30 * 1000;
 // disappears for everyone. delete_client_message (supabase/message-delete-24h.sql)
 // is the real enforcement; this only decides when to show the button.
 const SI_DELETE_WINDOW_MS = 24 * 60 * 60 * 1000;
+// View as is read-only (docs/view-as-full-app-spec.md §3.7). siVaEmail is the
+// viewed person's email, used as "me" for bubble sides and "You" labels.
+const siRO = () => typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+const siVaEmail = () => (siRO() && window.mgbViewAs ? String(window.mgbViewAs.email || "").toLowerCase() : "");
+const SI_RO_TITLE = "Read-only in View as";
+
 const siCanDelete = (createdAt) =>
   !!createdAt && Date.now() - new Date(createdAt).getTime() < SI_DELETE_WINDOW_MS;
 const SI_THREAD_PAGE = 200;
@@ -307,13 +313,14 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
   const endRef = React.useRef(null);
   const textRef = React.useRef(null);
   const [loopingIn, setLoopingIn] = React.useState(false);
+  const ro = siRO();
 
   // The assigned bookkeeper can be looped in (emailed) from here, or by
   // @mentioning them in a reply or note (supabase/account-manager.sql).
   const bkInfo = entry.client && entry.client.assignedBookkeeper;
   const bkEmail = bkInfo && typeof bkInfo === "object" ? siLower(bkInfo.email) : "";
   const bkFirst = bkEmail ? String(bkInfo.name || bkEmail.split("@")[0]).trim().split(/\s+/)[0] : "";
-  const canLoopIn = !!(bkEmail && bkEmail !== siLower(me || (staffUser && staffUser.email)));
+  const canLoopIn = !ro && !!(bkEmail && bkEmail !== siLower(me || (staffUser && staffUser.email)));
 
   async function loopIn() {
     if (!canLoopIn || loopingIn) return;
@@ -372,8 +379,9 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
         const signed = await siSignRows(sb, data || []);
         if (alive) setRows(signed);
       });
-    // Opening (or receiving into) the thread marks it read for me.
-    if (me)
+    // Opening (or receiving into) the thread marks it read for me. Never in
+    // View as (the guard would deny it silently anyway).
+    if (me && !siRO())
       sb.from("client_message_reads")
         .upsert({
           client_id: entry.clientId,
@@ -452,7 +460,7 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
 
   async function send() {
     const body = draft.trim();
-    if ((!body && !file) || sending) return;
+    if ((!body && !file) || sending || ro) return;
     if (mode !== "real") {
       onSampleSend &&
         onSampleSend(entry.clientId, entry.userId || entry.email, {
@@ -545,6 +553,7 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
+        if (ro) return;
         stage(e.dataTransfer.files && e.dataTransfer.files[0]);
       }}
     >
@@ -561,6 +570,7 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
             mine={r.author_kind === "staff"}
             authorLabel={r.author_kind === "staff" ? r.author_name || "MyGoodBooks" : r.author_name || entry.name}
             onDelete={
+              !ro &&
               mode === "real" &&
               r.author_kind === "staff" &&
               me &&
@@ -605,7 +615,14 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
           </div>
         )}
         <div className="si-compose-row">
-          <button type="button" className="si-icon-btn" aria-label="Attach a file" onClick={() => fileRef.current && fileRef.current.click()}>
+          <button
+            type="button"
+            className="si-icon-btn"
+            aria-label="Attach a file"
+            disabled={ro}
+            title={ro ? SI_RO_TITLE : undefined}
+            onClick={() => fileRef.current && fileRef.current.click()}
+          >
             {typeof PaperclipIcon === "function" ? <PaperclipIcon /> : "+"}
           </button>
           <input
@@ -621,10 +638,13 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
             ref={textRef}
             rows={1}
             className="si-textarea"
+            disabled={ro}
             aria-label={isNote ? "Internal note" : `Reply to ${entry.name}`}
             placeholder={
-              (isNote ? "Add an internal note…" : `Reply to ${entry.name}…`) +
-              (canLoopIn ? ` (@${bkFirst} emails ${bkFirst})` : "")
+              ro
+                ? "Read-only in View as. Replies and notes are off."
+                : (isNote ? "Add an internal note…" : `Reply to ${entry.name}…`) +
+                  (canLoopIn ? ` (@${bkFirst} emails ${bkFirst})` : "")
             }
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -636,7 +656,13 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
               }
             }}
           />
-          <button type="button" className="si-send" onClick={send} disabled={sending || (!draft.trim() && !file)}>
+          <button
+            type="button"
+            className="si-send"
+            onClick={send}
+            disabled={ro || sending || (!draft.trim() && !file)}
+            title={ro ? SI_RO_TITLE : undefined}
+          >
             {sending ? "Sending…" : isNote ? "Add note" : "Send"}
           </button>
         </div>
@@ -755,9 +781,15 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
     const sb = window.mgbSupabase;
     if (!sb || typeof staffItemsApi !== "object" || !staffUser) return;
     let alive = true;
+    // View as: the viewed person's tasks, never a private one (fail closed).
+    const va = siVaEmail();
+    const ro = siRO();
+    if (ro && !va) return;
     const load = () =>
-      staffItemsApi.list(sb, staffUser.email).then(({ data }) => {
-        if (alive) setTasks((data || []).filter((t) => t.client_id === client.id && !t.done));
+      staffItemsApi.list(sb, ro ? va : staffUser.email).then(({ data }) => {
+        if (!alive) return;
+        const rows = (data || []).filter((t) => t.client_id === client.id && !t.done);
+        setTasks(ro ? rows.filter((t) => t.visibility && t.visibility !== "private") : rows);
       });
     load();
     const evt = typeof STAFF_ITEMS_CHANGED_EVENT === "string" ? STAFF_ITEMS_CHANGED_EVENT : null;
@@ -1245,7 +1277,9 @@ function StaffInbox({
   onOpenClient,
   onClose,
 }) {
-  const teamEnabled = !lockClientId;
+  // View as: no Team Chat (it is the admin's own) and no unread state.
+  const ro = siRO();
+  const teamEnabled = !lockClientId && !ro;
   const chat = useStaffTeamChat(staffUser, onActivity, teamEnabled);
   const allClients = clients || [];
   const scopeClients = React.useMemo(
@@ -1258,7 +1292,7 @@ function StaffInbox({
   const toast = (m) => (showToast ? showToast(m) : console.warn(m));
 
   const [instance] = React.useState(() => ++siInstanceSeq);
-  const [me, setMe] = React.useState((staffUser && staffUser.email) || "");
+  const [me, setMe] = React.useState(() => siVaEmail() || (staffUser && staffUser.email) || "");
   const [mode, setMode] = React.useState("loading"); // loading | real | sample
   const [sampleReason, setSampleReason] = React.useState(""); // missing | error | offline
   const [recent, setRecent] = React.useState([]);
@@ -1296,9 +1330,13 @@ function StaffInbox({
 
   React.useEffect(() => {
     const sb = window.mgbSupabase;
+    if (siRO()) {
+      setMe(siVaEmail());
+      return;
+    }
     if (!sb) return;
     siSessionEmail(sb, staffUser && staffUser.email).then((e) => e && setMe(e));
-  }, [staffUser && staffUser.email]);
+  }, [staffUser && staffUser.email, ro]);
 
   const loadRecent = React.useCallback(() => {
     const sb = window.mgbSupabase;
@@ -1430,8 +1468,9 @@ function StaffInbox({
         const lastPublic = newestFirst.find((x) => !x.internal) || null;
         const waiting = !!(lastPublic && lastPublic.author_kind === "client");
         const lastClient = newestFirst.find((x) => x.author_kind === "client");
-        const unread =
-          mode === "real"
+        const unread = ro
+          ? false
+          : mode === "real"
             ? !!(lastClient && (!reads[key] || new Date(lastClient.created_at) > new Date(reads[key])))
             : waiting && !viewedSample.has(key);
         out.push({
@@ -1462,7 +1501,7 @@ function StaffInbox({
       });
     });
     return out;
-  }, [mode, recent, reads, roster, scopeClients, sampleThreads, viewedSample, me]);
+  }, [mode, recent, reads, roster, scopeClients, sampleThreads, viewedSample, me, ro]);
 
   const teamEntries = React.useMemo(
     () =>

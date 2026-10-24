@@ -214,7 +214,8 @@ function SS__readPrefs(email) {
 // props: on, realEmail (the REAL viewer), isRealAdmin (real role admin, not "View as",
 // not previewing: gates the Alerts section), role / hasTempAdminAccess / amCount
 // (the person on screen), currentClientId, clients, readOnly, halfScreen,
-// expanded. Returns null while the gate is off.
+// expanded, viewAs. Returns null while the gate is off. viewAs: Pinned and
+// Recent are the REAL viewer's lists, so "View as" shows neither (spec §3.7).
 function SS_useSidebar(o) {
   const on = !!o.on;
   const email = String(o.realEmail || "").trim().toLowerCase();
@@ -341,6 +342,7 @@ function SS_useSidebar(o) {
     pins,
     o.currentClientId,
   );
+  const hideLists = !!o.viewAs;
   return {
     roleKey: roleKey,
     base: base,
@@ -350,9 +352,9 @@ function SS_useSidebar(o) {
     dragging: dragging,
     setDragging: setDragging,
     setLiveWidth: setLiveWidth,
-    pins: pins,
-    pinnedIds: clientsReady ? pinnedVisible : pins,
-    recentIds: recentVisible,
+    pins: hideLists ? [] : pins,
+    pinnedIds: hideLists ? [] : clientsReady ? pinnedVisible : pins,
+    recentIds: hideLists ? [] : recentVisible,
     clientsById: clientsById,
     clientsReady: clientsReady,
     currentClientId: o.currentClientId == null || o.currentClientId === "" ? null : String(o.currentClientId),

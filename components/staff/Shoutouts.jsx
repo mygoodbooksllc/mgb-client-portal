@@ -90,7 +90,9 @@ function SO_name(dir, email) {
 function SO_Item({ row, dir, me, isAdmin, clientName }) {
   const showToast = useToast();
   const [busy, setBusy] = useState(false);
-  const canHide = isAdmin || String(row.from_email).toLowerCase() === me;
+  // View as is read-only: no Hide or Show again.
+  const ro = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+  const canHide = !ro && (isAdmin || String(row.from_email).toLowerCase() === me);
   async function setHidden(hide) {
     setBusy(true);
     const { error } = await window.mgbSupabase
@@ -154,8 +156,10 @@ function SO_Compose({ me, clients, onDone }) {
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const ro = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
   async function send(e) {
     e.preventDefault();
+    if (ro) return;
     const problem = OPS_shoutoutError(to, body, me);
     if (problem) return setErr(problem);
     setErr("");
@@ -218,7 +222,7 @@ function SO_Compose({ me, clients, onDone }) {
         </p>
       )}
       <div className="so-form-body cv-form-actions">
-        <button type="submit" className="btn-primary" disabled={busy}>
+        <button type="submit" className="btn-primary" disabled={busy || ro} title={ro ? "Read-only in View as" : undefined}>
           {busy ? "Sending…" : "Send shout-out"}
         </button>
         {onDone && (
@@ -250,7 +254,11 @@ function SO_ShoutoutsBody({ clients, staffUser }) {
   (clients || []).forEach((c) => (byId[c.id] = c.name || c.id));
   // A client the viewer can't open stays untagged rather than showing an id.
   const clientName = (id) => byId[id] || "";
-  const rows = st.rows;
+  // View as: the admin's JWT also reads hidden rows; show only what the viewed
+  // person would see (their own hidden ones). A filtered copy, never SO_store.
+  const va = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+  const vaMe = va ? String((window.mgbViewAs && window.mgbViewAs.email) || "").toLowerCase() : "";
+  const rows = va ? st.rows.filter((r) => r && (!r.hidden_at || (vaMe && String(r.from_email || "").toLowerCase() === vaMe))) : st.rows;
   const shown = all ? rows : rows.slice(0, SO_FEED_SHOWN);
   return (
     <div className="so-card">

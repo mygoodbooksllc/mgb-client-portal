@@ -108,6 +108,8 @@ function CLC_goReports(client) {
 function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
   const showToast = useToast();
   const toast = (m) => showToast && showToast(m);
+  // View as: the close page is read-only (spec §10.4).
+  const ro = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
   const today = useMemo(() => new Date(), []);
   const periods = useMemo(() => CT_periods(today).slice().reverse(), [today]); // newest first
   const currentPeriod = periods[0];
@@ -505,7 +507,7 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
               name={"clc-status-" + client.id}
               value={s.key}
               checked={draft.status === s.key}
-              disabled={!isAdmin && status === "done"}
+              disabled={ro || (!isAdmin && status === "done")}
               onChange={() => {
                 setDraft((d) => ({ ...d, status: s.key }));
                 setDirty(true);
@@ -553,7 +555,7 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
         ) : (
           <span />
         )}
-        <button type="button" className="btn-primary" disabled={saving || !metaReady || !changed} onClick={onSaveStatus}>
+        <button type="button" className="btn-primary" disabled={saving || ro || !metaReady || !changed} onClick={onSaveStatus}>
           {saving ? "Saving…" : "Save"}
         </button>
       </div>
@@ -630,7 +632,7 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
           {isAdmin ? (
             <>
               {" · "}
-              <button type="button" className="link-btn" disabled={saving} onClick={() => askReopen("in_progress", (row && row.notes) || null)}>
+              <button type="button" className="link-btn" disabled={saving || ro} onClick={() => askReopen("in_progress", (row && row.notes) || null)}>
                 Reopen
               </button>
             </>
@@ -658,11 +660,11 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
       doneBody = (
         <>
           {cs.pass ? (
-            <button type="button" className="btn-primary clc-done-btn" disabled={saving} onClick={() => markDone(false)}>
+            <button type="button" className="btn-primary clc-done-btn" disabled={saving || ro} onClick={() => markDone(false)}>
               {isAdmin ? `Sign off ${month}` : `Mark ${month} ready for sign-off`}
             </button>
           ) : (
-            <button type="button" className="btn-secondary clc-done-btn" disabled={saving} onClick={() => markDone(true)}>
+            <button type="button" className="btn-secondary clc-done-btn" disabled={saving || ro} onClick={() => markDone(true)}>
               {isAdmin ? `Sign off ${month} anyway` : `Mark ${month} ready anyway`}
             </button>
           )}
@@ -973,7 +975,9 @@ const CLC_LEDGER_STATUS = {
 };
 
 function CLC_LedgerCard({ client, ym, month, data, isAdmin, onChanged, toast }) {
-  const [busy, setBusy] = useState(null);
+  const [busyRaw, setBusy] = useState(null);
+  // View as: Mark reviewed / Approve / Send back stay disabled.
+  const busy = busyRaw || (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly() ? "viewas" : null);
   const [sendBack, setSendBack] = useState(null); // note draft while the modal is open
   const so = data && !data.missing ? data.signoff : null;
   const st = (so && so.status) || null;

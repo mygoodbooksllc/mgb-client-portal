@@ -298,11 +298,14 @@ async function CTC_loadBudget(sb, id, opts) {
 async function CTC_loadTasks(sb, id, opts, force) {
   const me = (opts && opts.me) || "";
   if (!me) return { mine: 0, overdue: 0, firstId: null };
+  // View as: never a private row, and one with no visibility is dropped too.
+  const ro = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
   const cached = CTC_store.items;
-  if (force || !cached || cached.me !== me || Date.now() - cached.at > CTC_FRESH_MS) {
+  if (force || !cached || cached.me !== me || cached.ro !== ro || Date.now() - cached.at > CTC_FRESH_MS) {
     const r = await staffItemsApi.list(sb, me);
     if (r && r.error) throw r.error;
-    CTC_store.items = { me, at: Date.now(), rows: (r && r.data) || [] };
+    const rows = (r && r.data) || [];
+    CTC_store.items = { me, ro, at: Date.now(), rows: ro ? rows.filter((t) => t && t.visibility && t.visibility !== "private") : rows };
   }
   const mineTest = isMyStaffItem;
   const today = CTC_today();
