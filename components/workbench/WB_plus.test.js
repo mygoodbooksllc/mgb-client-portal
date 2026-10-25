@@ -119,10 +119,11 @@ function load(opts) {
       },
     },
   };
-  const sandbox = { window, Event: function (type) { this.type = type; }, console };
+  const clock = { t: 1000000 };
+  const sandbox = { window, Event: function (type) { this.type = type; }, console, Date: { now: () => clock.t } };
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "WB_plus.js"), "utf8"), sandbox);
-  return { sb: sandbox, store, calls, events };
+  return { sb: sandbox, store, calls, events, clock };
 }
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -189,6 +190,10 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
     assert.strictEqual(L.calls.session, 1);
     L.sb.WB_plusOn(true);
     await tick();
+    assert.strictEqual(L.calls.session, 1, "not again within 3s");
+    L.clock.t += 3001;
+    L.sb.WB_plusOn(true);
+    await tick();
     assert.strictEqual(L.calls.session, 2);
   });
 
@@ -201,7 +206,22 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
     assert.deepStrictEqual(L.events, []);
     L.sb.WB_plusOn(true);
     await tick();
+    assert.strictEqual(L.calls.session, 1, "not again within 30s");
+    L.clock.t += 30001;
+    L.sb.WB_plusOn(true);
+    await tick();
+    await tick();
     assert.strictEqual(L.calls.session, 2);
+    L.clock.t += 30001;
+    L.sb.WB_plusOn(true);
+    await tick();
+    await tick();
+    assert.strictEqual(L.calls.from.length, 3);
+    L.clock.t += 30001;
+    L.sb.WB_plusOn(true);
+    await tick();
+    assert.strictEqual(L.calls.from.length, 3, "gives up after 3 errors this page load");
+    assert.strictEqual(L.store.mgb_deskplus_cache, "1");
   });
 
   console.log("WB_plus: " + n + " tests passed");

@@ -64,14 +64,23 @@ function WB_plusPreviewOn() {
 
 // One read of tk_settings.deskplus_enabled per page load, after sign-in (a
 // read before sign-in sees nothing, so it waits for a session; a failed or
-// early read goes back to idle and is tried again next time). Read only.
-var WB__plusSwitch = { state: "idle" }; // idle | reading | done
+// early read goes back to idle and is tried again later: no sooner than 3s
+// without a session, 30s after an error, and never after 3 errors in one page
+// load, so a failing read is not retried on every render). Read only.
+var WB__plusSwitch = { state: "idle", fails: 0, nextAt: 0 }; // state: idle | reading | done
 function WB_plusReadSwitch(force) {
   var c = typeof window !== "undefined" ? window.mgbSupabase : null;
   if (!c || (!force && WB__plusSwitch.state !== "idle")) return;
+  if (!force && Date.now() < WB__plusSwitch.nextAt) return;
   WB__plusSwitch.state = "reading";
-  var fail = function () {
+  var wait = function () {
     WB__plusSwitch.state = "idle";
+    WB__plusSwitch.nextAt = Date.now() + 3000;
+  };
+  var fail = function () {
+    WB__plusSwitch.fails += 1;
+    WB__plusSwitch.state = WB__plusSwitch.fails >= 3 ? "done" : "idle";
+    WB__plusSwitch.nextAt = Date.now() + 30000;
   };
   try {
     var go = function () {
@@ -94,7 +103,7 @@ function WB_plusReadSwitch(force) {
     if (c.auth && typeof c.auth.getSession === "function") {
       c.auth.getSession().then(function (r) {
         if (r && r.data && r.data.session) go();
-        else fail();
+        else wait();
       }, fail);
     } else go();
   } catch (e) {
