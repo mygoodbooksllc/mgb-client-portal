@@ -257,9 +257,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <script>
-      // Lato preview. Classic (mgb_lato_classic) wins, then the person's checkbox
-      // (mgb_lato_preview), then the firm switch tk_settings.lato_enabled (cached
-      // in mgb_lato_cache after the first read; code never writes the switch).
+      // Lato font. Classic (mgb_lato_classic) wins, then the firm switch
+      // tk_settings.lato_enabled (cached in mgb_lato_cache after the first read;
+      // code never writes the switch). The per-person checkbox mgb_lato_preview
+      // was retired 2026-10-25, once the switch was on for everyone.
       (function () {
         var ls = function (k) {
           try {
@@ -289,7 +290,7 @@
           document.head.appendChild(l);
         }
         var classic = ls("mgb_lato_classic") === "1";
-        apply(!classic && (ls("mgb_lato_preview") === "1" || ls("mgb_lato_cache") === "1"));
+        apply(!classic && ls("mgb_lato_cache") === "1");
         if (classic) return;
         var tries = 0;
         var t = setInterval(function () {
@@ -308,7 +309,7 @@
                 var v = res && !res.error && res.data ? res.data.value : undefined;
                 var on = v === true || v === "true" || v === 1 || (!!v && typeof v === "object" && v.on === true);
                 lsSet("mgb_lato_cache", on ? "1" : null);
-                apply(on || ls("mgb_lato_preview") === "1");
+                apply(on);
               }, function () {});
           } catch (e) {}
         }, 500);
@@ -316,9 +317,10 @@
     </script>
     <script>
       // Brand colors and Hover menus. Same pattern as Lato above. Brand colors:
-      // Classic (mgb_brand_classic) wins, then the person's checkbox
-      // (mgb_brand_preview), then the firm switch tk_settings.brand_enabled
-      // (cached in mgb_brand_cache after the first read), else the old look.
+      // Classic (mgb_brand_classic) wins, then the firm switch
+      // tk_settings.brand_enabled (cached in mgb_brand_cache after the first
+      // read), else the old look. The per-person checkbox mgb_brand_preview was
+      // retired 2026-10-25, once the switch was on for everyone.
       // When on it sets data-brand="mgb" on <html> (styles.css swaps in the brand
       // guide's navy/teal and Montserrat headings) and loads Montserrat only then.
       // Hover menus: this script only caches the firm switch
@@ -360,7 +362,7 @@
         }
         var brandClassic = ls("mgb_brand_classic") === "1";
         var hoverClassic = ls("mgb_hovernav_classic") === "1";
-        applyBrand(!brandClassic && (ls("mgb_brand_preview") === "1" || ls("mgb_brand_cache") === "1"));
+        applyBrand(!brandClassic && ls("mgb_brand_cache") === "1");
         if (brandClassic && hoverClassic && ls("mgb_slate_classic") === "1") return;
         var isOn = function (v) {
           return v === true || v === "true" || v === 1 || (!!v && typeof v === "object" && v.on === true);
@@ -385,7 +387,7 @@
                 });
                 var brandOn = isOn(vals.brand_enabled);
                 lsSet("mgb_brand_cache", brandOn ? "1" : null);
-                if (!brandClassic) applyBrand(brandOn || ls("mgb_brand_preview") === "1");
+                if (!brandClassic) applyBrand(brandOn);
                 lsSet("mgb_slate_cache", isOn(vals.slate_app_enabled) ? "1" : null);
                 var hoverBefore = ls("mgb_hovernav_cache");
                 lsSet("mgb_hovernav_cache", isOn(vals.hovernav_enabled) ? "1" : null);
@@ -444,7 +446,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-24b", note: "Slate app preview review fixes: a late Undo refuses when the task changed since, a duplicated private subtask stays private, Shift-click select copies tasks not page text, quick size clicks keep the presets, the drag box ignores scrollbars; plus View as covers the whole app, read-only (admins): Inbox, Work (Slate snapshot), Team and HR with private placeholders, blocked changes in the Audit log; budget Approve shows Exit View as to approve; new Last seen on HR › Members (last page, browser, version, last error)" };
+      window.MGB_VERSION = { label: "2026-10-25a", note: "Retired the personal preview boxes for the Desk, left sidebar, Lato font, brand colors and hover menus now that their firm switches are on for everyone (Classic opt-outs and the firm switches stay; if a switch is ever turned off, the feature is off for all)" };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).

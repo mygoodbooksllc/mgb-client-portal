@@ -243,10 +243,11 @@ function SS__flagValueOn(v) {
   if (typeof WB_flagValueOn === "function") return WB_flagValueOn(v);
   return v === true || v === "true" || v === 1 || (!!v && typeof v === "object" && v.on === true);
 }
-// Classic wins, then the person's preview, then the firm switch tk_settings.nav_enabled.
-function SS_navIsOn(settingValue, previewOn, classicOn) {
+// Classic wins, then the firm switch tk_settings.nav_enabled. (The per-person
+// preview checkbox was retired 2026-10-25, once the switch was on for everyone.)
+function SS_navIsOn(settingValue, classicOn) {
   if (classicOn) return false;
-  return !!previewOn || SS__flagValueOn(settingValue);
+  return SS__flagValueOn(settingValue);
 }
 
 // ---- Recents (pure) ----

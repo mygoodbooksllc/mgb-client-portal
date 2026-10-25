@@ -1101,7 +1101,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
 
 function TB_Bell({ clients, items, me, isAdmin, isRealAdmin, page }) {
   const list = TB_useBellItems({ clients, items, me, isAdmin, page });
-  // Admin alerts ride in the bell for real admins while the sidebar preview is on
+  // Admin alerts ride in the bell for real admins while the left sidebar is on
   // (the sidebar has no Alerts section of its own). Off: the old top bar as before.
   const sbOn = typeof SS_useOn === "function" ? SS_useOn() : false;
   const adm =

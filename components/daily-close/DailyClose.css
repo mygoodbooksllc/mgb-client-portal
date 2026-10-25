@@ -1682,7 +1682,7 @@
   .dc-trackBtn { padding: 2px 7px; font-size: 13px; }
 }
 
-/* Lato preview: DailyClose hard-codes its fonts, so follow the shell's switch. */
+/* Lato font: DailyClose hard-codes its fonts, so follow the shell's switch. */
 html[data-font="lato"] .dc-dailyClose,
 html[data-font="lato"] .dc-dailyClose button,
 html[data-font="lato"] .dc-dailyClose input,

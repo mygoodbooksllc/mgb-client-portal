@@ -732,7 +732,7 @@ var ANN_REGISTRY = [
     roles: ["admin", "bookkeeper"],
     hash: "#/today",
     // Only once the Workbench is on for this person (the owner's wb_enabled
-    // switch, or the Workbench preview flag), so nobody is toured through
+    // switch and no Classic Today), so nobody is toured through
     // tiles they can't see. Classic Today keeps it waiting.
     ready: () => typeof WB_store !== "undefined" && !!WB_store.getState().on,
     steps: (ctx) => {

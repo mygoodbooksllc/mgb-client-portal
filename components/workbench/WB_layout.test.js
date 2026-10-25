@@ -220,29 +220,27 @@ t("diff keeps unchanged fields out so role default changes still reach people", 
   assert.strictEqual(p.width, 250);
 });
 
-t("SS_navIsOn truth table: classic wins, then preview, then the firm switch", () => {
+t("SS_navIsOn truth table: classic wins, then the firm switch (no personal preview)", () => {
   const on = L.SS_navIsOn;
-  // [setting, preview, classic] -> result
-  assert.strictEqual(on(undefined, false, false), false);
-  assert.strictEqual(on(true, false, false), true);
-  assert.strictEqual(on(undefined, true, false), true);
-  assert.strictEqual(on(true, true, false), true);
+  // [setting, classic] -> result
+  assert.strictEqual(on(undefined, false), false);
+  assert.strictEqual(on(true, false), true);
+  assert.strictEqual(on(undefined, true), false);
+  assert.strictEqual(on(true, true), false);
+  // A third argument (the retired preview) is ignored: the switch off stays off.
   assert.strictEqual(on(undefined, false, true), false);
-  assert.strictEqual(on(true, false, true), false);
-  assert.strictEqual(on(undefined, true, true), false);
-  assert.strictEqual(on(true, true, true), false);
 });
 
 t("SS_navIsOn reads the setting with the Desk's value rules, and never accepts 'on'", () => {
   const on = L.SS_navIsOn;
-  assert.strictEqual(on("true", false, false), true);
-  assert.strictEqual(on(1, false, false), true);
-  assert.strictEqual(on({ on: true }, false, false), true);
-  assert.strictEqual(on("on", false, false), false);
-  assert.strictEqual(on("false", false, false), false);
-  assert.strictEqual(on(false, false, false), false);
-  assert.strictEqual(on(null, false, false), false);
-  assert.strictEqual(on({ on: "yes" }, false, false), false);
+  assert.strictEqual(on("true", false), true);
+  assert.strictEqual(on(1, false), true);
+  assert.strictEqual(on({ on: true }, false), true);
+  assert.strictEqual(on("on", false), false);
+  assert.strictEqual(on("false", false), false);
+  assert.strictEqual(on(false, false), false);
+  assert.strictEqual(on(null, false), false);
+  assert.strictEqual(on({ on: "yes" }, false), false);
 });
 
 t("recents filter: excludes pins and the current client", () => {

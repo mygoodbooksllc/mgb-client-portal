@@ -11,10 +11,12 @@
 // Writes (snooze, No reply needed, Mark checked, Start) change the store at
 // once and roll back on error; each one offers a 5-second Undo.
 //
-// The switch: tk_settings.wb_enabled (never set by code), or a person's own
-// preview (localStorage mgb_wb_preview = "1"); "Classic Today"
-// (mgb_wb_classic = "1") turns it off for that person. Until the switch is
-// read, the last answer is remembered per browser (mgb_wb_on_cache).
+// The switch: tk_settings.wb_enabled (never set by code); "Classic Today"
+// (mgb_wb_classic = "1") turns it off for that person. The per-person preview
+// checkbox (mgb_wb_preview) was retired 2026-10-25, once the switch was on for
+// everyone: if the switch is ever turned off, the Desk is off for everyone.
+// Until the switch is read, the last answer is remembered per browser
+// (mgb_wb_on_cache).
 //
 // Browser file; loads after WB_logic.js. Uses window.mgbSupabase, TK_api,
 // MGB_track at call time only.
@@ -159,9 +161,6 @@ var WB_store = (function () {
     return typeof window !== "undefined" ? window.mgbSupabase : null;
   }
 
-  function previewOn() {
-    return WB__ls("mgb_wb_preview") === "1";
-  }
   function classicOn() {
     return WB__ls("mgb_wb_classic") === "1";
   }
@@ -170,7 +169,7 @@ var WB_store = (function () {
   function readFlag() {
     var c = sb();
     var local = function (v) {
-      var on = WB_isOn(v, previewOn(), classicOn());
+      var on = WB_isOn(v, classicOn());
       WB__lsSet("mgb_wb_on_cache", on ? "1" : null);
       var was = state.on;
       set({ on: on, flagKnown: true });

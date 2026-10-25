@@ -273,12 +273,13 @@ t("when text", () => {
   assert.strictEqual(L.WB_updatedText(NOW - 120000, NOW), "Updated 2 min ago");
   assert.strictEqual(L.WB_periodLabel("2026-09"), "Sep 2026");
 });
-t("switch: setting, preview, classic", () => {
-  assert.strictEqual(L.WB_isOn(undefined, false, false), false);
-  assert.strictEqual(L.WB_isOn(true, false, false), true);
-  assert.strictEqual(L.WB_isOn({ on: true }, false, false), true);
-  assert.strictEqual(L.WB_isOn(false, true, false), true);
-  assert.strictEqual(L.WB_isOn(true, true, true), false);
+t("switch: setting and classic (no personal preview)", () => {
+  assert.strictEqual(L.WB_isOn(undefined, false), false);
+  assert.strictEqual(L.WB_isOn(true, false), true);
+  assert.strictEqual(L.WB_isOn({ on: true }, false), true);
+  assert.strictEqual(L.WB_isOn(false, false), false);
+  assert.strictEqual(L.WB_isOn(true, true), false);
+  assert.strictEqual(L.WB_isOn(undefined, true), false);
   assert.strictEqual(L.WORKBENCH_NAME, "Desk");
   assert.strictEqual(L.WB_NAME, L.WORKBENCH_NAME);
   assert.strictEqual(L.WB_SLATE, "Slate");

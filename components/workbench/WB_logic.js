@@ -1048,14 +1048,14 @@ function WB_periodLabel(p) {
   return m ? WB__MON[+m[2] - 1] + " " + m[1] : "";
 }
 
-// Feature switch: tk_settings.wb_enabled (unset = off), the per-person
-// preview, and the "Classic Today" escape hatch.
+// Feature switch: tk_settings.wb_enabled (unset = off) and the "Classic Today"
+// escape hatch, which wins. (The per-person preview was retired 2026-10-25.)
 function WB_flagValueOn(v) {
   return v === true || v === "true" || v === 1 || (!!v && typeof v === "object" && v.on === true);
 }
-function WB_isOn(settingValue, previewOn, classicOn) {
+function WB_isOn(settingValue, classicOn) {
   if (classicOn) return false;
-  return !!previewOn || WB_flagValueOn(settingValue);
+  return WB_flagValueOn(settingValue);
 }
 
 // Where the drawer bar starts, so it sits beside the left nav instead of on

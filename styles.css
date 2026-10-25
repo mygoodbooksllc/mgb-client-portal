@@ -100,7 +100,7 @@
   --font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
-/* Lato preview (mgb_lato_preview checkbox / tk_settings.lato_enabled). Set on <html> by the
+/* Lato font (tk_settings.lato_enabled; Classic fonts opts out). Set on <html> by the
    inline script in index.html. Headings and body become Lato; numbers stay IBM Plex Mono. */
 html[data-font="lato"] {
   --font-heading: "Lato", system-ui, -apple-system, sans-serif;
@@ -11046,7 +11046,7 @@ button.home-todo-main:hover { background: var(--surface-2); }
   font-size: 12px;
 }
 
-/* Brand colors preview (mgb_brand_preview checkbox; index.html sets data-brand="mgb").
+/* Brand colors (tk_settings.brand_enabled; Classic colors opts out; index.html sets data-brand="mgb").
    A blend: the chrome (sidebar, rail, dark top bar) stays our near-black and fades into the
    brand teal at the bottom; buttons, headings and surfaces use the brand guide's navy.
    Brand guide: Pantone 7546 C #243746 (primary navy), 5463 C #06262D (dark teal),
@@ -11086,7 +11086,7 @@ html[data-brand="mgb"] h3 {
   letter-spacing: 0;
 }
 
-/* Hover nav preview (mgb_hovernav_preview): themed tip for title="" text and a flyout of
+/* Hover menus (tk_settings.hovernav_enabled; Classic menus opts out): themed tip for title="" text and a flyout of
    clickable tabs beside a sidebar icon. Same look as .icon-hover-tip. */
 .hn-tip {
   position: fixed;
@@ -11148,7 +11148,7 @@ html[data-brand="mgb"] h3 {
   color: var(--gold, #c7ae86);
 }
 
-/* Brand colors preview: the Desk info bar continues the sidebar's fade (teal at the left edge,
+/* Brand colors: the Desk info bar continues the sidebar's fade (teal at the left edge,
    where it meets the rail, to near-black on the right). The loading splash stays Lato. */
 html[data-brand="mgb"] .wb-bar {
   background-image: linear-gradient(90deg, #06262d 0%, #05080d 100%);
