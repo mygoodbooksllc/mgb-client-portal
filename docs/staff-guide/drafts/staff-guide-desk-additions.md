@@ -5,6 +5,7 @@ Draft for the hidden Desk additions preview (localStorage `mgb_deskplus_preview`
 ## What's new (draft line)
 
 - S1: The Desk Inbox has a new Ledger chip for your Ledger (GL Review) items.
+- S2: The Desk's Client tab now shows what's waiting on the client, their latest messages and their latest files, under the client's tasks.
 
 ## Ledger chip
 
@@ -12,13 +13,11 @@ In the Desk, open the Inbox and look at the chips along the top. A new Ledger ch
 
 ## Client tab: Waiting on client, recent messages, recent files (S2)
 
-What's new (draft line): The Desk's Client tab now shows what's waiting on the client, their latest messages and their latest files, under the client's tasks.
-
 Open your Desk, pick the **Client** tab and choose a client. Under the client's tasks are three short lists:
 
-- **Waiting on client.** Everything you've asked this client for that they haven't answered yet, the longest wait first: what you asked, the day you asked, how many business days it has waited, and the reminder state (**Reminded once**, **Reminded 3 times**, **Reminders paused**, **No reply**). Click a row to open its task right in the Desk. If the request sits on a task you can't open (someone else's private task), you see only the request itself, never the task, and the row opens **Waiting on client** instead. A task that is waiting on the client without an open request shows under its own name. More than 10? **See all in Waiting on client** opens the full list.
+- **Waiting on client.** Everything you've asked this client for that they haven't answered yet, the longest wait first: what you asked, the day you asked, how many business days it has waited, and the reminder state (**Reminded once**, **Reminded 3 times**, **Reminders paused**, **No reply**). Click a row to open it: a request on a task you can open opens that task right in the Desk. If the request sits on a task you can't open (someone else's private task), you see only the request itself, never the task, and the row opens **Waiting on client** instead (bookkeepers: untick **Just my tasks** there to see it). A task that is waiting on the client without an open request shows under its own name. More than 10? **See all in Waiting on client** opens the full list.
 - **Recent messages.** The client's last five messages, newest first: who wrote it, client or staff, when, and the first line of the message. A message that is only an attachment says *(attachment)*. Staff-only notes (internal notes) never appear here. Click one to open the chat on that person without leaving the page.
-- **Recent files.** The client's last five files, newest first, with the file type and the day it was added. Files in the trash don't show. Click one to open it in Google Drive in a new tab (the server checks you can open it first). A file that isn't in Google Drive yet opens the client's **Documents** instead.
+- **Recent files.** The client's last five files, newest first, with the file type and the day it was added. Files in the trash don't show. Click one to open it in Google Drive in a new tab (the server checks you can open it first). If it can't open, try again or open it from the client's **Documents**. A file that isn't in Google Drive yet opens the client's **Documents** instead.
 
 Each list loads on its own. If one can't load, it says so with a **Retry** button and the others still show. Switching clients clears the lists and loads the new client's.
 
@@ -28,4 +27,4 @@ Tip (draft, add to tips.md at launch; already in Tips.jsx and shows only while t
 
 | Where | Tip | Learn more |
 |---|---|---|
-| Any page, Desk open on the Client tab (only with Desk additions on) | Waiting on client lists what you've asked this client for that they haven't answered yet. Click one to open its task. Their latest messages and files are just below. | [How do I use the Desk?](#/help/workbench) |
+| Any page, Desk open on the Client tab (only with Desk additions on) | Waiting on client lists what you've asked this client for that they haven't answered yet. Click one to open it. Their latest messages and files are just below. | [How do I use the Desk?](#/help/workbench) |

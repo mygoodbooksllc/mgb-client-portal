@@ -274,8 +274,8 @@ function WB_HubClientBody(props) {
         </div>
       ) : null}
       {body}
-      {plusOn && id != null && pick.access === true && typeof WB_cxFetch === "function" ? (
-        <WB_HubClientExtras clientId={id} showing={props.showing !== false} />
+      {plusOn && id != null && pick.access === true && typeof WB_cxFetch === "function" && typeof WB_cxStep === "function" ? (
+        <WB_HubClientExtras clientId={id} showing={props.showing !== false} isAdmin={!!props.isAdmin} />
       ) : null}
     </div>
   );
@@ -290,17 +290,18 @@ function WB_HubClientBody(props) {
 // state, error line and Retry; replies for another client are never drawn.
 function WB_HubClientExtras(props) {
   var cid = String(props.clientId);
+  var isAdmin = !!props.isAdmin;
   var showing = props.showing !== false;
   var stPair = React.useState({});
   var st = stPair[0];
   var setSt = stPair[1];
   var seqRef = React.useRef(null);
   if (!seqRef.current) seqRef.current = WB_cxSeq();
-  var cidRef = React.useRef(cid);
-  var loadedRef = React.useRef(null);
+  // {cid, loaded, dirty}: the load rules live in WB_cxStep / WB_cxChanged.
+  var memRef = React.useRef(null);
+  if (!memRef.current) memRef.current = WB_cxMem(cid);
   var showRef = React.useRef(showing);
   showRef.current = showing;
-  var dirtyRef = React.useRef(false);
 
   var apply = React.useCallback(function (sec, val) {
     setSt(function (prev) {
@@ -312,42 +313,35 @@ function WB_HubClientExtras(props) {
   var run = React.useCallback(
     function (sections) {
       var sb = typeof window !== "undefined" ? window.mgbSupabase : null;
-      WB_cxFetch(sb, cidRef.current, seqRef.current, sections, apply);
+      WB_cxFetch(sb, memRef.current.cid, seqRef.current, sections, apply);
     },
     [apply],
   );
 
   React.useEffect(
     function () {
-      if (cidRef.current !== cid) {
-        // Another client: anything still in flight for the old one is stale.
-        cidRef.current = cid;
-        seqRef.current.reset();
-        dirtyRef.current = false;
-      }
-      if (!showing) return;
-      if (loadedRef.current === cid) {
-        if (dirtyRef.current) {
-          dirtyRef.current = false;
-          run(["waiting"]);
-        }
-        return;
-      }
-      loadedRef.current = cid;
-      dirtyRef.current = false;
-      run(null);
+      var step = WB_cxStep(memRef.current, cid, showing);
+      // Another client: anything still in flight for the old one is stale.
+      if (step.reset) seqRef.current.reset();
+      if (step.run === "all") run(null);
+      else if (step.run === "waiting") run(["waiting"]);
     },
     [cid, showing, run],
   );
 
-  // A request asked, answered, reminded or cancelled anywhere in this tab:
+  // Unmounted (client closed, gate off, Desk closed): drop any reply still in flight.
+  React.useEffect(function () {
+    return function () {
+      if (seqRef.current) seqRef.current.reset();
+    };
+  }, []);
+
+  // A request asked, answered, reminded or canceled anywhere in this tab:
   // reload Waiting on client now, or when the tab shows again.
   React.useEffect(
     function () {
       var on = function () {
-        if (loadedRef.current !== cidRef.current) return;
-        if (showRef.current) run(["waiting"]);
-        else dirtyRef.current = true;
+        if (WB_cxChanged(memRef.current, showRef.current) === "waiting") run(["waiting"]);
       };
       window.addEventListener("mgb:tk-requests-changed", on);
       return function () {
@@ -370,6 +364,12 @@ function WB_HubClientExtras(props) {
     if (typeof LK_go === "function") LK_go(target);
     else if (typeof LK_href === "function") window.location.hash = LK_href(target);
   };
+  // Tasks › Waiting on client starts on "Just my tasks" for everyone but
+  // admins, which hides requests on other people's tasks: say how to see them.
+  var leaveToWaiting = function () {
+    leave({ place: "tasks", tab: "waiting" });
+    if (!isAdmin && typeof WB_toast === "function") WB_toast("Opened Waiting on client. Untick Just my tasks to see requests on tasks that aren't yours.");
+  };
   var openWaiting = function (r) {
     WB_track("wb-hub", "client-waiting");
     remember("cx:" + r.key);
@@ -377,7 +377,7 @@ function WB_HubClientExtras(props) {
       TK_vOpenTask(r.taskId, { from: "wb-hub" });
       return;
     }
-    leave({ place: "tasks", tab: "waiting" });
+    leaveToWaiting();
   };
   var openMessage = function (m) {
     WB_track("wb-hub", "client-msg");
@@ -392,7 +392,7 @@ function WB_HubClientExtras(props) {
     WB_track("wb-hub", "client-file");
     remember("cx:" + f.key);
     if (f.inDrive && typeof WB__openDriveFile === "function" && typeof DRV_link === "function") {
-      WB__openDriveFile(f.id);
+      WB__openDriveFile(f.id, { failHint: "Try again, or open it from the client's Documents.", track: false });
       return;
     }
     leave({ clientId: cid, tab: "documents" });
@@ -414,9 +414,7 @@ function WB_HubClientExtras(props) {
       );
     } else if (p.status !== "ok") {
       content = (
-        <p className="wb-cx-note" role="status">
-          Loading…
-        </p>
+        <p className="wb-cx-note">Loading…</p>
       );
     } else if (!rows.length) {
       content = <p className="wb-cx-note">{opts.empty}</p>;
@@ -424,7 +422,7 @@ function WB_HubClientExtras(props) {
       content = opts.list(rows);
     }
     return (
-      <section className="wb-cx-sec" aria-labelledby={hid}>
+      <section className="wb-cx-sec" aria-labelledby={hid} aria-busy={p.status === "loading" ? "true" : undefined}>
         <h4 className="wb-cx-head" id={hid} {...(opts.tour ? { "data-tour": opts.tour } : {})}>
           {title}
           {p.status === "ok" && rows.length ? <span className="wb-chip-n">{opts.count != null ? opts.count : rows.length}</span> : null}
@@ -437,6 +435,13 @@ function WB_HubClientExtras(props) {
   var waitingAll = part("waiting").status === "ok" && Array.isArray(part("waiting").rows) ? part("waiting").rows : [];
   return (
     <div className="wb-cx" data-tour="wb-client-extras">
+      <p className="tk-sr" role="status" aria-live="polite">
+        {["waiting", "messages", "files"].some(function (k) {
+          return part(k).status === "loading";
+        })
+          ? "Loading waiting, messages and files…"
+          : ""}
+      </p>
       {section("waiting", "Waiting on client", {
         tour: "wb-client-waiting",
         errorText: "Couldn't load what's waiting on this client.",
@@ -469,7 +474,7 @@ function WB_HubClientExtras(props) {
                 })}
               </ul>
               {more > 0 ? (
-                <button type="button" className="link-btn wb-cx-more" onClick={() => leave({ place: "tasks", tab: "waiting" })}>
+                <button type="button" className="link-btn wb-cx-more" onClick={leaveToWaiting}>
                   {"See all " + rows.length + " in Waiting on client"}
                 </button>
               ) : null}

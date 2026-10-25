@@ -314,8 +314,52 @@ function WB_cxFetch(sb, clientId, seq, sections, apply) {
   );
 }
 
+// The Client tab's load rules as one pure step, so they can be tested.
+// mem = {cid, loaded, dirty} (kept by the component across renders).
+// WB_cxStep(mem, cid, showing) runs on every client / showing change and
+// returns {reset, run}: reset = drop replies still in flight (another client);
+// run = null | "all" | "waiting". Another client always forgets what was
+// loaded, so going back to an earlier client while the tab was hidden reads
+// again instead of keeping "Loading…" (its replies were dropped by the reset).
+// WB_cxChanged(mem, showing) is the mgb:tk-requests-changed step: "waiting"
+// to reload now, or null (marked dirty for when the tab shows again).
+function WB_cxMem(cid) {
+  return { cid: cid == null ? null : String(cid), loaded: null, dirty: false };
+}
+function WB_cxStep(mem, cid, showing) {
+  var c = String(cid);
+  var out = { reset: false, run: null };
+  if (mem.cid !== c) {
+    mem.cid = c;
+    mem.loaded = null;
+    mem.dirty = false;
+    out.reset = true;
+  }
+  if (!showing) return out;
+  if (mem.loaded === c) {
+    if (mem.dirty) {
+      mem.dirty = false;
+      out.run = "waiting";
+    }
+    return out;
+  }
+  mem.loaded = c;
+  mem.dirty = false;
+  out.run = "all";
+  return out;
+}
+function WB_cxChanged(mem, showing) {
+  if (mem.loaded == null || mem.loaded !== mem.cid) return null;
+  if (showing) return "waiting";
+  mem.dirty = true;
+  return null;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    WB_cxMem: WB_cxMem,
+    WB_cxStep: WB_cxStep,
+    WB_cxChanged: WB_cxChanged,
     WB_CX_LIMIT: WB_CX_LIMIT,
     WB_CX_TRIM: WB_CX_TRIM,
     WB_CX_WAIT_CAP: WB_CX_WAIT_CAP,

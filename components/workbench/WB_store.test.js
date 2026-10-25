@@ -425,6 +425,30 @@ ta("Open file: pop-ups blocked says so once, without asking Drive or opening a s
   assert.strictEqual(c.went.length, 0);
 });
 
+ta("Open file options (Desk Client tab): failHint replaces the ⋯ menu text, track:false skips the open-in-drive event", async () => {
+  const ok = load({ drvLink: () => Promise.resolve("https://drive.google.com/x") });
+  ok.S.join("pat@example.com", false);
+  assert.strictEqual(await ok.sandbox.WB__openDriveFile("f1", { failHint: "Try again.", track: false }), true);
+  assert.strictEqual(ok.popup.location.href, "https://drive.google.com/x");
+  assert.strictEqual(ok.tracked.length, 0);
+  const bad = load({ drvLink: () => Promise.resolve("javascript:alert(1)") });
+  bad.S.join("pat@example.com", false);
+  assert.strictEqual(await bad.sandbox.WB__openDriveFile("f1", { failHint: "Open it from the client's Documents." }), false);
+  let toast = bad.events.filter((e) => e.type === "mgb:toast");
+  assert.strictEqual(toast.length, 1);
+  assert.ok(/Documents/.test(toast[0].detail.text) && !/⋯/.test(toast[0].detail.text));
+  const err = load({ drvLink: () => Promise.reject(new Error("Gone")) });
+  err.S.join("pat@example.com", false);
+  assert.strictEqual(await err.sandbox.WB__openDriveFile("f1", { failHint: "Try again." }), false);
+  toast = err.events.filter((e) => e.type === "mgb:toast");
+  assert.ok(/Gone\. Try again\./.test(toast[0].detail.text) && !/⋯/.test(toast[0].detail.text));
+  // No options: today's Inbox text and tracking.
+  const plainCase = load({ drvLink: () => Promise.reject(new Error("Gone")) });
+  plainCase.S.join("pat@example.com", false);
+  await plainCase.sandbox.WB__openDriveFile("f1");
+  assert.ok(/⋯ menu/.test(plainCase.events.filter((e) => e.type === "mgb:toast")[0].detail.text));
+});
+
 ta("Open file falls back to the Files page when Drive helpers aren't loaded or the hub is closed", async () => {
   const a = load(); // no DRV_link
   a.S.join("pat@example.com", false);

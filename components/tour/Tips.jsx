@@ -238,7 +238,7 @@ const TIPS_CATALOG = [
     match: () => true,
     target: "wb-client-waiting",
     snug: true,
-    text: "Waiting on client lists what you've asked this client for that they haven't answered yet. Click one to open its task. Their latest messages and files are just below.",
+    text: "Waiting on client lists what you've asked this client for that they haven't answered yet. Click one to open it. Their latest messages and files are just below.",
     slug: "workbench",
   },
   {

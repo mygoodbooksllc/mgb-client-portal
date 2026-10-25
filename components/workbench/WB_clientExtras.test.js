@@ -281,6 +281,46 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
     assert.deepStrictEqual(last, { waiting: "error", messages: "error", files: "error" });
   });
 
+  await t("load step: one full read per real client switch; hidden switch back to an earlier client reads again", async () => {
+    const m = X.WB_cxMem("A");
+    const runs = [];
+    const step = (cid, showing) => {
+      const r = X.WB_cxStep(m, cid, showing);
+      runs.push((r.reset ? "reset+" : "") + (r.run || "none"));
+    };
+    step("A", true); // first show of A
+    step("A", true); // double effect / re-render: nothing
+    step("A", false); // tab hidden
+    step("A", true); // shown again, nothing changed
+    assert.deepStrictEqual(runs, ["all", "none", "none", "none"]);
+    // Switch to B while hidden, then back to A while still hidden, then show:
+    // A must be read again (its earlier replies may have been dropped).
+    runs.length = 0;
+    step("B", false);
+    step("A", false);
+    step("A", true);
+    assert.deepStrictEqual(runs, ["reset+none", "reset+none", "all"]);
+    // Visible switch A -> B -> A: one full read each time.
+    runs.length = 0;
+    step("B", true);
+    step("A", true);
+    assert.deepStrictEqual(runs, ["reset+all", "reset+all"]);
+  });
+
+  await t("requests-changed: reload Waiting now when showing, later when hidden, never before a load", async () => {
+    const m = X.WB_cxMem("A");
+    assert.strictEqual(X.WB_cxChanged(m, true), null, "nothing loaded yet");
+    X.WB_cxStep(m, "A", true);
+    assert.strictEqual(X.WB_cxChanged(m, true), "waiting");
+    assert.strictEqual(X.WB_cxChanged(m, false), null);
+    assert.strictEqual(m.dirty, true);
+    assert.deepStrictEqual(X.WB_cxStep(m, "A", true), { reset: false, run: "waiting" });
+    assert.deepStrictEqual(X.WB_cxStep(m, "A", true), { reset: false, run: null });
+    // Switching clients forgets a pending reload.
+    X.WB_cxChanged(m, false);
+    assert.deepStrictEqual(X.WB_cxStep(m, "B", true), { reset: true, run: "all" });
+  });
+
   console.log("WB_clientExtras: " + n + " tests passed");
 })().catch((e) => {
   console.error(e);

@@ -844,7 +844,14 @@ function WB__openChat(clientId, email) {
 // link helper as the Files tab (DRV_link). The tab is opened first, inside the
 // click, so a pop-up blocker lets it through, then pointed at the link when it
 // arrives. Resolves true when the file was opened, false after a toast.
-function WB__openDriveFile(fileId) {
+// opts (optional; leaving it out keeps the Inbox behavior exactly):
+//   failHint: what to try next, said after "Couldn't open that file" in place
+//             of the Inbox's "Open full page in the ⋯ menu" (for rows with no
+//             ⋯ menu, e.g. the Desk Client tab's Recent files);
+//   track:    false skips the wb-action:doc_upload:open-in-drive event.
+function WB__openDriveFile(fileId, opts) {
+  var o = opts || {};
+  var hint = typeof o.failHint === "string" && o.failHint ? o.failHint : null;
   if (typeof DRV_link !== "function") return Promise.resolve(false);
   var win = null;
   try {
@@ -869,13 +876,13 @@ function WB__openDriveFile(fileId) {
     })
     .then(
       function (url) {
-        if (!/^https:\/\//i.test(String(url || ""))) return giveUp("Couldn't open that file. Try Open full page in the ⋯ menu.");
+        if (!/^https:\/\//i.test(String(url || ""))) return giveUp(hint ? "Couldn't open that file. " + hint : "Couldn't open that file. Try Open full page in the ⋯ menu.");
         win.location.href = url;
-        WB_track("wb-action", "doc_upload:open-in-drive");
+        if (o.track !== false) WB_track("wb-action", "doc_upload:open-in-drive");
         return true;
       },
       function (err) {
-        return giveUp("Couldn't open that file: " + String((err && err.message) || "try again in a moment") + ". Open full page is in the ⋯ menu.");
+        return giveUp("Couldn't open that file: " + String((err && err.message) || "try again in a moment") + (hint ? ". " + hint : ". Open full page is in the ⋯ menu."));
       },
     );
 }
