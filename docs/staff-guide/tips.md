@@ -91,7 +91,7 @@ These show on **Work › Slate** (the Slate pages), after the tips above. The ne
 | Slate (new) | Every project has a color, shown beside its name here, in the sidebar and on its tasks. An owner or admin can change it under Project options. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
 | Slate | Nobody is on this task yet. Assign opens a list of people: pick yourself and it moves into your groups, or pick a teammate to hand it to them. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate | Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
-| Slate (not on a touch screen) | Open in own window keeps Slate in a slim window beside your work. Dock in portal brings it back. | [Can I keep Slate in its own window?](#/help/tasks-own-window) |
+| Slate (not on a touch screen) | Open Slate app opens Slate as its own app beside your work. Links you click there open in this portal window. | [How do I use the Slate app?](#/help/tasks-own-window) |
 | Any client page (Desk off) | Your next task for this client. Click All tasks, or press t, to see them all without leaving the page. | [How do I see a client's tasks without leaving the page?](#/help/client-tasks-drawer) |
 
 #### Admins: Slate

@@ -561,6 +561,7 @@ t("registry: slate-app-launch shape, roles, steps and wording", () => {
   const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body()), a.steps({}).map((x) => x.body())));
   assert.ok(!/colour|grey|month rhythm|interaction|template editor|touch drag/i.test(text), "US spelling; nothing held back is promised");
   assert.ok(/Classic tasks page/.test(JSON.stringify(a.steps({ isAdmin: true }).map((x) => x.body()))));
+  assert.strictEqual(a.date, "2026-10-26", "launched for Monday 2026-10-26");
   assert.ok(!/Classic tasks page/.test(JSON.stringify(a.steps({ isBookkeeper: true }).map((x) => x.body()))), "non-admins are not sent to Developer tools");
 });
 
@@ -606,7 +607,7 @@ t("slate-app-launch gate: on shows the notice once, for staff only", () => {
     assert.deepStrictEqual(L.ANN_audience(reg, { isAdmin: false, isBookkeeper: false, tempAdmin: false, amCount: 0 }), []);
     assert.strictEqual(L.ANN_pickNext(reg, state(), { role: "client" }, SLATE_NOW), null);
     // A new hire made after the launch date is not owed it.
-    assert.strictEqual(L.ANN_pickNext(reg, state({ accountStart: "2026-10-22T00:00:00Z" }), admin, SLATE_NOW), null);
+    assert.strictEqual(L.ANN_pickNext(reg, state({ accountStart: "2026-10-27T00:00:00Z" }), admin, SLATE_NOW), null);
   });
   // The notice waits for a computer-width window; the Launches list still shows it.
   withWin({ mgb_slate_cache: "1" }, true, () => {

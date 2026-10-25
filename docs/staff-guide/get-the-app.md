@@ -2,7 +2,7 @@
 title: How do I install MyGoodBooks as an app?
 section: Getting started
 audience: staff
-keywords: [install banner, install, app, desktop app, computer, chrome, edge, install icon, address bar, pwa, window, start menu, dock, get the app, phone, iphone, android, website, uninstall]
+keywords: [install banner, install, app, desktop app, computer, chrome, edge, install icon, address bar, pwa, window, start menu, dock, get the app, phone, iphone, android, website, uninstall, slate app, install slate app, mgb slate]
 sort: 25
 ---
 On your computer you can install MyGoodBooks as an app. It opens in its own window with no browser tabs, and gets its own icon in your Start menu, Launchpad or Applications folder. It's the same portal. Only signed-in staff are offered the install.
@@ -29,6 +29,10 @@ If Google doesn't finish signing in inside the app:
 3. Click **Sign in**.
 
 The code only works if you've signed in to the portal with Google at least once.
+
+### Install the Slate app
+
+Slate can be installed as a second app next to MyGoodBooks, with its own icon, so you can open it from the Dock or Start menu without opening the portal first. In Chrome or Edge on a computer, click **Install Slate app** next to **Open Slate app** on the Slate page and confirm. To remove it, open the **⋮** (Chrome) or **…** (Edge) menu in the Slate window and choose **Uninstall MGB Slate**. See [How do I use the Slate app?](#/help/tasks-own-window).
 
 ### Troubleshooting
 

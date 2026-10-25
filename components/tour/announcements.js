@@ -1431,15 +1431,17 @@ var ANN_REGISTRY = [
     },
   },
   {
-    // Slate app launch. Hidden everywhere (notice, What's new Launches, ? menu) until the owner
-    // turns tk_settings.slate_app_enabled on (visible: ANN_slateLaunchOn), and never for someone
-    // on Classic tasks page. The notice also waits for a computer-width window (ready).
+    // Slate app launch, LIVE: the owner turned tk_settings.slate_app_enabled on 2026-10-25 for the
+    // Monday 2026-10-26 launch. Still gated (visible: ANN_slateLaunchOn), so it stays hidden for
+    // anyone on Classic tasks page, and the first load after the switch flips may miss it (the
+    // cache fills on that load; the notice shows on the next one). The notice also waits for a
+    // computer-width window (ready).
     // It supersedes only slate-view-bar (the launch tour covers the view bar); the other earlier
     // Slate notices (rows you change in place; task details fields) still work as they did, so they stay owed.
-    // It sits above the other 2026-10-21 notices so it wins the date tie and is reached inside the cap.
+    // It sits above the other Slate notices in the registry, so it also wins any date tie.
     id: "slate-app-launch",
     supersedes: ["slate-view-bar"],
-    date: "2026-10-21",
+    date: "2026-10-26",
     title: "Slate is now its own app",
     summary:
       "Slate can open as its own app: a sliver with your current task, a full page with a detail pane, and views, bulk edits, manual order and a board for shaping your work. Look for Open Slate app on the Slate page.",

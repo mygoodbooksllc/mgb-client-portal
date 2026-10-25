@@ -1,3 +1,5 @@
+PUBLISHED 2026-10-25: slate_app_enabled is on and this text is live (docs/staff-guide/*.md and the staff_guide table). Kept only as the source of record; do not re-apply.
+
 WIRED 2026-10-21 (launch prep): the notice and tour are in components/tour/announcements.js as slate-app-launch, gated by visible(); the guide text is applied at flip time with supabase/staff-guide-slate-launch.sql (built by drafts/slate-launch-patch.mjs from these drafts). The text below stays here as the source for that script.
 
 DRAFT - not live until the owner flips tk_settings.slate_app_enabled. Not published: nothing here is in docs/staff-guide/whats-new.md or the guide table.

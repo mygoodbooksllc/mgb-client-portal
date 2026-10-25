@@ -149,7 +149,7 @@ Admins get **Mine** and **Everyone** next to the chips. **Everyone** shows every
 
 ### Want your list in a small window?
 
-The Desk lives on the right of the portal. For a small window of your own beside QuickBooks or on a second screen, use Slate's own window instead: see [Can I keep Slate in its own window?](#/help/tasks-own-window).
+The Desk lives on the right of the portal. For a small window of your own beside QuickBooks or on a second screen, use the Slate app instead: see [How do I use the Slate app?](#/help/tasks-own-window). Bulk edits, saved views, manual order and boards are in the Slate app too.
 
 **View as** (admins): the Desk is private to each person, so it never opens there. Today shows the classic page with the note "{First}'s Desk is private to them, so View as shows the classic Today."
 
