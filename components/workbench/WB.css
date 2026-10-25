@@ -1548,6 +1548,107 @@ html.wb-hub-open .si-drawer-layer {
   }
 }
 
+/* ---- Client tab: Desk additions S2 (hidden; WB_HubClientExtras) ----
+   Waiting on client, recent messages and recent files under the client's
+   tasks. Rows are buttons on the Desk's row fill (--desk-row-*, light and
+   dark set above); text reuses .wb-row-title / -meta / -detail. */
+.wb-cx {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 6px 0 12px;
+}
+.wb-cx-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 2px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.wb-cx-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-radius: 10px;
+  background: var(--desk-row-bg);
+}
+.wb-cx-item + .wb-cx-item {
+  border-top: 1px solid var(--border);
+}
+.wb-cx-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.wb-cx-row:hover {
+  background: var(--desk-row-bg-hover);
+}
+.wb-cx-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--selected-outline, var(--accent));
+}
+.wb-cx-line {
+  white-space: nowrap;
+}
+.wb-cx-line.is-muted {
+  font-style: italic;
+}
+.wb-cx-who {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.wb-cx-note {
+  margin: 2px 2px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.wb-cx-error {
+  margin: 0;
+}
+.wb-cx-more {
+  margin: 6px 2px 0;
+  font-size: 13px;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .wb-cx-rows {
+    background: var(--surface-2);
+  }
+}
+@media (forced-colors: active) {
+  .wb-cx-rows {
+    border: 1px solid CanvasText;
+  }
+  .wb-cx-row:focus-visible {
+    outline: 2px solid Highlight;
+  }
+}
+@media (max-width: 767px) {
+  .wb-cx-row {
+    min-height: 44px;
+  }
+  .wb-cx-more {
+    min-height: 44px;
+  }
+}
+
 /* ---- R2: the task view inside the column (spec 5.3, decision 26) ----
    The head, tabs, chips and list panes hide (the panes stay mounted); the
    task's own head carries Back, the context line, Copy link, More and ×. */

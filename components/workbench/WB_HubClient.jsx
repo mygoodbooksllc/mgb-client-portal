@@ -81,8 +81,11 @@ function WB_HubClientGate(props) {
 }
 
 // props: me (lowercase email), isAdmin, clients, clientId (hub.clientId),
-// currentClientId (the client page I am on, or null), page, onReady().
+// currentClientId (the client page I am on, or null), page, onReady(),
+// showing (false while another tab shows; Desk additions read only then).
 function WB_HubClientBody(props) {
+  // Desk additions (WB_plus.js): off = this tab renders exactly as before.
+  var plusOn = typeof WB_useDeskPlus === "function" ? WB_useDeskPlus(true) : false;
   var email = String(props.me || "").toLowerCase();
   var clients = Array.isArray(props.clients) ? props.clients : [];
   var routeId = props.currentClientId == null || props.currentClientId === "" ? null : String(props.currentClientId);
@@ -271,6 +274,262 @@ function WB_HubClientBody(props) {
         </div>
       ) : null}
       {body}
+      {plusOn && id != null && pick.access === true && typeof WB_cxFetch === "function" ? (
+        <WB_HubClientExtras clientId={id} showing={props.showing !== false} />
+      ) : null}
+    </div>
+  );
+}
+
+// ---- Desk additions S2 (hidden; WB_plus.js gate) ----
+// Below the client's tasks: Waiting on client, recent messages, recent files
+// (WB_clientExtras.js). Mounted only while the gate is on and a client I can
+// open is chosen. Three reads per client, only while the Client tab shows;
+// the effect keys on the client alone (a repeat run for the same client,
+// e.g. a double effect, reads nothing). Each section keeps its own loading
+// state, error line and Retry; replies for another client are never drawn.
+function WB_HubClientExtras(props) {
+  var cid = String(props.clientId);
+  var showing = props.showing !== false;
+  var stPair = React.useState({});
+  var st = stPair[0];
+  var setSt = stPair[1];
+  var seqRef = React.useRef(null);
+  if (!seqRef.current) seqRef.current = WB_cxSeq();
+  var cidRef = React.useRef(cid);
+  var loadedRef = React.useRef(null);
+  var showRef = React.useRef(showing);
+  showRef.current = showing;
+  var dirtyRef = React.useRef(false);
+
+  var apply = React.useCallback(function (sec, val) {
+    setSt(function (prev) {
+      var next = Object.assign({}, prev);
+      next[sec] = val;
+      return next;
+    });
+  }, []);
+  var run = React.useCallback(
+    function (sections) {
+      var sb = typeof window !== "undefined" ? window.mgbSupabase : null;
+      WB_cxFetch(sb, cidRef.current, seqRef.current, sections, apply);
+    },
+    [apply],
+  );
+
+  React.useEffect(
+    function () {
+      if (cidRef.current !== cid) {
+        // Another client: anything still in flight for the old one is stale.
+        cidRef.current = cid;
+        seqRef.current.reset();
+        dirtyRef.current = false;
+      }
+      if (!showing) return;
+      if (loadedRef.current === cid) {
+        if (dirtyRef.current) {
+          dirtyRef.current = false;
+          run(["waiting"]);
+        }
+        return;
+      }
+      loadedRef.current = cid;
+      dirtyRef.current = false;
+      run(null);
+    },
+    [cid, showing, run],
+  );
+
+  // A request asked, answered, reminded or cancelled anywhere in this tab:
+  // reload Waiting on client now, or when the tab shows again.
+  React.useEffect(
+    function () {
+      var on = function () {
+        if (loadedRef.current !== cidRef.current) return;
+        if (showRef.current) run(["waiting"]);
+        else dirtyRef.current = true;
+      };
+      window.addEventListener("mgb:tk-requests-changed", on);
+      return function () {
+        window.removeEventListener("mgb:tk-requests-changed", on);
+      };
+    },
+    [run],
+  );
+
+  var now = new Date();
+  var part = function (sec) {
+    var s = st[sec];
+    return s && s.clientId === cid ? s : { status: "loading", rows: null };
+  };
+  var remember = function (key) {
+    WB_store.setHub({ lastFocus: key }, true);
+  };
+  var leave = function (target) {
+    WB_store.setDrawerOpen(false);
+    if (typeof LK_go === "function") LK_go(target);
+    else if (typeof LK_href === "function") window.location.hash = LK_href(target);
+  };
+  var openWaiting = function (r) {
+    WB_track("wb-hub", "client-waiting");
+    remember("cx:" + r.key);
+    if (r.route === "task" && r.taskId && typeof TK_vOpenTask === "function") {
+      TK_vOpenTask(r.taskId, { from: "wb-hub" });
+      return;
+    }
+    leave({ place: "tasks", tab: "waiting" });
+  };
+  var openMessage = function (m) {
+    WB_track("wb-hub", "client-msg");
+    remember("cx:" + m.key);
+    if (typeof WB__openChat === "function" && WB__openChat(cid, m.email)) return;
+    // The app declined (the Inbox page itself, or staff chat isn't here):
+    // go to the client's messages on that person.
+    WB_store.setDrawerOpen(false);
+    if (typeof LK_go === "function") LK_go({ clientId: cid, tab: "messages", item: "msg:" + m.id }, m.email ? { email: m.email } : null);
+  };
+  var openFile = function (f) {
+    WB_track("wb-hub", "client-file");
+    remember("cx:" + f.key);
+    if (f.inDrive && typeof WB__openDriveFile === "function" && typeof DRV_link === "function") {
+      WB__openDriveFile(f.id);
+      return;
+    }
+    leave({ clientId: cid, tab: "documents" });
+  };
+
+  var section = function (sec, title, opts) {
+    var p = part(sec);
+    var rows = Array.isArray(p.rows) ? p.rows : [];
+    var hid = "wb-cx-h-" + sec;
+    var content;
+    if (p.status === "error") {
+      content = (
+        <div className="wb-error wb-cx-error" role="alert">
+          <span>{opts.errorText}</span>
+          <button type="button" className="btn-secondary" onClick={() => run([sec])}>
+            Retry
+          </button>
+        </div>
+      );
+    } else if (p.status !== "ok") {
+      content = (
+        <p className="wb-cx-note" role="status">
+          Loading…
+        </p>
+      );
+    } else if (!rows.length) {
+      content = <p className="wb-cx-note">{opts.empty}</p>;
+    } else {
+      content = opts.list(rows);
+    }
+    return (
+      <section className="wb-cx-sec" aria-labelledby={hid}>
+        <h4 className="wb-cx-head" id={hid} {...(opts.tour ? { "data-tour": opts.tour } : {})}>
+          {title}
+          {p.status === "ok" && rows.length ? <span className="wb-chip-n">{opts.count != null ? opts.count : rows.length}</span> : null}
+        </h4>
+        {content}
+      </section>
+    );
+  };
+
+  var waitingAll = part("waiting").status === "ok" && Array.isArray(part("waiting").rows) ? part("waiting").rows : [];
+  return (
+    <div className="wb-cx" data-tour="wb-client-extras">
+      {section("waiting", "Waiting on client", {
+        tour: "wb-client-waiting",
+        errorText: "Couldn't load what's waiting on this client.",
+        empty: "Nothing waiting on this client.",
+        count: waitingAll.length,
+        list: function (rows) {
+          var shown = rows.slice(0, WB_CX_WAIT_CAP);
+          var more = rows.length - shown.length;
+          return (
+            <>
+              <ul className="wb-cx-rows">
+                {shown.map(function (r) {
+                  var meta = [];
+                  if (r.askedAt) meta.push("Asked " + WB_cxShortDate(r.askedAt, now));
+                  var d = WB_cxDaysLabel(r.days);
+                  if (d) meta.push(d);
+                  if (r.nudge) meta.push(r.nudge);
+                  return (
+                    <li key={r.key} className="wb-cx-item">
+                      <button type="button" className="wb-cx-row" data-wb-key={"cx:" + r.key} onClick={() => openWaiting(r)}>
+                        <span className="wb-row-main">
+                          <span className="wb-row-title">{r.label}</span>
+                          {r.taskTitle ? <span className="wb-row-detail wb-cx-line">{"on " + r.taskTitle}</span> : null}
+                          {meta.length ? <span className="wb-row-meta">{meta.join(" · ")}</span> : null}
+                        </span>
+                        <span className="tk-sr">{r.route === "task" ? ", opens the task" : ", opens Waiting on client"}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {more > 0 ? (
+                <button type="button" className="link-btn wb-cx-more" onClick={() => leave({ place: "tasks", tab: "waiting" })}>
+                  {"See all " + rows.length + " in Waiting on client"}
+                </button>
+              ) : null}
+            </>
+          );
+        },
+      })}
+      {section("messages", "Recent messages", {
+        errorText: "Couldn't load recent messages.",
+        empty: "No messages yet.",
+        list: function (rows) {
+          return (
+            <ul className="wb-cx-rows">
+              {rows.map(function (m) {
+                return (
+                  <li key={m.key} className="wb-cx-item">
+                    <button type="button" className="wb-cx-row" data-wb-key={"cx:" + m.key} onClick={() => openMessage(m)}>
+                      <span className="wb-row-main">
+                        <span className="wb-row-meta">
+                          <b className="wb-cx-who">{m.who}</b>
+                          <span>{m.kindLabel}</span>
+                          <span>{WB_cxWhen(m.at, now)}</span>
+                        </span>
+                        <span className={"wb-row-detail wb-cx-line" + (m.attachmentOnly ? " is-muted" : "")}>{m.text}</span>
+                      </span>
+                      <span className="tk-sr">, opens the chat</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        },
+      })}
+      {section("files", "Recent files", {
+        errorText: "Couldn't load recent files.",
+        empty: "No files yet.",
+        list: function (rows) {
+          return (
+            <ul className="wb-cx-rows">
+              {rows.map(function (f) {
+                return (
+                  <li key={f.key} className="wb-cx-item">
+                    <button type="button" className="wb-cx-row" data-wb-key={"cx:" + f.key} onClick={() => openFile(f)}>
+                      <span className="wb-row-main">
+                        <span className="wb-row-title">{f.name}</span>
+                        <span className="wb-row-meta">
+                          <span>{f.kind}</span>
+                          {f.at ? <span>{WB_cxShortDate(f.at, now)}</span> : null}
+                        </span>
+                      </span>
+                      <span className="tk-sr">{f.inDrive ? ", opens in Google Drive in a new tab" : ", opens the client's Documents"}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        },
+      })}
     </div>
   );
 }

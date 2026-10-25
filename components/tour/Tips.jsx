@@ -228,6 +228,20 @@ const TIPS_CATALOG = [
     },
   },
   {
+    // Desk additions S2 (hidden preview, WB_plus.js): the Client tab's
+    // Waiting on client heading exists only while that gate is on, so this
+    // tip is skipped for everyone else (no target, no tip). Text drafted in
+    // docs/staff-guide/drafts/staff-guide-desk-additions.md; add it to
+    // tips.md at launch.
+    id: "wb-client-waiting",
+    roles: "all",
+    match: () => true,
+    target: "wb-client-waiting",
+    snug: true,
+    text: "Waiting on client lists what you've asked this client for that they haven't answered yet. Click one to open its task. Their latest messages and files are just below.",
+    slug: "workbench",
+  },
+  {
     id: "clients-mine",
     roles: "all",
     match: (r) => r.page === "clients",

@@ -630,6 +630,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
                 clientId={hub.clientId}
                 currentClientId={currentClientId}
                 page={page}
+                showing={tab === "client" && !taskView}
                 onReady={() => setClientReady(true)}
               />
             )}
