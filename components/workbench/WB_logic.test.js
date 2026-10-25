@@ -1279,4 +1279,20 @@ t("owner rule: an excused late task waits in Today, never overdue", () => {
   assert.strictEqual(L.WB_applyExcused(out, [])[0].late_excused, false, "a re-check can clear it");
 });
 
+// Desk additions S3: the Ask client modal (TK_AskClientModal, unmodified) is a
+// ModalShell, whose root is .modal-overlay: a layer the Desk's Esc ladder
+// already knows, so Esc closes the modal before the Desk.
+t("desk additions: Ask client modal root is an Esc layer", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const root = path.join(__dirname, "..", "..");
+  const ask = fs.readFileSync(path.join(root, "components/tasks/TK_AskClientModal.jsx"), "utf8");
+  assert.ok(/function TK_AskClientModal[\s\S]*?<ModalShell /.test(ask), "TK_AskClientModal renders a ModalShell");
+  const app = fs.readFileSync(path.join(root, "app.jsx"), "utf8");
+  assert.ok(/function ModalShell[\s\S]*?className="modal-overlay"/.test(app), "ModalShell root is .modal-overlay");
+  assert.ok(L.WB_LAYER_SELECTORS.indexOf(".modal-overlay") >= 0);
+  assert.deepStrictEqual(L.WB_layersPresent((sel) => sel === ".modal-overlay"), ["modal"]);
+  assert.strictEqual(L.WB_layerAbove(L.WB_layersPresent((sel) => sel === ".modal-overlay")), true);
+});
+
 console.log("WB_logic: " + n + " checks passed");

@@ -193,6 +193,23 @@ function WB_HubClientBody(props) {
       window.dispatchEvent(new CustomEvent("tk:quick-add", { detail: { client_id: id } }));
     } catch (e) {}
   };
+  // Desk additions S3 (hidden): Ask client opens TK_AskClientModal (task-less)
+  // and Message opens the chat drawer on this client. Only drawn when plusOn.
+  var askPair = React.useState(false);
+  var askClient = function () {
+    if (id == null) return;
+    WB_track("wb-hub", "client-ask");
+    askPair[1](true);
+  };
+  var messageClient = function () {
+    if (id == null) return;
+    WB_track("wb-hub", "client-message");
+    // The app declined (the Inbox page itself, or staff chat isn't here): go
+    // to the client's messages instead.
+    if (typeof WB__openChat === "function" && WB__openChat(id, null)) return;
+    WB_store.setDrawerOpen(false);
+    if (typeof LK_go === "function") LK_go({ clientId: id, tab: "messages" });
+  };
   var openClient = function (e) {
     if (id == null) return;
     if (e && (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) return;
@@ -268,12 +285,34 @@ function WB_HubClientBody(props) {
           <button type="button" className="btn-secondary wb-hub-add" onClick={addTask}>
             + Task
           </button>
+          {plusOn && pick.access === true ? (
+            <span className="wb-hub-actions" data-tour="wb-client-actions">
+              {typeof TK_AskClientModal === "function" && typeof WB_AskClientModal === "function" ? (
+                <button type="button" className="btn-secondary wb-hub-add" onClick={askClient}>
+                  Ask client
+                </button>
+              ) : null}
+              <button type="button" className="btn-secondary wb-hub-add" onClick={messageClient}>
+                Message
+              </button>
+            </span>
+          ) : null}
           <a className="wb-hub-link" href={typeof LK_href === "function" ? LK_href({ clientId: id }) : "#/client/" + encodeURIComponent(id)} onClick={openClient}>
             Open client
           </a>
         </div>
       ) : null}
       {body}
+      {plusOn && askPair[0] && id != null && pick.access === true && typeof WB_AskClientModal === "function" ? (
+        <WB_AskClientModal
+          key={id}
+          clientId={id}
+          clientName={name}
+          onClose={function () {
+            askPair[1](false);
+          }}
+        />
+      ) : null}
       {plusOn && id != null && pick.access === true && typeof WB_cxFetch === "function" && typeof WB_cxStep === "function" ? (
         <WB_HubClientExtras clientId={id} showing={props.showing !== false} isAdmin={!!props.isAdmin} />
       ) : null}

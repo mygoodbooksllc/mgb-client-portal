@@ -17498,9 +17498,9 @@ const USAGE_ACTION_LABELS = {
   "wb-scope": "Desk Mine / Everyone switches",
   "wb-drawer": "Desk opened",
   // Grouped by the part before the first ":" (usage-stats-2.sql), so the
-  // Desk additions clicks wb-hub:client-waiting, wb-hub:client-msg and
-  // wb-hub:client-file count here too.
-  "wb-hub": "Desk: Slate and Client tabs opened, clients picked, and (Desk additions preview) Client tab waiting, message and file rows opened",
+  // Desk additions clicks wb-hub:client-waiting, wb-hub:client-msg,
+  // wb-hub:client-file, wb-hub:client-ask and wb-hub:client-message count here too.
+  "wb-hub": "Desk: Slate and Client tabs opened, clients picked, and (Desk additions preview) Client tab waiting, message and file rows opened, and its Ask client and Message buttons used",
   "wb-pin": "Desk Client tab: clients pinned or unpinned",
   "wb-resize": "Desk width changed (drag or keys)",
   "wb-rail": "Desk rail icons used (messages, reviews, files, mentions)",

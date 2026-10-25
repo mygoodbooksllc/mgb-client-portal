@@ -6,6 +6,7 @@ Draft for the hidden Desk additions preview (localStorage `mgb_deskplus_preview`
 
 - S1: The Desk Inbox has a new Ledger chip for your Ledger (GL Review) items.
 - S2: The Desk's Client tab now shows what's waiting on the client, their latest messages and their latest files, under the client's tasks.
+- S3: The Desk's Client tab has two new buttons next to + Task: Ask client (send the client a question or a document request without picking a task) and Message (open the chat on that client).
 
 ## Ledger chip
 
@@ -22,6 +23,15 @@ Open your Desk, pick the **Client** tab and choose a client. Under the client's 
 Each list loads on its own. If one can't load, it says so with a **Retry** button and the others still show. Switching clients clears the lists and loads the new client's.
 
 **Who sees what.** You only see clients you can open (the same list as the client picker): bookkeepers see their own clients, admins see every client, and a temporary admin sees the clients they were given. The lists are not in the Desk while an admin uses **View as**, because the Desk itself is off then.
+
+## Client tab: Ask client and Message buttons (S3)
+
+On the Desk's **Client** tab, two buttons sit next to **+ Task**:
+
+- **Ask client** opens the same Ask client window you know from a task, but with no task attached. Pick what you need (a question, a document, an approval), write the title and message, choose who should answer, and send. The request then shows right away under **Waiting on client** on the same tab. Test clients only send you a copy marked [Test], and a client whose emails aren't switched on yet gets a dry run (nothing is emailed and the toast says so). Esc closes the window first; press Esc again to close the Desk.
+- **Message** opens the chat on that client without leaving the page (on the Inbox page it takes you to the client's Messages instead).
+
+Both buttons show only for a client you can open.
 
 Tip (draft, add to tips.md at launch; already in Tips.jsx and shows only while the Desk additions preview is on):
 

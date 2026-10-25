@@ -1394,6 +1394,11 @@ html.wb-hub-open .si-drawer-layer {
 .wb-hub-add {
   min-height: 36px;
 }
+.wb-hub-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 .wb-hub-link {
   font-size: 13px;
   color: var(--accent);
