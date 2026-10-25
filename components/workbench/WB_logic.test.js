@@ -161,6 +161,38 @@ t("empty input", () => {
 t("drawer tabs map to chips", () => {
   assert.strictEqual(L.WB_drawerChip("doc"), "doc");
   assert.strictEqual(L.WB_drawerChip("gl"), "all");
+  assert.strictEqual(L.WB_drawerChip("gl", false), "all");
+  assert.strictEqual(L.WB_drawerChip("gl", true), "gl");
+});
+t("Ledger chip (Desk additions, gated)", () => {
+  assert.strictEqual(L.WB_drawerTabs(false), L.WB_DRAWER_TABS);
+  assert.strictEqual(L.WB_drawerTabs(undefined), L.WB_DRAWER_TABS);
+  assert.deepStrictEqual(L.WB_DRAWER_TABS.map((x) => x.id), ["all", "task", "review", "message", "doc"]);
+  const on = L.WB_drawerTabs(true);
+  assert.deepStrictEqual(on.map((x) => x.id), ["all", "task", "review", "message", "gl", "doc"]);
+  assert.strictEqual(on[4].label, "Ledger");
+  assert.strictEqual(L.WB_DRAWER_TABS.length, 5); // not mutated
+  // saved chip
+  assert.strictEqual(L.WB_hubChip("gl", false), "all");
+  assert.strictEqual(L.WB_hubChip("gl", true), "gl");
+  assert.strictEqual(L.WB_hubChip("old-chip", true), "all");
+  assert.strictEqual(L.WB_hubChip("old-chip", false), "all");
+  assert.strictEqual(L.WB_hubChip("doc", false), "doc");
+  const saved = L.WB_hubSerialize({ chip: "gl" }, NOW, "#/today");
+  assert.strictEqual(L.WB_hubChip(L.WB_hubParse(saved, NOW + 1000).chip, true), "gl");
+  assert.strictEqual(L.WB_hubChip(L.WB_hubParse(saved, NOW + 1000).chip, false), "all");
+  assert.strictEqual(L.WB_hubParse(JSON.stringify({ v: 1, at: NOW, chip: "zzz" }), NOW + 1000).chip, "all");
+  // filter: only gl_* rows
+  const mk = (id, kind, source) => ({ id, kind, source, title: id, due_date: TODAY, version: 1 });
+  const rows = ["gl_flags", "gl_approve", "gl_sent_back", "gl_answer"].map((k) => mk(k, k, "gl")).concat([mk("t1", "task", "task"), mk("m1", "message", "message")]);
+  const ids = (v) => v.groups.flatMap((g) => g.rows.map((r) => r.id)).sort();
+  const gl = L.WB_build(rows, { today: TODAY, now: NOW, chip: "gl" });
+  assert.ok(ids(gl).every((i) => i.startsWith("gl_")));
+  assert.strictEqual(ids(gl).length, 4);
+  assert.strictEqual(gl.counts.gl, 4);
+  const all = L.WB_build(rows, { today: TODAY, now: NOW, chip: "all" });
+  assert.strictEqual(all.counts.gl, gl.counts.gl);
+  assert.ok(ids(all).includes("t1") && ids(all).includes("m1"));
 });
 
 // ---- ack rule (parity with wb_is_ack: every case below was checked live
@@ -424,7 +456,8 @@ t("hub: state clean, merge and persistence", () => {
   assert.strictEqual(L.WB_hubClean({ tab: "client" }).tab, "client");
   assert.strictEqual(L.WB_hubClean({ tab: "tasks" }).tab, "tasks");
   assert.strictEqual(L.WB_hubClean({ tab: "nope" }).tab, "inbox");
-  assert.strictEqual(L.WB_hubClean({ chip: "gl" }).chip, "all"); // gl is not a drawer chip
+  assert.strictEqual(L.WB_hubClean({ chip: "gl" }).chip, "gl"); // kept in saved state; the gate resolves it (WB_hubChip)
+  assert.strictEqual(L.WB_hubClean({ chip: "nope" }).chip, "all");
   assert.strictEqual(L.WB_hubClean({ chip: "doc" }).chip, "doc");
   assert.strictEqual(L.WB_hubClean({ open: "yes" }).open, false);
   assert.deepStrictEqual(L.WB_hubClean({ scroll: { inbox: -5, tasks: "x", client: 12.6 } }).scroll, { inbox: 0, tasks: 0, client: 13 });

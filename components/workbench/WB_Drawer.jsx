@@ -410,7 +410,8 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
 
   const now = Date.now();
   const today = WB_today(now);
-  const chip = WB_drawerChip(s.hub.chip);
+  const plusOn = typeof WB_useDeskPlus === "function" ? WB_useDeskPlus(live) : false;
+  const chip = WB_drawerChip(WB_hubChip(s.hub.chip, plusOn), plusOn);
   const view = React.useMemo(() => WB_build(s.rows, { today, now, chip }), [s.rows, today, chip, open, tick]);
   const allView = React.useMemo(() => (chip === "all" ? view : WB_build(s.rows, { today, now, chip: "all" })), [view, s.rows, today, chip, tick]);
   const count = allView.counts.all;

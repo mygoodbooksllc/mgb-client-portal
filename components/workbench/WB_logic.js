@@ -38,6 +38,26 @@ var WB_DRAWER_TABS = [
   { id: "message", label: "Messages" },
   { id: "doc", label: "Files" },
 ];
+// Desk additions (hidden preview): the Inbox gets a Ledger chip between
+// Messages and Files only when plusOn. Off returns WB_DRAWER_TABS itself.
+function WB_drawerTabs(plusOn) {
+  if (!plusOn) return WB_DRAWER_TABS;
+  var out = [];
+  WB_DRAWER_TABS.forEach(function (t) {
+    if (t.id === "doc") out.push({ id: "gl", label: "Ledger" });
+    out.push(t);
+  });
+  return out;
+}
+// A saved/selected chip id resolved against the tabs shown. Unknown (or a
+// Ledger chip while the gate is off) falls back to All.
+function WB_hubChip(chip, plusOn) {
+  return WB_drawerTabs(plusOn).some(function (t) {
+    return t.id === chip;
+  })
+    ? chip
+    : "all";
+}
 var WB_GROUPS = [
   { id: "overdue", label: "Overdue" },
   { id: "today", label: "Today" },
@@ -305,7 +325,8 @@ function WB_build(rows, opts) {
 }
 
 // Drawer tab → chip id (Files = documents).
-function WB_drawerChip(tab) {
+function WB_drawerChip(tab, plusOn) {
+  if (tab === "gl" && plusOn) return "gl";
   return tab === "task" || tab === "review" || tab === "message" || tab === "doc" ? tab : "all";
 }
 
@@ -382,7 +403,8 @@ function WB_hubClean(h) {
   var d = WB_hubDefault();
   var x = h && typeof h === "object" ? h : {};
   var sc = x.scroll && typeof x.scroll === "object" ? x.scroll : {};
-  var chipOk = WB_DRAWER_TABS.some(function (t) {
+  // "gl" is kept in saved state; the gate decides at render (WB_hubChip).
+  var chipOk = WB_drawerTabs(true).some(function (t) {
     return t.id === x.chip;
   });
   var clientId = typeof x.clientId === "string" && x.clientId.length < 80 ? x.clientId : null;
@@ -1709,6 +1731,8 @@ if (typeof module !== "undefined" && module.exports) {
     WB_SOON_DAYS: WB_SOON_DAYS,
     WB_CHIPS: WB_CHIPS,
     WB_DRAWER_TABS: WB_DRAWER_TABS,
+    WB_drawerTabs: WB_drawerTabs,
+    WB_hubChip: WB_hubChip,
     WB_HUB_TABS: WB_HUB_TABS,
     WB_HUB_KEY: WB_HUB_KEY,
     WB_HUB_TASK_CAP: WB_HUB_TASK_CAP,

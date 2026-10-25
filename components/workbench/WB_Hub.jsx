@@ -359,6 +359,7 @@ function WB_RightNow({ ctx, onGo }) {
 // list panes are hidden (the panes stay mounted; their scroll comes back).
 function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle, drill, deskRef, onDrillStep, onCloseTask, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates, glance, extras, onGlancePick, rightNow, onRightNowGo }) {
   const dock = mode !== "sheet";
+  const plusOn = typeof WB_useDeskPlus === "function" ? WB_useDeskPlus(true) : false;
   const hub = s.hub;
   const tab = hub.tab;
   const stack = Array.isArray(drill) ? drill : [];
@@ -551,7 +552,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
         )}
         {tab === "inbox" && !taskView && <div className="wb-panel-tools">
           <div className="wb-tabs wb-hub-chips" role="group" aria-label="Filter">
-            {WB_DRAWER_TABS.map((t) => (
+            {WB_drawerTabs(plusOn).map((t) => (
               <button key={t.id} type="button" aria-pressed={chip === t.id} className={"wb-tab wb-tab-" + t.id + (chip === t.id ? " is-on" : "")} onClick={() => setChip(t.id)}>
                 {t.label}
                 <span className="wb-chip-n">{allView.counts[t.id === "all" ? "all" : t.id]}</span>
@@ -597,7 +598,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
                 hub
                 showOwner={s.scope === "everyone"}
                 listId="wb-dl"
-                onChip={(c) => setChip(WB_DRAWER_TABS.some((t) => t.id === c) ? c : "all")}
+                onChip={(c) => setChip(WB_drawerTabs(plusOn).some((t) => t.id === c) ? c : "all")}
               />
             )}
             {view.later > 0 && (
