@@ -570,8 +570,13 @@
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
+  /* Visible, not hidden: a row's "..." menu must be able to open below the list
+     (hidden clipped it to a sliver). The end rows round their own corners instead. */
+  overflow: visible;
 }
+
+.tk-dw-subtasks > :first-child { border-top-left-radius: calc(var(--radius) - 1px); border-top-right-radius: calc(var(--radius) - 1px); }
+.tk-dw-subtasks > :last-child { border-bottom-left-radius: calc(var(--radius) - 1px); border-bottom-right-radius: calc(var(--radius) - 1px); }
 
 .tk-dw-subrow {
   display: flex;
