@@ -36,6 +36,13 @@
 //            no What's new Launches row, no ? menu tour (ANN_audience in
 //            announcementsLogic.js). Use it for a launch behind a firm switch
 //            (slate-app-launch), so nothing leaks before the owner flips it.
+//   tourKey  optional key of a staff tour in Tour.jsx TOUR_STAFF_TOURS (such
+//            as "slate"). The notice's button and What's new run that tour
+//            instead of `steps` (which still has to be a valid short tour), the
+//            notice counts as toured when it is clicked, and the "New: ..."
+//            line is left out of the ? menu (the staff tour has its own).
+//   tourLabel  optional text for the notice's button (default "Take the
+//            1-minute tour"), for a tourKey tour that runs longer.
 //   supersedes  optional list of older entry ids this one replaces (a combined
 //            launch). Once the person has been shown this entry, those are no
 //            longer owed (ANN_superseded in announcementsLogic.js); they stay
@@ -1529,6 +1536,48 @@ var ANN_REGISTRY = [
         },
       ];
     },
+  },
+  {
+    // "Slate, start to finish" (2026-10-26 staff demo): the presenter tour of every live part of
+    // Slate, in seven chapters (components/tour/TOUR_slateLogic.js). Take the tour runs the staff
+    // tour "slate" (tourKey), which opens in the Slate app on a desktop. Same gate and date as
+    // slate-app-launch and registered below it, so the Slate app notice comes first. `steps` is
+    // only the short pointer tour the registry needs ("ann:slate-start-to-finish").
+    id: "slate-start-to-finish",
+    date: "2026-10-26",
+    title: "Slate, start to finish",
+    summary:
+      "A walkthrough of all of Slate in seven short chapters: your day, client lists, working a task, speed, team flow, automation and your setup.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    tourKey: "slate",
+    tourLabel: "Take the tour",
+    visible: () => ANN_slateLaunchOn(),
+    ready: () => ANN_deskDocked(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Slate, start to finish",
+        body: () =>
+          "A walkthrough of all of Slate in seven short chapters, from your day to your settings. It only looks; it never changes a task.",
+      },
+      {
+        id: "ann-where",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tb-help"],
+        wait: true,
+        title: "Find it in the ? menu",
+        body: () =>
+          "Pick Slate, start to finish in the ? menu. On a computer it opens in the Slate app, where every chapter can show its screen.",
+      },
+      {
+        id: "ann-done",
+        title: "Replay it any time",
+        body: () => "In the Slate app, Settings › Help › Replay the Slate tour runs it again, and so does Take the Slate tour in your avatar menu.",
+      },
+    ],
   },
   {
     // Month rhythm launch (slice 3 plus the finish: email drafts, Close order, Pre-fill), LIVE: the

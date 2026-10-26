@@ -539,7 +539,7 @@ function TK_dwSubtasks(props) {
   var showAdd = p.canAdd && !p.readOnly;
   if (!tasks.length && !showAdd && load !== "loading") return null;
   return (
-    <section className="tk-dw-section" aria-labelledby="tk-dw-sub-h">
+    <section className="tk-dw-section" aria-labelledby="tk-dw-sub-h" data-tour="tk-dw-subtasks">
       <h3 className="tk-dw-h" id="tk-dw-sub-h">
         Subtasks
         {tasks.length > 0 && (
@@ -1203,6 +1203,7 @@ function TK_DrawerContent(props) {
         menuOpen: TK_dwMenuOpen(document),
         tourOpen: !!document.querySelector(".tour-root"),
         scope: "drawer",
+        keysOff: typeof TK_prefsQuickKeysOff === "function" ? TK_prefsQuickKeysOff() : false,
       };
       if (embedded) ctx.embedded = true;
       if (typeof TK_shouldHandleKey === "function") {
@@ -1688,7 +1689,7 @@ function TK_DrawerContent(props) {
           {(task.client_id || task.project_id) && (
             <React.Fragment>
               <span className="tk-dw-label">Sharing</span>
-              <div className="tk-dw-value">
+              <div className="tk-dw-value" data-tour="tk-dw-sharing">
                 <label className="tk-dw-check">
                   <input
                     type="checkbox"
@@ -1781,7 +1782,7 @@ function TK_DrawerContent(props) {
         <TK_dwSubtasks task={task} isAdmin={isAdmin} readOnly={readOnly} canAdd={canEdit && !task.parent_id} />
 
         {typeof TCL_Checklist === "function" && (
-          <section className="tk-dw-section" aria-label="Checklist">
+          <section className="tk-dw-section" aria-label="Checklist" data-tour="tk-dw-checklist">
             <h3 className="tk-dw-h">Checklist</h3>
             <TCL_Checklist task={task} canEdit={canEdit && !deleted && online} />
           </section>
@@ -1804,7 +1805,7 @@ function TK_DrawerContent(props) {
             section for the task's evidence (GL flag, transaction, file,
             message) goes here. Not built. */}
 
-        <section className="tk-dw-section tk-dw-thread-wrap">
+        <section className="tk-dw-section tk-dw-thread-wrap" data-tour="tk-dw-thread">
           <div className="tk-dw-tabs" role="tablist" aria-label="Comments and activity">
             {[
               ["all", "All"],
@@ -1867,7 +1868,7 @@ function TK_DrawerContent(props) {
               {task && task.section ? " · " + task.section : ""}
             </span>
             <div className="tk-dw-head-actions">
-              <button type="button" className="tk-dw-icon-btn" onClick={copyLink} aria-label="Copy link" title="Copy link">
+              <button type="button" className="tk-dw-icon-btn" onClick={copyLink} aria-label="Copy link" title="Copy link" data-tour="tk-dw-copylink">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" />
                   <path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" />

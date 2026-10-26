@@ -68,6 +68,7 @@ function TK_vKeyCtx() {
     menuOpen: menuOpen,
     tourOpen: !!q(".tour-root"),
     scope: "list",
+    keysOff: typeof TK_prefsQuickKeysOff === "function" && TK_prefsQuickKeysOff(),
   };
 }
 

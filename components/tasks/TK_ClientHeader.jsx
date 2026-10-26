@@ -370,9 +370,9 @@ function TK_ClientHeader(props) {
       <div className="tk-head-row">
         <div className="tk-head-title">
           <h2 className="tk-head-name">{name}</h2>
-          {qbo ? <span className={"pill " + (qboOn ? "good" : "neutral")}>{qboOn ? "QuickBooks connected" : "QuickBooks not connected"}</span> : null}
+          {qbo ? <span className={"pill " + (qboOn ? "good" : "neutral")} data-tour="tk-ch-qbo">{qboOn ? "QuickBooks connected" : "QuickBooks not connected"}</span> : null}
         </div>
-        <div className="tk-head-actions">
+        <div className="tk-head-actions" data-tour="tk-ch-links">
           <a className="tk-link-btn" href={"#/client/" + enc + "/overview"}>
             Open client
           </a>
@@ -485,7 +485,7 @@ function TK_ClientHeader(props) {
         </div>
       ) : null}
       {chips.length ? (
-        <div className="tk-people" aria-label="People on this client">
+        <div className="tk-people" aria-label="People on this client" data-tour="tk-ch-people">
           {chips.map(function (c) {
             if (c.key === "bookkeeper" && canChangeBk) {
               return (

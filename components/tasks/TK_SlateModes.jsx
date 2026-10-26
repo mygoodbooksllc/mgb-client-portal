@@ -610,7 +610,7 @@ function TK_SlateSizeButtons() {
   var pr = TK_useSlatePresets();
   if (!pr.ok) return null;
   return (
-    <div className="tk-slate-sizes" role="group" aria-label="Window size">
+    <div className="tk-slate-sizes" role="group" aria-label="Window size" data-tour="tk-slate-sizes">
       {TK_SLATE_PRESET_ITEMS.map(function (it) {
         return (
           <button

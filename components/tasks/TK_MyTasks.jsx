@@ -81,6 +81,22 @@ function TK_vUseSlateView(email, scope) {
       return n;
     });
   };
+  // The Settings page (TK_SlateSettings) saves the default view and sends
+  // "tk:prefs"; re-read so this page follows. It changes the Slate page's view
+  // only; the Desk's Slate tab keeps its own view.
+  React.useEffect(
+    function () {
+      var on = function () {
+        pair[1](read());
+      };
+      window.addEventListener("tk:prefs", on);
+      return function () {
+        window.removeEventListener("tk:prefs", on);
+      };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [key],
+  );
   var reset = function () {
     set({ groupBy: "due", sort: null, chip: "" });
   };
@@ -472,9 +488,17 @@ function TK_vMyTasksBody(props) {
       return n;
     });
   };
-  var oPair = React.useState(false);
+  // Show older is remembered (Slate Settings; TK_prefsGet), Show done is in prefs above.
+  var oPair = React.useState(function () {
+    if (typeof TK_prefsAdopt === "function") TK_prefsAdopt(email);
+    return typeof TK_prefsGet === "function" ? TK_prefsGet().showOlder === true : false;
+  });
   var showOlder = oPair[0];
-  var setShowOlder = oPair[1];
+  var setShowOlder = function (v) {
+    oPair[1](!!v);
+    if (typeof TK_prefsAdopt === "function") TK_prefsAdopt(email);
+    if (typeof TK_prefsSet === "function" && (typeof TK_prefsAdopt !== "function" || TK_prefsAdopt(email))) TK_prefsSet({ showOlder: !!v });
+  };
   var cPair = React.useState(function () {
     var g = TK_vLsGet(TK_vGROUPS_KEY, {});
     return g && typeof g === "object" ? g : {};

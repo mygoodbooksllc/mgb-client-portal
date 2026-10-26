@@ -218,8 +218,10 @@ function ANN_tour(id) {
 
 // [{ key, label, sub }] of the launches this person can tour, newest first,
 // for TOUR_staffTourList (the ? menu, Cmd/Ctrl+K, Settings > Help).
+// An entry with a `tourKey` runs that staff tour instead (it already has its
+// own line in those lists), so it isn't listed again here.
 function ANN_tourList(ctx) {
-  return ANN_REGISTRY.slice()
+  return ANN_REGISTRY.filter((a) => !a.tourKey)
     .sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0))
     .map((a) => ANN_tour(a.id))
     .filter((t) => t && t.available(ctx))
@@ -282,6 +284,13 @@ function ANN_Root({ staffUser, impersonating, isPreviewingUser, hasTempAdminAcce
 
   if (!next) return null;
   const startTour = () => {
+    // A `tourKey` entry runs a staff tour that saves its own seen flag (and may
+    // open in another window, the Slate app), so the answer is saved now.
+    if (next.tourKey) {
+      ANN_store.record(next.id, "tour");
+      if (typeof TOUR_startStaff === "function") TOUR_startStaff(next.tourKey);
+      return;
+    }
     ANN_store.hide(next.id);
     if (typeof TOUR_startStaff === "function") TOUR_startStaff("ann:" + next.id);
   };
@@ -294,7 +303,7 @@ function ANN_Root({ staffUser, impersonating, isPreviewingUser, hasTempAdminAcce
       </div>
       <div className="ann-actions">
         <button type="button" className="btn-primary" onClick={startTour}>
-          Take the 1-minute tour
+          {next.tourLabel || "Take the 1-minute tour"}
         </button>
         <button type="button" className="btn-secondary" onClick={() => ANN_store.record(next.id, "later")}>
           Later
@@ -324,7 +333,7 @@ function ANN_LaunchList() {
       <p className="ann-launches-note">Each new product or feature has a 1-minute tour you can take again any time.</p>
       <ul>
         {list.map((a) => {
-          const tour = ANN_tour(a.id);
+          const tour = a.tourKey && typeof TOUR_staffTour === "function" ? TOUR_staffTour(a.tourKey) : ANN_tour(a.id);
           return (
             <li key={a.id}>
               <div className="ann-launch-text">
@@ -340,7 +349,7 @@ function ANN_LaunchList() {
                   type="button"
                   className="btn-primary"
                   disabled={!tour || !tour.available(ctx)}
-                  onClick={() => typeof TOUR_startStaff === "function" && TOUR_startStaff("ann:" + a.id)}
+                  onClick={() => typeof TOUR_startStaff === "function" && TOUR_startStaff(a.tourKey || "ann:" + a.id)}
                 >
                   Take the tour
                 </button>

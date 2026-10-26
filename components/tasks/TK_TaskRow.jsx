@@ -679,6 +679,7 @@ function TK_vIcon(props) {
   if (name === "repeat") return <svg {...common}><path d="M4 11V9a3 3 0 0 1 3-3h12" /><polyline points="16 3 19 6 16 9" /><path d="M20 13v2a3 3 0 0 1-3 3H5" /><polyline points="8 21 5 18 8 15" /></svg>;
   if (name === "calendar") return <svg {...common}><rect x="3.5" y="5" width="17" height="15" rx="2" /><line x1="3.5" y1="10" x2="20.5" y2="10" /><line x1="8" y1="3" x2="8" y2="7" /><line x1="16" y1="3" x2="16" y2="7" /></svg>;
   if (name === "user") return <svg {...common}><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20c.7-3.6 3.4-5.5 7-5.5s6.3 1.9 7 5.5" /></svg>;
+  if (name === "gear") return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.6 1.6M16.4 16.4L18 18M18 6l-1.6 1.6M7.6 16.4L6 18" /></svg>;
   if (name === "folder") return <svg {...common}><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" /></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="8" /></svg>;
 }

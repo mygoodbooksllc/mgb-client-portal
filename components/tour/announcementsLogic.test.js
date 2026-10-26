@@ -721,7 +721,7 @@ t("client-org-profile-launch: live date, gifts step names the anniversary basis"
   assert.ok(/Anniversary to follow/.test(gifts.body()) && /Client since \(the default\)/.test(gifts.body()));
 });
 
-t("order: with Slate, Month rhythm and the org profile all on, the org profile comes third", () => {
+t("order: with Slate, Month rhythm and the org profile all on: Slate, the Slate tour, Month rhythm, then the org profile", () => {
   [admin, bk, tempAdmin, am].forEach((ctx) => {
     const seq = [];
     const rows = {};
@@ -734,7 +734,7 @@ t("order: with Slate, Month rhythm and the org profile all on, the org profile c
       }
     });
     const s = seq.filter((id) => id !== "view-as-whole-app");
-    assert.deepStrictEqual(s.slice(0, 3), ["slate-app-launch", "month-rhythm-launch", "client-org-profile-launch"]);
+    assert.deepStrictEqual(s.slice(0, 4), ["slate-app-launch", "slate-start-to-finish", "month-rhythm-launch", "client-org-profile-launch"]);
   });
 });
 
@@ -899,13 +899,15 @@ t("month-rhythm-launch gate: on shows the notice once, for staff only", () => {
   });
 });
 
-t("order: month-rhythm-launch comes right after slate-app-launch on the same day", () => {
+t("order: slate-start-to-finish, then month-rhythm-launch, come right after slate-app-launch on the same day", () => {
   const ids = ANN_REGISTRY.map((x) => x.id);
-  assert.strictEqual(ids.indexOf("month-rhythm-launch"), ids.indexOf("slate-app-launch") + 1);
+  assert.strictEqual(ids.indexOf("slate-start-to-finish"), ids.indexOf("slate-app-launch") + 1);
+  assert.strictEqual(ids.indexOf("month-rhythm-launch"), ids.indexOf("slate-app-launch") + 2);
   [admin, bk, tempAdmin, am].forEach((ctx) => {
     const seq = walk(ctx, Object.assign({ mgb_slate_cache: "1", mgb_rhythm_cache: "1" }, ORDER_CACHES), false);
     assert.strictEqual(seq[0], "slate-app-launch");
-    assert.strictEqual(seq[1], "month-rhythm-launch");
+    assert.strictEqual(seq[1], "slate-start-to-finish");
+    assert.strictEqual(seq[2], "month-rhythm-launch");
     assert.strictEqual(seq.filter((x) => x === "month-rhythm-launch").length, 1);
   });
 });

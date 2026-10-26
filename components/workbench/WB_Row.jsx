@@ -47,6 +47,7 @@ function WB_keyBlocked(e) {
       menuOpen: !!document.querySelector(".wb-menu, .tk-menu[role='menu']"),
       tourOpen: !!document.querySelector(".tour-root"),
       scope: "global",
+      keysOff: typeof TK_prefsQuickKeysOff === "function" ? TK_prefsQuickKeysOff() : false,
     });
   }
   if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return true;

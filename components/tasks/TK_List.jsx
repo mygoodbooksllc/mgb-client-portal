@@ -1615,7 +1615,7 @@ function TK_vListBody(props) {
           var isCol = !!collapsed[g.key];
           var hid = "tk-sec-" + encodeURIComponent(g.key || "none").replace(/%/g, "_");
           return (
-            <section key={g.key || "\u0000none"} className={"tk-group tk-section" + (isCol ? " is-collapsed" : "")} aria-labelledby={hid}>
+            <section key={g.key || "\u0000none"} className={"tk-group tk-section" + (isCol ? " is-collapsed" : "")} aria-labelledby={hid} data-tour={gi === 0 ? "tk-sections" : undefined}>
               <h3 className="tk-group-head" id={hid}>
                 <button
                   type="button"

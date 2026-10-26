@@ -14098,7 +14098,7 @@ function resettableLocalStorageKeys() {
     // mgb_wb_pins:<email> and its width mgb_wb_desk:<email>, and the staff
     // sidebar choice mgb_rail_expanded:<email>, and the L1 left sidebar's
     // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
-    // mgb_tk_slate_view_v1:<email> / :desk:<email>). Feature flags are kept on purpose, including
+    // mgb_tk_slate_view_v1:<email> / :desk:<email>, and Slate Settings mgb_tk_prefs_v1:<email>: quick keys, density, open in, show older). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_classic,
     // mgb_lato_classic, mgb_brand_classic, mgb_hovernav_classic, mgb_rhythm_preview,
     // mgb_slate_app_preview, mgb_slate_classic, mgb_nav_classic). The retired personal previews
@@ -27633,7 +27633,7 @@ function AN_AppNav({ variant, always }) {
   const cls = variant === "tb" ? "tb-icon-btn" : variant === "sbar" ? "tk-sbar-btn an-sbar-btn" : "an-btn";
   const icon = { viewBox: "0 0 20 20", width: 16, height: 16, fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" };
   return (
-    <span className="an-nav" role="group" aria-label="Page navigation">
+    <span className="an-nav" role="group" aria-label="Page navigation" data-tour={variant === "sbar" ? "tk-sbar-nav" : undefined}>
       <button type="button" className={cls} onClick={() => window.history.back()} disabled={!can.back} aria-label="Back" title="Back" data-tip="Back">
         <svg {...icon}><path d="M12.5 4.5 7 10l5.5 5.5" /></svg>
       </button>
@@ -30821,6 +30821,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               clients={rosterClients}
               page={effectivePage}
               onSelectPage={setPage}
+              setMobileNavOpen={setMobileNavOpen}
+            />
+          )}
+          {/* The Slate app window (tkShell) mounts only the tour root, with
+              `shell`: it runs only "Slate, start to finish" (the portal's ?
+              menu opens the app at #/tasks/my?tour=slate), never a role tour,
+              tips or a notice. */}
+          {typeof TOUR_StaffRoot === "function" && tkShell && (
+            <TOUR_StaffRoot
+              shell
+              staffUser={staffUser}
+              impersonating={false}
+              viewAsUser={null}
+              isPreviewingUser={false}
+              hasTempAdminAccess={hasTempAdminAccess}
+              tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
+              tempAdminLoaded={tempAdminLoaded}
+              clients={rosterClients}
+              page={effectivePage}
               setMobileNavOpen={setMobileNavOpen}
             />
           )}

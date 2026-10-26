@@ -415,7 +415,7 @@ function TK_useManualKeys(opts) {
         if (!o.focusedId || typeof TK_manualKeyTarget !== "function") return;
         if (typeof TK_shouldHandleKey === "function" && typeof TK_vKeyCtx === "function") {
           var probe = { target: e.target, isComposing: e.isComposing, keyCode: e.keyCode, defaultPrevented: e.defaultPrevented };
-          if (!TK_shouldHandleKey(probe, TK_vKeyCtx())) return;
+          if (!TK_shouldHandleKey(probe, Object.assign({}, TK_vKeyCtx(), { keysOff: false }))) return;
         }
         var plan = TK_manualKeyTarget(o.groups || [], o.focusedId, e.key === "ArrowUp" ? -1 : 1, { crossGroup: !!o.crossGroup });
         e.preventDefault();

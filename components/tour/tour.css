@@ -266,6 +266,112 @@
   line-height: 1.4;
 }
 
+/* The presenter tour ("Slate, start to finish", TOUR_Overlay `big`): a wider
+   card with type that reads across a room, a Chapter N of M line with a
+   Chapters list, and a visible Exit button. Navy in both themes, like the
+   regular card. */
+.tour-pop.tour-pop-big {
+  width: min(480px, calc(100vw - 32px));
+  padding: 20px 24px 18px;
+  border-radius: 14px;
+}
+.tour-pop-big .tour-step {
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+.tour-step-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tour-step-n {
+  color: rgba(244, 241, 234, 0.7);
+  font-weight: 600;
+}
+.tour-pop-big .tour-chapters-btn {
+  min-height: 0;
+  padding: 2px 0;
+  font-size: 13px;
+  color: var(--gold, #c7ae86);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tour-chapters {
+  list-style: none;
+  margin: 4px 0 12px;
+  padding: 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.tour-chapter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: #f4f1ea;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.tour-chapter:hover,
+.tour-chapter:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+.tour-chapter:focus-visible {
+  box-shadow: 0 0 0 2px var(--gold, #c7ae86);
+}
+.tour-chapter-on {
+  color: var(--gold, #c7ae86);
+}
+.tour-chapter-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12.5px;
+}
+.tour-pop-big .tour-title {
+  font-size: 23px;
+  margin-bottom: 8px;
+}
+.tour-pop-big .tour-body {
+  font-size: 18px;
+  line-height: 1.45;
+  margin-bottom: 18px;
+  color: rgba(244, 241, 234, 0.92);
+}
+.tour-pop-big .tour-btn {
+  font-size: 15px;
+  min-height: 40px;
+}
+.tour-pop-big .tour-btn-primary {
+  padding: 8px 20px;
+}
+.tour-pop-big .tour-btn-ghost {
+  padding: 7px 16px;
+}
+@media (max-width: 600px) {
+  .tour-pop-big .tour-title {
+    font-size: 19px;
+  }
+  .tour-pop-big .tour-body {
+    font-size: 15.5px;
+  }
+}
+
 @media (max-width: 600px) {
   .tour-check-list {
     grid-template-columns: 1fr;

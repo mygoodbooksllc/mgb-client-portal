@@ -405,6 +405,7 @@ function TK_SlateSliver(props) {
       if (typeof TK__isTypingTarget === "function" && TK__isTypingTarget(tgt)) return;
       var ctx = typeof TK_vKeyCtx === "function" ? TK_vKeyCtx() : {};
       if (ctx.modalOpen || ctx.menuOpen || ctx.tourOpen) return;
+      if (ctx.keysOff) return;
       // Enter on a button is that button's own click.
       if (k === "expand" && tgt && tgt.tagName === "BUTTON") return;
       if (handlers.current.key(k)) e.preventDefault();

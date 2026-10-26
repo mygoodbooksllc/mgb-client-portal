@@ -984,6 +984,8 @@ t("parseRoute", () => {
   assert.deepStrictEqual(P("#/tasks/manage"), { view: "manage" });
   assert.deepStrictEqual(P("#/tasks/Manage/"), { view: "manage" });
   assert.deepStrictEqual(P("#/tasks/manage/x"), { view: "unknown" });
+  assert.deepStrictEqual(P("#/tasks/settings"), { view: "settings" });
+  assert.deepStrictEqual(P("#/tasks/settings/x"), { view: "unknown" });
   assert.deepStrictEqual(P("#/tasks/c/ExampleChurch"), { view: "client", clientId: "ExampleChurch" });
   assert.deepStrictEqual(P("#/tasks/c/Ab%2Fc"), { view: "client", clientId: "Ab/c" });
   assert.deepStrictEqual(P("#/tasks/c/Ab%2Fc/list"), { view: "client", clientId: "Ab/c" });
@@ -1014,6 +1016,7 @@ t("formatRoute and round trips", () => {
   assert.strictEqual(F({ view: "templates" }), "#/tasks/templates");
   assert.strictEqual(F({ view: "waiting" }), "#/tasks/waiting");
   assert.strictEqual(F({ view: "manage" }), "#/tasks/manage");
+  assert.strictEqual(F({ view: "settings" }), "#/tasks/settings");
   assert.strictEqual(F({ view: "client", clientId: "Ab/c" }), "#/tasks/c/Ab%2Fc");
   assert.strictEqual(F({ view: "project", projectId: U }), "#/tasks/p/" + U);
   assert.strictEqual(F({ view: "person", staffId: U }), "#/tasks/u/" + U);
@@ -1130,6 +1133,7 @@ t("shouldHandleKey embedded drawer scope (the non-modal Desk) never takes keys f
 });
 t("shouldHandleKey tolerates odd input", () => {
   assert.strictEqual(L.TK_shouldHandleKey({}, {}), true);
+  assert.strictEqual(L.TK_shouldHandleKey({}, { keysOff: true }), false);
   assert.strictEqual(L.TK_shouldHandleKey(null, null), true);
   assert.strictEqual(L.TK_shouldHandleKey({ target: { tagName: "SPAN" } }, { scope: "list" }), true);
 });

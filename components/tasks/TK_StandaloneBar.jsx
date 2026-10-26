@@ -339,6 +339,23 @@ function TK_StandaloneBar(props) {
             <span>Add</span>
           </button>
         ) : null}
+        {slm ? (
+          <a
+            className={"tk-sbar-btn tk-sbar-gear" + (route.view === "settings" ? " is-active" : "")}
+            data-tour="tk-sbar-gear"
+            href="#/tasks/settings"
+            aria-label="Slate settings"
+            title="Slate settings"
+            aria-current={route.view === "settings" ? "page" : undefined}
+            onClick={function (e) {
+              if (!TK_vPlainClick(e)) return;
+              e.preventDefault();
+              TK_navigate({ view: "settings" });
+            }}
+          >
+            <TK_vIcon name="gear" size={17} />
+          </a>
+        ) : null}
         {slWide && typeof TK_SlateSizeButtons === "function" ? <TK_SlateSizeButtons /> : null}
         {followInMenu ? null : (
           <span className="tk-sbar-follow-wrap" title="Show the tasks for the client open in your portal window">
@@ -454,6 +471,23 @@ function TK_StandaloneBar(props) {
                 Help
               </button>,
             );
+            // The presenter tour, run right here in the app (Tour.jsx).
+            if (inApp && typeof window.TK_replaySlateTour === "function") {
+              items.push(
+                <button
+                  key="tour"
+                  type="button"
+                  role="menuitem"
+                  className="tk-menu-item"
+                  onClick={function () {
+                    close();
+                    window.TK_replaySlateTour();
+                  }}
+                >
+                  Take the Slate tour
+                </button>,
+              );
+            }
             return items;
           }}
         </TK_vMenuButton>

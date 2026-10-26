@@ -154,7 +154,7 @@ function TB_clientHash(id, tab) {
 }
 
 // #/tasks/<sub> -> its guide article (null keeps the Tasks default, my-tasks).
-const TB_TASKS_HELP = { review: "task-review", waiting: "ask-client", templates: "task-templates", manage: "manage-projects", c: "task-lists-and-projects", p: "task-lists-and-projects" };
+const TB_TASKS_HELP = { review: "task-review", waiting: "ask-client", templates: "task-templates", manage: "manage-projects", c: "task-lists-and-projects", p: "task-lists-and-projects", settings: "slate-settings" };
 function TB_tasksHelpSlug(hash) {
   const m = /^#\/tasks\/([^/?#]+)/.exec(hash || "");
   return (m && TB_TASKS_HELP[m[1]]) || null;
@@ -1407,6 +1407,11 @@ function TB_HelpButton({ page, isAdmin }) {
   // while it can't save (View as, settings still loading).
   const tipsItem = typeof TIPS_menuItem === "function" ? TIPS_menuItem() : null;
   if (tipsItem) items.push({ key: "tips", ...tipsItem });
+  // On Slate (2026-10-26): its own Settings page lives in the Slate app, so
+  // this opens the app there (the click opens the window, so the pop-up
+  // blocker lets it through).
+  if (page === "tasks" && typeof TK_slateAppOn === "function" && TK_slateAppOn() && typeof TK_openSlateApp === "function")
+    items.push({ key: "slate-settings", label: "Slate settings", run: () => TK_openSlateApp("#/tasks/settings") });
   // One line per tour this person can take: the bookkeeper tour, plus the
   // admin, temporary admin and account manager tours when they apply
   // (Tour.jsx TOUR_staffTourList).

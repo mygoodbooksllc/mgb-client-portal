@@ -2,7 +2,7 @@
 title: How do I use the Slate app?
 section: Daily work
 audience: staff
-keywords: [slate app, open slate app, install slate app, mgb slate, own window, open in own window, pop out, popout, slim window, sliver, strip, compact, regular, full page, full, size, window size, sliver start, sliver done, undo, expand, detail pane, views, saved views, named views, bulk, bulk status, bulk priority, bulk section, manual order, drag, reorder, alt up, alt down, board, board view, columns, status columns, section columns, list or board, dock, dock in portal, side by side, quickbooks, second monitor, /slate, /tasks, pop-up blocked, follow my client, follow, install, dock icon, start menu, classic tasks page, mgb_slate_classic, old window]
+keywords: [slate app, open slate app, install slate app, mgb slate, own window, open in own window, pop out, popout, slim window, sliver, strip, compact, regular, full page, full, size, window size, sliver start, sliver done, undo, expand, detail pane, views, saved views, named views, bulk, bulk status, bulk priority, bulk section, manual order, drag, reorder, alt up, alt down, board, board view, columns, status columns, section columns, list or board, dock, dock in portal, side by side, quickbooks, second monitor, /slate, /tasks, pop-up blocked, follow my client, follow, install, dock icon, start menu, classic tasks page, mgb_slate_classic, old window, slate settings, gear, take the slate tour]
 sort: 116
 ---
 The **Slate app** is Slate in a window of its own, for example next to QuickBooks or on a second screen. Open it from the portal whenever you want it; the portal never opens it for you, and everything in Slate still works inside the portal exactly as before.
@@ -60,6 +60,11 @@ These work in the Slate app only, on My tasks and on project, client and person 
 - **Swipe back.** Swipe two fingers right on a trackpad (or from the left edge of a touch screen) to close the open menu, then the open task, then go to the previous page. In Safari, the trackpad swipe is Safari's own Back.
 - **Undo.** In the app, **Undo** (or **Cmd+Z**) works for 9 minutes after a change, instead of 10 seconds, and **Cmd+Z** steps back through your last 5 changes, newest first (the Undo button on the message always undoes the newest). Undoing a duplicate or a paste deletes the copies, the same way **Delete** does. If someone changed the task since (you or a teammate), a late **Undo** leaves it alone and says so, so it never wipes out newer work.
 - **Back, Forward and Refresh.** The app has no browser buttons, so three round buttons sit beside the Slate logo (not in the sliver or compact sizes). **Back** and **Forward** walk the pages you have opened (greyed out when there is nowhere to go), and **Refresh** reloads the window where you are.
+
+### Settings and the tour
+
+- The **gear** in the app's top bar opens **Settings**: how Slate opens, which window **Open Slate app** uses, row density, quick keys and where your task notifications are set. See [How do I change my Slate settings?](#/help/slate-settings).
+- The avatar menu has **Take the Slate tour**, which runs **Slate, start to finish**. See [How do I take the Slate tour?](#/help/slate-tour).
 
 ### Links open in the portal
 

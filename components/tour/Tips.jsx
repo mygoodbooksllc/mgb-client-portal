@@ -584,6 +584,17 @@ const TIPS_CATALOG = [
     ready: () => !TIPS_touch(),
   },
   {
+    // "Slate, start to finish" (2026-10-26): the presenter tour, in the ? menu.
+    id: "tk-slate-tour",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tb-help",
+    snug: true,
+    text: "New to Slate? Pick Slate, start to finish in this ? menu: seven short chapters that only look, never change a task. The Slate app's gear opens your Slate settings.",
+    slug: "slate-tour",
+    ready: () => !TIPS_touch() && typeof TK_slateAppOn === "function" && TK_slateAppOn(),
+  },
+  {
     id: "tk-strip",
     roles: "all",
     match: (r) => r.client && ["client-overview", "messages", "documents", "bank", "client-close", "reports", "sop"].indexOf(r.page) >= 0,

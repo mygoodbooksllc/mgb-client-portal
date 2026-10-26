@@ -536,6 +536,18 @@ function TK_SlateDialog(props) {
   );
 }
 
+// Opens the Desk panel on its Slate tab (portal only). False when the Desk is off.
+function TK__slOpenDesk() {
+  try {
+    if (typeof WB_store === "undefined" || !WB_store || !WB_store.getState().on) return false;
+    WB_store.setHub({ tab: "tasks" });
+    WB_store.setDrawerOpen(true, "bar");
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 // The launch buttons: "Open Slate app" plus "Install Slate app" where the
 // browser can install apps. props: { hash | getHash(), tour, iconSize,
 // className }. The caller renders it only when TK_useSlateAppOn() is true.
@@ -557,7 +569,12 @@ function TK_SlateLaunch(props) {
   var size = props.iconSize || 16;
   var cls = props.className || "tk-tool-btn tk-popout-btn";
   var run = function (id) {
-    if (id === "open") TK_openSlateApp(hashNow());
+    if (id === "open") {
+      // Slate Settings: "Desk panel" opens the Desk on its Slate tab instead.
+      if (typeof TK_prefsAdopt === "function" && typeof TK_store !== "undefined" && TK_store && TK_store.getState) TK_prefsAdopt((TK_store.getState() || {}).me);
+      if (typeof TK_prefsGet === "function" && TK_prefsGet().openIn === "desk" && TK__slOpenDesk()) return;
+      TK_openSlateApp(hashNow());
+    }
     else if (id === "open-app") setDlg("installed");
     else if (id === "install") {
       if (TK_slateGet() === "standalone") setDlg("standalone");

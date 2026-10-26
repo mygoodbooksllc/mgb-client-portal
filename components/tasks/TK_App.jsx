@@ -34,6 +34,7 @@ function TK_vQuickAddFor(route) {
 
 function TK_App(props) {
   var staffUser = props.staffUser || {};
+  var prefs = typeof TK_usePrefs === "function" ? TK_usePrefs(staffUser.email) : null;
   var isAdmin = !!props.isAdmin;
   var shell = props.shell === true;
   var clients = props.clients || [];
@@ -87,7 +88,7 @@ function TK_App(props) {
 
   if (schema === "missing") {
     return (
-      <div className={"tk-app" + (shell ? " is-shell" : "") + (slm ? " " + TK_slateModeClasses(slm) : "")} ref={obsRef || undefined}>
+      <div className={"tk-app" + (shell ? " is-shell" : "") + (slm ? " " + TK_slateModeClasses(slm) : "") + (slm && prefs && TK_prefsDensityClass(prefs) ? " " + TK_prefsDensityClass(prefs) : "")} ref={obsRef || undefined}>
         <TK_SetupCard />
       </div>
     );
@@ -101,6 +102,15 @@ function TK_App(props) {
   else if (route.view === "review") main = <TK_ReviewQueue staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "waiting") main = <TK_WaitingList staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "templates") main = <TK_Templates staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  else if (route.view === "settings" && typeof TK_SlateSettings === "function" && TK_slateInApp()) main = <TK_SlateSettings staffUser={staffUser} />;
+  else if (route.view === "settings") {
+    main = (
+      <div className="tk-state" role="status">
+        <p>Settings live in the Slate app.</p>
+        <button type="button" className="btn btn-primary" onClick={function () { if (typeof TK_openSlateApp === "function") TK_openSlateApp("#/tasks/settings"); }}>Open Slate app</button>
+      </div>
+    );
+  }
   else if (route.view === "manage") main = <TK_ManageProjects staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "client" || route.view === "project" || route.view === "person") {
     main = <TK_List route={route} staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
@@ -131,7 +141,7 @@ function TK_App(props) {
   return (
     <div
       className={
-        "tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (compactNow ? " is-compact" : "") + (slm ? " " + TK_slateModeClasses(slm) : "")
+        "tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (compactNow ? " is-compact" : "") + (slm ? " " + TK_slateModeClasses(slm) : "") + (slm && prefs && TK_prefsDensityClass(prefs) ? " " + TK_prefsDensityClass(prefs) : "")
       }
       ref={obsRef || undefined}
     >

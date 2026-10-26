@@ -1347,6 +1347,8 @@ var TK_api = (function () {
   // first) after their toasts close, each for 9 minutes (the server keeps
   // every op for 10, once, independently).
   var SLATE_UNDO_MS = 9 * 60 * 1000;
+  api.SLATE_UNDO_MS = SLATE_UNDO_MS; // read by Slate Settings (TK_SlateSettings.jsx)
+  api.UNDO_DEPTH_SLATE = UNDO_DEPTH_SLATE;
   function undoMs() {
     try {
       if (typeof TK_slateInApp === "function" && TK_slateInApp()) return SLATE_UNDO_MS;

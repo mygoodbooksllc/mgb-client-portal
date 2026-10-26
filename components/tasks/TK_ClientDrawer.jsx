@@ -841,7 +841,7 @@ function TK_ClientDrawerHost(props) {
         if (document.querySelector(".tk-dw-layer")) return;
         if (typeof TK_shouldHandleKey !== "function" || typeof TK_vKeyCtx !== "function") return;
         var kc = TK_vKeyCtx();
-        var ctx = { modalOpen: !!document.querySelector(".modal-overlay"), menuOpen: kc.menuOpen, tourOpen: kc.tourOpen, scope: "global" };
+        var ctx = { modalOpen: !!document.querySelector(".modal-overlay"), menuOpen: kc.menuOpen, tourOpen: kc.tourOpen, scope: "global", keysOff: typeof TK_prefsQuickKeysOff === "function" ? TK_prefsQuickKeysOff() : false };
         if (!TK_shouldHandleKey(e, ctx)) return;
         if (e.key === "q") {
           if (!openRef.current || !clientIdRef.current) return; // closed: TK_QuickAddHost owns q

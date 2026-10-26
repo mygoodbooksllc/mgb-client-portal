@@ -718,3 +718,85 @@ html.tk-swipe-back body {
     transition: none;
   }
 }
+
+/* ---- Settings: row density (TK_SlateSettings.jsx; class set by TK_App) -------- */
+
+@media (pointer: fine) {
+  .tk-app.is-shell.tk-dens-compact {
+    --tk-row-h: 34px;
+  }
+  .tk-app.is-shell.tk-dens-compact .tk-row {
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+}
+
+/* ---- Settings page ------------------------------------------------------------- */
+
+.tk-set {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 16px 24px;
+  max-width: 720px;
+}
+.tk-set-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.tk-set-card h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+.tk-set-sub {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-muted, inherit);
+}
+.tk-set-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 0;
+}
+.tk-set-label {
+  min-width: 120px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.tk-set-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tk-set-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.tk-set-keys {
+  columns: 2 280px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.tk-set-keys li {
+  break-inside: avoid;
+  padding: 2px 0;
+}
+.tk-set-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tk-set-table th,
+.tk-set-table td {
+  text-align: left;
+  padding: 4px 8px 4px 0;
+  border-bottom: 1px solid var(--border);
+}

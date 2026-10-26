@@ -173,6 +173,21 @@
 //   wb-back          its Back button at the top left of the task
 //   si-noreply       No reply needed in Inbox's thread header (StaffInbox.jsx),
 //                    while the Workbench is on and the client wrote last
+// "Slate, start to finish" (2026-10-26, TOUR_slateLogic.js) adds:
+//   tk-sections      a client list's first section (TK_List.jsx)
+//   tk-ch-people, tk-ch-links, tk-ch-qbo  the client list header's people
+//                    chips, its SOP / Drive / contacts links and the
+//                    QuickBooks pill (TK_ClientHeader.jsx)
+//   tk-dw-sharing, tk-dw-subtasks, tk-dw-checklist, tk-dw-thread,
+//   tk-dw-copylink   task details (TK_DrawerContent.jsx): Share with the
+//                    client's team, Subtasks, Checklist, the comments and
+//                    activity thread, Copy link; only while a task is open
+//   tk-sbar-nav, tk-sbar-gear  the Slate app bar's Back / Forward / Refresh
+//                    (app.jsx AN_AppNav variant sbar) and its Settings gear
+//                    (TK_StandaloneBar.jsx), app only
+//   tk-slate-sizes   the app's Sliver / List / Full page buttons (TK_SlateModes.jsx)
+//   tk-set-view, tk-set-layout, tk-set-keys, tk-set-undo, tk-set-notify,
+//   tk-set-help      the Slate app's Settings cards (TK_SlateSettings.jsx)
 // A role-tour step can `go` somewhere first (NAV_go to a place and tab, or
 // TOUR_openClient to a client's Overview (or another tab) through the
 // #/client/<id>/overview
@@ -210,6 +225,7 @@
 //   proTour                  { status: "done" | "skipped", at } (Pro tour;
 //                            informational, it never starts by itself)
 //   tasksTour                { status, at }                 (Tasks tour)
+//   slateTour                { status, at }     ("Slate, start to finish")
 // The client tour starts on its own only for a signed-in client user who has
 // no tour status yet. Never for staff, "View as", or "Preview as a client
 // user". Anyone can run it again from the client top bar's "?" menu or
@@ -291,10 +307,53 @@ function TOUR_startPro() {
 // for it), "admin", "tempAdmin" or "am". The "?" menu, ⌘K and Settings call
 // this; TOUR_StaffRoot listens.
 function TOUR_startStaff(which) {
+  // "Slate, start to finish" opens in the Slate app when it can (the click
+  // that calls this opens the window, so the pop-up blocker lets it through).
+  if (which === "slate" && TOUR_slateOpenApp()) return;
   try {
     window.dispatchEvent(new CustomEvent(TOUR_STAFF_START_EVENT, { detail: { which: which || "bookkeeper" } }));
   } catch (e) {}
 }
+
+// The Slate tour from the portal on a computer: open the Slate app at
+// #/tasks/my?tour=slate, where TOUR_StaffRoot (mounted there with `shell`)
+// starts it. False (run it here instead) inside the app or the classic
+// pop-out, on a phone or touch screen, with the app off, or when the window
+// was blocked (TK_vPopOutApp has already said so).
+function TOUR_slateOpenApp() {
+  try {
+    if (typeof TK_slateAppOn !== "function" || !TK_slateAppOn() || typeof TK_openSlateApp !== "function") return false;
+    if (window.MGB_SHELL === "tasks" || (typeof TK_slateInApp === "function" && TK_slateInApp())) return false;
+    if (window.innerWidth <= 760) return false;
+    if (typeof window.matchMedia === "function" && window.matchMedia("(hover: none)").matches) return false;
+    return !!TK_openSlateApp("#/tasks/my?tour=slate");
+  } catch (e) {
+    return false;
+  }
+}
+
+// A window opened at #/tasks/...?tour=slate (TOUR_slateOpenApp, or a link
+// for a dry run) owes the Slate tour. Read here, at load and on each
+// hashchange, because this file loads before app.jsx, whose route sync
+// drops the query from a #/tasks hash. TOUR_StaffRoot takes it.
+const TOUR_SLATE_PENDING_EVENT = "mgb:slate-tour-pending";
+let TOUR_slatePending = false;
+try {
+  if (typeof TOUR_slateHashAsks === "function") {
+    TOUR_slatePending = TOUR_slateHashAsks(window.location.hash);
+    window.addEventListener("hashchange", () => {
+      if (!TOUR_slateHashAsks(window.location.hash)) return;
+      TOUR_slatePending = true;
+      window.dispatchEvent(new CustomEvent(TOUR_SLATE_PENDING_EVENT));
+    });
+  }
+} catch (e) {}
+
+// Slate Settings' "Replay the Slate tour" and the app's avatar menu
+// (TK_SlateSettings.jsx, TK_StandaloneBar.jsx) call this.
+try {
+  window.TK_replaySlateTour = () => TOUR_startStaff("slate");
+} catch (e) {}
 
 function TOUR_isObj(v) {
   return !!v && typeof v === "object" && !Array.isArray(v);
@@ -329,11 +388,12 @@ function TOUR_spotEl(el, step) {
 }
 
 // How far down the sticky bars at the top of the page reach once stuck:
-// the phone's navy .mobile-topbar and the staff tool bar (.tb-bar, which
-// sits under it on a phone). 0 when neither shows.
+// the phone's navy .mobile-topbar, the staff tool bar (.tb-bar, which
+// sits under it on a phone) and the Slate app's own bar (.tk-sbar). 0 when
+// none shows.
 function TOUR_stickyTop() {
   let bottom = 0;
-  document.querySelectorAll(".mobile-topbar, .tb-bar").forEach((bar) => {
+  document.querySelectorAll(".mobile-topbar, .tb-bar, .tk-sbar").forEach((bar) => {
     if (!bar.getClientRects().length) return;
     const cs = window.getComputedStyle(bar);
     if (cs.position !== "sticky" && cs.position !== "fixed") return;
@@ -1572,6 +1632,27 @@ const TOUR_STAFF_TOURS = [
       TK_store.getState().schema === "ok",
     steps: () => TOUR_tasksSteps(),
   },
+  {
+    // "Slate, start to finish" (2026-10-26): the presenter tour, seven
+    // chapters (TOUR_slateLogic.js), in the big card with a chapter picker.
+    // Run by hand only. From the portal on a computer it opens in the Slate
+    // app (TOUR_startStaff); the app mounts TOUR_StaffRoot with `shell`.
+    key: "slate",
+    setting: "slateTour",
+    label: "Slate, start to finish",
+    sub: "All of Slate in seven short chapters",
+    big: true,
+    chapters: (steps) => (typeof TOUR_slateChapterIndex === "function" ? TOUR_slateChapterIndex(steps) : null),
+    available: (ctx) =>
+      typeof TOUR_slateSteps === "function" &&
+      !ctx.impersonating &&
+      typeof TK_App === "function" &&
+      typeof TK_store !== "undefined" &&
+      !!TK_store &&
+      typeof TK_store.getState === "function" &&
+      TK_store.getState().schema === "ok",
+    steps: (ctx) => TOUR_slateSteps(ctx),
+  },
 ];
 
 // The order the tours start on their own in (the first pending one wins).
@@ -1695,10 +1776,19 @@ function TOUR_place(rect, w, h) {
 // ---------------------------------------------------------------------------
 // Spotlight + popover
 // ---------------------------------------------------------------------------
-function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobileNavOpen }) {
+// `big` (the presenter tour, "Slate, start to finish"): a larger card with
+// bigger type, a visible Exit button, and when `chapters` is given
+// ([{ key, label, index, count }], TOUR_slateChapterIndex) a "Chapter N of M"
+// line with a Chapters list that jumps to a chapter's first step (onJump).
+function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobileNavOpen, big, chapters, onJump }) {
   const step = steps[index];
   const total = steps.length;
   const isLast = index === total - 1;
+  const chs = big && Array.isArray(chapters) && chapters.length && onJump ? chapters : null;
+  let chIdx = -1;
+  if (chs) chs.forEach((c, i) => { if (index >= c.index) chIdx = i; });
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  React.useEffect(() => setMenuOpen(false), [index]);
   const [rect, setRect] = React.useState(null);
   const [targetKey, setTargetKey] = React.useState(null);
   const [pos, setPos] = React.useState(null);
@@ -1917,6 +2007,9 @@ function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobil
         e.preventDefault();
         e.stopPropagation();
         isLast ? onFinish() : onSkip();
+      } else if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && e.target && e.target.closest && e.target.closest(".tour-chapters")) {
+        // Arrows move through the Chapters list, not the tour.
+        return;
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
         isLast ? onFinish() : onNext();
@@ -1956,16 +2049,53 @@ function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobil
       )}
       <div
         ref={popRef}
-        className={"tour-pop" + (ready && pos ? " tour-pop-on" : "") + (pos ? " tour-pop-" + pos.side : "")}
+        className={"tour-pop" + (big ? " tour-pop-big" : "") + (ready && pos ? " tour-pop-on" : "") + (pos ? " tour-pop-" + pos.side : "")}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         style={pos ? { top: pos.top, left: pos.left } : { top: -9999, left: -9999 }}
       >
-        <div className="tour-step">
-          Step {index + 1} of {total}
-        </div>
+        {chs ? (
+          <div className="tour-step tour-step-row">
+            <span>
+              {chIdx >= 0 ? "Chapter " + (chIdx + 1) + " of " + chs.length + ": " + chs[chIdx].label : ""}
+              <span className="tour-step-n"> · Step {index + 1} of {total}</span>
+            </span>
+            <button
+              type="button"
+              className="tour-btn tour-btn-link tour-chapters-btn"
+              aria-expanded={menuOpen}
+              aria-controls="tour-chapters"
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              Chapters
+            </button>
+          </div>
+        ) : (
+          <div className="tour-step">
+            Step {index + 1} of {total}
+          </div>
+        )}
+        {chs && menuOpen && (
+          <ol className="tour-chapters" id="tour-chapters" aria-label="Chapters">
+            {chs.map((c, i) => (
+              <li key={c.key}>
+                <button
+                  type="button"
+                  className={"tour-chapter" + (i === chIdx ? " tour-chapter-on" : "")}
+                  aria-current={i === chIdx ? "step" : undefined}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onJump(c.index);
+                  }}
+                >
+                  <span className="tour-chapter-n">{i + 1}</span> {c.label}
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
         <h2 className="tour-title" id={titleId} ref={titleRef} tabIndex={-1}>
           {step.title}
         </h2>
@@ -1973,7 +2103,12 @@ function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobil
           {body}
         </p>
         <div className="tour-actions">
-          {!isLast && (
+          {big && !isLast && (
+            <button type="button" className="tour-btn tour-btn-ghost tour-btn-exit" onClick={onSkip}>
+              Exit
+            </button>
+          )}
+          {!big && !isLast && (
             <button type="button" className="tour-btn tour-btn-link" onClick={onSkip}>
               Skip tour
             </button>
@@ -1989,7 +2124,7 @@ function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobil
           </button>
         </div>
         <div className="tour-sr" aria-live="polite">
-          {ready ? `Step ${index + 1} of ${total}: ${step.title}. ${body}` : ""}
+          {ready ? `${chs && chIdx >= 0 ? chs[chIdx].label + ". " : ""}Step ${index + 1} of ${total}: ${step.title}. ${body}` : ""}
         </div>
       </div>
     </div>,
@@ -2361,6 +2496,7 @@ function TOUR_StaffRoot({
   page,
   onSelectPage,
   setMobileNavOpen,
+  shell,
 }) {
   const st = ST_useSettings();
   const email = staffUser ? String(staffUser.email || "").trim().toLowerCase() : null;
@@ -2419,7 +2555,9 @@ function TOUR_StaffRoot({
   const ctxRef = React.useRef(ctx);
   ctxRef.current = ctx;
   // The first pending tour, in auto-start order, for the once-only start.
-  const pending = ownSettings
+  // In the Slate app window (`shell`) only the Slate tour runs: nothing
+  // starts by itself there.
+  const pending = ownSettings && !shell
     ? TOUR_STAFF_AUTO_ORDER.map(TOUR_staffTour).find(
         (t) => t && t.available(ctx) && (t.pending ? t.pending(ctx, savedOf(t)) : !savedOf(t).status),
       )
@@ -2472,7 +2610,7 @@ function TOUR_StaffRoot({
   const pendingKey = pending ? pending.key : null;
   const waitForGrant = isBookkeeper && tempAdminLoaded === false;
   TOUR_staffState.open = !!(run && run.steps.length);
-  TOUR_staffState.autoPending = ownSettings && !TOUR_staffAutoStarted && (!!pendingKey || waitForGrant);
+  TOUR_staffState.autoPending = ownSettings && !shell && !TOUR_staffAutoStarted && (!!pendingKey || waitForGrant);
   React.useEffect(
     () => () => {
       TOUR_staffState = { open: false, launching: false, autoPending: false };
@@ -2480,7 +2618,7 @@ function TOUR_StaffRoot({
     [],
   );
   React.useEffect(() => {
-    if (!ownSettings || TOUR_staffAutoStarted || run || !pendingKey || waitForGrant) return;
+    if (!ownSettings || shell || TOUR_staffAutoStarted || run || !pendingKey || waitForGrant) return;
     if (st.status !== "ready" && st.status !== "local") return;
     // The flag is set when the timer fires, so a re-render that reschedules
     // this effect can't cancel the only start.
@@ -2503,11 +2641,42 @@ function TOUR_StaffRoot({
       // A launch tour this person can't take (or one that was retired) isn't
       // swapped for the bookkeeper tour.
       if (typeof which === "string" && which.indexOf("ann:") === 0 && !(tour && tour.available(ctxRef.current))) return;
+      // The Slate app window runs only the Slate tour.
+      if (shell && !(tour && tour.key === "slate" && tour.available(ctxRef.current))) return;
       begin(tour && tour.available(ctxRef.current) ? tour.key : "bookkeeper");
     };
     window.addEventListener(TOUR_STAFF_START_EVENT, onStart);
     return () => window.removeEventListener(TOUR_STAFF_START_EVENT, onStart);
-  }, [run, staffUser, begin]);
+  }, [run, staffUser, begin, shell]);
+
+  // Opened at #/tasks/...?tour=slate (TOUR_slatePending): start the Slate
+  // tour once Slate's tables answer (checked every 300 ms for ~12 s). It
+  // counts as this load's one tour, so no role tour starts by itself too.
+  const [slateAsk, setSlateAsk] = React.useState(0);
+  React.useEffect(() => {
+    const onAsk = () => setSlateAsk((n) => n + 1);
+    window.addEventListener(TOUR_SLATE_PENDING_EVENT, onAsk);
+    return () => window.removeEventListener(TOUR_SLATE_PENDING_EVENT, onAsk);
+  }, []);
+  React.useEffect(() => {
+    if (!TOUR_slatePending || run || !staffUser) return undefined;
+    if (!shell) TOUR_staffAutoStarted = true;
+    let tries = 0;
+    let t = 0;
+    const take = () => {
+      if (!TOUR_slatePending) return;
+      const tour = TOUR_staffTour("slate");
+      if (tour && tour.available(ctxRef.current)) {
+        TOUR_slatePending = false;
+        begin("slate");
+        return;
+      }
+      if (tries++ < 40) t = setTimeout(take, 300);
+      else TOUR_slatePending = false;
+    };
+    t = setTimeout(take, 300);
+    return () => clearTimeout(t);
+  }, [slateAsk, run, staffUser, begin, shell]);
 
   // "View as", a preview or a different sign-in mid-tour ends it.
   React.useEffect(() => {
@@ -2544,6 +2713,9 @@ function TOUR_StaffRoot({
     <TOUR_Overlay
       steps={run.steps}
       index={run.index}
+      big={!!run.tour.big}
+      chapters={run.tour.chapters ? run.tour.chapters(run.steps) : null}
+      onJump={(i) => setRun((r) => (r ? { ...r, index: Math.max(0, Math.min(i, r.steps.length - 1)) } : r))}
       setMobileNavOpen={setMobileNavOpen || (() => {})}
       onNext={() => setRun((r) => (r ? { ...r, index: Math.min(r.index + 1, r.steps.length - 1) } : r))}
       onBack={() => setRun((r) => (r ? { ...r, index: Math.max(r.index - 1, 0) } : r))}

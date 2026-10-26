@@ -548,6 +548,7 @@ function TK_QuickAddHost(props) {
         menuOpen: TK_dwMenuOpen(document),
         tourOpen: !!document.querySelector(".tour-root"),
         scope: "global",
+        keysOff: typeof TK_prefsQuickKeysOff === "function" && TK_prefsQuickKeysOff(),
       };
       if (typeof TK_shouldHandleKey === "function") {
         if (!TK_shouldHandleKey(e, ctx)) return;

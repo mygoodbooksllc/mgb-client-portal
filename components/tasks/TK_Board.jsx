@@ -192,7 +192,7 @@ function TK_vBoardCard(props) {
           // the list keys' guards (menu, dialog, tour, composing), as Alt+Up/Down on rows
           if (typeof TK_shouldHandleKey === "function" && typeof TK_vKeyCtx === "function") {
             var probe = { target: e.target, isComposing: e.nativeEvent && e.nativeEvent.isComposing, keyCode: e.keyCode, defaultPrevented: e.defaultPrevented };
-            if (!TK_shouldHandleKey(probe, TK_vKeyCtx())) return;
+            if (!TK_shouldHandleKey(probe, Object.assign({}, TK_vKeyCtx(), { keysOff: false }))) return;
           }
           e.preventDefault();
           e.stopPropagation();

@@ -1500,6 +1500,19 @@ function ST_FirmSettings({ groups, isAdmin, onSelectPage, isOwner }) {
   );
 }
 
+// A portal window opened straight at #/settings?tab=notifications (the Slate
+// app's Settings page, with no portal open yet): App's route sync can drop
+// the query before this page first renders, so the tab is read when this
+// file loads and used once.
+let ST_loadHashTab = (() => {
+  try {
+    const m = /^#\/settings(?:\/[^?]*)?\?(?:[^#]*&)?tab=(notifications)\b/.exec(window.location.hash || "");
+    return m ? m[1] : null;
+  } catch (e) {
+    return null;
+  }
+})();
+
 function ST_StaffSettingsPage({
   staffUser,
   readOnlyReason, // text when viewing as someone else, else null
@@ -1516,7 +1529,28 @@ function ST_StaffSettingsPage({
   const ro = !!readOnlyReason;
   // Re-render when the L1 sidebar gate resolves, so the Sidebar defaults row appears.
   if (typeof SS_useOn === "function") SS_useOn();
-  const [tab, setTab] = React.useState("profile");
+  // #/settings?tab=notifications opens that tab (the Slate app's Settings page links here).
+  const hashTab = () => {
+    try {
+      const m = /[?&]tab=(notifications)\b/.exec(window.location.hash || "");
+      return m ? m[1] : null;
+    } catch (e) {
+      return null;
+    }
+  };
+  const [tab, setTab] = React.useState(() => {
+    const t = hashTab() || ST_loadHashTab;
+    ST_loadHashTab = null;
+    return t || "profile";
+  });
+  React.useEffect(() => {
+    const on = () => {
+      const t = hashTab();
+      if (t) setTab(t);
+    };
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
   const set = (patch) => ST_store.update(patch);
   const prof = ST_useMyProfile(staffUser && staffUser.email);
   const sigPhotoAvailable = !!(prof && prof.row && prof.row.photo_path);
