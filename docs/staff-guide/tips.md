@@ -117,6 +117,7 @@ These show on **Work › Slate** (the Slate pages), after the tips above. The ne
 |---|---|---|
 | HR › Members | Give a bookkeeper the admin pages for 1 hour, 1 day or 1 week, say while you're away. It ends by itself; Revoke ends it early. | [How do I add staff and manage their access?](#/help/staff-management) |
 | HR › Members | Last seen shows when someone last used the app: their page, browser, app version and last error. Check it first when someone says something's broken. | [How do I add staff and manage their access?](#/help/staff-management) |
+| Team › Client gifts | Anniversary to follow is one choice for the whole firm: Client since (the default) or the founding date. It changes this list and the weekly digest count. | [What is a client's organization profile, and how do client gifts work?](#/help/client-org-profile) |
 
 #### Admins and anyone with temporary admin access
 

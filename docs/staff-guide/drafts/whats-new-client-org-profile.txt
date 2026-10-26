@@ -1,3 +1,5 @@
+PUBLISHED 2026-10-25 (owner turned org_profile_enabled on): the entry below is in docs/staff-guide/whats-new.md (dated 2026-10-25, with an Anniversary to follow line added) and the guide table, and the guide article moved to docs/staff-guide/client-org-profile.md. Kept for the record; do not re-apply.
+
 DRAFT - not live until the owner flips tk_settings.org_profile_enabled. Not published: nothing here is in docs/staff-guide/whats-new.md or the guide table.
 
 WIRED (hidden): the next-visit notice and tour are in components/tour/announcements.js as client-org-profile-launch, gated by visible() on mgb_orgprofile_cache (the firm switch as last read; not the per-person preview). The guide article is drafts/client-org-profile.md.

@@ -8,7 +8,7 @@
 -- write-only get-to-know (client never sees answers; temp-grant-only staff
 -- don't either), client_since (clients can't set it; staff can), the
 -- admin-only gift list and gift stamping trigger, Feb 29, the service-role
--- digest count (null while the switch is off), and audit_log never holding
+-- digest count (follows the firm switch), the default gift basis, and audit_log never holding
 -- answer text or field values.
 --
 -- Run it whole; it ends in ROLLBACK, so nothing it writes is kept. It uses
@@ -80,9 +80,10 @@ $$;
 -- ---------------------------------------------------------------------
 -- Setup (as the migration role)
 -- ---------------------------------------------------------------------
-select pg_temp.ok(not exists (select 1 from tk_settings where key = 'org_profile_enabled')
-                  or not coalesce(tk__jsonb_bool((select value from tk_settings where key = 'org_profile_enabled')), false),
-                  'firm switch org_profile_enabled is off (missing) while built hidden');
+-- The firm switch was off while built hidden and has been on since 2026-10-25.
+-- Checks that depend on it read it once here and expect the matching result.
+insert into t_ctx select 'sw', case when public.op__switch_on() then 'on' else 'off' end;
+select pg_temp.ok(pg_temp.ctx('sw') in ('on', 'off'), 'firm switch org_profile_enabled read (' || pg_temp.ctx('sw') || ')');
 select pg_temp.ok(public.tk__owner_only_key('org_profile_enabled')
                   and public.tk__owner_only_key('hovernav_enabled') and public.tk__owner_only_key('wb_enabled'),
                   'org_profile_enabled is owner-only and older keys are kept');
@@ -146,7 +147,7 @@ select pg_temp.expect_err('select public.org_anniversaries_digest_count(current_
 -- ---------------------------------------------------------------------
 select pg_temp.as_client(pg_temp.ctx('gu'));
 select pg_temp.ok((public.client_org_profile_mine() ->> 'eligible')::boolean, 'full-access user is eligible');
-select pg_temp.ok((public.client_org_profile_mine() ->> 'enabled')::boolean = false, 'enabled is false while the switch is off');
+select pg_temp.ok((public.client_org_profile_mine() ->> 'enabled')::boolean = (pg_temp.ctx('sw') = 'on'), 'enabled follows the firm switch');
 select pg_temp.ok(public.client_org_profile_mine() -> 'profile' = 'null'::jsonb, 'no profile yet');
 select pg_temp.ok((public.client_org_profile_mine() -> 'prefill') - array['name', 'entity_type', 'org_type', 'org_address',
                   'fiscal_year_end', 'user_name', 'user_email'] = '{}'::jsonb, 'prefill has whitelisted keys only');
@@ -308,9 +309,11 @@ select pg_temp.as_staff(pg_temp.ctx('ad'));
 select pg_temp.ok((select occasion_date = (current_date + 5) and years = 3 and profile_complete and has_get_to_know and gift_id is null
                    from public.admin_upcoming_anniversaries(30) where client_id = 'grace-community' and occasion = 'client_since'),
                   'client_since anniversary listed in 5 days, 3 years, flags set, no gift yet');
-select pg_temp.ok((select occasion_date = (current_date + 10) and years = 20
-                   from public.admin_upcoming_anniversaries(30) where client_id = 'grace-community' and occasion = 'established'),
-                  'established anniversary listed in 10 days, 20 years');
+-- Gift basis (client-org-gift-basis.sql): the default lists Client since only.
+-- The founding-date basis is covered by client-org-gift-basis-tests.sql.
+select pg_temp.ok(public.admin_gift_basis() <> 'client_since'
+                  or pg_temp.cnt($$select 1 from public.admin_upcoming_anniversaries(30) where client_id = 'grace-community' and occasion = 'established'$$) = 0,
+                  'default basis (Client since) does not list the founding date');
 select pg_temp.ok(pg_temp.cnt($$select 1 from public.admin_upcoming_anniversaries(7) where client_id = 'grace-community'$$) = 1,
                   'p_days window respected (7 days: only the client_since one)');
 select pg_temp.ok(position('OPSECRET' in (select coalesce(string_agg(t::text, ''), '') from public.admin_upcoming_anniversaries(30) t)) = 0,
@@ -362,7 +365,10 @@ select pg_temp.ok((select occ = date '2026-10-23' and years = 10 from public.op_
 -- 9. Digest count: service_role only; null while the switch is off
 -- ---------------------------------------------------------------------
 set local role service_role;
-select pg_temp.ok(public.org_anniversaries_digest_count(current_date) is null, 'digest count is null while the switch is off');
+select pg_temp.ok(case when pg_temp.ctx('sw') = 'on'
+                       then public.org_anniversaries_digest_count(current_date) >= 1
+                       else public.org_anniversaries_digest_count(current_date) is null end,
+                  'digest count follows the switch (null while off, counts the upcoming client while on)');
 reset role;
 select pg_temp.ok((select count(distinct client_id) >= 1 from public.op__anniversaries(current_date, 30)),
                   'the count source sees the upcoming client (what the digest would count with the switch on)');

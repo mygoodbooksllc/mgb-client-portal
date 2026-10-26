@@ -4,7 +4,10 @@
 // stamps who and when), the $30-45 budget note, Past gifts, the line the
 // weekly digest will show, and the one-time import DRY RUN (nothing saved).
 // Nothing here emails anyone or orders a gift.
-// Tour targets: data-tour="op-gifts-upcoming", "op-gifts-import".
+// Tour targets: data-tour="op-gifts-upcoming", "op-gifts-basis", "op-gifts-import".
+// Gift basis (firm-wide, admin_gift_basis / admin_set_gift_basis): which
+// anniversary the list and the digest follow, Client since (default) or the
+// founding date (Client since when the founding date isn't known).
 // Styles: components/client/op.css.
 
 const OP_GIFTS_SETUP_MSG = "This needs supabase/client-org-profile.sql, which hasn't been run here.";
@@ -73,7 +76,9 @@ function OP_GiftsBody({ clients }) {
 
   return (
     <div className="op-gifts">
-      <div className="card" data-tour="op-gifts-upcoming">
+      <OP_GiftBasis onSaved={load} />
+
+      <div className="card" data-tour="op-gifts-upcoming" style={{ marginTop: 16 }}>
         <h3 className="card-title">Anniversaries in the next 30 days</h3>
         <p className="op-digest">
           {up.status === "ready" ? "This week's digest line: " + OP_digestLine(up.rows) : ""}
@@ -194,6 +199,64 @@ function OP_GiftsBody({ clients }) {
       </div>
 
       <OP_ImportDryRun clients={clients} />
+    </div>
+  );
+}
+
+// Firm-wide choice of which anniversary to follow. Admin only (the RPCs
+// refuse anyone else); every change is audited in tk_settings_audit.
+function OP_GiftBasis({ onSaved }) {
+  const [st, setSt] = React.useState({ status: "loading", value: "client_since", error: "" });
+  const [saving, setSaving] = React.useState(false);
+  const [note, setNote] = React.useState("");
+  React.useEffect(() => {
+    let live = true;
+    OP_api.giftBasis().then((res) => {
+      if (!live) return;
+      if (res.error) setSt({ status: "error", value: "client_since", error: OP_giftsErr(res.error) });
+      else setSt({ status: "ready", value: OP_giftBasisNorm(res.data), error: "" });
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  const pick = async (v) => {
+    if (!OP_giftBasisValid(v) || v === st.value || saving) return;
+    setSaving(true);
+    setNote("");
+    const res = await OP_api.setGiftBasis(v);
+    setSaving(false);
+    if (res.error) {
+      setNote("Couldn't save that. " + OP_giftsErr(res.error));
+      return;
+    }
+    setSt({ status: "ready", value: OP_giftBasisNorm(res.data), error: "" });
+    setNote("Saved. The list and the weekly digest now follow " + OP_giftBasisLabel(res.data) + ".");
+    if (onSaved) onSaved();
+  };
+  return (
+    <div className="card" data-tour="op-gifts-basis">
+      <h3 className="card-title">Anniversary to follow</h3>
+      <p className="op-hint" style={{ marginTop: 0 }}>
+        One choice for the whole firm. It changes which date shows below and what the weekly digest counts.
+      </p>
+      {st.status === "loading" && <p className="card-subtitle">Loading…</p>}
+      {st.status === "error" && <p className="card-subtitle">{st.error}</p>}
+      {st.status === "ready" && (
+        <div role="radiogroup" aria-label="Anniversary to follow">
+          {OP_GIFT_BASES.map((b) => (
+            <label key={b.value} style={{ display: "block", margin: "6px 0", cursor: saving ? "default" : "pointer" }}>
+              <input type="radio" name="op-gift-basis" value={b.value} checked={st.value === b.value} disabled={saving} onChange={() => pick(b.value)} />{" "}
+              <strong>{b.label}</strong> <span className="op-hint">{b.hint}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      {note && (
+        <p className={/Couldn't/.test(note) ? "op-err" : "op-hint"} role="status">
+          {note}
+        </p>
+      )}
     </div>
   );
 }

@@ -1392,12 +1392,14 @@ var ANN_REGISTRY = [
     ],
   },
   {
-    // DRAFT launch notice, hidden until the owner flips the firm switch
-    // tk_settings.org_profile_enabled (cached as mgb_orgprofile_cache by
-    // OP_store). Not the per-person preview. Registered just above slate-app-launch
-    // (tests pin the first entries); it is still the newest by date.
+    // Client org profile launch, LIVE: the owner turned tk_settings.org_profile_enabled
+    // on 2026-10-25. Gated by visible() on mgb_orgprofile_cache (the firm switch as
+    // last read by OP_store), so the first load after the flip may miss it and the
+    // notice shows on the next one. Not the per-person preview. Dated 2026-10-25, a
+    // day before the two 2026-10-26 launches, so it comes after Slate and Month
+    // rhythm even though it is registered above them.
     id: "client-org-profile-launch",
-    date: "2026-10-23",
+    date: "2026-10-25",
     title: "Client organization profiles",
     summary:
       "Clients now fill in a short organization profile (card name, gift address, main contact, fiscal year end). Staff see it on the client's Overview, and admins plan anniversary gifts in Team › Client gifts.",
@@ -1431,7 +1433,7 @@ var ANN_REGISTRY = [
               "team",
               "gifts",
               "Team › Client gifts",
-              "Admins see anniversaries in the next 30 days and Plan, Mark sent or Skip a gift for each. The usual budget is $30-45. Nothing here emails anyone or orders anything.",
+              "Admins see anniversaries in the next 30 days and Plan, Mark sent or Skip a gift for each. Anniversary to follow, at the top, picks Client since (the default) or the founding date. The usual budget is $30-45. Nothing here emails anyone or orders anything.",
             )
           : null,
         {

@@ -157,6 +157,14 @@ var OP_api = {
   upcoming: function (days) {
     return OP__rpc("admin_upcoming_anniversaries", { p_days: days || 30 });
   },
+  // Admin: which anniversary the gift list follows ("client_since" | "established").
+  giftBasis: function () {
+    return OP__rpc("admin_gift_basis");
+  },
+  // Admin: save it (firm-wide, audited in tk_settings_audit).
+  setGiftBasis: function (basis) {
+    return OP__rpc("admin_set_gift_basis", { p_basis: basis });
+  },
   // Admin (RLS): gifts already on record.
   gifts: function () {
     var c = OP__sb();

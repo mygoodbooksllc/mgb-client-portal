@@ -260,4 +260,28 @@ t("gift status pills", () => {
   assert.strictEqual(L.OP_giftStatus({}).key, "none");
 });
 
+t("gift basis: two choices, client_since is the default, same values as the server", () => {
+  assert.deepStrictEqual(L.OP_GIFT_BASES.map((b) => b.value), ["client_since", "established"]);
+  assert.ok(/default/i.test(L.OP_GIFT_BASES[0].label));
+  assert.strictEqual(L.OP_giftBasisValid("client_since"), true);
+  assert.strictEqual(L.OP_giftBasisValid("established"), true);
+  ["both", "", null, undefined, "Established", true].forEach((v) => assert.strictEqual(L.OP_giftBasisValid(v), false));
+  assert.strictEqual(L.OP_giftBasisNorm("established"), "established");
+  ["client_since", "x", null, undefined].forEach((v) => assert.strictEqual(L.OP_giftBasisNorm(v), "client_since"));
+  assert.strictEqual(L.OP_giftBasisLabel("established"), "Founding date");
+  assert.strictEqual(L.OP_giftBasisLabel(null), "Client since");
+  const sql = fs.readFileSync(path.join(__dirname, "../../supabase/client-org-gift-basis.sql"), "utf8");
+  assert.ok(sql.includes("not in ('client_since', 'established')"), "server accepts the same two values");
+  assert.ok(sql.includes("'org_gift_basis'"), "server key name");
+  assert.ok(!/\bdelete\b/i.test(sql.replace(/--.*$/gm, "")), "migration deletes nothing");
+});
+t("gift basis: Client gifts tab wires the admin RPCs", () => {
+  const store = fs.readFileSync(path.join(__dirname, "OP_store.js"), "utf8");
+  assert.ok(store.includes('OP__rpc("admin_gift_basis")'));
+  assert.ok(store.includes('OP__rpc("admin_set_gift_basis", { p_basis: basis })'));
+  const tab = fs.readFileSync(path.join(__dirname, "../staff/OP_GiftsTab.jsx"), "utf8");
+  assert.ok(tab.includes('data-tour="op-gifts-basis"'));
+  assert.ok(tab.includes("OP_api.setGiftBasis"));
+});
+
 console.log("OP_logic: " + n + " checks passed");

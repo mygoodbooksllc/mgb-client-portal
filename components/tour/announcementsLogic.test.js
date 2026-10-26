@@ -714,6 +714,30 @@ t("client-org-profile-launch gate: on shows the notice once, for staff only", ()
   });
 });
 
+t("client-org-profile-launch: live date, gifts step names the anniversary basis", () => {
+  const a = opEntry();
+  assert.strictEqual(a.date, "2026-10-25");
+  const gifts = a.steps({ isAdmin: true }).find((s) => s.id === "team-gifts");
+  assert.ok(/Anniversary to follow/.test(gifts.body()) && /Client since \(the default\)/.test(gifts.body()));
+});
+
+t("order: with Slate, Month rhythm and the org profile all on, the org profile comes third", () => {
+  [admin, bk, tempAdmin, am].forEach((ctx) => {
+    const seq = [];
+    const rows = {};
+    withWin({ mgb_slate_cache: "1", mgb_rhythm_cache: "1", mgb_orgprofile_cache: "1", mgb_brand_cache: "1", mgb_hovernav_cache: "1" }, false, () => {
+      for (let i = 0; i < 40; i++) {
+        const pick = L.ANN_pickNext(ANN_REGISTRY, state({ rows }), ctx, SLATE_NOW);
+        if (!pick) break;
+        seq.push(pick.id);
+        rows[pick.id] = { status: "dismissed", later_count: 0 };
+      }
+    });
+    const s = seq.filter((id) => id !== "view-as-whole-app");
+    assert.deepStrictEqual(s.slice(0, 3), ["slate-app-launch", "month-rhythm-launch", "client-org-profile-launch"]);
+  });
+});
+
 // ---- Notice order among the three 2026-10-21 launches ---------------------------
 t("order: slate-app-launch is registered above slate-view-bar and new-look-and-layout", () => {
   const ids = ANN_REGISTRY.map((x) => x.id);

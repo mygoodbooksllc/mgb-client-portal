@@ -635,6 +635,17 @@ const TIPS_CATALOG = [
     adminDoc: true,
   },
   {
+    // Client org profile launch (2026-10-25). Team › Client gifts is real admins only.
+    id: "op-gifts-basis",
+    roles: "admin",
+    match: (r) => r.page === "team" && TIPS_tab("tp-tab-gifts"),
+    target: "op-gifts-basis",
+    text: "Anniversary to follow is one choice for the whole firm: Client since (the default) or the founding date. It changes this list and the weekly digest count.",
+    slug: "client-org-profile",
+    adminDoc: true,
+    ready: () => !!document.querySelector('[data-tour="op-gifts-basis"]'),
+  },
+  {
     id: "members-last-seen",
     roles: "admin",
     match: (r) => r.page === "hr" && TIPS_tab("tp-tab-members"),

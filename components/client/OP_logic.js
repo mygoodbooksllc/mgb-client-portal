@@ -317,6 +317,23 @@ function OP_occasionLabel(occ) {
   return occ === "established" ? "Founded" : "Client since";
 }
 
+// Which anniversary Team › Client gifts and the digest follow (firm-wide,
+// tk_settings org_gift_basis; supabase/client-org-gift-basis.sql). Anything
+// but "established" reads as the default, "client_since" (same as the server).
+var OP_GIFT_BASES = [
+  { value: "client_since", label: "Client since (default)", hint: "The date they became a client." },
+  { value: "established", label: "Founding date", hint: "The date the organization was founded. Clients with no known founding date use Client since." },
+];
+function OP_giftBasisValid(v) {
+  return v === "client_since" || v === "established";
+}
+function OP_giftBasisNorm(v) {
+  return v === "established" ? "established" : "client_since";
+}
+function OP_giftBasisLabel(v) {
+  return OP_giftBasisNorm(v) === "established" ? "Founding date" : "Client since";
+}
+
 // The weekly digest's line, computed from the anniversary rows the Client
 // gifts tab already has (same wording as weekly-admin-digest's
 // orgAnniversaries.ts). Counts distinct clients.
@@ -363,6 +380,10 @@ if (typeof module !== "undefined" && module.exports) {
     OP_fmtMonthDay: OP_fmtMonthDay,
     OP_yearsLabel: OP_yearsLabel,
     OP_occasionLabel: OP_occasionLabel,
+    OP_GIFT_BASES: OP_GIFT_BASES,
+    OP_giftBasisValid: OP_giftBasisValid,
+    OP_giftBasisNorm: OP_giftBasisNorm,
+    OP_giftBasisLabel: OP_giftBasisLabel,
     OP_digestLine: OP_digestLine,
     OP_giftStatus: OP_giftStatus,
   };

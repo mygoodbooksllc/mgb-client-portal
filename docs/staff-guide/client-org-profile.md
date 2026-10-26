@@ -2,11 +2,9 @@
 title: What is a client's organization profile, and how do client gifts work?
 section: Admin
 audience: staff
-keywords: [organization profile, org profile, client profile, card name, gift, gifts, client gifts, anniversary, anniversaries, client since, established, founded, fiscal year end, main contact, courier, delivery, get to know, favorite treat, allergies, budget, import, dry run]
+keywords: [anniversary to follow, gift basis, founding date, organization profile, org profile, client profile, card name, gift, gifts, client gifts, anniversary, anniversaries, client since, established, founded, fiscal year end, main contact, courier, delivery, get to know, favorite treat, allergies, budget, import, dry run]
 sort: 552
 ---
-DRAFT - not live until the owner flips tk_settings.org_profile_enabled. Not in the guide table yet: at launch, drop this header line, move the file to docs/staff-guide/client-org-profile.md and sync it with a targeted guide SQL (upserts only). Until then each person can try it with **Client org profile + gifts (preview)** in Settings › Firm settings › Developer tools › Feature flags.
-
 A client's **organization profile** holds the few details we need to address things to them correctly and mark their milestones: the name for cards and gifts, the kind of organization, when it was established, where gifts go, who receives deliveries, a main contact and the fiscal year end. Nothing in it emails anyone or orders anything.
 
 ### What clients see
@@ -28,7 +26,8 @@ A client's **organization profile** holds the few details we need to address thi
 
 **Team › Client gifts** (real admins only; not during View as) has:
 
-- **Anniversaries in the next 30 days.** Each client's Client since anniversary, and their Founded anniversary when they gave an established date. For each row: **Plan** (item, amount, notes; the amount starts at $40), **Mark sent** and **Skip**. The pill shows **Not planned**, **Planned**, **Sent** or **Skipped**. An amount outside the usual $30-45 budget gets a note but still saves.
+- **Anniversary to follow.** One choice for the whole firm: **Client since (default)**, the date they became a client, or **Founding date**, the date the organization was founded. With Founding date, a client who answered **Not sure** or left the date blank still shows on their Client since date, so nobody drops off the list. The choice changes the list below and the weekly digest count, and every change is recorded with who made it.
+- **Anniversaries in the next 30 days.** Each client's anniversary on the date chosen above (**Client since** or **Founded** in the Occasion column). For each row: **Plan** (item, amount, notes; the amount starts at $40), **Mark sent** and **Skip**. The pill shows **Not planned**, **Planned**, **Sent** or **Skipped**. An amount outside the usual $30-45 budget gets a note but still saves.
 - **Past gifts.** What was sent or skipped, with who marked it sent and when.
 - **This week's digest line.** The weekly digest shows "Anniversaries coming up: N clients" while the firm switch is on.
 - **Import dry run.** Paste the old anniversary sheet as CSV to see how many rows match a client, which don't, and which have bad dates, a missing city or ZIP, or a PO box. Nothing is saved: the real import waits for owner approval.

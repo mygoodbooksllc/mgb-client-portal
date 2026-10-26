@@ -52,6 +52,11 @@ Owner decisions (2026-10-14, 2026-10-16) are final. Built hidden behind a previe
 - Onboarding: when the gate is on, `OB_progress` gets a virtual step, "Client finished organization profile", ticked from `completed_at`. No `onboarding_steps` row is written.
 - Nothing emails anyone and nothing orders a gift. Reminders are in-app only.
 
+### 5a. Gift anniversary basis (owner request, 2026-10-25)
+- One firm-wide choice on Team › Client gifts, **Anniversary to follow**: "Client since" (the default, and the meaning of no setting) or "Founding date". Stored as `tk_settings.org_gift_basis`, a JSON string `"client_since"` or `"established"`; a trigger refuses any other value (`org_gift_basis_invalid`, 22023). Admin-writable (existing tk_settings RLS, not an owner-only key), audited in `tk_settings_audit`. RPCs `admin_gift_basis()` and `admin_set_gift_basis(p_basis)`, admin only.
+- `op__anniversaries` follows it, so `admin_upcoming_anniversaries` and the digest count both do. Client since: only Client since rows (before 2026-10-25 the list showed both occasions). Founding date: the founding date, and Client since for any client whose founding date is "Not sure" or blank, so no client drops off.
+- File `supabase/client-org-gift-basis.sql` (additive, applied 2026-10-25) plus `client-org-gift-basis-tests.sql` (rolls back).
+
 ## 6. Weekly digest
 - `weekly-admin-digest` adds a single line to Coming up: "Anniversaries coming up: N clients" (next 30 days). The line appears only when the digest-count RPC returns a number, which happens only when the firm switch is on. With the switch off the email is unchanged.
 
@@ -61,7 +66,7 @@ Owner decisions (2026-10-14, 2026-10-16) are final. Built hidden behind a previe
 - No sheet content goes into the repo, tests, reports or commits.
 
 ## 8. Upkeep
-- Guide drafts in `docs/staff-guide/drafts/`, not applied to live rows. A What's new draft. A hidden launch notice and tour in announcements.js, visible only when the switch is on. README, MGB_VERSION, FEATURE_FLAGS, the switches table, INFRA_LINKS and PAGE_META if needed. A client `?` menu entry stays gated.
+- LIVE 2026-10-25: guide `docs/staff-guide/client-org-profile.md` and the What's new entry are published; the launch notice is dated 2026-10-25. (Built as drafts in `docs/staff-guide/drafts/`.) A What's new draft. A hidden launch notice and tour in announcements.js, visible only when the switch is on. README, MGB_VERSION, FEATURE_FLAGS, the switches table, INFRA_LINKS and PAGE_META if needed. A client `?` menu entry stays gated.
 
 ## 9. Security critique resolutions (Opus, 2026-10-23), all binding
 1. Table grants: `revoke all on <t> from public, anon, authenticated`. Then grant select on client_org_profile and client_get_to_know, and select/insert/update/delete on client_gifts, to authenticated. RLS decides who sees rows.
