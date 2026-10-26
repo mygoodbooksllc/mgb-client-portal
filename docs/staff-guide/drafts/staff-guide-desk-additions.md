@@ -7,6 +7,7 @@ Draft for the hidden Desk additions preview (localStorage `mgb_deskplus_preview`
 - S1: The Desk Inbox has a new Ledger chip for your Ledger (GL Review) items.
 - S2: The Desk's Client tab now shows what's waiting on the client, their latest messages and their latest files, under the client's tasks.
 - S3: The Desk's Client tab has two new buttons next to + Task: Ask client (send the client a question or a document request without picking a task) and Message (open the chat on that client).
+- S4: The + menu (top bar, Desk rail and phone) has three new items: Ask client…, Message… and Time off.
 
 ## Ledger chip
 
@@ -32,6 +33,18 @@ On the Desk's **Client** tab, two buttons sit next to **+ Task**:
 - **Message** opens the chat on that client without leaving the page (on the Inbox page it takes you to the client's Messages instead).
 
 Both buttons show only for a client you can open.
+
+## The + menu: Ask client…, Message… and Time off (S4)
+
+Click the **+** (top bar, Desk rail, or the top bar on a phone). Three new lines join **New task**:
+
+- **Ask client…** On a client's page it opens Ask client for that client straight away. On any other page it first asks which client (type to find one; the same clients as the Client tab picker, so no MGB internal and no test clients unless **Show test clients** is on), then opens Ask client. It is the same window as on a task, with no task attached.
+- **Message…** On a client's page it opens the chat on that client (this replaces the old **Message** line there). On any other page it opens the chat list.
+- **Time off** opens **My time off** in a window: add or remove days you'll be away, and **Hand my tasks to backups** works as it does on Team › People.
+
+**Request document** and **New note** stay as they were. Esc closes the window first, then the Desk.
+
+Guide files to update at launch (a "new way in" line each): `time-off-coverage.md` (**Time off** in the + menu) and `ask-client.md` (**Ask client…** in the + menu and the Client tab's **Ask client** button, no task needed).
 
 Tip (draft, add to tips.md at launch; already in Tips.jsx and shows only while the Desk additions preview is on):
 

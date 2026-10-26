@@ -249,7 +249,7 @@ var WB_RAIL_ITEMS = [
 ];
 
 // The slim rail (closed column, dock only).
-function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
+function WB_DeskRail({ counts, lines, unread, quickClient, clients, onPick, onOpen }) {
   const [idx, setIdx] = React.useState(0);
   // R2 (R1 leftover): Esc hides the flyouts (WCAG 1.4.13, dismissible
   // without moving the pointer or focus). They come back when the pointer
@@ -367,7 +367,7 @@ function WB_DeskRail({ counts, lines, unread, quickClient, onPick, onOpen }) {
         );
       })}
       <div className="wb-rail-gap" aria-hidden="true" />
-      {hasAdd && <TB_QuickAdd client={quickClient} variant="rail" tabIndex={idx === WB_RAIL_ITEMS.length ? 0 : -1} />}
+      {hasAdd && <TB_QuickAdd client={quickClient} variant="rail" deskOn={true} clients={clients} tabIndex={idx === WB_RAIL_ITEMS.length ? 0 : -1} />}
     </div>
   );
 }
@@ -1112,6 +1112,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
             lines={railLines}
             unread={!!messagesUnread}
             quickClient={pageClient ? { id: pageClient.id, name: pageClient.name } : null}
+            clients={clients}
             onPick={onRailPick}
             onOpen={() => openTo(null, "rail")}
           />

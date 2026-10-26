@@ -17501,6 +17501,9 @@ const USAGE_ACTION_LABELS = {
   // Desk additions clicks wb-hub:client-waiting, wb-hub:client-msg,
   // wb-hub:client-file, wb-hub:client-ask and wb-hub:client-message count here too.
   "wb-hub": "Desk: Slate and Client tabs opened, clients picked, and (Desk additions preview) Client tab waiting, message and file rows opened, and its Ask client and Message buttons used",
+  // Desk additions (preview): the + menu's Ask client..., Message... and Time off
+  // (wb-quick:ask, wb-quick:message, wb-quick:timeoff).
+  "wb-quick": "+ menu (Desk additions preview): Ask client…, Message… and Time off used",
   "wb-pin": "Desk Client tab: clients pinned or unpinned",
   "wb-resize": "Desk width changed (drag or keys)",
   "wb-rail": "Desk rail icons used (messages, reviews, files, mentions)",

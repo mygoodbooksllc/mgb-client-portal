@@ -1,0 +1,6 @@
+-- Desk additions (S1-S4) staff guide rows.
+-- Not applied: apply at launch when the owner flips deskplus_enabled.
+-- Nothing to run yet: at launch (slice S5) generate the upserts for workbench, time-off-coverage and ask-client
+-- (and the What's new entry) from docs/staff-guide/drafts/staff-guide-desk-additions.md, the way
+-- supabase/staff-guide-slate-s6.sql was made (upserts only, idempotent, inside begin; ... commit;).
+-- The draft text is NOT in the live guide while the additions are hidden.

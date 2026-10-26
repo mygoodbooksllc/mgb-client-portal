@@ -321,6 +321,31 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
     assert.deepStrictEqual(X.WB_cxStep(m, "B", true), { reset: true, run: "all" });
   });
 
+  await t("quick picker: filters by name (starts-with first), skips blanks, never mutates the pool", async () => {
+    const pool = [
+      { id: "c", name: "Zion Bakery" },
+      { id: "a", name: "Acme  Roofing" },
+      { id: "b", name: "Grace Acme" },
+      { id: "d", name: "  " },
+      { id: "e", name: "Beta" },
+      null,
+    ];
+    const copy = JSON.stringify(pool);
+    assert.deepStrictEqual(X.WB_quickPickFilter(pool, "").map((c) => c.id), ["a", "e", "b", "c"]);
+    assert.deepStrictEqual(X.WB_quickPickFilter(pool, "acme").map((c) => c.id), ["a", "b"], "starts-with before contains");
+    assert.deepStrictEqual(X.WB_quickPickFilter(pool, "  ACME roof ").map((c) => c.id), ["a"]);
+    assert.deepStrictEqual(X.WB_quickPickFilter(pool, "nope"), []);
+    assert.deepStrictEqual(X.WB_quickPickFilter(null, "x"), []);
+    assert.strictEqual(JSON.stringify(pool), copy);
+  });
+
+  await t("quick message: chat opened, else the Messages page on a client page or the Desk chip off one", async () => {
+    assert.strictEqual(X.WB_quickMessageStep(true, true), "done");
+    assert.strictEqual(X.WB_quickMessageStep(false, true), "done");
+    assert.strictEqual(X.WB_quickMessageStep(true, false), "page");
+    assert.strictEqual(X.WB_quickMessageStep(false, false), "inbox");
+  });
+
   console.log("WB_clientExtras: " + n + " tests passed");
 })().catch((e) => {
   console.error(e);

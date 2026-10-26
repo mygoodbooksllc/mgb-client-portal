@@ -1857,3 +1857,48 @@ html.wb-hub-open .si-drawer-layer {
 
 .wb-hub-popout { display: flex; justify-content: flex-end; margin: 0 0 6px; }
 .wb-hub-popout .tk-popout-btn { font-size: 12px; }
+
+/* Desk additions S4 (hidden): the + menu's client picker and Time off windows */
+.wb-qp-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface, transparent);
+  color: var(--text);
+  font: inherit;
+}
+.wb-qp-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
+}
+.wb-qp-opt {
+  display: block;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.wb-qp-opt:hover {
+  background: var(--hover-bg);
+}
+.wb-qp-opt:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--selected-outline, var(--accent));
+}
+.wb-qp-none {
+  margin: 12px 2px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}

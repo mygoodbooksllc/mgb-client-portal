@@ -1286,7 +1286,7 @@ function TB_TasksBadge({ items, me, client }) {
 // variant "rail": the same menu at the foot of the Desk rail (R1), opening up
 // and to the left; its own classes (no tb-quick / tb-menu-wrap, which the
 // phone layout hides and the top bar's :has() rules key on).
-function TB_QuickAdd({ client, variant, tabIndex }) {
+function TB_QuickAdd({ client, variant, tabIndex, deskOn, clients }) {
   const rail = variant === "rail";
   const menu = TB_useMenu();
   // TK_QuickAddHost may mount after this renders: follow its ready event.
@@ -1297,7 +1297,10 @@ function TB_QuickAdd({ client, variant, tabIndex }) {
     on();
     return () => window.removeEventListener("tk:quick-add-ready", on);
   }, []);
-  if (!client && !tk) return null;
+  // Desk additions (WB_plus.js, WB_QuickActions.jsx): off = this menu is exactly as before.
+  const plusOn = typeof WB_useDeskPlus === "function" ? WB_useDeskPlus(!!deskOn) : false;
+  const [wbq, setWbq] = useState(null);
+  if (!client && !tk && !plusOn) return null;
   const run = (kind) => {
     menu.close(false);
     if (kind === "task" && TB_tkQuickReady()) {
@@ -1341,12 +1344,26 @@ function TB_QuickAdd({ client, variant, tabIndex }) {
               <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("request")}>
                 Request document
               </button>
-              <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("message")}>
-                Message
-              </button>
+              {!plusOn && (
+                <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("message")}>
+                  Message
+                </button>
+              )}
             </>
           )}
+          {plusOn && typeof WB_QuickItems === "function" && (
+            <WB_QuickItems
+              client={client}
+              onRun={(kind) => {
+                menu.close(false);
+                setWbq(WB_quickStart(kind, client));
+              }}
+            />
+          )}
         </div>
+      )}
+      {plusOn && wbq && typeof WB_QuickHost === "function" && (
+        <WB_QuickHost kind={wbq} client={client} clients={clients} onClose={() => setWbq(null)} />
       )}
     </div>
   );
@@ -1802,7 +1819,7 @@ function TB_StaffTopBar({
         {isRealAdmin && own && !ssAlertsShown && <TB_ThrottleBadge />}
         {own && <TB_Bell clients={typeof window.mgbRealClients === "function" ? window.mgbRealClients(clients) : clients} items={items} me={me} isAdmin={isAdmin} isRealAdmin={isRealAdmin} page={page} />}
         {own && (deskOn ? <TB_SlateLink /> : <TB_TasksBadge items={items} me={me} client={client} />)}
-        {!deskDocked && <TB_QuickAdd client={client} />}
+        {!deskDocked && <TB_QuickAdd client={client} deskOn={deskOn} clients={clients} />}
         <TB_HelpButton page={page} isAdmin={isAdmin && !impersonating} />
         {typeof FB_FeedbackHost === "function" && <FB_FeedbackHost clientId={client ? client.id : null} />}
         <TB_AvatarMenu

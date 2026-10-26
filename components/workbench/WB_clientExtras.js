@@ -355,8 +355,48 @@ function WB_cxChanged(mem, showing) {
   return null;
 }
 
+// ---- Desk additions S4: the + menu's pure rules (WB_QuickActions.jsx) ----
+
+// The client picker that "Ask client..." shows off a client page. pool is
+// WB_hubPickerPool(clients, showTest, null) (no MGB internal, no test client
+// unless "Show test clients" is on); the query matches the name, case and
+// spacing ignored, starts-with first, then contains; sorted by name.
+function WB_quickPickFilter(pool, query) {
+  var q = String(query == null ? "" : query).toLowerCase().replace(/\s+/g, " ").trim();
+  var rows = (Array.isArray(pool) ? pool : []).filter(function (c) {
+    return c && c.id != null && String(c.name || "").trim() !== "";
+  });
+  var key = function (c) {
+    return String(c.name).toLowerCase().replace(/\s+/g, " ").trim();
+  };
+  var out = q
+    ? rows.filter(function (c) {
+        return key(c).indexOf(q) >= 0;
+      })
+    : rows.slice();
+  out.sort(function (a, b) {
+    var sa = q && key(a).indexOf(q) === 0 ? 0 : 1;
+    var sb = q && key(b).indexOf(q) === 0 ? 0 : 1;
+    if (sa !== sb) return sa - sb;
+    return key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : String(a.id) < String(b.id) ? -1 : 1;
+  });
+  return out;
+}
+
+// What "Message..." does after asking the app to open the chat drawer
+// (mgb:open-chat; handled = the app took it): "done" = the chat drawer is
+// open; with the app declining (the Inbox page itself, or no staff chat), on
+// a client page "page" = fall back to the client's Messages (the old
+// Message item's own path) and off one "inbox" = the Desk's Messages chip.
+function WB_quickMessageStep(hasClient, handled) {
+  if (handled === true) return "done";
+  return hasClient ? "page" : "inbox";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    WB_quickPickFilter: WB_quickPickFilter,
+    WB_quickMessageStep: WB_quickMessageStep,
     WB_cxMem: WB_cxMem,
     WB_cxStep: WB_cxStep,
     WB_cxChanged: WB_cxChanged,
