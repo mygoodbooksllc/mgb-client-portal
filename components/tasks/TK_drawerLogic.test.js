@@ -15,7 +15,7 @@ function t(name, fn) {
 // ---- TK_EDITABLE_FIELDS / TK_buildPatch
 t("whitelist matches TK_api.update", () => {
   assert.deepStrictEqual(L.TK_EDITABLE_FIELDS, [
-    "text", "description", "due_date", "due_at", "remind_at", "start_on", "priority", "kind", "recurrence",
+    "text", "description", "due_date", "due_at", "remind_at", "start_on", "priority", "kind", "recurrence", "recurrence_rule",
     "section", "sort_key", "sop_section", "review_required", "assignee_email", "visibility", "parent_id",
     "client_id", "project_id",
   ]);

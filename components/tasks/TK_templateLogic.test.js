@@ -39,7 +39,29 @@ t("cadences match the cadence check", () => {
   const m = /task_templates_cadence\s+check \(cadence in \(([^)]*)\)\)/.exec(SQL);
   assert.ok(m, "check found");
   const ids = m[1].split(",").map((s) => s.trim().replace(/'/g, ""));
-  assert.deepStrictEqual(T.TK_TPL_CADENCES.map((c) => c.value), ids);
+  // the repeat menu (supabase/repeat-menu.sql) adds 'custom' to the check
+  const rm = require("fs").readFileSync(require("path").join(__dirname, "../../supabase/repeat-menu.sql"), "utf8");
+  assert.ok(/check \(cadence = any \(array\[[^\]]*'custom'\]\)\)/.test(rm), "custom in the repeat-menu cadence check");
+  assert.deepStrictEqual(T.TK_TPL_CADENCES.map((c) => c.value), ids.concat("custom"));
+});
+
+t("custom schedule: validate, payload, upcoming", () => {
+  const rule = { v: 1, freq: "weekly", interval: 2, dows: [1], start: "2026-10-26", end: { type: "never" } };
+  const d = Object.assign(T.TK_tplBlank(), { title: "Biweekly check", cadence: "custom", repeat_rule: rule });
+  assert.strictEqual(T.TK_tplValidate(d), null);
+  assert.ok(T.TK_tplValidate(Object.assign({}, d, { repeat_rule: null })).repeat_rule, "needs a rule");
+  assert.ok(T.TK_tplValidate(Object.assign({}, d, { repeat_rule: Object.assign({}, rule, { start: undefined }) })).repeat_rule, "needs a first date");
+  const p = T.TK_tplToPayload(d);
+  assert.deepStrictEqual(p.repeat_rule, rule);
+  assert.deepStrictEqual(p.due_rule, { type: "offset", days: 0 });
+  assert.strictEqual(p.cadence, "custom");
+  assert.strictEqual(T.TK_tplToPayload(Object.assign({}, d, { cadence: "monthly" })).repeat_rule, undefined);
+  const up = T.TK_tplUpcoming(Object.assign({}, d, { lead_days: 3 }), { today: "2026-10-25", count: 3, holidays: [] });
+  assert.deepStrictEqual(up.map((r) => r.due), ["2026-10-26", "2026-11-09", "2026-11-23"]);
+  assert.deepStrictEqual(up.map((r) => r.when), ["now", "later", "later"]);
+  assert.strictEqual(up[1].startOn, "2026-11-06");
+  assert.strictEqual(T.TK_tplFromRow({ cadence: "custom", repeat_rule: rule }).repeat_rule.interval, 2);
+  assert.ok(T.TK_TPL_ERR_TEXT ? T.TK_TPL_ERR_TEXT.tk_bad_repeat_rule : true);
 });
 
 t("every skip reason the SQL returns has text", () => {

@@ -361,6 +361,14 @@ function TK_tplNextList(props) {
   return (
     <ul className="tk-tpl-next-list">
       {list.map(function (p) {
+        if (props.tpl && props.tpl.cadence === "custom") {
+          return (
+            <li key={p.due}>
+              <strong>{"Due " + TK_tplFmtDate(p.due)}</strong>
+              <span className="tk-muted">{p.when === "now" ? " · made on the next run" : " · shows up " + TK_tplFmtDate(p.startOn)}</span>
+            </li>
+          );
+        }
         return (
           <li key={p.start}>
             <strong>{p.label}</strong>
@@ -465,7 +473,7 @@ function TK_tplEditor(props) {
     })
     .slice(0, 200);
 
-  var tplForPreview = { cadence: d.cadence, due_rule: d.rule, lead_days: d.lead_days, period_basis: d.period_basis };
+  var tplForPreview = { cadence: d.cadence, due_rule: d.rule, repeat_rule: d.repeat_rule, lead_days: d.lead_days, period_basis: d.period_basis };
 
   return (
     <TK_vModal onClose={props.onClose} labelledBy={titleId} className="tk-modal tk-tpl-editor">
@@ -521,6 +529,11 @@ function TK_tplEditor(props) {
                 onChange={function (e) {
                   var c = e.target.value;
                   var allowed = TK_TPL_RULES_BY_CADENCE[c] || [];
+                  if (c === "custom") {
+                    var seed = d.repeat_rule || TK_repeatDefault("weekly", props.today);
+                    set({ cadence: c, repeat_rule: seed.start ? seed : Object.assign({}, seed, { start: props.today }) });
+                    return;
+                  }
                   var r = d.rule && TK_tplRuleAllowed(c, d.rule.type) ? d.rule : TK_tplDefaultRule(allowed[0], c);
                   set({ cadence: c, rule: r });
                 }}
@@ -558,6 +571,29 @@ function TK_tplEditor(props) {
             </p>
           ) : null}
 
+          {d.cadence === "custom" ? (
+            <div className="tk-field">
+              <TK_RepeatEditor
+                kind="template"
+                live
+                withTime={false}
+                idPrefix="tk-tpl-rpt"
+                value={d.repeat_rule}
+                start={(d.repeat_rule && d.repeat_rule.start) || props.today}
+                today={props.today}
+                holidays={props.holidays}
+                onChange={function (r) {
+                  set({ repeat_rule: r });
+                }}
+              />
+              {errs && errs.repeat_rule ? (
+                <p className="tk-field-error" role="alert">
+                  {errs.repeat_rule}
+                </p>
+              ) : null}
+              {cadenceLocked ? <p className="tk-field-help">The schedule can change. The Custom setting itself is fixed once a template has been on.</p> : null}
+            </div>
+          ) : (
           <TK_tplRuleBuilder
             id="tk-tpl-ed-rule"
             cadence={d.cadence}
@@ -569,6 +605,7 @@ function TK_tplEditor(props) {
               set({ rule: r });
             }}
           />
+          )}
 
           <div className="tk-tpl-grid">
             <label className="tk-field">
@@ -1052,6 +1089,10 @@ function TK_tplOverrideModal(props) {
               }}
             />
           </label>
+          {t.cadence === "custom" ? (
+            <p className="tk-field-help">{"Repeats: " + TK_tplScheduleText(t, null, props.rhythm)}</p>
+          ) : (
+            <React.Fragment>
           <div className="tk-field tk-field-switch">
             <TK_vSwitch
               checked={!!rule}
@@ -1074,6 +1115,8 @@ function TK_tplOverrideModal(props) {
             />
           ) : (
             <p className="tk-field-help">{"Due: " + TK_dueRuleText(TK_tplEffectiveRule(t, null), t.cadence, props.rhythm)}</p>
+          )}
+            </React.Fragment>
           )}
           <label className="tk-field">
             <span className="tk-field-label">Who does it</span>
@@ -1488,7 +1531,7 @@ function TK_tplClientPanel(props) {
                     {changed ? <span className="tk-tpl-status is-changed">Changed for this client</span> : null}
                   </div>
                   <div className="tk-tpl-meta tk-muted">
-                    {TK_tplLabelOf(TK_TPL_CADENCES, t.cadence) + " · " + TK_dueRuleText(TK_tplEffectiveRule(t, override), t.cadence, rhythmFor)}
+                    {TK_tplLabelOf(TK_TPL_CADENCES, t.cadence) + " · " + TK_tplScheduleText(t, override, rhythmFor)}
                   </div>
                   <div className="tk-tpl-meta">
                     {skip
@@ -1964,7 +2007,7 @@ function TK_vTemplatesBody(props) {
           <div className="tk-tpl-meta tk-muted">
             {TK_tplLabelOf(TK_TPL_CADENCES, t.cadence) +
               " · " +
-              TK_dueRuleText(TK_tplEffectiveRule(t, null), t.cadence, rhythm) +
+              TK_tplScheduleText(t, null, rhythm) +
               " · " +
               applies +
               " · " +

@@ -809,6 +809,79 @@ var TK_DW_RECURRENCES = [
   ["month_end", "Month end"],
 ];
 
+// The Repeat row: the simple choices, plus "Custom…" which opens the Repeat menu
+// (TK_RepeatMenu.jsx). Picking a simple choice clears any custom rule.
+function TK_DwRepeatRow(props) {
+  var task = props.task;
+  var open = React.useState(false);
+  var holidaysState = React.useState([]);
+  var isCustom = task.recurrence === "custom" && task.recurrence_rule;
+  React.useEffect(function () {
+    if (!open[0] || typeof TK_api === "undefined" || !TK_api.holidays) return;
+    var alive = true;
+    TK_api.holidays().then(function (h) { if (alive) holidaysState[1](h || []); }).catch(function () {});
+    return function () { alive = false; };
+  }, [open[0]]);
+  var timeOf = typeof TK_dlTimeOf === "function" ? TK_dlTimeOf(task.due_at) : "";
+  var summary = isCustom ? TK_repeatText(task.recurrence_rule, task.due_date) : "";
+  var saveRule = function (rule) {
+    var patch = { recurrence: "custom", recurrence_rule: rule };
+    if (rule.time && task.due_date) patch.due_at = TK_repeatDueAt(task.due_date, rule.time, rule.tz || "America/Chicago");
+    else if (!rule.time && timeOf && task.due_at) patch.due_at = TK_dlDueAt(task.due_date, timeOf);
+    props.save(patch);
+    open[1](false);
+  };
+  return (
+    <div className="tk-dw-value">
+      <select
+        id="tk-dw-repeat"
+        className="tk-dw-select"
+        value={task.recurrence || "none"}
+        disabled={props.disabled || !task.due_date}
+        title={!task.due_date ? "Add a due date to repeat this task." : undefined}
+        onChange={function (e) {
+          if (e.target.value === "custom") open[1](true);
+          else {
+            open[1](false);
+            props.save({ recurrence: e.target.value, recurrence_rule: null });
+          }
+        }}
+      >
+        {TK_DW_RECURRENCES.map(function (r) {
+          return (
+            <option key={r[0]} value={r[0]}>
+              {r[1]}
+            </option>
+          );
+        })}
+        <option value="custom">{isCustom ? "Custom" : "Custom…"}</option>
+      </select>
+      {isCustom && !open[0] ? (
+        <p className="tk-field-help">
+          {summary}{" "}
+          {!props.disabled ? (
+            <button type="button" className="tk-rpt-link" onClick={function () { open[1](true); }}>
+              Edit
+            </button>
+          ) : null}
+        </p>
+      ) : null}
+      {open[0] ? (
+        <TK_RepeatEditor
+          kind="task"
+          idPrefix="tk-dw-rpt"
+          value={isCustom ? task.recurrence_rule : null}
+          start={task.due_date}
+          today={props.today}
+          holidays={holidaysState[0]}
+          onSave={saveRule}
+          onCancel={function () { open[1](false); }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function TK_DrawerContent(props) {
   var p = props || {};
   var taskId = p.taskId;
@@ -1667,24 +1740,7 @@ function TK_DrawerContent(props) {
           <label className="tk-dw-label" htmlFor="tk-dw-repeat">
             Repeat
           </label>
-          <div className="tk-dw-value">
-            <select
-              id="tk-dw-repeat"
-              className="tk-dw-select"
-              value={task.recurrence || "none"}
-              disabled={fieldDisabled || !task.due_date}
-              title={!task.due_date ? "Add a due date to repeat this task." : undefined}
-              onChange={function (e) { save({ recurrence: e.target.value }); }}
-            >
-              {TK_DW_RECURRENCES.map(function (r) {
-                return (
-                  <option key={r[0]} value={r[0]}>
-                    {r[1]}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
+          <TK_DwRepeatRow task={task} disabled={fieldDisabled} save={save} today={today} />
 
           {(task.client_id || task.project_id) && (
             <React.Fragment>

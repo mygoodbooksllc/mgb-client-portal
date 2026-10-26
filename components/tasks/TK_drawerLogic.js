@@ -12,7 +12,7 @@
 
 // The same whitelist as TK_api.update (C5).
 var TK_EDITABLE_FIELDS = [
-  "text", "description", "due_date", "due_at", "remind_at", "start_on", "priority", "kind", "recurrence",
+  "text", "description", "due_date", "due_at", "remind_at", "start_on", "priority", "kind", "recurrence", "recurrence_rule",
   "section", "sort_key", "sop_section", "review_required", "assignee_email", "visibility", "parent_id",
   "client_id", "project_id",
 ];

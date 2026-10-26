@@ -15,6 +15,8 @@ var TK_TPL_CADENCES = [
   { value: "monthly", label: "Monthly", period: "month" },
   { value: "quarterly", label: "Quarterly", period: "quarter" },
   { value: "annually", label: "Annually", period: "year" },
+  // Repeat menu: any pattern the Repeat menu can make (every 2 weeks, 2nd Tuesday...).
+  { value: "custom", label: "Custom schedule", period: "occurrence" },
 ];
 
 var TK_TPL_ROLES = [
@@ -40,6 +42,8 @@ var TK_TPL_RULES_BY_CADENCE = {
   monthly: ["business_day", "eom", "day_of_month", "nth_weekday", "offset"],
   quarterly: ["business_day", "eom", "day_of_month", "nth_weekday", "offset"],
   annually: ["business_day", "eom", "day_of_month", "nth_weekday", "offset"],
+  // custom has no due-date rule: its Repeat menu schedule gives the dates
+  custom: [],
 };
 
 var TK_TPL_RULE_LABELS = {
@@ -141,6 +145,16 @@ var TK_TPL_STATUS_LABELS = { draft: "Draft", active: "On", paused: "Paused", ret
 
 var TK_TPL_DOW = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+var TK_tplRpt = (function () {
+  if (typeof window !== "undefined" && window.TK_repeat) return window.TK_repeat;
+  if (typeof require === "function") {
+    try {
+      return require("./TK_repeatLogic.js");
+    } catch (e) {}
+  }
+  return null;
+})();
+
 var TK_tplRec = (function () {
   if (typeof TK_recurrence !== "undefined" && TK_recurrence) return TK_recurrence;
   if (typeof require === "function") {
@@ -205,6 +219,17 @@ function TK_tplEffectiveRule(t, override) {
   if (t && TK_tplIsObj(t.due_rule)) return t.due_rule;
   var d = t && t.due_offset_days != null ? Number(t.due_offset_days) : 10;
   return { type: "offset", days: isFinite(d) ? d : 10 };
+}
+
+// The list / detail line for when a template is due: the due-date rule, or
+// for a custom schedule the Repeat menu's plain-words summary.
+function TK_tplScheduleText(t, override, rhythm) {
+  if (t && t.cadence === "custom") {
+    var rr = t.repeat_rule;
+    if (TK_tplRpt && rr && TK_tplRpt.TK_repeatValid(rr)) return TK_tplRpt.TK_repeatText(rr, rr.start);
+    return "Custom schedule";
+  }
+  return TK_dueRuleText(TK_tplEffectiveRule(t, override), t && t.cadence, rhythm);
 }
 
 function TK_tplOrdinal(n) {
@@ -318,6 +343,7 @@ function TK_tplAddDays(ymd, n) {
 function TK_tplUpcoming(tpl, opts) {
   var rec = TK_tplRec;
   var o = opts || {};
+  if (tpl && tpl.cadence === "custom") return TK_tplUpcomingCustom(tpl, o);
   if (!rec || !tpl || !o.today) return null;
   var rule = TK_tplEffectiveRule(tpl, o.override);
   if (!rec.TK_dueRuleValid(rule)) return null;
@@ -353,6 +379,32 @@ function TK_tplUpcoming(tpl, opts) {
       }
     }
     start = TK_tplAddDays(end, 1);
+  }
+  return out;
+}
+
+// The custom schedule's version of TK_tplUpcoming: one row per date. A task
+// is made lead_days ahead and, like the generator, dates more than 7 days
+// past are listed as missed and never created.
+function TK_tplUpcomingCustom(tpl, o) {
+  var rpt = TK_tplRpt;
+  var rule = tpl.repeat_rule;
+  if (!rpt || !o.today || !rule || !rpt.TK_repeatValid(rule) || !rule.start) return null;
+  var lead = Math.max(0, Number(tpl.lead_days) || 0);
+  var count = o.count || 3;
+  var hol = o.holidays || [];
+  var from = TK_tplAddDays(o.today, -7);
+  var act = o.activatedOn || o.today;
+  if (act > from) from = act;
+  var dates = rpt.TK_repeatSeries(rule, rule.start, TK_tplAddDays(o.today, 366 * 3), hol, 400);
+  var out = [];
+  for (var i = 0; i < dates.length && out.length < count; i++) {
+    var due = dates[i];
+    if (due < act) continue;
+    var startOn = TK_tplAddDays(due, -lead);
+    var when = due < TK_tplAddDays(o.today, -7) ? "missed" : startOn <= o.today ? "now" : "later";
+    if (when === "missed" && !o.withMissed) continue;
+    out.push({ start: due, end: due, label: due, due: due, startOn: startOn, when: when });
   }
   return out;
 }
@@ -397,6 +449,8 @@ function TK_tplBlank() {
     sop_section: "",
     estimate_minutes: "",
     period_basis: "calendar",
+    // Repeat menu: the schedule when cadence is "custom"
+    repeat_rule: null,
     // slice 3: the text a task gets (task_templates.description)
     description: "",
   };
@@ -449,6 +503,7 @@ function TK_tplFromRow(row) {
   d.sop_section = r.sop_section || "";
   d.estimate_minutes = r.estimate_minutes != null ? String(r.estimate_minutes) : "";
   d.period_basis = r.period_basis === "fiscal" ? "fiscal" : "calendar";
+  d.repeat_rule = TK_tplIsObj(r.repeat_rule) ? r.repeat_rule : null;
   d.status = r.status || "draft";
   d.active = r.active !== false;
   d.template_set_id = r.template_set_id || null;
@@ -471,7 +526,10 @@ function TK_tplValidate(d) {
   else if (TK_tplStripPeriod(title) !== title) e.title = "Leave the period off. Each task gets it added, like “· Sep 2026”.";
   var allowed = TK_TPL_RULES_BY_CADENCE[d && d.cadence];
   if (!allowed) e.cadence = "Pick how often it repeats.";
-  else if (!d.rule || !TK_tplRuleAllowed(d.cadence, d.rule.type)) e.rule = "Pick when it's due.";
+  else if (d.cadence === "custom") {
+    var rr = d.repeat_rule;
+    if (!TK_tplRpt || !rr || !TK_tplRpt.TK_repeatValid(rr) || !/^\d{4}-\d{2}-\d{2}$/.test(String(rr.start || ""))) e.repeat_rule = "Pick the first date and how often it repeats.";
+  } else if (!d.rule || !TK_tplRuleAllowed(d.cadence, d.rule.type)) e.rule = "Pick when it's due.";
   else if (rec && !rec.TK_dueRuleValid(d.rule)) e.rule = "That due date doesn't work. Check the numbers.";
   var lead = Number(d && d.lead_days);
   if (!(Math.floor(lead) === lead && lead >= 0 && lead <= 90)) e.lead_days = "Use 0 to 90 days.";
@@ -492,7 +550,7 @@ function TK_tplToPayload(d) {
   var p = {
     title: TK_tplStripPeriod(d.title),
     cadence: d.cadence,
-    due_rule: rule,
+    due_rule: d.cadence === "custom" ? { type: "offset", days: 0 } : rule,
     lead_days: Number(d.lead_days) || 0,
     plan_tiers: (d.plan_tiers || []).slice(),
     client_ids: (d.client_ids || []).slice(),
@@ -507,6 +565,8 @@ function TK_tplToPayload(d) {
     estimate_minutes: d.estimate_minutes === "" || d.estimate_minutes == null ? "" : String(Number(d.estimate_minutes)),
     period_basis: d.cadence === "annually" && d.period_basis === "fiscal" ? "fiscal" : "calendar",
   };
+  // Repeat menu: the schedule travels with cadence "custom" (the server needs both in one save)
+  if (d.cadence === "custom") p.repeat_rule = d.repeat_rule;
   // the legacy column stays meaningful for old readers
   if (rule && rule.type === "offset") p.due_offset_days = rule.days;
   // slice 3: only when there is (or was) one; "" clears it. email_kind is
@@ -603,6 +663,7 @@ var TK_TPL_ERR_TEXT = {
   tk_not_found: "That template is gone. Refresh the page.",
   tk_bad_reviewer: "Pick an active admin as the reviewer.",
   tk_offline: "You're offline. Try again when you're back online.",
+  tk_bad_repeat_rule: "That schedule doesn't work. Pick the first date and check the numbers.",
   tk_cadence_locked: "How often it repeats can't change once a template has been on. Retire it and make a new one.",
   tk_review_admin_only: "Only an admin can turn approval off for a client.",
   tk_bad_assignee: "Pick someone who's active on staff.",
@@ -878,6 +939,8 @@ if (typeof module !== "undefined" && module.exports) {
     TK_TPL_ROLES: TK_TPL_ROLES,
     TK_TPL_SOP: TK_TPL_SOP,
     TK_TPL_RULES_BY_CADENCE: TK_TPL_RULES_BY_CADENCE,
+    TK_tplUpcomingCustom: TK_tplUpcomingCustom,
+    TK_tplScheduleText: TK_tplScheduleText,
     TK_TPL_RULE_LABELS: TK_TPL_RULE_LABELS,
     TK_TPL_RHYTHM_CADENCES: TK_TPL_RHYTHM_CADENCES,
     TK_TPL_RHYTHM_GATE: TK_TPL_RHYTHM_GATE,

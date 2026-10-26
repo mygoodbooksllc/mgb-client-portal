@@ -21,7 +21,7 @@
 // ----------------------------------------------------------------------------
 
 var TK_TASK_COLS =
-  "id, text, description, status, done, due_date, due_at, remind_at, start_on, priority, kind, recurrence, " +
+  "id, text, description, status, done, due_date, due_at, remind_at, start_on, priority, kind, recurrence, recurrence_rule, " +
   "client_id, project_id, section, sort_key, parent_id, sop_section, review_required, assignee_email, " +
   "staff_email, created_by, visibility, source, source_ref, series_id, completed_at, status_changed_at, " +
   "status_changed_by, waiting_since, waiting_minutes, created_at, updated_at, deleted_at, " +
@@ -40,7 +40,7 @@ function TK_toast(text) {
 var TK_api = (function () {
   var TASK_FIELDS = TK_TASK_COLS.split(",").map(function (s) { return s.trim(); });
   var UPDATE_FIELDS = [
-    "text", "description", "due_date", "due_at", "remind_at", "start_on", "priority", "kind", "recurrence",
+    "text", "description", "due_date", "due_at", "remind_at", "start_on", "priority", "kind", "recurrence", "recurrence_rule",
     "section", "sort_key", "sop_section", "review_required", "assignee_email", "visibility", "parent_id",
     "client_id", "project_id",
   ];
@@ -2282,7 +2282,7 @@ var TK_api = (function () {
   var TPL_COLS =
     "id, title, cadence, due_offset_days, due_rule, lead_days, plan_tiers, client_ids, priority, active, status, checklist, " +
     "assignee_role, review_required, sop_section, estimate_minutes, period_basis, template_set_id, close_key, activated_at, " +
-    "source, created_by, created_at, updated_by, assignee_email, leave_unassigned, description, email_kind";  // slice 3 month rhythm
+    "source, created_by, created_at, updated_by, assignee_email, leave_unassigned, description, email_kind, repeat_rule";  // slice 3 month rhythm
 
   function rpcWrite(name, args, where) {
     var off = requireOnline();

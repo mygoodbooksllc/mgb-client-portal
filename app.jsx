@@ -19849,6 +19849,7 @@ const TASK_RECURRENCE_LABEL = {
   weekly: "Weekly",
   monthly: "Monthly",
   month_end: "Month end",
+  custom: "Custom repeat",
 };
 const TASK_SOURCE_LABEL = { access_request: "Access request", note: "From note", template: "Recurring" };
 

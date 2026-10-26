@@ -1194,7 +1194,8 @@ function TK_normalizeTask(row) {
   out.start_on = startOn;
   out.priority = TK__pickEnum(r.priority, TK_PRIORITIES, "normal");
   out.kind = TK__pickEnum(r.kind, ["task", "reminder"], "task");
-  out.recurrence = TK__pickEnum(r.recurrence, ["none", "daily", "weekly", "monthly", "month_end"], "none");
+  out.recurrence = TK__pickEnum(r.recurrence, ["none", "daily", "weekly", "monthly", "month_end", "custom"], "none");
+  out.recurrence_rule = out.recurrence === "custom" && r.recurrence_rule && typeof r.recurrence_rule === "object" ? r.recurrence_rule : null;
   out.client_id = r.client_id == null || r.client_id === "" ? null : String(r.client_id);
   out.project_id = r.project_id || null;
   out.section = r.section == null || r.section === "" ? null : String(r.section);
