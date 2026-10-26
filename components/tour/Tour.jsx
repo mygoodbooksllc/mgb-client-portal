@@ -1037,6 +1037,16 @@ function TOUR_deskPlusOn() {
   }
 }
 
+// True when the thread menu is on for this person (TM_gate.js: preview checkbox or firm
+// switch, never in View as). False with the gate off, so the Inbox step text stays as before.
+function TOUR_threadMenuOn() {
+  try {
+    return typeof TM_threadMenuOn === "function" && !!TM_threadMenuOn();
+  } catch (e) {
+    return false;
+  }
+}
+
 // Bookkeeper tour: a bookkeeper's day, about three minutes (owner request
 // 2026-10-09; it replaced the short generic staff tour, and "staff" still
 // starts it). Each step opens its page first (`go`). Admins can run it from
@@ -1164,7 +1174,9 @@ function TOUR_bookkeeperSteps(ctx) {
       wait: true,
       title: "Inbox",
       body: () =>
-        "Client messages land here. Reply sends to the client; Note stays inside the team. Aim to reply within 24 hours.",
+        TOUR_threadMenuOn()
+          ? "Client messages land here. Reply sends to the client; Note stays inside the team. Aim to reply within 24 hours. Right-click a thread, or click its ⋯, to rename, pin, mark done, snooze, reassign or hide it; the client never sees that."
+          : "Client messages land here. Reply sends to the client; Note stays inside the team. Aim to reply within 24 hours.",
     },
     TOUR_tabStep(
       "work",

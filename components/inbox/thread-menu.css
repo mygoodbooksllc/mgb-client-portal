@@ -1,0 +1,160 @@
+/* Thread menu (components/inbox/TM_ThreadMenu.jsx). Only new .tm-* and
+   .si-more classes, so nothing changes while the menu is off. */
+
+/* The row's ⋯ button, a sibling of .si-item inside the <li>. */
+.tm-li {
+  position: relative;
+}
+.tm-li > .si-item {
+  padding-right: 36px;
+}
+.si-more {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted, inherit);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+}
+.tm-li:hover > .si-more,
+.tm-li:focus-within > .si-more,
+.si-more[aria-expanded="true"] {
+  opacity: 1;
+}
+.si-more:hover {
+  background: var(--hover-bg);
+  border-color: var(--border);
+}
+.si-more:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+@media (hover: none) {
+  .si-more {
+    opacity: 1;
+  }
+}
+
+/* Extra tags on a row. */
+.si-tag.tm-tag {
+  color: var(--text-muted, inherit);
+  background: transparent;
+  border-color: var(--border);
+}
+.si-tag.tm-tag-pinned {
+  color: var(--gold-deep);
+  border-color: var(--warm-border);
+}
+.tm-head-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted, inherit);
+}
+
+/* The menu sits above the chat drawer (1800) and dialogs (2000-2100). */
+.tm-menu {
+  position: fixed;
+  z-index: 10000;
+  min-width: 220px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+}
+.tm-host .modal-overlay {
+  z-index: 10001;
+}
+
+/* Dialogs */
+.tm-dialog {
+  width: min(420px, calc(100vw - 32px));
+}
+.tm-dialog-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+.tm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tm-help {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text-muted, inherit);
+}
+.tm-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.tm-input {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.tm-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger, #b42318);
+}
+.tm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.tm-pick-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.tm-pick {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tm-pick:hover {
+  background: var(--hover-bg);
+}
+.tm-pick.is-current {
+  background: var(--accent-soft);
+  border-color: var(--warm-border);
+}
+.tm-pick:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+.tm-pick-sub {
+  font-size: 12px;
+  color: var(--text-muted, inherit);
+}

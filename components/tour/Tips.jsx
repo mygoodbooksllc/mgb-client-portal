@@ -318,6 +318,17 @@ const TIPS_CATALOG = [
     slug: "inbox",
   },
   {
+    // Thread menu (hidden preview): only while TM_threadMenuOn() (preview checkbox or the
+    // firm switch threadmenu_enabled, never in View as). Not in tips.md until launch.
+    id: "inbox-thread-menu",
+    roles: "all",
+    match: (r) => r.page === "inbox",
+    target: "inbox-list",
+    text: "Right-click a client thread, or click its ⋯, to rename, pin, mark done, snooze, reassign or hide it, make a task or copy a link. The client never sees it.",
+    slug: "inbox",
+    ready: () => typeof TM_threadMenuOn === "function" && !!TM_threadMenuOn(),
+  },
+  {
     // Only shows while the Desk is on (StaffInbox renders it then).
     id: "wb-noreply",
     roles: "all",

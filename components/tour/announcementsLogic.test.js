@@ -938,4 +938,34 @@ t("desk-client-actions gate: hidden until the Desk additions switch is cached an
   assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
 });
 
+t("thread-menu gate: hidden until the thread menu switch is cached, never in View as, never for clients", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "thread-menu");
+  assert.ok(a, "registered");
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  assert.strictEqual(a.hash, "#/inbox");
+  const reg = [a];
+  [{}, { mgb_threadmenu_preview: "1" }, { mgb_threadmenu_cache: "0" }].forEach((ls) => {
+    withWin(ls, false, () => {
+      [admin, bk, tempAdmin, am].forEach((ctx) => assert.deepStrictEqual(L.ANN_audience(reg, ctx), [], "hidden for " + JSON.stringify(ls)));
+    });
+  });
+  withWin({ mgb_threadmenu_cache: "1" }, false, () => {
+    [admin, bk, tempAdmin, am].forEach((ctx) => {
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), [a]);
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), a);
+    });
+    assert.strictEqual(L.ANN_pickNext(reg, state(), { role: "client" }, SLATE_NOW), null);
+    global.MGB_viewAsReadOnly = () => true;
+    try {
+      [admin, bk].forEach((ctx) => assert.deepStrictEqual(L.ANN_audience(reg, ctx), [], "never in View as"));
+    } finally {
+      delete global.MGB_viewAsReadOnly;
+    }
+  });
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((x) => x.id), ["ann-welcome", "ann-thread-menu", "ann-desk"]);
+  assert.deepStrictEqual(steps[1].targets, ["inbox-list"]);
+  assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
+});
+
 console.log("announcementsLogic: " + n + " checks passed");

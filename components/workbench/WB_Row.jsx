@@ -110,7 +110,7 @@ function WB_SnoozeMenu({ row, onClose, labelledBy }) {
   );
 }
 
-function WB_RowMenu({ row, onAction, onClose, labelledBy, hub }) {
+function WB_RowMenu({ row, onAction, onClose, labelledBy, hub, onThread }) {
   const items = hub ? WB_hubMenu(row) : WB_menuActions(row);
   const firstRef = React.useRef(null);
   React.useEffect(() => {
@@ -144,6 +144,19 @@ function WB_RowMenu({ row, onAction, onClose, labelledBy, hub }) {
           Unsnooze
         </button>
       )}
+      {onThread && (
+        <button
+          type="button"
+          role="menuitem"
+          className="wb-menu-item"
+          onClick={() => {
+            onClose(false);
+            onThread();
+          }}
+        >
+          Thread actions…
+        </button>
+      )}
     </div>
   );
 }
@@ -153,6 +166,11 @@ function WB_Row({ row, today, now, isCur, focused, compact, hub, menu, setMenu, 
   const ref = React.useRef(null);
   const menuBtn = React.useRef(null);
   const id = "wb-row-" + row.item_key.replace(/[^A-Za-z0-9_-]/g, "_");
+  // Thread menu (components/inbox/TM_gate.js) on message rows only. Off:
+  // nothing on the row changes.
+  const tmOn = typeof TM_useThreadMenu === "function" ? TM_useThreadMenu() : false;
+  const tmMsg = tmOn && row.kind === "message" && typeof TM_openDeskMenu === "function";
+  const tmOpen = (x, y) => TM_openDeskMenu(row, menuBtn.current || ref.current, menuBtn.current || ref.current, x, y);
   React.useEffect(() => {
     if (focused && ref.current && ref.current !== document.activeElement && !ref.current.contains(document.activeElement)) ref.current.focus({ preventScroll: false });
   }, [focused]);
@@ -232,6 +250,22 @@ function WB_Row({ row, today, now, isCur, focused, compact, hub, menu, setMenu, 
       onClick={(e) => {
         if (e.target === ref.current) onFocusRow();
       }}
+      {...(tmMsg
+        ? {
+            onContextMenu: (e) => {
+              e.preventDefault();
+              const pointer = !(e.clientX === 0 && e.clientY === 0);
+              tmOpen(pointer ? e.clientX : undefined, pointer ? e.clientY : undefined);
+            },
+            onKeyDown: (e) => {
+              if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
+                e.preventDefault();
+                e.stopPropagation();
+                tmOpen();
+              }
+            },
+          }
+        : {})}
     >
       <span className={"wb-pill wb-pill-" + row.source}>{WB_pillLabel(row)}</span>
       <div className="wb-row-main">
@@ -280,7 +314,9 @@ function WB_Row({ row, today, now, isCur, focused, compact, hub, menu, setMenu, 
           </button>
         )}
       </div>
-      {menu && menu.kind === "menu" && <WB_RowMenu row={row} hub={hub} onAction={onAction} onClose={closeMenu} labelledBy={id + "-more"} />}
+      {menu && menu.kind === "menu" && (
+        <WB_RowMenu row={row} hub={hub} onAction={onAction} onClose={closeMenu} labelledBy={id + "-more"} {...(tmMsg ? { onThread: () => tmOpen() } : {})} />
+      )}
       {menu && menu.kind === "snooze" && <WB_SnoozeMenu row={row} onClose={closeMenu} labelledBy={id + "-more"} />}
     </li>
   );

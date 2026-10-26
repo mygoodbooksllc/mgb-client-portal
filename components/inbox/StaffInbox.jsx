@@ -1290,6 +1290,9 @@ function StaffInbox({
   const roster = SI_useRoster(scopeClients, true);
   const showToast = typeof useToast === "function" ? useToast() : null;
   const toast = (m) => (showToast ? showToast(m) : console.warn(m));
+  // Thread menu (TM_gate.js; docs/thread-menu-spec.md). Off: nothing below
+  // that reads tmOn changes what this list shows or does.
+  const tmOn = typeof TM_useThreadMenu === "function" ? TM_useThreadMenu() : false;
 
   const [instance] = React.useState(() => ++siInstanceSeq);
   const [me, setMe] = React.useState(() => siVaEmail() || (staffUser && staffUser.email) || "");
@@ -1497,11 +1500,12 @@ function StaffInbox({
           waitingSince: waiting ? lastPublic.created_at : null,
           unread,
           sampleRows: mode === "real" ? null : newestFirst.slice().reverse(),
+          ...(tmOn ? TM_entryExtras(newestFirst) : null),
         });
       });
     });
     return out;
-  }, [mode, recent, reads, roster, scopeClients, sampleThreads, viewedSample, me, ro]);
+  }, [mode, recent, reads, roster, scopeClients, sampleThreads, viewedSample, me, ro, tmOn]);
 
   const teamEntries = React.useMemo(
     () =>
@@ -1522,10 +1526,28 @@ function StaffInbox({
     [teamEnabled, chat.conversations, chat.onlineEmails, showRetired],
   );
 
+  // Thread menu state: tags everywhere it is on; filtering and pinning only on
+  // the full Messages page (tmFull).
+  const tmLive = tmOn && mode === "real";
+  const tmFull = tmLive && !lockClientId && !compact;
+  const tmData = typeof TM_useThreadStates === "function" ? TM_useThreadStates(tmLive, idsKey, recent) : null;
+  const tmNames = typeof TM_useStaffNames === "function" ? TM_useStaffNames(tmLive) : null;
+  const tmAdmin = !!(staffUser && staffUser.role === "admin");
+  const tmStates = tmData ? tmData.states : null;
+  const tmNow = tmData ? tmData.now : 0;
+  const tmViews = React.useMemo(
+    () => (tmLive && tmStates ? TM_views(clientEntries, tmStates, tmNow, tmAdmin, tmNames) : null),
+    [tmLive, clientEntries, tmStates, tmNow, tmAdmin, tmNames],
+  );
+  const [tmForce, setTmForce] = React.useState(null);
+  const tmFocusRef = React.useRef(undefined);
+  const [, tmTick] = React.useState(0);
+  const tmKeysRef = React.useRef([]);
+
   const needle = query.trim().toLowerCase();
   const matches = (e) =>
     !needle ||
-    [e.name, e.email, e.role, e.client && e.client.name]
+    [e.name, e.email, e.role, e.client && e.client.name, tmViews && tmViews[e.key] && tmViews[e.key].label]
       .filter(Boolean)
       .some((x) => String(x).toLowerCase().includes(needle));
   const inClientScope = (e) => !clientFilter || e.kind !== "client" || e.clientId === clientFilter;
@@ -1535,7 +1557,16 @@ function StaffInbox({
   const teamList = teamEntries.filter(matches);
   // With a client picked (drawer opened on a client page), the list is that
   // client's people, then team conversations.
-  const listed = (filter === "clients" ? clientList : filter === "team" ? teamList : [...clientList, ...teamList]).sort(byRecent);
+  let listed =
+    tmFull && tmViews
+      ? TM_filterSort(clientList, teamList, filter, tmViews, needle, tmAdmin, byRecent)
+      : (filter === "clients" ? clientList : filter === "team" ? teamList : [...clientList, ...teamList]).sort(byRecent);
+  // A deep link into a hidden, done or snoozed thread still shows it.
+  if (tmFull && tmViews && tmForce && sel && sel.key === tmForce && !listed.some((e) => e.key === tmForce)) {
+    const forced = clientList.find((e) => e.key === tmForce);
+    if (forced) listed = [forced, ...listed];
+  }
+  if (tmOn) tmKeysRef.current = listed.map((e) => e.key);
 
   // Open a specific person when asked (a client's Messages tab).
   const initialDone = React.useRef(false);
@@ -1613,8 +1644,9 @@ function StaffInbox({
     }
     if (!lockClientId) {
       if (clientFilter && clientFilter !== hit.clientId) setClientFilter(null);
-      setFilter((f) => (f === "team" ? "all" : f));
+      setFilter((f) => (f === "team" || (tmFull && TM_FILTERS.indexOf(f) >= 0) ? "all" : f));
       setQuery("");
+      if (tmFull) setTmForce(hit.key);
     }
     openEntry(hit);
     if (deleted) {
@@ -1637,7 +1669,59 @@ function StaffInbox({
     });
   };
 
-  const counts = { all: clientList.length + teamList.length, clients: clientList.length, team: teamList.length };
+  const counts =
+    tmFull && tmViews
+      ? TM_counts(clientList, teamList, tmViews, needle, tmAdmin)
+      : { all: clientList.length + teamList.length, clients: clientList.length, team: teamList.length };
+
+  // Open the thread menu for a row: right-click (at the pointer), Shift+F10
+  // or the ContextMenu key (under the ⋯), or the ⋯ itself.
+  const tmOpen = (e, ev, moreBtn) => {
+    if (!tmViews || typeof TM_openMenu !== "function") return;
+    const li = moreBtn ? moreBtn.parentNode : ev && ev.currentTarget ? ev.currentTarget.parentNode : null;
+    const rowBtn = li ? li.querySelector(".si-item") : null;
+    const more = moreBtn || (li ? li.querySelector(".si-more") : null);
+    const pointer = ev && ev.type === "contextmenu" && !(ev.clientX === 0 && ev.clientY === 0);
+    TM_openMenu({
+      thread: { clientId: e.clientId, email: e.email, name: e.name, clientName: e.client && e.client.name, msgId: e.lastId },
+      state: (tmStates && tmStates[e.key]) || null,
+      view: tmViews[e.key],
+      surface: "messages",
+      isAdmin: tmAdmin,
+      me,
+      names: tmNames,
+      trigger: moreBtn || rowBtn,
+      anchor: more || rowBtn,
+      x: pointer ? ev.clientX : undefined,
+      y: pointer ? ev.clientY : undefined,
+      onDone: () => {
+        // Focus stays on the row, or moves to the next one if the row left
+        // the list (Done or Snooze in All, Reopen in Done, Restore in Hidden).
+        tmFocusRef.current = { want: e.key, alt: TM_focusAfter(tmKeysRef.current, e.key) };
+        tmTick((n) => n + 1);
+      },
+    });
+  };
+  const tmRowKey = (e, ev) => {
+    if (ev.key === "ContextMenu" || (ev.key === "F10" && ev.shiftKey)) {
+      ev.preventDefault();
+      tmOpen(e, ev);
+    }
+  };
+  React.useEffect(() => {
+    if (!tmOn || tmFocusRef.current === undefined) return;
+    const f = tmFocusRef.current;
+    const keys = tmKeysRef.current;
+    const k = [f.want, f.alt].find((x) => x && keys.indexOf(x) >= 0) || null;
+    const pane = searchRef.current && searchRef.current.closest(".si-list-pane");
+    const el = k && pane ? Array.prototype.find.call(pane.querySelectorAll("li[data-tm-key]"), (li) => li.getAttribute("data-tm-key") === k) : null;
+    const btn = el ? el.querySelector(".si-item") : null;
+    // Effects run after commit, so a listed key is already in the DOM (every
+    // listed row, team chats too, carries data-tm-key while the menu is on).
+    tmFocusRef.current = undefined;
+    if (btn) btn.focus({ preventScroll: false });
+    else if (searchRef.current) searchRef.current.focus();
+  });
 
   // Workbench "No reply needed" (components/workbench/): while Workbench is
   // on, a client thread whose latest message is the client's can be marked
@@ -1668,6 +1752,9 @@ function StaffInbox({
     <React.Fragment>
       <span className="si-avatar">{siInitials(selEntry.name)}</span>
       <span className="si-head-main">
+        {tmViews && tmViews[selEntry.key] && tmViews[selEntry.key].label && (
+          <span className="tm-head-label">{tmViews[selEntry.key].label}</span>
+        )}
         <span className="si-head-name">{selEntry.name}</span>
         <span className="si-head-sub">
           {[selEntry.client.name, selEntry.role].filter(Boolean).join(" · ")}
@@ -1730,6 +1817,7 @@ function StaffInbox({
               ["all", "All"],
               ["clients", "Clients"],
               ["team", "Team"],
+              ...(tmFull && tmViews ? TM_extraChips(tmAdmin) : []),
             ].map(([k, label]) => (
               <button
                 key={k}
@@ -1767,13 +1855,24 @@ function StaffInbox({
             const active =
               (e.kind === "client" && selEntry && selEntry.key === e.key) ||
               (e.kind === "team" && teamActive && chat.activeConversationId === e.conv.id);
+            const tmV = tmViews && e.kind === "client" ? tmViews[e.key] || null : null;
+            const tmM = !!(tmV && TM_hasMenu(e, mode));
             return (
-              <li key={e.key}>
+              <li key={e.key} {...(tmM ? { className: "tm-li", "data-tm-key": e.key } : tmViews ? { "data-tm-key": e.key } : {})}>
                 <button
                   type="button"
                   className={"si-item" + (active ? " active" : "") + (e.unread ? " unread" : "")}
                   aria-current={active ? "true" : undefined}
                   onClick={() => openEntry(e)}
+                  {...(tmM
+                    ? {
+                        onContextMenu: (ev) => {
+                          ev.preventDefault();
+                          tmOpen(e, ev);
+                        },
+                        onKeyDown: (ev) => tmRowKey(e, ev),
+                      }
+                    : {})}
                 >
                   <span className={"si-avatar" + (e.kind === "team" ? " si-avatar-team" : "")}>
                     {siInitials(e.name)}
@@ -1781,7 +1880,7 @@ function StaffInbox({
                   </span>
                   <span className="si-item-main">
                     <span className="si-item-top">
-                      <span className="si-item-name">{e.name}</span>
+                      <span className="si-item-name">{tmV && tmV.label ? tmV.label : e.name}</span>
                       <span className="si-item-time">{siShortAgo(e.lastAt)}</span>
                     </span>
                     <span className="si-item-tags">
@@ -1791,12 +1890,30 @@ function StaffInbox({
                         <span className="si-tag si-tag-team">{e.retired ? "Retired" : "Team"}</span>
                       )}
                       {e.role && <span className="si-item-role">{e.role}</span>}
+                      {tmV &&
+                        tmV.tags.map((g) => (
+                          <span key={g.id} className={"si-tag tm-tag tm-tag-" + g.id}>
+                            {g.text}
+                          </span>
+                        ))}
                     </span>
-                    <span className="si-item-preview">{e.preview}</span>
+                    <span className="si-item-preview">{tmV && tmV.label ? e.name + ": " + e.preview : e.preview}</span>
                     {e.waiting && <span className="si-waiting">Waiting on you · {siShortAgo(e.waitingSince)}</span>}
                   </span>
                   {e.unread && <span className="si-dot" aria-label="Unread" />}
                 </button>
+                {tmM && (
+                  <button
+                    type="button"
+                    className="si-more"
+                    aria-label={"Thread actions for " + e.name}
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                    onClick={(ev) => tmOpen(e, null, ev.currentTarget)}
+                  >
+                    ⋯
+                  </button>
+                )}
               </li>
             );
           })}

@@ -141,6 +141,19 @@ function ANN_deskPlusLaunchOn() {
   }
 }
 
+// True once the owner has switched the thread menu on for the firm
+// (tk_settings.threadmenu_enabled, cached as mgb_threadmenu_cache by TM_gate.js),
+// and never during View as. Deliberately not the per-person preview
+// mgb_threadmenu_preview: a preview person sees no launch text.
+function ANN_threadMenuLaunchOn() {
+  try {
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
+    return window.localStorage.getItem("mgb_threadmenu_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 // True when the left sidebar's Pinned and Recent clients are on for this person.
 function ANN_sidebarOn() {
   try {
@@ -1734,6 +1747,47 @@ var ANN_REGISTRY = [
         },
       ];
     },
+  },
+  {
+    // Thread menu launch, HELD: visible only once the owner flips tk_settings.threadmenu_enabled
+    // (cached as mgb_threadmenu_cache), never in View as. Set `date` to the launch day.
+    // Drafts and guide SQL: docs/staff-guide/drafts/staff-guide-thread-menu.md, supabase/staff-guide-thread-menu.sql.
+    id: "thread-menu",
+    date: "2026-10-25",
+    title: "Thread menu in the Inbox",
+    summary:
+      "Right-click a client thread in the Inbox, or click its ⋯, to rename, pin, mark done, snooze, reassign or hide it, make a task or copy a link. The client never sees it and nothing is emailed.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/inbox",
+    visible: () => ANN_threadMenuLaunchOn(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Thread menu in the Inbox",
+        body: () =>
+          "Each client thread now has a menu for keeping the Inbox tidy. Everything in it is shared by the team, the client never sees it and nothing is emailed. About a minute.",
+      },
+      {
+        id: "ann-thread-menu",
+        go: () => {
+          if (!/^#\/inbox(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/inbox";
+        },
+        targets: ["inbox-list"],
+        wait: true,
+        title: "Right-click a thread",
+        body: () =>
+          "Right-click a thread, or click its ⋯, for Rename, Pin to top, Mark done, Snooze, Reassign, Create task, Copy link and Hide. Done and Snoozed have their own chips, and a new client message always brings a thread back.",
+      },
+      {
+        id: "ann-desk",
+        title: ANN_deskOn() ? "On the Desk too" : "See it again",
+        body: () =>
+          (ANN_deskOn()
+            ? "On the Desk, a message row's ⋯ has Thread actions… with the same Rename, Mark done, Reassign, Create task, Copy link and Hide. "
+            : "") +
+          "To see this again, press ? and pick the launch, or read How do I message a client or a teammate? in Help.",
+      },
+    ],
   },
   {
     // Rhythm slice 0: not preview-gated, so it announces at ship.

@@ -1001,6 +1001,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by TM_previewOn / TM_isOn (components/inbox/TM_gate.js).
+    key: "mgb_threadmenu_preview",
+    label: "Thread menu preview",
+    description:
+      "Turns on for you only, in this browser, while the firm-wide threadmenu_enabled switch is off, the client message thread menu: right-click or ⋯ on a thread to rename, pin, mark done, snooze, reassign, hide, make a task or copy a link. Staff only; clients never see it and nothing emails anyone. Off in View as. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     // Read by OP_previewOn / OP_isOn (components/client/OP_store.js).
     key: "mgb_orgprofile_preview",
     label: "Client org profile + gifts (preview)",
@@ -1198,6 +1206,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Desk additions switch)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "Desk additions (preview): supabase/owner-only-deskplus-switch.sql (+ -tests.sql, rolls back) makes tk_settings.deskplus_enabled owner-only (tk__owner_only_key). No row: missing = off. Read by components/workbench/WB_plus.js, never written by the app.",
+  },
+  {
+    name: "Supabase SQL (Thread menu)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Thread menu (preview): supabase/thread-menu.sql (+ thread-menu-tests.sql, rolls back) adds client_thread_state + client_thread_audit (staff-only RLS, no client access) and the thread_* RPCs (label, hide, restore, done, snooze, pin, assign, log task; every write audited, nothing emailed). supabase/owner-only-threadmenu-switch.sql (+ -tests.sql) makes tk_settings.threadmenu_enabled owner-only. No row: missing = off. Read by components/inbox/TM_gate.js, never written by the app.",
   },
   {
     name: "Intuit developer (QuickBooks)",
@@ -14116,6 +14129,8 @@ function resettableLocalStorageKeys() {
     // and sessionStorage mgb_op_later:<email> (the client's "Later" for this sign-in; not touched by Reset).
     // Desk additions (hidden preview): mgb_deskplus_preview (a flag, kept),
     // mgb_deskplus_cache (the firm switch deskplus_enabled as last read by WB_plus.js, cleared by Reset).
+    // Thread menu (hidden preview): mgb_threadmenu_preview (a flag, kept),
+    // mgb_threadmenu_cache (the firm switch threadmenu_enabled as last read by TM_gate.js, cleared by Reset).
     return Object.keys(localStorage).filter(
       (k) =>
         (k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_")) &&
@@ -15646,6 +15661,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["ooo_auto_apply", "Time off hands tasks to backups", "Off (false or not set, the default): only the manual Hand my tasks to backups button moves tasks. Set to true and the tk-ooo-daily cron (11:00 UTC) also moves open tasks due during someone's time off to each client's backup on their first day off (never re-taking a task someone handed back). Handing back after the time off always runs."],
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply. The one-time import ran 2026-10-16. From 2026-10-25 to 2026-11-24 the daily Asana import (scripts/asana-import/dailyImport.js, runbook docs/asana-daily-import.md) turns it on only inside its own apply transaction and off again in the same transaction, so it reads Off here between runs; if a run finds it already on, the run stops without touching it. Never turn it on by hand while the daily runs continue. Undo works with it off."],
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more)."],
+            ["threadmenu_enabled", "Message thread menu for all staff (owner only)", "Off = only people with the Thread menu preview flag see it. Off (or missing, the default) keeps Messages and the Desk Inbox exactly as they are: no right-click menu or ⋯ on threads, no Done, Snoozed or Hidden chips, no thread tags. Owner turns it on (true) from the SQL editor (override first; see the README Thread menu launch checklist), never from here. Never shown to clients; off in View as."],
             ["deskplus_enabled", "Desk additions for staff", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk exactly as it is for everyone: no Ledger chip in the Inbox, no Waiting on client, recent messages or recent files on the Client tab, no Ask client or Message buttons there, and no Ask client…, Message… or Time off in the + menu. Owner turns it on (true) from the SQL editor (override first; see the README Desk additions launch checklist), never from here, to give those to every staff member who has the Desk. Each person can try it early with Desk additions preview in Feature flags. Needs the Desk on (wb_enabled, unless the person picked Classic Today)."],
             ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Each person can try it early with Client org profile + gifts (preview) in Feature flags. Nothing emails clients and nothing orders gifts either way."],
             ["org_gift_basis", "Client gifts: anniversary to follow", "Which anniversary Team › Client gifts and the weekly digest follow, for the whole firm: client_since (Client since, the default; not set means this) or established (the founding date, with Client since for clients whose founding date is Not sure or blank). Admins change it on Team › Client gifts › Anniversary to follow (every change audited; the database refuses any other value)."],
