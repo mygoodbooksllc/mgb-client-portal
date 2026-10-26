@@ -251,7 +251,7 @@ function TK_KeysSheet(props) {
         ) : null}
         <p className="tk-keys-note">
           <kbd className="tk-kbd">Ctrl</kbd> or <kbd className="tk-kbd">⌘</kbd> + <kbd className="tk-kbd">Z</kbd> undoes your last
-          Tasks action while its Undo message is on screen{slate ? " (in the Slate app, your last action for up to 9 minutes)" : ""}.
+          Tasks action while its Undo message is on screen{slate ? " (in the Slate app, your last 5 actions, newest first, for up to 9 minutes each)" : ""}.
         </p>
         <p className="tk-keys-note">Shortcuts pause while you type in a box or have a menu open.</p>
       </div>

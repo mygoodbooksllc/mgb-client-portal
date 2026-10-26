@@ -9,6 +9,10 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-25: Slate app: Back, Forward, Refresh and deeper Undo
+- **Back, Forward and Refresh.** The Slate app window and the installed MyGoodBooks app have no browser buttons, so three round buttons now sit in the top bar (beside the Slate logo in the Slate app). In a normal browser tab they stay hidden; use the browser's own.
+- **Undo goes back 5 steps.** In the Slate app, **Cmd+Z** (Ctrl+Z) undoes your last 5 changes, newest first, each for 9 minutes. A change someone edited since is still left alone and says so.
+
 ### 2026-10-26: Slate is now its own app
 
 - **Open Slate app.** On the Slate page and on the Desk's **Slate** tab, **Open Slate app** opens Slate in a window of its own. It replaces **Open in own window**. The portal never opens it for you, and Slate inside the portal works as before.

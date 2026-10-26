@@ -952,7 +952,10 @@ var TK_api = (function () {
   var BULK_MIN_VERSION = 12;
   var BULK_MAX = 100;
   var UNDO_MS = 10000;
-  var undoState = { live: null, running: null, seq: 0 };
+  // stack: newest last. Portal: one entry (the 10 s toast). Slate app: up to
+  // UNDO_DEPTH_SLATE, each expiring on its own clock.
+  var undoState = { stack: [], running: null, seq: 0 };
+  var UNDO_DEPTH_SLATE = 5;
 
   api.BULK_MAX = BULK_MAX;
   api.schemaVersion = function () {
@@ -1221,9 +1224,8 @@ var TK_api = (function () {
   // the one live undo (Ctrl/Cmd+Z) for the next 10 s. hint: { ids, spawned }.
   api.offerUndo = function (text, result, hint) {
     var r = result || {};
-    if (undoState.live) dismissToast(undoState.live.key);
     if (!r.opId) {
-      undoState.live = null;
+      clearForPlain();
       raiseToast(text);
       return null;
     }
@@ -1234,7 +1236,7 @@ var TK_api = (function () {
       hint: { ids: arr(hint && hint.ids), spawned: arr(hint && hint.spawned).concat(arr(r.spawned)), fields: !!(hint && hint.fields) },
       until: Date.now() + undoMs(),
     };
-    undoState.live = live;
+    pushLive(live);
     raiseToast(text, {
       label: "Undo",
       onClick: function () {
@@ -1249,14 +1251,47 @@ var TK_api = (function () {
 
   // The live undo while its toast is up, else null.
   api.liveUndo = function () {
-    var l = undoState.live;
-    if (!l) return null;
-    if (Date.now() > l.until) {
-      undoState.live = null;
-      return null;
-    }
-    return l;
+    pruneUndo();
+    var st = undoState.stack;
+    return st.length ? st[st.length - 1] : null;
   };
+  // How many undo steps are waiting (Slate app: up to 5, newest first).
+  api.undoDepth = function () {
+    pruneUndo();
+    return undoState.stack.length;
+  };
+
+  function pruneUndo() {
+    var now = Date.now();
+    undoState.stack = undoState.stack.filter(function (l) {
+      return now <= l.until;
+    });
+  }
+  function undoDepthMax() {
+    return undoMs() > UNDO_MS ? UNDO_DEPTH_SLATE : 1;
+  }
+  // Newest on top; the previous toast closes; the oldest falls off past the limit.
+  function pushLive(live) {
+    pruneUndo();
+    var st = undoState.stack;
+    if (st.length) dismissToast(st[st.length - 1].key);
+    st.push(live);
+    var max = undoDepthMax();
+    if (st.length > max) undoState.stack = st.slice(st.length - max);
+  }
+  // An action with nothing to undo: the portal forgets the last undo (it only
+  // ever means "the last action"); the Slate app keeps its stack.
+  function clearForPlain() {
+    pruneUndo();
+    var st = undoState.stack;
+    if (st.length) dismissToast(st[st.length - 1].key);
+    if (undoDepthMax() <= 1) undoState.stack = [];
+  }
+  function dropLive(live) {
+    var i = undoState.stack.indexOf(live);
+    if (i >= 0) undoState.stack.splice(i, 1);
+    return i;
+  }
 
   function undoErrText(e) {
     var why = (e && (e.reason || e.code)) || "";
@@ -1269,7 +1304,7 @@ var TK_api = (function () {
   function runUndo(live) {
     if (!live) return Promise.resolve(null);
     if (undoState.running) return undoState.running;
-    if (undoState.live === live) undoState.live = null;
+    var at = dropLive(live);
     dismissToast(live.key);
     // A Slate app undo step (a move or a copy) carries its own run().
     var call = typeof live.run === "function" ? Promise.resolve().then(live.run) : api.undo(live.opId, live.hint);
@@ -1281,6 +1316,12 @@ var TK_api = (function () {
           return res;
         },
         function (e) {
+          // Offline: nothing happened on the server, so keep the step in place.
+          if (e && (e.reason || e.code) === "tk_offline" && at >= 0 && Date.now() <= live.until && undoState.stack.indexOf(live) < 0) {
+            undoState.stack.splice(Math.min(at, undoState.stack.length), 0, live);
+            var mx = undoDepthMax();
+            if (undoState.stack.length > mx) undoState.stack = undoState.stack.slice(-mx);
+          }
           raiseToast(undoErrText(e));
           return null;
         },
@@ -1302,8 +1343,9 @@ var TK_api = (function () {
   // Only reached from the Slate app window (preview flag + firm switch); the
   // portal never calls these, and with the preview off undoMs() is UNDO_MS.
 
-  // In the Slate app Ctrl/Cmd+Z keeps undoing the LAST action after its toast
-  // closes, for 9 minutes (the server keeps an op for 10, once).
+  // In the Slate app Ctrl/Cmd+Z keeps undoing the last 5 actions (newest
+  // first) after their toasts close, each for 9 minutes (the server keeps
+  // every op for 10, once, independently).
   var SLATE_UNDO_MS = 9 * 60 * 1000;
   function undoMs() {
     try {
@@ -1316,15 +1358,14 @@ var TK_api = (function () {
   // back; a copy archives the copies). fn() resolves with the toast text (or
   // { text }); a throw toasts "Couldn't undo that."
   api.offerUndoRun = function (text, fn) {
-    if (undoState.live) dismissToast(undoState.live.key);
     if (typeof fn !== "function") {
-      undoState.live = null;
+      clearForPlain();
       raiseToast(text);
       return null;
     }
     var key = "tk-undo-" + ++undoState.seq;
     var live = { key: key, opId: null, run: fn, hint: { ids: [], spawned: [], fields: false }, until: Date.now() + undoMs() };
-    undoState.live = live;
+    pushLive(live);
     raiseToast(text, {
       label: "Undo",
       onClick: function () {

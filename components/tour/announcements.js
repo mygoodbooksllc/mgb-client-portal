@@ -1515,7 +1515,7 @@ var ANN_REGISTRY = [
           id: "ann-quick",
           title: "Quick actions",
           body: () =>
-            "In the app, right-click a task (or press and hold on a touch screen) for a menu: Duplicate, Copy, due dates, Assign to me and more. Cmd+D duplicates, Cmd+C and Cmd+V copy and paste, drag on empty space to select several, and swipe two fingers right to go back. Undo works for 9 minutes. Press ? for every key.",
+            "In the app, right-click a task (or press and hold on a touch screen) for a menu: Duplicate, Copy, due dates, Assign to me and more. Cmd+D duplicates, Cmd+C and Cmd+V copy and paste, drag on empty space to select several, and swipe two fingers right to go back. Cmd+Z undoes your last 5 changes, each for 9 minutes. Back, Forward and Refresh buttons sit beside the logo. Press ? for every key.",
         },
         {
           id: "ann-done",

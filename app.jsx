@@ -27577,49 +27577,71 @@ function AN_navIndex() {
   const st = window.history.state;
   return st && typeof st.mgbNav === "number" ? st.mgbNav : 0;
 }
+// The furthest entry seen this session, so Forward can tell when there is
+// something ahead (the browser gives no way to ask). A new page pushes a fresh
+// entry ("mgb-nav"), which drops whatever was ahead.
+const AN_MAX_KEY = "mgb_nav_max_v1";
+// A window opened from another one (the Slate pop-up) inherits the opener's
+// sessionStorage; start every fresh document at 0. Reload and Back/Forward
+// keep the stored value.
+try {
+  const navEntry = performance.getEntriesByType("navigation")[0];
+  if (navEntry && navEntry.type === "navigate") window.sessionStorage.setItem(AN_MAX_KEY, "0");
+} catch (e) {}
+function AN_navMax(reset) {
+  let max = 0;
+  try {
+    max = Number(window.sessionStorage.getItem(AN_MAX_KEY)) || 0;
+  } catch (e) {}
+  const idx = AN_navIndex();
+  const next = reset ? idx : Math.max(max, idx);
+  if (next !== max) {
+    try {
+      window.sessionStorage.setItem(AN_MAX_KEY, String(next));
+    } catch (e) {}
+  }
+  return next;
+}
 
-function AN_AppNav({ variant }) {
+// Back, Forward and Refresh. variant "tb": the staff top bar; "sbar": the
+// Slate app window's bar. Shown in the installed app (standalone), and, with
+// always, in the Slate app window, which is a pop-up with no browser buttons.
+// A normal browser tab shows nothing: the browser already has them.
+function AN_AppNav({ variant, always }) {
   const [standalone] = useState(AN_isStandalone);
-  const [canBack, setCanBack] = useState(() => AN_navIndex() > 0);
+  const show = standalone || !!always;
+  const read = () => ({ back: AN_navIndex() > 0, fwd: AN_navIndex() < Math.min(AN_navMax(), AN_navIndex() + window.history.length - 1) });
+  const [can, setCan] = useState(read);
   useEffect(() => {
-    if (!standalone) return;
-    const sync = () => setCanBack(AN_navIndex() > 0);
+    if (!show) return;
+    const sync = () => setCan(read());
+    const onPush = () => {
+      AN_navMax(true);
+      sync();
+    };
     window.addEventListener("hashchange", sync);
     window.addEventListener("popstate", sync);
-    window.addEventListener("mgb-nav", sync);
+    window.addEventListener("mgb-nav", onPush);
+    sync();
     return () => {
       window.removeEventListener("hashchange", sync);
       window.removeEventListener("popstate", sync);
-      window.removeEventListener("mgb-nav", sync);
+      window.removeEventListener("mgb-nav", onPush);
     };
-  }, [standalone]);
-  if (!standalone) return null;
-  const cls = variant === "tb" ? "tb-icon-btn" : "an-btn";
+  }, [show]);
+  if (!show) return null;
+  const cls = variant === "tb" ? "tb-icon-btn" : variant === "sbar" ? "tk-sbar-btn an-sbar-btn" : "an-btn";
+  const icon = { viewBox: "0 0 20 20", width: 16, height: 16, fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" };
   return (
-    <span className="an-nav">
-      <button
-        type="button"
-        className={cls}
-        onClick={() => window.history.back()}
-        disabled={!canBack}
-        aria-label="Back"
-        data-tip="Back"
-      >
-        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M12.5 4.5 7 10l5.5 5.5" />
-        </svg>
+    <span className="an-nav" role="group" aria-label="Page navigation">
+      <button type="button" className={cls} onClick={() => window.history.back()} disabled={!can.back} aria-label="Back" title="Back" data-tip="Back">
+        <svg {...icon}><path d="M12.5 4.5 7 10l5.5 5.5" /></svg>
       </button>
-      <button
-        type="button"
-        className={cls}
-        onClick={() => window.location.reload()}
-        aria-label="Refresh"
-        data-tip="Refresh"
-      >
-        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M16 10a6 6 0 1 1-1.76-4.24" />
-          <path d="M16 3.5V7h-3.5" />
-        </svg>
+      <button type="button" className={cls} onClick={() => window.history.forward()} disabled={!can.fwd} aria-label="Forward" title="Forward" data-tip="Forward">
+        <svg {...icon}><path d="M7.5 4.5 13 10l-5.5 5.5" /></svg>
+      </button>
+      <button type="button" className={cls} onClick={() => window.location.reload()} aria-label="Refresh" title="Refresh" data-tip="Refresh">
+        <svg {...icon}><path d="M16 10a6 6 0 1 1-1.76-4.24" /><path d="M16 3.5V7h-3.5" /></svg>
       </button>
     </span>
   );

@@ -301,6 +301,7 @@ function TK_StandaloneBar(props) {
         </span>
         <span className="tk-sbar-word">Slate</span>
       </a>
+      {!phone && typeof AN_AppNav === "function" && TK_slateInApp() ? <AN_AppNav variant="sbar" always /> : null}
       <span className="tk-sbar-live tk-sr" aria-live="polite">
         {follow.liveText}
       </span>

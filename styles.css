@@ -10926,6 +10926,16 @@ button.home-todo-main:hover { background: var(--surface-2); }
   outline: 2px solid var(--gold, #b8975a);
   outline-offset: 2px;
 }
+.an-nav .an-sbar-btn {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 7px;
+  border-radius: 999px;
+}
+.an-nav .an-sbar-btn:focus-visible {
+  outline: 2px solid var(--gold, #b8975a);
+  outline-offset: 2px;
+}
 .an-nav button:disabled {
   opacity: 0.4;
   cursor: default;
@@ -11152,4 +11162,8 @@ html[data-brand="mgb"] h3 {
    where it meets the rail, to near-black on the right). The loading splash stays Lato. */
 html[data-brand="mgb"] .wb-bar {
   background-image: linear-gradient(90deg, #06262d 0%, #05080d 100%);
+}
+.tk-sbar .an-nav {
+  margin-right: auto;
+  margin-left: 8px;
 }

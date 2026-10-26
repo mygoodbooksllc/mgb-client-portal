@@ -1755,6 +1755,71 @@ t("slate ix: the undo window is 10 s outside the Slate app and 9 min inside it",
   done();
 });
 
+t("slate undo stack: newest first, limit 5 drops the oldest, portal keeps one", async () => {
+  const env = await bulkEnv();
+  const ran = [];
+  const offer = (n) => env.api.offerUndoRun("Moved " + n + ".", () => { ran.push(n); return Promise.resolve("Back " + n + "."); });
+  offer(0);
+  offer(1);
+  assert.strictEqual(env.api.undoDepth(), 1, "portal / preview off: a single undo");
+  env.ctx.TK_slateInApp = () => true;
+  for (let i = 2; i <= 8; i++) offer(i);
+  assert.strictEqual(env.api.undoDepth(), 5, "limit 5; oldest dropped");
+  for (let i = 0; i < 5; i++) await env.api.undoLive();
+  assert.deepStrictEqual(ran, [8, 7, 6, 5, 4], "newest first");
+  assert.strictEqual(env.api.liveUndo(), null);
+  assert.strictEqual(await env.api.undoLive(), null, "nothing left");
+  done();
+});
+
+t("slate undo stack: each step expires on its own clock", async () => {
+  const env = await bulkEnv();
+  env.ctx.TK_slateInApp = () => true;
+  const ran = [];
+  env.api.offerUndoRun("A", () => { ran.push("A"); return Promise.resolve("a"); });
+  await env.advance(5 * 60 * 1000);
+  env.api.offerUndoRun("B", () => { ran.push("B"); return Promise.resolve("b"); });
+  await env.advance(5 * 60 * 1000); // A is 10 min old (past 9), B is 5 min old
+  assert.strictEqual(env.api.undoDepth(), 1);
+  await env.api.undoLive();
+  assert.deepStrictEqual(ran, ["B"]);
+  assert.strictEqual(env.api.liveUndo(), null);
+  done();
+});
+
+t("slate undo stack: a failed step is consumed, the others stay in order", async () => {
+  const env = await bulkEnv();
+  env.ctx.TK_slateInApp = () => true;
+  const ran = [];
+  env.api.offerUndoRun("A", () => { ran.push("A"); return Promise.resolve("a"); });
+  env.api.offerUndoRun("B", () => Promise.reject(new Error("x")));
+  env.api.offerUndoRun("C", () => { ran.push("C"); return Promise.resolve("c"); });
+  await env.api.undoLive();
+  await env.api.undoLive();
+  assert.strictEqual(env.events("mgb:toast").pop().detail.text, "Couldn't undo that. Try again.");
+  assert.strictEqual(env.api.undoDepth(), 1);
+  await env.api.undoLive();
+  assert.deepStrictEqual(ran, ["C", "A"]);
+  done();
+});
+
+t("slate undo stack: an offline failure keeps the step where it was", async () => {
+  const env = await bulkEnv();
+  env.ctx.TK_slateInApp = () => true;
+  env.api.offerUndoRun("A", () => Promise.resolve("a"));
+  let first = true;
+  env.api.offerUndoRun("B", () => {
+    if (first) { first = false; return Promise.reject({ reason: "tk_offline" }); }
+    return Promise.resolve("b");
+  });
+  await env.api.undoLive();
+  assert.strictEqual(env.api.undoDepth(), 2, "kept after offline");
+  await env.api.undoLive();
+  assert.strictEqual(env.events("mgb:toast").pop().detail.text, "b");
+  assert.strictEqual(env.api.undoDepth(), 1);
+  done();
+});
+
 t("slate ix: copyTasks sends ids + target, re-reads copies and subtasks", async () => {
   const a = row();
   const c1 = row({ text: "copy" });
