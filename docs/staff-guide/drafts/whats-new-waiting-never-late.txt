@@ -1,3 +1,5 @@
+PUBLISHED 2026-10-25: month_rhythm_enabled is on and this text is live (docs/staff-guide/*.md and the staff_guide table). Kept only as the source of record; do not re-apply.
+
 DRAFT, not published. The rule itself is live with slice 4 (not gated), but it changes no number today: production had 0 tasks waiting on a client and 0 preliminary months on 2026-10-21. Publish this entry in docs/staff-guide/whats-new.md (and sync staff_guide by targeted UPDATE) the first time a task waits on a client, or with the month rhythm launch, whichever comes first. Also add the short paragraph below to the task-review article (on-time section) and the my-tasks article (Waiting group).
 
 --- whats-new.md entry ---

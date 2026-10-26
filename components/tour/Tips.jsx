@@ -429,6 +429,38 @@ const TIPS_CATALOG = [
     slug: "my-tasks",
     ready: () => !!document.querySelector('[data-tour="tk-groupby"]'),
   },
+  // Month rhythm launch (2026-10-26). Each target renders only while the month
+  // rhythm is on (TK_rhythmEnabled), so these wait for it by themselves.
+  {
+    id: "tk-recurring-rhythm",
+    roles: "admin",
+    match: (r) => r.page === "tasks",
+    target: "tk-recurring-rhythm",
+    snug: true,
+    text: "Month rhythm templates take their dates from Settings. Change the rhythm once instead of editing each template.",
+    slug: "task-templates",
+    ready: () => !!document.querySelector('[data-tour="tk-recurring-rhythm"]'),
+  },
+  {
+    id: "tk-email-draft",
+    roles: "all",
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    target: "tk-email-draft",
+    snug: true,
+    text: "Draft email builds from the latest data each time you open it. Start over rebuilds it. Slate never sends it: you copy it.",
+    slug: "task-details",
+    ready: () => !!document.querySelector('[data-tour="tk-email-draft"]'),
+  },
+  {
+    id: "tk-close-order",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-close-order",
+    snug: true,
+    text: "Close order is only your view. It turns off while you sort by a column or use Board.",
+    slug: "task-lists-and-projects",
+    ready: () => !!document.querySelector('[data-tour="tk-close-order"]'),
+  },
   {
     id: "tk-manage-nav",
     roles: "admin",

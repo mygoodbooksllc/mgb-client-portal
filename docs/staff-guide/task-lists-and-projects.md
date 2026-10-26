@@ -2,7 +2,7 @@
 title: How do client task lists and projects work?
 section: Daily work
 audience: staff
-keywords: [change bookkeeper, reassign bookkeeper, new bookkeeper, bookkeeper chip, task in the desk, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients, slate]
+keywords: [month view, the thirds, close order, next pill, change bookkeeper, reassign bookkeeper, new bookkeeper, bookkeeper chip, task in the desk, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients, slate]
 sort: 114
 ---
 The **Slate** page (the **Slate** button in the top bar, or `#/tasks/my`) has a sidebar of lists down the left. Below about 900 pixels wide, the sidebar sits behind the **Lists** button at the top of the page.
@@ -37,6 +37,13 @@ A client's list starts with the things you reach for most:
 A task nobody is on shows **Unassigned** in the Assignee column with a **Claim** button. See [How do I use my Slate?](#/help/my-tasks).
 
 Client tasks sit in sections such as **Weekly**, **Monthly**, **Quarterly**, **Annual** and **Occasional**.
+
+**Month view: The thirds or Close order.** A client's list has a **Month view** choice:
+
+- **The thirds** (the default): the month's tasks under Check in, Send reports and Follow up.
+- **Close order**: each client month as one group ("September 2026 close"), its steps in the order you work them. A green **Next** pill marks the first open step; **Waiting on client** marks a step that is waiting or has an open Ask client request. Due dates show as a target and are never red.
+
+The choice is yours for that client, in this browser. Nobody else's view changes and no task changes. Close order steps aside while you sort by a column, use Board, or group by client, and it turns off manual order for that list.
 
 **Who sees a client's tasks:** admins, the client's assigned bookkeeper, and a bookkeeper who is covering for them or has temporary access to that client. A private client task is seen only by its owner, its assignee, its followers and admins; a shared one by everyone who can see the client. See [Time off and coverage](#/help/time-off-coverage) and [Temporary access](#/help/temporary-access).
 

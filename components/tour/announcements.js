@@ -106,6 +106,19 @@ function ANN_orgProfileLaunchOn() {
   }
 }
 
+// True once the owner has switched the month rhythm on for the firm
+// (tk_settings.month_rhythm_enabled, cached as mgb_rhythm_cache by index.html's
+// inline script in the same single read as the Slate app switch). Deliberately
+// not the per-person preview mgb_rhythm_preview: a preview person sees no
+// launch text.
+function ANN_rhythmLaunchOn() {
+  try {
+    return window.localStorage.getItem("mgb_rhythm_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 // True when the left sidebar's Pinned and Recent clients are on for this person.
 function ANN_sidebarOn() {
   try {
@@ -1498,6 +1511,89 @@ var ANN_REGISTRY = [
             " To see this again, press ? and pick New: Slate is now its own app, or read How do I use the Slate app? in Help.",
         },
       ];
+    },
+  },
+  {
+    // Month rhythm launch (slice 3 plus the finish: email drafts, Close order, Pre-fill), LIVE: the
+    // owner turned tk_settings.month_rhythm_enabled on 2026-10-25 for Monday 2026-10-26. Gated
+    // (visible: ANN_rhythmLaunchOn), so the first load after the switch flips may miss it (the
+    // cache fills on that load). Same date as slate-app-launch and registered just below it, so
+    // the Slate app notice comes first. Launch kits: docs/slate-rhythm-slice-3-launch.md and
+    // docs/slate-rhythm-finish-launch.md.
+    id: "month-rhythm-launch",
+    date: "2026-10-26",
+    title: "Month rhythm tasks are on",
+    summary:
+      "Slate now makes monthly Check in, Send reports and Follow up tasks for every client, due on the firm's month rhythm dates. They come with a draft client email to copy (nothing is sent), and a client's list can show the month in close order.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    visible: () => ANN_rhythmLaunchOn(),
+    ready: () => ANN_deskDocked(),
+    steps: (ctx) => {
+      const realAdmin = !!(ctx && ctx.isAdmin && !ctx.impersonating);
+      const leads = !!(ctx && (ctx.isAdmin || ctx.amCount > 0));
+      const client = ctx && ctx.myClient && ctx.myClient.id ? ctx.myClient : null;
+      return [
+        {
+          id: "ann-welcome",
+          title: "Month rhythm tasks are on",
+          body: () =>
+            leads
+              ? "Slate now makes the monthly Check in, Send reports and Follow up tasks for every client. They are due on the dates in Settings › Firm settings › Month rhythm. Tasks waiting on a client do not count as late. About a minute."
+              : "Each client now gets Check in, Send reports and Follow up tasks every month. Group by 4/14/24th on Slate lists them by part of the month. Tasks waiting on a client do not count against you. About a minute.",
+        },
+        realAdmin
+          ? {
+              id: "ann-recurring",
+              go: () => {
+                if (!/^#\/tasks\/templates(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/templates";
+              },
+              targets: ["tk-recurring-rhythm", "tk-recurring-list"],
+              wait: true,
+              title: "The MGB Month Rhythm templates",
+              body: () =>
+                "These eight templates follow the firm's month rhythm. Each one is due on its part's date in the month after the one it covers. Open a template to change its checklist, description or which part of the month it follows.",
+            }
+          : null,
+        realAdmin
+          ? {
+              id: "ann-optc",
+              targets: ["tk-optc"],
+              wait: true,
+              title: "Pre-fill by client type",
+              body: () =>
+                "Pre-fill makes draft Quarterly and Annual templates for churches, nonprofits or for-profit clients. Drafts never make tasks until you activate them. Filings stay on Work › Deadlines.",
+            }
+          : null,
+        {
+          id: "ann-email",
+          title: "Client emails, ready to copy",
+          body: () =>
+            "Check in, Send reports and Follow up tasks come with a draft client email built from the client's data: open the task and choose Draft email. Edit it and copy it into your own email; Slate never sends it. When you finish Send reports, pick Full or Preliminary; a preliminary month lists what is missing and never counts as late.",
+        },
+        {
+          id: "ann-close-order",
+          go: () => {
+            if (!client) return;
+            const next = "#/tasks/c/" + encodeURIComponent(String(client.id));
+            if (window.location.hash !== next) window.location.hash = next;
+          },
+          targets: ["tk-close-order"],
+          wait: true,
+          title: "Month view",
+          body: () =>
+            "On a client's list, The thirds groups tasks by part of the month; Close order shows each month's steps in the order you work them, with a Next pill. Your choice, per client, in this browser.",
+        },
+        {
+          id: "ann-done",
+          title: "That's the month rhythm",
+          body: () =>
+            (realAdmin
+              ? "Change the days once in Settings › Firm settings › Month rhythm; the next tasks use the new dates. A client can have its own days in Client setup › Access and details. "
+              : "") +
+            "To see this again, press ? and pick New: Month rhythm tasks are on, or read How do recurring tasks from templates work? in Help.",
+        },
+      ].filter(Boolean);
     },
   },
   {

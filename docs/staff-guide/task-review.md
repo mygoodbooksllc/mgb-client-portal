@@ -2,7 +2,7 @@
 title: How does task review work?
 section: Daily work
 audience: staff
-keywords: [review, task review, review queue, ready for review, send for review, needs review, approve, approval, send back, sent back, take back, withdraw, reviewer, any admin, default reviewer, second admin, self review, own work, on time, on-time, deadline, late, waiting on client, first pass, review count, #/tasks/review]
+keywords: [waiting is never late, preliminary, review, task review, review queue, ready for review, send for review, needs review, approve, approval, send back, sent back, take back, withdraw, reviewer, any admin, default reviewer, second admin, self review, own work, on time, on-time, deadline, late, waiting on client, first pass, review count, #/tasks/review]
 sort: 113
 ---
 Some tasks need a second pair of eyes before they're **Done**. The person doing the work sends it for review; an admin approves it or sends it back with a note.
@@ -56,6 +56,8 @@ Below the queue, admins see the **Last 30 days** card: for each person, how much
 A task is **on time** when it's finished (or, with a review step, approved) by the end of its original due date, Chicago time. Time spent **Waiting on client** that started before the deadline is added to it. Being sent back is fine, as long as the approval lands before the deadline.
 
 Only tasks with a due date count, and only tasks made from a template or by someone else. Tasks imported from Asana and access requests don't count. Work that's still open after its deadline counts as late.
+
+**Waiting is never late.** While a task waits on the client (Ask client), it does not count as late, and it is left out of on-time stats and the performance score. Monthly tasks for a month whose reports went out preliminary are treated the same way. Once the client answers and the task is open again, the normal due date applies.
 
 ### Emails
 

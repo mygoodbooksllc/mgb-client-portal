@@ -2,7 +2,7 @@
 title: What's in a task's details?
 section: Daily work
 audience: staff
-keywords: [task details, details panel, drawer, task in the desk, back to desk, open task, fields at the top, field grid, placeholder, unassigned, no due date, no client, no project, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted, client requests, ask client, record answer, accept answer]
+keywords: [draft email, copy email, request for information, reports email, mid-month update, preliminary, full reports, send reports, nothing outstanding, set all to full, month rhythm, task details, details panel, drawer, task in the desk, back to desk, open task, fields at the top, field grid, placeholder, unassigned, no due date, no client, no project, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted, client requests, ask client, record answer, accept answer]
 sort: 112
 ---
 Click a task anywhere (Slate, a client or project list, Today, a client's Overview, the bell or search) and its details slide in from the right. On a phone they fill the screen. Press **Esc** or click **Close** to put them away. Changes save as you make them.
@@ -63,6 +63,34 @@ The tabs above the comments show **All**, just **Comments**, or the **Activity**
 ### Client requests
 
 On a client task, **Client requests** lists what you've asked the client for and their answers. **Ask client** sends a question, a document request or an approval to the client's portal users or contacts, and puts the task in **Waiting on client**. Each request has **Email again**, **Send reminder**, **Record answer**, **Accept**, **Cancel** and more. Client emails for requests are a dry run for now: nothing is sent. See [How do I ask a client something from a task?](#/help/ask-client).
+
+### Month rhythm tasks: draft emails and sending reports
+
+The monthly **Check in**, **Send reports** and **Follow up** tasks (see [How do recurring tasks from templates work?](#/help/task-templates)) have a few extras.
+
+**Draft email.** Three of them come with a ready-made client email:
+
+- **Request for information** on the second Check in task: what the client still owes us for the month (open Ask client requests, uncategorized bank items, open document requests).
+- **Reports email** on the second Send reports task: the month's reports, with a Preliminary note listing what is still missing when the reports went out early.
+- **Mid-month update** on the first Follow up task: where the month stands and what is still open.
+
+Open the task and choose **Draft email: …**, or click the envelope next to the task's name in a list. Slate builds the email from the client's latest data, signed with your name. Edit the subject and body if you like, then choose **Copy email** (or **Copy subject**) and paste it into your own email. **Slate never sends anything.** **Start over** rebuilds the draft from the data. If some data could not be read (for example QuickBooks is not connected), the draft says so under the body so you can fill that part in yourself. **Emails due** on your Slate shows only your open email tasks that are due today or earlier.
+
+**Sending reports: Full or Preliminary.** When you mark a **Send reports** task done, Slate asks how the reports went out:
+
+- **Full:** everything for the month was in.
+- **Preliminary:** you sent the reports before everything arrived. List what is still missing. The list starts with the client's open Ask client requests; remove items that do not apply or add your own.
+
+The client sees a **Preliminary** note next to that month's reports, with each missing item and a link to upload or answer it. They never see the task or your notes. When the last Follow up task for that month is done, the month counts as full and the note goes away.
+
+If you tick the task done from a list, Today or the Overview, Slate opens the task so you can answer the question first. Selecting several tasks and choosing Complete asks the same question for each Send reports task in the selection, one row per client and month, with **Set all to Full** as a shortcut. Nothing is completed until you choose **Save and complete**; Cancel leaves every task open.
+
+**Follow up** (the 24th unless your firm changed the day):
+
+- **Nothing outstanding:** if a client has no open Ask client requests when the Follow up tasks come due, Slate completes them for you with the note "Nothing outstanding".
+- **Second month in a row:** if last month's reports also went out preliminary, the Follow up task says so at the top, and the client's account manager gets a notice in the bell and by email. With no account manager, admins get it. The notice follows your **Tasks assigned to me** notification setting.
+
+**Late counts.** A month whose reports went out preliminary does not count against anyone. Its open monthly tasks are never shown as late and do not count in on-time stats or the performance score.
 
 ### Files and links
 

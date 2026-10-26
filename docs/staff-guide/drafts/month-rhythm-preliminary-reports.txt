@@ -1,3 +1,5 @@
+PUBLISHED 2026-10-25: month_rhythm_enabled is on and this text is live (docs/staff-guide/*.md and the staff_guide table). Kept only as the source of record; do not re-apply.
+
 DRAFT, not published. Staff-guide note for preliminary reports and the Follow up rows (Slate month rhythm, slice 4). Add it to the Slate task-details article and the admin recurring-templates article on the day the owner turns on the month rhythm switch, together with month-rhythm-templates.txt. Until then the live guide is unchanged, because staff without Month rhythm preview see nothing new.
 
 ### Sending reports: Full or Preliminary

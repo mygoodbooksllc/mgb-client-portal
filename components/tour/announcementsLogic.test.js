@@ -796,9 +796,94 @@ t("order: while the Slate switch is off, the pick order is the same as without t
 
 t("slate-app-launch: index.html caches the switch in the same single read as brand and hover", () => {
   const html = require("fs").readFileSync(require("path").join(__dirname, "..", "..", "index.html"), "utf8");
-  assert.ok(/\.in\("key", \["brand_enabled", "hovernav_enabled", "slate_app_enabled"\]\)/.test(html), "one read, three keys");
+  assert.ok(/\.in\("key", \["brand_enabled", "hovernav_enabled", "slate_app_enabled", "month_rhythm_enabled"\]\)/.test(html), "one read, four keys");
   assert.ok(/lsSet\("mgb_slate_cache", isOn\(vals\.slate_app_enabled\) \? "1" : null\)/.test(html));
   assert.ok(!/from\("tk_settings"\)[^;]*mgb_slate_cache/.test(html), "no second read");
+});
+
+// ---- Month rhythm launch: invisible until the firm switch is on -------------------
+const rhEntry = () => ANN_REGISTRY.find((x) => x.id === "month-rhythm-launch");
+
+t("registry: month-rhythm-launch shape, roles, steps and wording", () => {
+  const a = rhEntry();
+  assert.ok(a);
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  assert.strictEqual(a.hash, "#/tasks/my");
+  assert.strictEqual(a.date, "2026-10-26");
+  assert.strictEqual(typeof a.visible, "function");
+  const realAdmin = a.steps({ isAdmin: true, myClient: { id: "c1", name: "X" } });
+  assert.deepStrictEqual(realAdmin.map((s) => s.id), ["ann-welcome", "ann-recurring", "ann-optc", "ann-email", "ann-close-order", "ann-done"]);
+  assert.strictEqual(realAdmin[1].wait, true);
+  assert.deepStrictEqual(realAdmin[2].targets, ["tk-optc"]);
+  assert.deepStrictEqual(realAdmin[4].targets, ["tk-close-order"]);
+  assert.ok(/Preliminary/.test(realAdmin[3].body()), "Full or Preliminary is covered");
+  assert.strictEqual(typeof a.ready, "function", "waits for a computer-width window like the Slate launch");
+  const bkSteps = a.steps({ isBookkeeper: true });
+  assert.ok(!bkSteps.some((s) => s.id === "ann-recurring" || s.id === "ann-optc"), "Recurring steps are for real admins only");
+  assert.ok(!a.steps({ isAdmin: true, impersonating: true }).some((s) => s.id === "ann-recurring"), "not during View as");
+  assert.ok(/Group by 4\/14\/24th/.test(bkSteps[0].body()), "bookkeeper welcome names the grouping");
+  const text = JSON.stringify([a.title, a.summary].concat(realAdmin.map((x) => x.body()), bkSteps.map((x) => x.body())));
+  assert.ok(!/colour|grey|favourite/i.test(text), "US spelling");
+  assert.ok(/never sends/i.test(text) && /nothing is sent/i.test(text), "says no email goes out");
+  // Without a client the close-order step still has no throw and stays (centered).
+  const go = bkSteps.find((s) => s.id === "ann-close-order").go;
+  global.window = { location: { hash: "#/tasks/my" } };
+  try {
+    go();
+    assert.strictEqual(global.window.location.hash, "#/tasks/my", "no client: stays put");
+    a.steps({ isBookkeeper: true, myClient: { id: "c 9" } }).find((s) => s.id === "ann-close-order").go();
+    assert.strictEqual(global.window.location.hash, "#/tasks/c/c%209");
+  } finally {
+    delete global.window;
+  }
+});
+
+t("month-rhythm-launch gate: off means nothing shows anywhere", () => {
+  const a = rhEntry();
+  const reg = [a];
+  [admin, bk, tempAdmin, am].forEach((ctx) => {
+    withWin({}, false, () => {
+      assert.strictEqual(L.ANN_listed(a, ctx), false);
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
+    });
+    // The person's preview flag is not the launch.
+    withWin({ mgb_rhythm_preview: "1" }, false, () => assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null));
+    withWin({ mgb_rhythm_cache: "0" }, false, () => assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null));
+  });
+  global.window = { localStorage: { getItem: () => { throw new Error("blocked"); } } };
+  try {
+    assert.strictEqual(L.ANN_listed(a, admin), false, "blocked storage reads as off");
+  } finally {
+    delete global.window;
+  }
+});
+
+t("month-rhythm-launch gate: on shows the notice once, for staff only", () => {
+  const a = rhEntry();
+  const reg = [a];
+  withWin({ mgb_rhythm_cache: "1" }, false, () => {
+    [admin, bk, tempAdmin, am].forEach((ctx) => {
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), [a]);
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), a);
+      assert.strictEqual(L.ANN_pickNext(reg, state({ rows: { [a.id]: { status: "toured", later_count: 0 } } }), ctx, SLATE_NOW), null, "toured: done");
+      assert.strictEqual(L.ANN_pickNext(reg, state({ rows: { [a.id]: { status: "dismissed", later_count: 0 } } }), ctx, SLATE_NOW), null, "skipped: done");
+      assert.strictEqual(L.ANN_pickNext(reg, state(), Object.assign({ impersonating: true }, ctx), SLATE_NOW), null, "View as");
+    });
+    assert.deepStrictEqual(L.ANN_audience(reg, { isAdmin: false, isBookkeeper: false, tempAdmin: false, amCount: 0 }), [], "clients never");
+    assert.strictEqual(L.ANN_pickNext(reg, state(), { role: "client" }, SLATE_NOW), null);
+  });
+});
+
+t("order: month-rhythm-launch comes right after slate-app-launch on the same day", () => {
+  const ids = ANN_REGISTRY.map((x) => x.id);
+  assert.strictEqual(ids.indexOf("month-rhythm-launch"), ids.indexOf("slate-app-launch") + 1);
+  [admin, bk, tempAdmin, am].forEach((ctx) => {
+    const seq = walk(ctx, Object.assign({ mgb_slate_cache: "1", mgb_rhythm_cache: "1" }, ORDER_CACHES), false);
+    assert.strictEqual(seq[0], "slate-app-launch");
+    assert.strictEqual(seq[1], "month-rhythm-launch");
+    assert.strictEqual(seq.filter((x) => x === "month-rhythm-launch").length, 1);
+  });
 });
 
 console.log("announcementsLogic: " + n + " checks passed");

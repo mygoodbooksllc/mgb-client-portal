@@ -2,7 +2,7 @@
 title: Where are a client's Client setup (staff) and Settings (client)?
 section: Working with a client
 audience: staff
-keywords: [client settings, client setup, settings, gear, milestone, help menu, question mark menu, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, pro tour, request access, theme, dark mode]
+keywords: [month rhythm, own rhythm, client rhythm, uses the firm rhythm, use the firm rhythm, client settings, client setup, settings, gear, milestone, help menu, question mark menu, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, pro tour, request access, theme, dark mode]
 sort: 262
 ---
 Staff and clients open different things from the gear. Staff have **Client setup**. Clients have **Settings**.
@@ -17,12 +17,26 @@ Click **Client setup**. The page is called **Client setup**, and the browser tab
 - **Access and details** (staff only). Clients never see it.
   - **Manage access**: who at the client can sign in, what each person sees, and portal access requests. When there's a new request, the tab has a gold dot and the row says **New request**.
   - **Client details**: contacts, QuickBooks connection, notes, SOP, activity and the client's other details.
+  - **Month rhythm**: the client's three monthly days (see **A client's own month rhythm** below).
 
   Each **Open** button opens a window. Links from other pages open the right window straight away, for example **Reconnect** on the Overview opens the QuickBooks part of Client details.
 - **Plan**: the Basic and Pro comparison the client sees (Basic is free with 1 login included and extra logins at $20/mo each; Pro is $100/mo plus $20/mo per login; both are on top of the milestone fee), with the client's plan marked **Your plan**. **See plans** on the organization card on the client's Home opens it too.
 - **Milestone**: only if you're not a real admin. Real admins have **Milestone** in the tab row instead. If a bookkeeper, an account manager or a temporary admin opens a Milestone link, they land here. This keeps the row simple. It isn't a security lock: what you can see is still set by your role and the client's access.
 
 The **Client view** menu is separate. It's next to the gear and holds the client's own pages. See [How do I use the Clients page?](#/help/clients-page).
+
+### A client's own month rhythm
+
+Most clients follow the firm's month rhythm: Check in, Send reports and Follow up on the days set in **Settings › Firm settings › Month rhythm**. A client can have its own three days instead, for example when its board meets early in the month.
+
+Open the client, then **Client setup › Access and details**. The **Month rhythm** row shows either "Uses the firm rhythm" with the firm days, or "Own rhythm" with the client's days.
+
+- **Admins** select **Change**, pick the three days, and select **Save**. The days must be in order (Check in first, Follow up last) and between the 1st and the 28th.
+- **Use the firm rhythm** removes the client's own days, so the client follows the firm days again.
+- **Bookkeepers** can see which days apply but cannot change them.
+- **Labels and weekends stay firm-wide.** The part names and what happens on a weekend or firm holiday always come from the firm setting.
+- **What changes:** monthly tasks made from now on for that client use its days. Tasks that already exist keep their dates. The upcoming dates on **Slate › Recurring** for that client show the new days too.
+- **Every change is recorded.** Clients never see this setting.
 
 ### What the client sees
 

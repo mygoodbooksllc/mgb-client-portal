@@ -182,6 +182,47 @@ t("TK_rhythmEnabled without a browser is off and does not throw", () => {
   assert.strictEqual(R.TK_rhythmEnabled(), false);
 });
 
+t("TK_rhythmEnabled: cached firm switch before the read, the read once it is in", () => {
+  const st = R.TK_rhythmState;
+  const saved = { loaded: st.loaded, switchValue: st.switchValue };
+  const win = (store) => {
+    global.window = { localStorage: { getItem: (k) => (Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null) } };
+  };
+  try {
+    assert.strictEqual(R.TK_RHYTHM_CACHE_KEY, "mgb_rhythm_cache");
+    st.loaded = false;
+    st.switchValue = undefined;
+    win({});
+    assert.strictEqual(R.TK_rhythmEnabled(), false, "no cache, no read: off (today's default)");
+    win({ mgb_rhythm_cache: "0" });
+    assert.strictEqual(R.TK_rhythmEnabled(), false, "only \"1\" counts");
+    win({ mgb_rhythm_cache: "1" });
+    assert.strictEqual(R.TK_rhythmEnabled(), true, "cached on: on before the read");
+    st.loaded = true;
+    st.switchValue = false;
+    assert.strictEqual(R.TK_rhythmEnabled(), false, "the read wins over a stale cache");
+    st.switchValue = true;
+    win({});
+    assert.strictEqual(R.TK_rhythmEnabled(), true, "the read wins with no cache");
+    st.switchValue = undefined;
+    win({ mgb_rhythm_preview: "1" });
+    assert.strictEqual(R.TK_rhythmEnabled(), true, "the preview still works");
+    global.window = { localStorage: { getItem: () => { throw new Error("blocked"); } } };
+    st.loaded = false;
+    assert.strictEqual(R.TK_rhythmEnabled(), false, "blocked storage reads as off");
+  } finally {
+    delete global.window;
+    st.loaded = saved.loaded;
+    st.switchValue = saved.switchValue;
+  }
+});
+
+t("index.html caches month_rhythm_enabled in the same single tk_settings read", () => {
+  const html = fs.readFileSync(path.join(__dirname, "..", "..", "index.html"), "utf8");
+  assert.ok(/\.in\("key", \["brand_enabled", "hovernav_enabled", "slate_app_enabled", "month_rhythm_enabled"\]\)/.test(html));
+  assert.ok(/lsSet\("mgb_rhythm_cache", isOn\(vals\.month_rhythm_enabled\) \? "1" : null\)/.test(html));
+});
+
 t("owner-only list adds month_rhythm_enabled and keeps every live key", () => {
   const m = /create or replace function public\.tk__owner_only_key[\s\S]*?select p_key in \(([\s\S]*?)\);/.exec(SQL);
   assert.ok(m, "owner-only function in migration");

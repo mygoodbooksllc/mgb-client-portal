@@ -1,4 +1,6 @@
-# Slate month rhythm, slice 3: launch kit draft (not live)
+# Slate month rhythm, slice 3: launch kit (PUBLISHED 2026-10-25)
+
+**PUBLISHED 2026-10-25:** month_rhythm_enabled is on; the guide, notice (`month-rhythm-launch`), tour, tips, What's new and MGB_VERSION shipped in one commit. Kept as the source of record; do not re-apply.
 
 Drafted 2026-10-21 (mgb-launch-kit step 5). Nothing in this file is wired into the app. On launch day, when the
 owner turns on `month_rhythm_enabled`:

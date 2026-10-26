@@ -314,11 +314,26 @@ function TK_rhythmPreviewOn() {
   }
 }
 
-// THE one check every later slice calls. Until TK_rhythmLoad() has read the
-// switch, it answers from the person's preview alone (the switch is off by
-// default, so that is the safe answer).
+// The firm switch as index.html's inline script last read it (mgb_rhythm_cache,
+// "1" only while month_rhythm_enabled is on; the same single tk_settings read as
+// Brand colors, Hover menus and the Slate app). It lets every page see the
+// launched month rhythm without first opening Settings or Recurring.
+var TK_RHYTHM_CACHE_KEY = "mgb_rhythm_cache";
+function TK_rhythmCacheOn() {
+  try {
+    return window.localStorage.getItem(TK_RHYTHM_CACHE_KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+// THE one check every later slice calls. Once TK_rhythmLoad() has read the
+// switch, that answer wins. Before then it answers from the cached firm
+// switch (mgb_rhythm_cache, above) or the person's preview; with no cache the
+// switch counts as off, the safe default.
 function TK_rhythmEnabled() {
-  return TK_rhythmIsOn(TK_rhythmState.switchValue, TK_rhythmPreviewOn());
+  var sw = TK_rhythmState.loaded ? TK_rhythmState.switchValue : TK_rhythmCacheOn() ? true : undefined;
+  return TK_rhythmIsOn(sw, TK_rhythmPreviewOn());
 }
 
 // Reads month_rhythm and month_rhythm_enabled once (pass force to re-read).
@@ -558,6 +573,8 @@ if (typeof module !== "undefined" && module.exports) {
     TK_rhythmFlagValueOn: TK_rhythmFlagValueOn,
     TK_rhythmIsOn: TK_rhythmIsOn,
     TK_rhythmEnabled: TK_rhythmEnabled,
+    TK_RHYTHM_CACHE_KEY: TK_RHYTHM_CACHE_KEY,
+    TK_rhythmCacheOn: TK_rhythmCacheOn,
     TK_rhythmState: TK_rhythmState,
     TK_clientRhythmProblem: TK_clientRhythmProblem,
     TK_rhythmForClient: TK_rhythmForClient,

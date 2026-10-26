@@ -2,7 +2,7 @@
 title: How do recurring tasks from templates work?
 section: Month-end and recurring work
 audience: staff
-keywords: [create month-end tasks from the close checklist, close checklist tasks, also this month, templates, recurring, recurring tasks, repeat, weekly, monthly, quarterly, annually, fiscal year, generate, make due tasks now, automatic tasks, task templates, suggestions, suggested templates, save as template, checklist, due rule, business day, last business day, lead days, draft, turn on, pause, resume, retire, missed periods, dismissed, skip for this client, repeats locked, live for real clients, change for this client, standard set, standard close set, preview, recurring badge, #/tasks/templates, assign to, named person, leave unassigned, unassigned, claim, from asana, asana import]
+keywords: [create month-end tasks from the close checklist, close checklist tasks, also this month, templates, recurring, recurring tasks, repeat, weekly, monthly, quarterly, annually, fiscal year, generate, make due tasks now, automatic tasks, task templates, suggestions, suggested templates, save as template, checklist, due rule, business day, last business day, lead days, draft, turn on, pause, resume, retire, missed periods, dismissed, skip for this client, repeats locked, live for real clients, change for this client, standard set, standard close set, preview, recurring badge, #/tasks/templates, assign to, named person, leave unassigned, unassigned, claim, from asana, asana import, month rhythm, mgb month rhythm, a month rhythm date, check in, send reports, follow up, 4th 14th 24th, pre-fill, pre-fill by client type, quarterly, annual, churches, nonprofits, for-profit, make drafts]
 sort: 320
 ---
 Some work happens for every client on a schedule, like reconciling bank accounts each month. Instead of typing those tasks by hand, an admin sets up a **recurring template** once, and the portal makes the task for each client on its own every morning.
@@ -29,8 +29,40 @@ A template's due date can be:
 - **A weekday of the month**, like the 2nd Tuesday.
 - **A day of the week** (weekly templates).
 - **Days after the period ends** (the old style).
+- **A month rhythm date** (monthly templates): Check in, Send reports or Follow up, on the days in **Settings › Firm settings › Month rhythm**. See below.
 
 Business days skip weekends and the firm's holidays. The editor shows the next three due dates as you type.
+
+### The MGB Month Rhythm templates
+
+Slate › Recurring has a set called **MGB Month Rhythm**. It holds eight monthly tasks that follow the firm's month rhythm:
+
+- **Check in:** check in with the client about last month, ask for missing documents, categorize the bank feed through month end, note what is still missing.
+- **Send reports:** finish the month with the documents received, then send reports. Send full reports if the month is complete, or preliminary reports if documents are missing.
+- **Follow up:** follow up on missing documents, then finish and send full reports once they arrive.
+
+Each task is due on its part's date, in the month after the month it covers. For example, September's Send reports tasks are due on the Send reports date in October. The row reads "Monthly · On the Send reports date (14th), next month". The dates come from **Settings › Firm settings › Month rhythm**, or from a client's own rhythm if an admin set one (see [Where are a client's Client setup (staff) and Settings (client)?](#/help/client-settings)).
+
+- **On for every client since October 25, 2026.** The owner turned on month rhythm tasks, so the daily task run makes them for every client from that day forward. Earlier months are not filled in.
+- **Test and internal clients** also get the tasks when an admin presses **Make due tasks now** on that client.
+- **If the rhythm can't be read**, the run skips these templates and shows one warning. Save the month rhythm again in Settings to fix it.
+
+**Editing a month rhythm template.** Open a template and choose **A month rhythm date** under Due. Pick the part (Check in, Send reports or Follow up), then the month: same month, next month, or later. The preview below shows the next dates from the firm's rhythm. To move the day itself, change the month rhythm in Settings rather than each template: the next tasks use the new days, and tasks that already exist keep their dates.
+
+**Description:** each task made from the template starts with this text. Use it for the short "why" of the task. The checklist still holds the steps.
+
+**Email draft:** three of the templates say which client email their task drafts (statement request, reports, or follow-up and maintenance). See [What's in a task's details?](#/help/task-details).
+
+### Pre-fill Quarterly and Annual work by client type (admins)
+
+On **Slate › Recurring**, admins see **Pre-fill Quarterly and Annual work by client type**. Pick Churches, Other nonprofits or For-profit businesses, tick the suggestions you want, and choose **Make N drafts**.
+
+- Each suggestion becomes a **draft** template for every real client of that type (test clients and the firm's own record are left out). A draft never makes tasks until you open it, check its clients and dates, and activate it.
+- A suggestion that already exists for those clients shows as **already a template** and is not made again.
+- Filings (990, 1099, W-2, 941, 940) are not suggested. They keep their one date on **Work › Deadlines**.
+- Occasional work (a new pastor, a new grant, a new loan) is listed as ideas only. Add it as a one-off task when it comes up.
+
+A template task for a quarter or a year that has no section shows under **Quarterly** or **Annual** on the client's list.
 
 ### What you can see (all staff)
 
