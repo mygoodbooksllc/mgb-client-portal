@@ -39,8 +39,10 @@ Both buttons show only for a client you can open.
 Click the **+** (top bar, Desk rail, or the top bar on a phone). Three new lines join **New task**:
 
 - **Ask client…** On a client's page it opens Ask client for that client straight away. On any other page it first asks which client (type to find one; the same clients as the Client tab picker, so no MGB internal and no test clients unless **Show test clients** is on), then opens Ask client. It is the same window as on a task, with no task attached.
-- **Message…** On a client's page it opens the chat on that client (this replaces the old **Message** line there). On any other page it opens the chat list.
+- **Message…** On a client's page it opens the chat on that client (this replaces the old **Message** line there). On any other page it opens the chat list (on the staff Inbox page the chat is the page itself, so it opens the Desk's Messages chip instead).
 - **Time off** opens **My time off** in a window: add or remove days you'll be away, and **Hand my tasks to backups** works as it does on Team › People.
+
+At launch also update the tour step "quick" in `Tour.jsx` (~line 1054, "or starts a Message") to mention Ask client…, Message… and Time off.
 
 **Request document** and **New note** stay as they were. Esc closes the window first, then the Desk.
 

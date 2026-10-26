@@ -1300,6 +1300,9 @@ function TB_QuickAdd({ client, variant, tabIndex, deskOn, clients }) {
   // Desk additions (WB_plus.js, WB_QuickActions.jsx): off = this menu is exactly as before.
   const plusOn = typeof WB_useDeskPlus === "function" ? WB_useDeskPlus(!!deskOn) : false;
   const [wbq, setWbq] = useState(null);
+  useEffect(() => {
+    if (!plusOn) setWbq(null);
+  }, [plusOn]);
   if (!client && !tk && !plusOn) return null;
   const run = (kind) => {
     menu.close(false);
@@ -1333,9 +1336,11 @@ function TB_QuickAdd({ client, variant, tabIndex, deskOn, clients }) {
       {menu.open && (
         <div className={rail ? "tb-panel tb-menu wb-rail-menu" : "tb-panel tb-menu"} role="menu" aria-label={label}>
           <div className="tb-panel-head">{label}</div>
-          <button type="button" role="menuitem" className="tb-menu-item" autoFocus onClick={() => run("task")}>
-            New task
-          </button>
+          {(client || tk) && (
+            <button type="button" role="menuitem" className="tb-menu-item" autoFocus onClick={() => run("task")}>
+              New task
+            </button>
+          )}
           {client && (
             <>
               <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("note")}>
@@ -1355,7 +1360,7 @@ function TB_QuickAdd({ client, variant, tabIndex, deskOn, clients }) {
             <WB_QuickItems
               client={client}
               onRun={(kind) => {
-                menu.close(false);
+                menu.close(kind !== "message");
                 setWbq(WB_quickStart(kind, client));
               }}
             />

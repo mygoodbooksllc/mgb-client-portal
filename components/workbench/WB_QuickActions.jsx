@@ -135,6 +135,19 @@ function WB_QuickClientPicker(props) {
   var q = qPair[0];
   var pool = props.pool;
   var list = typeof WB_quickPickFilter === "function" ? WB_quickPickFilter(pool, q) : pool;
+  var inputRef = React.useRef(null);
+  // ModalShell focuses its first control (the close button) in an effect that
+  // runs after this one, so move focus to the search box a frame later.
+  React.useEffect(function () {
+    var raf = typeof requestAnimationFrame === "function" ? requestAnimationFrame : function (f) { return setTimeout(f, 0); };
+    var h = raf(function () {
+      if (inputRef.current) inputRef.current.focus();
+    });
+    return function () {
+      if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(h);
+      else clearTimeout(h);
+    };
+  }, []);
   var pick = function (c) {
     props.onPick(c);
   };
@@ -150,6 +163,7 @@ function WB_QuickClientPicker(props) {
       </div>
       <div className="modal-body">
         <input
+          ref={inputRef}
           className="wb-qp-input"
           type="search"
           autoComplete="off"
@@ -160,7 +174,7 @@ function WB_QuickClientPicker(props) {
             qPair[1](e.target.value);
           }}
           onKeyDown={function (e) {
-            if (e.key === "Enter" && list.length) {
+            if (e.key === "Enter" && q.trim() && list.length) {
               e.preventDefault();
               pick(list[0]);
             }
@@ -225,7 +239,7 @@ function WB_QuickHost(props) {
         </div>
         <div className="modal-body">
           <p className="card-subtitle">
-            Add days you'll be away so the team can plan cover. Your open tasks due while you're out go to each client's backup and come back after.
+            Add days you'll be away so the team can plan cover.
           </p>
           <CV_MyTimeOffBody staffUser={staffUser} />
         </div>
