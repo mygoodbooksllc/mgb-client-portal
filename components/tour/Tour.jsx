@@ -1069,7 +1069,7 @@ function TOUR_bookkeeperSteps(ctx) {
       title: "Add something for this client",
       body: () =>
         (TOUR_deskPlusOn()
-          ? "With a client open, the + button adds a New task, a New note or a Request document for them, or starts Ask client..., a Message or Time off. In a new task, plain words work: for Sierra, re Example Church, by Friday."
+          ? "With a client open, the + button adds a New task, a New note or a Request document for them, or opens Ask client…, Message… or Time off. In a new task, plain words work: for Sierra, re Example Church, by Friday."
           : "With a client open, the + button adds a New task, a New note or a Request document for them, or starts a Message. In a new task, plain words work: for Sierra, re Example Church, by Friday."),
     },
     // Desk additions (hidden until launch): one stop on the Desk's Client tab. Not in the list at all

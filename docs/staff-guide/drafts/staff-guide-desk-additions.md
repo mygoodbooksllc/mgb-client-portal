@@ -42,8 +42,6 @@ Click the **+** (top bar, Desk rail, or the top bar on a phone). Three new lines
 - **Message…** On a client's page it opens the chat on that client (this replaces the old **Message** line there). On any other page it opens the chat list (on the staff Inbox page the chat is the page itself, so it opens the Desk's Messages chip instead).
 - **Time off** opens **My time off** in a window: add or remove days you'll be away, and **Hand my tasks to backups** works as it does on Team › People.
 
-At launch also update the tour step "quick" in `Tour.jsx` (~line 1054, "or starts a Message") to mention Ask client…, Message… and Time off.
-
 **Request document** and **New note** stay as they were. Esc closes the window first, then the Desk.
 
 Guide files to update at launch (a "new way in" line each): `time-off-coverage.md` (**Time off** in the + menu) and `ask-client.md` (**Ask client…** in the + menu and the Client tab's **Ask client** button, no task needed).
@@ -63,7 +61,7 @@ The same text the guide SQL (supabase/staff-guide-desk-additions.sql) inserts. P
 ````markdown
 ### Ledger chip, and the Client tab's lists and buttons
 
-**Ledger chip.** In the Inbox, the chips along the top have a **Ledger** chip just before **Documents**. It shows only your Ledger (GL Review) items: flags to look at, reviews to approve, reviews sent back to you, and questions waiting on an answer. Pick **All** to see everything again.
+**Ledger chip.** In the Inbox, the chips along the top have a **Ledger** chip just before **Files**. It shows only your Ledger (GL Review) items: flags to look at, reviews to approve, reviews sent back to you, and questions waiting on an answer. Pick **All** to see everything again.
 
 **Under the client's tasks on the Client tab** are three short lists. Each loads on its own; if one can't load it says so with a **Retry** button and the others still show.
 
@@ -82,8 +80,8 @@ You only see clients you can open: bookkeepers see their own clients, admins see
 
 Click the **+** (top bar, Desk rail, or the top bar on a phone). Three lines join **New task**:
 
-- **Ask client...** On a client's page it opens Ask client for that client straight away. On any other page it first asks which client (type to find one), then opens Ask client.
-- **Message...** On a client's page it opens the chat on that client. On any other page it opens the chat list.
+- **Ask client…** On a client's page it opens Ask client for that client straight away. On any other page it first asks which client (type to find one), then opens Ask client.
+- **Message…** On a client's page it opens the chat on that client. On any other page it opens the chat list.
 - **Time off** opens **My time off** in a window: add or remove days you'll be away, and **Hand my tasks to backups** works as it does on Team › People.
 
 **Request document** and **New note** stay as they were.
@@ -101,7 +99,7 @@ You can also click **+** in the top bar or the Desk rail and pick **Time off**. 
 ````markdown
 ### Ask without a task
 
-From the Desk you can ask a client for something without picking a task. On the Desk's **Client** tab click **Ask client**, or click **+** in the top bar or the Desk rail and pick **Ask client...** (on a page that isn't a client's, pick the client first). It is the same window as on a task, with no task attached. The request shows under **Waiting on client** on the Client tab right away, and in **Slate › Waiting on client**.
+From the Desk you can ask a client for something without picking a task. On the Desk's **Client** tab click **Ask client**, or click **+** in the top bar or the Desk rail and pick **Ask client…** (on a page that isn't a client's, pick the client first). It is the same window as on a task, with no task attached. The request shows under **Waiting on client** on the Client tab right away, and in **Slate › Waiting on client**.
 
 ````
 
@@ -113,7 +111,7 @@ From the Desk you can ask a client for something without picking a task. On the 
 - **Ledger chip.** The Desk Inbox has a new **Ledger** chip for your Ledger (GL Review) items.
 - **Client tab.** It now shows what's waiting on the client, their latest messages and their latest files, under the client's tasks.
 - **Ask client and Message.** Two new buttons next to **+ Task**: Ask client (a question or document request without picking a task) and Message (open the chat on that client).
-- **The + menu.** Three new lines: **Ask client...**, **Message...** and **Time off**.
+- **The + menu.** Three new lines: **Ask client…**, **Message…** and **Time off**.
 
 ````
 

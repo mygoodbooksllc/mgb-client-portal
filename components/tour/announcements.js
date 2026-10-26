@@ -1622,7 +1622,7 @@ var ANN_REGISTRY = [
     date: "2026-10-25",
     title: "More on the Desk",
     summary:
-      "The Desk's Client tab now shows what is waiting on the client, their recent messages and recent files, with Ask client and Message buttons. The + menu has Ask client..., Message... and Time off, and the Inbox has a Ledger chip.",
+      "The Desk's Client tab now shows what is waiting on the client, their recent messages and recent files, with Ask client and Message buttons. The + menu has Ask client…, Message… and Time off, and the Inbox has a Ledger chip.",
     roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
     hash: "#/today",
     visible: () => ANN_deskPlusLaunchOn(),
@@ -1681,7 +1681,7 @@ var ANN_REGISTRY = [
           targets: ["wb-rail-add", "tb-quick"],
           wait: true,
           title: "The + menu",
-          body: () => "Click + for three new lines next to New task: Ask client..., Message... and Time off (your own days away, with backups for your tasks).",
+          body: () => "Click + for three new lines next to New task: Ask client…, Message… and Time off (your own days away, with backups for your tasks).",
         },
       ];
     },

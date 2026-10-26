@@ -13,7 +13,7 @@ begin
     if position($a$### Keyboard shortcuts$a$ in (select body_md from public.staff_guide where slug = 'workbench')) = 0 then raise exception 'workbench: anchor not found, regenerate'; end if;
     update public.staff_guide set body_md = replace(body_md, $a$### Keyboard shortcuts$a$, $n$### Ledger chip, and the Client tab's lists and buttons
 
-**Ledger chip.** In the Inbox, the chips along the top have a **Ledger** chip just before **Documents**. It shows only your Ledger (GL Review) items: flags to look at, reviews to approve, reviews sent back to you, and questions waiting on an answer. Pick **All** to see everything again.
+**Ledger chip.** In the Inbox, the chips along the top have a **Ledger** chip just before **Files**. It shows only your Ledger (GL Review) items: flags to look at, reviews to approve, reviews sent back to you, and questions waiting on an answer. Pick **All** to see everything again.
 
 **Under the client's tasks on the Client tab** are three short lists. Each loads on its own; if one can't load it says so with a **Retry** button and the others still show.
 
@@ -32,8 +32,8 @@ You only see clients you can open: bookkeepers see their own clients, admins see
 
 Click the **+** (top bar, Desk rail, or the top bar on a phone). Three lines join **New task**:
 
-- **Ask client...** On a client's page it opens Ask client for that client straight away. On any other page it first asks which client (type to find one), then opens Ask client.
-- **Message...** On a client's page it opens the chat on that client. On any other page it opens the chat list.
+- **Ask client…** On a client's page it opens Ask client for that client straight away. On any other page it first asks which client (type to find one), then opens Ask client.
+- **Message…** On a client's page it opens the chat on that client. On any other page it opens the chat list.
 - **Time off** opens **My time off** in a window: add or remove days you'll be away, and **Hand my tasks to backups** works as it does on Team › People.
 
 **Request document** and **New note** stay as they were.
@@ -57,7 +57,7 @@ $n$), updated_at = now() where slug = 'time-off-coverage';
     if position($a$### Ask from a task$a$ in (select body_md from public.staff_guide where slug = 'ask-client')) = 0 then raise exception 'ask-client: anchor not found, regenerate'; end if;
     update public.staff_guide set body_md = replace(body_md, $a$### Ask from a task$a$, $n$### Ask without a task
 
-From the Desk you can ask a client for something without picking a task. On the Desk's **Client** tab click **Ask client**, or click **+** in the top bar or the Desk rail and pick **Ask client...** (on a page that isn't a client's, pick the client first). It is the same window as on a task, with no task attached. The request shows under **Waiting on client** on the Client tab right away, and in **Slate › Waiting on client**.
+From the Desk you can ask a client for something without picking a task. On the Desk's **Client** tab click **Ask client**, or click **+** in the top bar or the Desk rail and pick **Ask client…** (on a page that isn't a client's, pick the client first). It is the same window as on a task, with no task attached. The request shows under **Waiting on client** on the Client tab right away, and in **Slate › Waiting on client**.
 
 ### Ask from a task$n$), updated_at = now() where slug = 'ask-client';
   end if;
@@ -70,7 +70,7 @@ From the Desk you can ask a client for something without picking a task. On the 
 - **Ledger chip.** The Desk Inbox has a new **Ledger** chip for your Ledger (GL Review) items.
 - **Client tab.** It now shows what's waiting on the client, their latest messages and their latest files, under the client's tasks.
 - **Ask client and Message.** Two new buttons next to **+ Task**: Ask client (a question or document request without picking a task) and Message (open the chat on that client).
-- **The + menu.** Three new lines: **Ask client...**, **Message...** and **Time off**.
+- **The + menu.** Three new lines: **Ask client…**, **Message…** and **Time off**.
 
 ### 2026-10-23: View as covers the whole app, and Last seen (admins)$n$), updated_at = now() where slug = 'whats-new';
   end if;
