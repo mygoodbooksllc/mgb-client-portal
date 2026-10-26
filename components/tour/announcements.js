@@ -1772,7 +1772,7 @@ var ANN_REGISTRY = [
           body: () =>
             "The left sidebar now lists your Pinned clients (pin with the star in the Desk's Client tab) and your Recent clients under the places." +
             (ctx && ctx.isAdmin ? " Admin alerts are in the bell at the top." : "") +
-            " The Customize gear down here chooses which sections show, in what order, and how wide the sidebar is. It is saved for you.",
+            " The Customize button (sliders icon) down here chooses which sections show, in what order, and how wide the sidebar is. It is saved for you.",
         },
         {
           id: "ann-look",

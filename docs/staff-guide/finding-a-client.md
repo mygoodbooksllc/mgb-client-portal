@@ -31,7 +31,7 @@ Press **Ctrl+K** (**⌘K** on a Mac) or click the search box at the top of the p
 
 ### Getting back
 
-- **Pinned** and **Recent** in the left sidebar (click the gear to customize it), **Recent clients** on Today when the sidebar is off (one line of chips; switch it under **Also show**), and the **Last viewed** column on the **Clients** page take you back to clients you had open.
+- **Pinned** and **Recent** in the left sidebar (click the Customize button, the sliders icon, to customize it), **Recent clients** on Today when the sidebar is off (one line of chips; switch it under **Also show**), and the **Last viewed** column on the **Clients** page take you back to clients you had open.
 - **Overview**, the first tab in the client's tab row, takes you back to the client's Client overview.
 - The address bar keeps the client and page, so you can bookmark a client or paste the link to a teammate.
 

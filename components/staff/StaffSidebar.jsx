@@ -2,7 +2,7 @@
 // L1 left sidebar (spec-l1-sidebar.md, build #2). When the gate is on, the
 // staff rail (StaffRail in app.jsx) also lists Pinned clients, Recent clients
 // and the admin Alerts section (L2, spec-l2-admin-alerts.md) under the places,
-// has a Customize gear and a drag-wider grip. Everything here is invisible while the gate is off.
+// has a Customize button (sliders icon) and a drag-wider grip. Everything here is invisible while the gate is off.
 //
 // The gate (SS_store, a copy of the Desk's WB_store pattern):
 //   Layer 1  tk_settings.nav_enabled (code never writes it; missing means off)
@@ -768,11 +768,13 @@ function SS_AlertsSection(props) {
 }
 
 // ---- Icons ----
-function SS_GearIcon(props) {
+function SS_SlidersIcon(props) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      <path d="M4 7h9M19 7h1" />
+      <circle cx="16" cy="7" r="2.2" />
+      <path d="M4 17h1M11 17h9" />
+      <circle cx="8" cy="17" r="2.2" />
     </svg>
   );
 }
@@ -975,7 +977,7 @@ function SS_WidthGrip({ ss, railRef }) {
   );
 }
 
-// ---- Layout controls (the gear and the admin defaults card share these) ----
+// ---- Layout controls (the Customize button and the admin defaults card share these) ----
 // profile: a complete profile. onChange(nextProfile). allowWidth: show the width slider.
 function SS_LayoutControls({ profile, onChange, readOnly, showAlerts, allowWidth }) {
   const ids = profile.order.filter((id) => id !== "places" && (id !== "alerts" || showAlerts));
@@ -1058,7 +1060,7 @@ function SS_LayoutControls({ profile, onChange, readOnly, showAlerts, allowWidth
   );
 }
 
-// ---- The gear (per person) ----
+// ---- The Customize button (sliders icon, per person) ----
 function SS_Gear({ ss, expanded, railRef, showTip, hideTip }) {
   const [open, setOpen] = React.useState(false);
   const btnRef = React.useRef(null);
@@ -1116,7 +1118,7 @@ function SS_Gear({ ss, expanded, railRef, showTip, hideTip }) {
         onFocus={(e) => showTip(e, "Customize sidebar")}
         onBlur={hideTip}
       >
-        <SS_GearIcon />
+        <SS_SlidersIcon />
         {expanded && <span>Customize</span>}
       </button>
       {open &&

@@ -9,6 +9,10 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-25: Customize button has a new icon
+
+- **Sliders icon.** The **Customize** button at the bottom of the left sidebar now shows a sliders icon instead of a gear, so it is not mistaken for Settings. It works the same.
+
 ### 2026-10-25: Slate app: Back, Forward, Refresh and deeper Undo
 - **Back, Forward and Refresh.** The Slate app window and the installed MyGoodBooks app have no browser buttons, so three round buttons now sit in the top bar (beside the Slate logo in the Slate app). In a normal browser tab they stay hidden; use the browser's own.
 - **Undo goes back 5 steps.** In the Slate app, **Cmd+Z** (Ctrl+Z) undoes your last 5 changes, newest first, each for 9 minutes. A change someone edited since is still left alone and says so.
@@ -57,7 +61,7 @@ On a client's Slate list, admins can click the **Bookkeeper** in the header, pic
 
 ### 2026-10-21: The Desk, a left sidebar and a new look
 
-The Desk and the new **Today** are on for everyone, with a **left sidebar** under the rail (your **Pinned** and **Recent** clients, and a gear to **Customize** it), the **Lato** font, brand colors (navy and teal), and menus that open when you point at them. Press **D** to open the Desk. A short tour covers all of it: **?** → **New: The Desk, a left sidebar and a new look**. The old Today is one click away in the **?** on the **Do next** card. Admins and temporary admins can switch the old fonts, colors and menus back on this computer under **Developer tools › Feature flags**. See [What changed: the Desk, left sidebar and new look](#/help/new-look-and-sidebar).
+The Desk and the new **Today** are on for everyone, with a **left sidebar** under the rail (your **Pinned** and **Recent** clients, and a sliders-icon button to **Customize** it), the **Lato** font, brand colors (navy and teal), and menus that open when you point at them. Press **D** to open the Desk. A short tour covers all of it: **?** → **New: The Desk, a left sidebar and a new look**. The old Today is one click away in the **?** on the **Do next** card. Admins and temporary admins can switch the old fonts, colors and menus back on this computer under **Developer tools › Feature flags**. See [What changed: the Desk, left sidebar and new look](#/help/new-look-and-sidebar).
 
 ### 2026-10-21: Ledger review: Roll-forward
 
