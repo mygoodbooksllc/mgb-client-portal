@@ -119,6 +119,21 @@ function ANN_rhythmLaunchOn() {
   }
 }
 
+// True once the owner has switched the Desk additions on for the firm
+// (tk_settings.deskplus_enabled, cached as mgb_deskplus_cache by WB_plus.js) AND
+// this person is not on Classic Today (mgb_wb_classic), where the Desk is off.
+// Deliberately not the per-person preview mgb_deskplus_preview: a preview person
+// sees no launch text.
+function ANN_deskPlusLaunchOn() {
+  try {
+    var ls = window.localStorage;
+    if (ls.getItem("mgb_wb_classic") === "1") return false;
+    return ls.getItem("mgb_deskplus_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 // True when the left sidebar's Pinned and Recent clients are on for this person.
 function ANN_sidebarOn() {
   try {
@@ -1596,6 +1611,79 @@ var ANN_REGISTRY = [
             "To see this again, press ? and pick New: Month rhythm tasks are on, or read How do recurring tasks from templates work? in Help.",
         },
       ].filter(Boolean);
+    },
+  },
+  {
+    // Desk additions launch (S1-S4), HELD: visible only once the owner flips tk_settings.deskplus_enabled
+    // (cached as mgb_deskplus_cache) and the person is not on Classic Today. A separate small notice
+    // because the Desk itself (new-look-and-layout, ann-desk) is already live. Drafts and guide SQL:
+    // docs/staff-guide/drafts/staff-guide-desk-additions.md, supabase/staff-guide-desk-additions.sql.
+    id: "desk-client-actions",
+    date: "2026-10-25",
+    title: "More on the Desk",
+    summary:
+      "The Desk's Client tab now shows what is waiting on the client, their recent messages and recent files, with Ask client and Message buttons. The + menu has Ask client..., Message... and Time off, and the Inbox has a Ledger chip.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/today",
+    visible: () => ANN_deskPlusLaunchOn(),
+    ready: () => ANN_deskDocked(),
+    steps: (ctx) => {
+      const openDesk = (tab) => () => {
+        try {
+          if (typeof WB_store === "undefined") return;
+          if (!WB_store.getState().drawerOpen) WB_store.setDrawerOpen(true, "tour");
+          WB_store.setHub({ tab: tab });
+        } catch (e) {}
+      };
+      const openClientTab = () => {
+        try {
+          if (typeof TOUR_openClient === "function" && ctx && ctx.myClient) TOUR_openClient(ctx.myClient.id, "overview")();
+        } catch (e) {}
+        openDesk("client")();
+      };
+      return [
+        {
+          id: "ann-welcome",
+          title: "More on the Desk",
+          body: () =>
+            "The Desk has new ways to work with a client without leaving the page: a Ledger chip in the Inbox, more on the Client tab, and three new lines in the + menu. About a minute.",
+        },
+        {
+          id: "ann-ledger",
+          when: () => ANN_deskOn(),
+          go: openDesk("inbox"),
+          targets: ["wb-chip-gl"],
+          wait: true,
+          title: "The Ledger chip",
+          body: () => "Shows only your Ledger (GL Review) items: flags to look at, reviews to approve and questions waiting on an answer. Pick All to see everything again.",
+        },
+        {
+          id: "ann-client-actions",
+          when: () => ANN_deskOn(),
+          go: openClientTab,
+          targets: ["wb-client-actions"],
+          wait: true,
+          title: "Ask client and Message",
+          body: () => "On the Client tab, Ask client sends the client a question or document request without picking a task, and Message opens the chat on that client.",
+        },
+        {
+          id: "ann-client-waiting",
+          when: () => ANN_deskOn(),
+          go: openClientTab,
+          targets: ["wb-client-waiting"],
+          wait: true,
+          title: "Waiting on client",
+          body: () => "Under the client's tasks: what you have asked them for that they have not answered, with how long it has waited, then their latest messages and files. Click a line to open it.",
+        },
+        {
+          id: "ann-plus",
+          when: () => ANN_deskOn(),
+          targets: ["wb-rail-add", "tb-quick"],
+          wait: true,
+          title: "The + menu",
+          body: () => "Click + for three new lines next to New task: Ask client..., Message... and Time off (your own days away, with backups for your tasks).",
+        },
+      ];
     },
   },
   {

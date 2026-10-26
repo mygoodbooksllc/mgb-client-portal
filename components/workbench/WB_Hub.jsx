@@ -553,7 +553,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
         {tab === "inbox" && !taskView && <div className="wb-panel-tools">
           <div className="wb-tabs wb-hub-chips" role="group" aria-label="Filter">
             {WB_drawerTabs(plusOn).map((t) => (
-              <button key={t.id} type="button" aria-pressed={chip === t.id} className={"wb-tab wb-tab-" + t.id + (chip === t.id ? " is-on" : "")} onClick={() => setChip(t.id)}>
+              <button key={t.id} type="button" aria-pressed={chip === t.id} className={"wb-tab wb-tab-" + t.id + (chip === t.id ? " is-on" : "")} {...(t.id === "gl" ? { "data-tour": "wb-chip-gl" } : {})} onClick={() => setChip(t.id)}>
                 {t.label}
                 <span className="wb-chip-n">{allView.counts[t.id === "all" ? "all" : t.id]}</span>
               </button>

@@ -158,6 +158,9 @@
 //   wb-row-action    the Do next card's main button (Today.jsx TD_DoNextCard),
 //                    only while the Desk is on; and Desk rows (WB_Row.jsx)
 //   wb-list          the Desk's grouped list (drawer, not Today)
+//   wb-chip-gl       the Desk Inbox's Ledger chip (WB_Hub.jsx), only with the Desk additions on
+//   wb-client-actions, wb-client-waiting  the Client tab's Ask client / Message buttons and
+//                    Waiting on client list (WB_HubClient.jsx), only with the Desk additions on
 //   wb-bar           the Desk's info bar at the bottom of every staff page
 //                    (WB_Drawer.jsx), while the Desk is on
 //   wb-rail          the Desk's slim rail on the right (messages, reviews,
@@ -961,6 +964,19 @@ function TOUR_tabStep(place, tab, title, body, when) {
   };
 }
 
+// True when the Desk is live for this person AND the Desk additions are on for them
+// (WB_plus.js: preview checkbox or firm switch). False with the gate off, so tour text
+// and the step list stay exactly as before.
+function TOUR_deskPlusOn() {
+  try {
+    if (typeof WB_plusOn !== "function") return false;
+    if (typeof WB_store === "undefined" || !WB_store.getState().on) return false;
+    return !!WB_plusOn(true);
+  } catch (e) {
+    return false;
+  }
+}
+
 // Bookkeeper tour: a bookkeeper's day, about three minutes (owner request
 // 2026-10-09; it replaced the short generic staff tour, and "staff" still
 // starts it). Each step opens its page first (`go`). Admins can run it from
@@ -1051,8 +1067,35 @@ function TOUR_bookkeeperSteps(ctx) {
       // The Desk rail's + while the Desk is docked (the top-bar + steps aside, Desk R3).
       targets: ["tb-quick", "wb-rail-add"],
       title: "Add something for this client",
-      body: () => "With a client open, the + button adds a New task, a New note or a Request document for them, or starts a Message. In a new task, plain words work: for Sierra, re Example Church, by Friday.",
+      body: () =>
+        (TOUR_deskPlusOn()
+          ? "With a client open, the + button adds a New task, a New note or a Request document for them, or starts Ask client..., a Message or Time off. In a new task, plain words work: for Sierra, re Example Church, by Friday."
+          : "With a client open, the + button adds a New task, a New note or a Request document for them, or starts a Message. In a new task, plain words work: for Sierra, re Example Church, by Friday."),
     },
+    // Desk additions (hidden until launch): one stop on the Desk's Client tab. Not in the list at all
+    // while the additions are off for this person.
+    ...(TOUR_deskPlusOn()
+      ? [
+          {
+            id: "desk-client-actions",
+            when: (c) => !!c.myClient,
+            go: () => {
+              openClient();
+              try {
+                if (typeof WB_store !== "undefined") {
+                  if (!WB_store.getState().drawerOpen) WB_store.setDrawerOpen(true, "tour");
+                  WB_store.setHub({ tab: "client" });
+                }
+              } catch (e) {}
+            },
+            targets: ["wb-client-actions"],
+            wait: true,
+            title: "Ask client and Message, on the Desk",
+            body: () =>
+              "On the Desk's Client tab, Ask client and Message sit next to + Task, and below the tasks you see what is waiting on the client, their recent messages and recent files.",
+          },
+        ]
+      : []),
     {
       id: "inbox",
       when: (c) => TOUR_hasPlace("inbox", c),

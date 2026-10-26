@@ -910,4 +910,30 @@ t("order: month-rhythm-launch comes right after slate-app-launch on the same day
   });
 });
 
+t("desk-client-actions gate: hidden until the Desk additions switch is cached and the person is not on Classic Today", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "desk-client-actions");
+  assert.ok(a, "registered");
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  const reg = [a];
+  [{}, { mgb_deskplus_preview: "1" }, { mgb_deskplus_cache: "0" }, { mgb_deskplus_cache: "1", mgb_wb_classic: "1" }].forEach((ls) => {
+    withWin(ls, false, () => {
+      [admin, bk, tempAdmin, am].forEach((ctx) => assert.deepStrictEqual(L.ANN_audience(reg, ctx), [], "hidden for " + JSON.stringify(ls)));
+    });
+  });
+  withWin({ mgb_deskplus_cache: "1" }, false, () => {
+    [admin, bk, tempAdmin, am].forEach((ctx) => {
+      assert.deepStrictEqual(L.ANN_audience(reg, ctx), [a]);
+      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), a);
+    });
+    assert.strictEqual(L.ANN_pickNext(reg, state(), { role: "client" }, SLATE_NOW), null);
+  });
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((x) => x.id), ["ann-welcome", "ann-ledger", "ann-client-actions", "ann-client-waiting", "ann-plus"]);
+  assert.deepStrictEqual(steps[1].targets, ["wb-chip-gl"]);
+  assert.deepStrictEqual(steps[2].targets, ["wb-client-actions"]);
+  assert.deepStrictEqual(steps[3].targets, ["wb-client-waiting"]);
+  assert.ok(steps[4].targets.indexOf("wb-rail-add") !== -1);
+  assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
+});
+
 console.log("announcementsLogic: " + n + " checks passed");
