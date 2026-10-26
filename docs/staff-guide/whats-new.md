@@ -9,6 +9,10 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-25: Custom repeats in Slate
+- **A Repeat menu like Asana's.** In a task, **Repeat** → **Custom…** lets you repeat daily, weekly on chosen weekdays, monthly (a day, the 2nd Tuesday, or the last day), quarterly, yearly, or every 2 weeks, every 3 months and so on. Add a time of day, skip weekends and firm holidays, and set an end (never, on a date, or after some times). It lists the next five dates before you save.
+- **Recurring templates** have a new **Custom schedule** option with the same menu (date only, no time of day). The old choices work as before.
+
 ### 2026-10-26: Slate, start to finish tour and Slate settings
 - **A tour of all of Slate.** **?** → **Slate, start to finish** walks through Slate in seven short chapters: your day, client lists, working a task, speed, team flow, automation and your setup. It uses big cards you can present to the team, a **Chapters** list to jump around and an **Exit** button. The tour only looks: it never changes a task. On a computer it runs in the Slate app.
 - **Slate settings.** The **gear** in the Slate app opens **Settings**: how Slate opens, which window **Open Slate app** uses, row density, quick keys, how far **Undo** goes and where your task notifications are set. It's just for you, in this browser. In the portal, **?** → **Slate settings** on a Slate page opens it.

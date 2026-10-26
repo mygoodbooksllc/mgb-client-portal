@@ -825,9 +825,12 @@ function TK_DwRepeatRow(props) {
   var timeOf = typeof TK_dlTimeOf === "function" ? TK_dlTimeOf(task.due_at) : "";
   var summary = isCustom ? TK_repeatText(task.recurrence_rule, task.due_date) : "";
   var saveRule = function (rule) {
+    rule = Object.assign({}, rule, { start: task.due_date });
     var patch = { recurrence: "custom", recurrence_rule: rule };
-    if (rule.time && task.due_date) patch.due_at = TK_repeatDueAt(task.due_date, rule.time, rule.tz || "America/Chicago");
-    else if (!rule.time && timeOf && task.due_at) patch.due_at = TK_dlDueAt(task.due_date, timeOf);
+    if (rule.time && task.due_date) {
+      patch.due_at = TK_repeatDueAt(task.due_date, rule.time, rule.tz || "America/Chicago");
+      patch.due_date = task.due_date;
+    } else if (!rule.time && timeOf && task.due_at) patch.due_at = TK_dlDueAt(task.due_date, timeOf);
     props.save(patch);
     open[1](false);
   };

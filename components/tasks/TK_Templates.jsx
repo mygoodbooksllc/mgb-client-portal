@@ -591,7 +591,7 @@ function TK_tplEditor(props) {
                   {errs.repeat_rule}
                 </p>
               ) : null}
-              {cadenceLocked ? <p className="tk-field-help">The schedule can change. The Custom setting itself is fixed once a template has been on.</p> : null}
+              {cadenceLocked ? <p className="tk-field-help">You can still change the schedule. A new pattern can make a catch-up task for a date in the last 7 days, so change it with care.</p> : null}
             </div>
           ) : (
           <TK_tplRuleBuilder

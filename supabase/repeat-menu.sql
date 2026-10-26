@@ -258,12 +258,16 @@ returns date language plpgsql stable set search_path = public as $$
 declare
   v_floor date := coalesce(p_today, p_base);
   v_raw date := p_base;
+  v_anchor date;
   d date;
   i int;
 begin
   if not public.tk_repeat_valid(p) or p_base is null then return null; end if;
+  -- the pattern counts from the rule's start (the unmoved first date), not from the
+  -- finished task's due date: with "skip weekends" that date may have been moved
+  v_anchor := coalesce(public.tk__rj_date(public.tk__rj(p, 'start')), p_base);
   for i in 1..600 loop
-    v_raw := public.tk__repeat_raw_next(p, p_base, v_raw);
+    v_raw := public.tk__repeat_raw_next(p, v_anchor, v_raw);
     if v_raw is null then return null; end if;
     d := case when coalesce((p ->> 'skip')::boolean, false) then public.tk_roll(v_raw, 'next') else v_raw end;
     if d > p_base and d >= v_floor then
@@ -312,10 +316,19 @@ end $$;
 -- uses the offset from before a spring-forward gap).
 create or replace function public.tk_repeat_due_at(p_day date, p_time text, p_tz text)
 returns timestamptz language plpgsql stable set search_path = public as $$
+declare
+  v timestamptz;
 begin
-  return (p_day + p_time::time)::timestamp at time zone coalesce(nullif(p_tz, ''), 'America/Chicago');
-exception when others then
-  return (p_day + p_time::time)::timestamp at time zone 'America/Chicago';
+  begin
+    v := (p_day + p_time::time)::timestamp at time zone coalesce(nullif(p_tz, ''), 'America/Chicago');
+  exception when others then
+    v := (p_day + p_time::time)::timestamp at time zone 'America/Chicago';
+  end;
+  -- exactly 00:00 UTC reads as "date only" in Slate (and moves due_date): nudge one second, like TK_dlDueAt
+  if (v at time zone 'UTC')::time = time '00:00' then
+    v := v + interval '1 second';
+  end if;
+  return v;
 end $$;
 
 -- "After N times": made so far (seen, 1 when absent) is still under the cap.

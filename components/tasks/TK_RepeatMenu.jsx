@@ -86,7 +86,8 @@ function TK_rptPreview(rule, kind, startYmd, holidays, count) {
   }
   var out = [];
   var cur = startYmd;
-  var r = rule;
+  var r = TK_rptCopy(rule);
+  r.start = startYmd; // the task saves with its due date as the pattern's start
   if (!cur) return out;
   out.push(cur);
   while (out.length < count) {
@@ -211,12 +212,17 @@ function TK_RepeatEditor(props) {
         min={min}
         max={max}
         step="1"
-        value={value}
+        defaultValue={value}
+        key={id + ":" + preset + ":" + rule.freq + ":" + (rule.by || "")}
         aria-label={label}
         disabled={props.busy}
-        onChange={function (e) {
+        onBlur={function (e) {
           var v = e.target.value === "" ? "" : Number(e.target.value);
           onVal(v);
+        }}
+        onChange={function (e) {
+          // commit as soon as it is a usable number; an empty box waits for blur
+          if (e.target.value !== "" && Number(e.target.value) >= min && Number(e.target.value) <= max) onVal(Number(e.target.value));
         }}
       />
     );

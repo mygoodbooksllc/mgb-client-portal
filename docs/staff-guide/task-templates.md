@@ -76,7 +76,7 @@ Everyone can open **Slate › Recurring** to see the templates. Under **One clie
 
 1. In **Slate › Recurring**, click **New template**.
 2. Type the **Title**, for example *Reconcile bank accounts*. Don't add the month; it's added for you.
-3. Pick how often it **Repeats**: **Weekly**, **Monthly**, **Quarterly** or **Annually**. Annual templates can follow the calendar year or **each client's fiscal year**.
+3. Pick how often it **Repeats**: **Weekly**, **Monthly**, **Quarterly** or **Annually** or **Custom schedule**. Annual templates can follow the calendar year or **each client's fiscal year**. **Custom schedule** uses the same Repeat menu as a task: pick a **First date**, then any pattern, like every 2 weeks on Monday or the 2nd Tuesday of each month. It makes one task per date (date only, no time of day) and shows the next five dates as you set it up. With **Custom schedule** you don't pick a due date rule: the task is due on each date.
 4. Pick when it's **Due** (see above).
 5. **Show it this many days early** (0 to 90).
 6. Pick **Assign to** (a role on the client, **A named person** and then the **Person**, or **Leave unassigned**), the **Priority**, and optionally the minutes it takes and the client's **SOP section** it links to.

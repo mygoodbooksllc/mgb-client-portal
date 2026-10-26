@@ -199,8 +199,10 @@ var TK_repeat = (function () {
     var hol = holSet(holidays);
     var floor = valid(today) ? today : base;
     var raw = base;
+    // count from the rule's start (the unmoved first date): with skip on, base may have been moved
+    var anchor = valid(rule.start) ? rule.start : base;
     for (var i = 0; i < MAX_SCAN; i++) {
-      raw = rawNext(rule, base, raw);
+      raw = rawNext(rule, anchor, raw);
       if (!raw) return null;
       var d = rule.skip ? rollNext(raw, hol) : raw;
       if (diffDays(d, base) > 0 && diffDays(d, floor) >= 0) {
@@ -288,6 +290,8 @@ var TK_repeat = (function () {
     }
     // a time that happens twice: Postgres takes the later one, so do the same
     if (wallParts(c + 3600000, zone) === target) c += 3600000;
+    // exactly 00:00 UTC reads as "date only" in Slate: nudge one second (as TK_dlDueAt does)
+    if (c % 86400000 === 0) c += 1000;
     return new Date(c).toISOString();
   }
 
@@ -384,6 +388,8 @@ var TK_repeatAdvance = TK_repeat.TK_repeatAdvance;
 var TK_repeatDueAt = TK_repeat.TK_repeatDueAt;
 var TK_repeatText = TK_repeat.TK_repeatText;
 var TK_repeatDefault = TK_repeat.TK_repeatDefault;
+var TK_REPEAT_DOW_NAMES = TK_repeat.TK_REPEAT_DOW_NAMES;
+var TK_REPEAT_DOW_SHORT = TK_repeat.TK_REPEAT_DOW_SHORT;
 if (typeof window !== "undefined") window.TK_repeat = TK_repeat;
 
 if (typeof module !== "undefined" && module.exports) {

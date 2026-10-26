@@ -42,7 +42,7 @@ On a narrow window or a phone, each value drops under its name.
 - **Start**: the day work can begin. It can't be after the due date.
 - **Section**: where it sits on the client's or project's list, such as Weekly or Monthly.
 - **Type**: **Task** or **Reminder**. **Remind me** sets a date and time to nudge you.
-- **Repeat**: **Doesn't repeat**, **Daily**, **Weekly**, **Monthly** or **Month end**. It needs a due date. Finishing a repeating task creates the next one.
+- **Repeat**: **Doesn't repeat**, **Daily**, **Weekly**, **Monthly**, **Month end** or **Custom…**. It needs a due date. Finishing a repeating task creates the next one. **Custom…** opens the Repeat menu: **Daily**, **Weekly** (pick the weekdays), **Monthly** (a day of the month, like the 2nd Tuesday, or the last day), **Quarterly**, **Yearly**, or **Custom** (every 2 weeks, every 3 months, and so on). You can also set a time of day, skip weekends and firm holidays (the task lands on the next business day), and an end (never, on a date, or after a number of times). It shows the next five dates before you save. **Edit** next to the summary changes it later.
 - **Sharing** (only the task's owner, the person who made it, can change it): **Share with the client's team** lets the other staff on that client see and work on it. On a project task it reads **Share with project members**. Unshared tasks are private: only you, the assignee, followers and admins see them.
 - **SOP section** (client tasks): link the task to a part of the client's SOP. **View SOP section** shows it right there, and **Open full SOP** opens the client's SOP tab.
 - **Description**: details, steps or links.

@@ -67,3 +67,17 @@ eq(L.TK_repeatDefault("weekly", "2026-10-28").dows, [3], "default weekly day");
 eq(L.TK_repeatDefault("monthly", "2026-10-28").day, 28, "default monthly day");
 
 console.log("TK_repeatLogic: " + n + " checks passed");
+
+// review fixes: skip weekends counts from the rule's start, not the moved due date
+{
+  const r = { v: 1, freq: "monthly", interval: 3, by: "last", skip: true, start: "2028-06-30", end: { type: "never" } };
+  const a = L.TK_repeatNext(r, "2028-06-30", "2028-06-30", []);
+  const b = L.TK_repeatNext(r, a, a, []);
+  const c = L.TK_repeatNext(r, b, b, []);
+  assert.strictEqual(a, "2028-10-02"); // Sep 30 2028 is a Saturday
+  assert.strictEqual(b, "2029-01-01"); // Dec 31 2028 is a Sunday, a quarter after Sep, not a month after Oct 2
+  assert.strictEqual(c, "2029-04-02"); // Mar 31 2029 is a Saturday
+  // evening time: 19:00 Chicago in summer is exactly 00:00Z, nudged one second
+  assert.strictEqual(L.TK_repeatDueAt("2026-07-15", "19:00", "America/Chicago"), "2026-07-16T00:00:01.000Z");
+  console.log("TK_repeatLogic: review-fix checks passed");
+}

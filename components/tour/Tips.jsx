@@ -376,7 +376,7 @@ const TIPS_CATALOG = [
     // and then no tip).
     part: ".task-share",
     snug: true,
-    text: "Pick a client and tick Share with this client's team so other staff on it can see and tick off the task. Repeat needs a Due date.",
+    text: "Pick a client and tick Share with this client's team so other staff on it can see and tick off the task. Repeat needs a Due date; Custom… sets weekdays, an end and more.",
     slug: "my-tasks",
   },
   // Tasks module (2026-10-11): My Tasks at #/tasks/... and under Work ›
