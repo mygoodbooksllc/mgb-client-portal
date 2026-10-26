@@ -256,4 +256,33 @@ function MGB_viewAsBlocked(v) {
         global: { fetch: slowNetworkFetch },
       })
     : null;
+
+  // Security audit L7: signing out used to leave this browser's cached data
+  // behind (window.CLIENTS in the tab; file names, donor names, settings and
+  // the last client in localStorage), which matters on a shared church-office
+  // PC. Every sign-out button goes through this: end the Supabase session,
+  // drop the app's own keys and all of sessionStorage, then reload "/" so no
+  // in-memory data survives. App-owned localStorage keys are every
+  // `mygoodbooks_*` key plus the `mgb-` / `mgb_` ones (client switcher
+  // recents, top-bar bell, inbox context panel, app-time leader); the
+  // install-app opt-in (mgb_install_app_v1) is a device setting, not data,
+  // so it stays. Supabase removes its own sb-* session key in signOut().
+  const KEEP_KEYS = new Set(["mgb_install_app_v1"]);
+  window.mgbSignOutAndClear = async function (options) {
+    try {
+      if (window.mgbSupabase) await window.mgbSupabase.auth.signOut(options);
+    } catch (e) {}
+    try {
+      const doomed = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && !KEEP_KEYS.has(k) && /^(mygoodbooks_|mgb-|mgb_)/.test(k)) doomed.push(k);
+      }
+      doomed.forEach((k) => localStorage.removeItem(k));
+    } catch (e) {}
+    try {
+      sessionStorage.clear();
+    } catch (e) {}
+    window.location.replace("/");
+  };
 })();

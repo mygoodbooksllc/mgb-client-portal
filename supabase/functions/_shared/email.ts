@@ -46,7 +46,9 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   const body: Record<string, unknown> = {
     from: input.from || defaultFrom(),
     to,
-    subject: input.subject,
+    // Subjects carry client names and other user-entered text; a CR/LF must
+    // never reach a mail header.
+    subject: String(input.subject ?? "").replace(/[\r\n]+/g, " ").trim(),
     html: input.html,
   };
   if (input.text) body.text = input.text;

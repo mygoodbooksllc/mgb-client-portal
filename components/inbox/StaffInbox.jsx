@@ -123,7 +123,9 @@ async function siSessionEmail(sb, fallback) {
 // client's <Year>/Messages folder and the stored path is
 //   <client_id>/messages/<participant email>/drive:<client_files id>
 // Fallback until Drive is connected (Supabase Storage):
-//   <client_id>/messages/<participant email>/<timestamp>-<file name>
+//   <client_id>/messages/<participant email>/<timestamp>-<file name>, or
+//   <client_id>/internal/<participant email>/… for an internal note's file,
+//   which the client's storage policy doesn't cover (security audit M3).
 // internal: a staff internal note, so client users never see the file.
 async function siUpload(sb, clientId, participant, file, internal) {
   try {
@@ -135,7 +137,8 @@ async function siUpload(sb, clientId, participant, file, internal) {
     return { path: null, error: e };
   }
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
-  const path = `${clientId}/messages/${siLower(participant)}/${Date.now()}-${safe}`;
+  const folder = internal ? "internal" : "messages";
+  const path = `${clientId}/${folder}/${siLower(participant)}/${Date.now()}-${safe}`;
   const { error } = await sb.storage
     .from("client-uploads")
     .upload(path, file, { upsert: false, contentType: file.type || undefined });

@@ -751,7 +751,15 @@
              | openssl base64 -A
          A mismatched hash makes the browser refuse the script outright, so if
          the app ever boots to a blank page right after a version change, these
-         attributes are the first thing to check. -->
+         attributes are the first thing to check.
+
+         The Content-Security-Policy in vercel.json is ENFORCED (security audit
+         M7) and its script-src lists each of these six URLs exactly, not the
+         whole CDN host: changing a version or adding a script here means
+         updating script-src too, or the browser blocks it. 'unsafe-inline'
+         stays in script-src because loadBabelScript() below injects Babel's
+         output as inline <script> text (and this page has inline <script>
+         blocks); it can only go once the app is precompiled (Vite/esbuild). -->
     <!-- Themed tooltips for every title attribute (plain script, no React). -->
     <script src="components/ui/tooltips.js" defer></script>
     <script
@@ -777,18 +785,24 @@
       src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"
     ></script>
     <!-- defer: only needed when someone clicks Download PDF, long after boot.
-         Undeferred these blocked React and Babel from executing. -->
+         Undeferred these blocked React and Babel from executing.
+         jsPDF 3.x (security audit L16: 2.5.2 predates the addImage DoS fixes,
+         and member-supplied logos reach addImage). jspdf-autotable 5.x peers
+         on jspdf ^2 || ^3 || ^4 and still attaches doc.autoTable to
+         window.jspdf.jsPDF when loaded after it, which ProReports.jsx uses.
+         Order matters: autotable must stay after jspdf (defer keeps order).
+         Both URLs are also listed verbatim in vercel.json's script-src. -->
     <script
       defer
       crossorigin="anonymous"
-      integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/"
-      src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"
+      integrity="sha384-5D+9rOA7QhIVVlbglgjfeZ3vcuDz3a+TTrJbV3qiZqHpkTOTowdlTqQXF8E8pw/j"
+      src="https://cdn.jsdelivr.net/npm/jspdf@3.0.4/dist/jspdf.umd.min.js"
     ></script>
     <script
       defer
       crossorigin="anonymous"
-      integrity="sha384-Xl/CUCfJbzsngMp0CFxkmF0VW/8C160IsGujqeQlIhaGxKz2+JsIGORFqtCPeldF"
-      src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"
+      integrity="sha384-5jk55M0XWoAw7LyhlXJe19ErOr3doBAPzxw9vahPFbvolqWa2yDk4fhHa2zuYeOa"
+      src="https://cdn.jsdelivr.net/npm/jspdf-autotable@5.0.8/dist/jspdf.plugin.autotable.min.js"
     ></script>
 
     <script>

@@ -5,6 +5,7 @@ import {
   flagKeysMissing,
   IntuitError as SharedIntuitError,
   QboKeysMissingError,
+  TokenStoreError,
 } from "../_shared/qbo.ts";
 
 // Pulls a client's books out of QuickBooks into the qbo_* tables
@@ -35,9 +36,14 @@ import {
 //           org's client_id; any other client_id in the body is refused.
 //           Clients on Basic or Plus are refused (Sync now is a Pro feature).
 //       Throttled: a connection that synced OK < 60s ago, or has a sync in
-//       progress, returns its last synced_at without calling Intuit.
+//       progress, returns its last synced_at without calling Intuit. Refused
+//       (status "error" with a `code`): any attempt on the connection < 60s
+//       ago, failed or not (too_soon); 30 attempts a day per client user or
+//       200 per staffer (daily_limit, from qbo_manual_sync_attempts); a
+//       client user once the Intuit usage guard has hit its hard stop
+//       (usage_stopped).
 //       Response: { status: "ok" | "fresh" | "in_progress" | "error",
-//                   synced_at, error?, synced[], errors[] }.
+//                   code?, synced_at, error?, synced[], errors[] }.
 //       With { action: "balance_sheet_asof", end_date } (staff only) it
 //       instead returns one read-only Balance Sheet as of a past month end
 //       and syncs nothing; see balanceSheetAsOf.
@@ -141,8 +147,8 @@ class IntuitError extends Error {
 // Both API hosts rejected the very first call. Not an environment question
 // any more: the token itself is bad, revoked, or lacks the scope. Carries
 // status 401 so it takes the existing "flip the connection to error and let
-// the Reconnect UI take over" path, and its own message so the stored
-// last_error names both codes.
+// the Reconnect UI take over" path, and its own message so the recorded
+// qbo_sync_errors detail names both codes.
 class IntuitAuthError extends IntuitError {
   constructor(tid: string | null, prodStatus: number, sandboxStatus: number) {
     super(401, tid, "environment probe");
@@ -1385,28 +1391,36 @@ async function syncClient(
   } catch (e) {
     const err = e as Error;
     // Message only. IntuitError's message is built from status + intuit_tid,
-    // both safe; anything else is one of our own strings. No response body
-    // ever reaches this.
+    // both safe; anything else is one of our own strings or database error
+    // text. No response body ever reaches this.
     const detail = err.message || "sync failed";
+    // Client users can read qbo_sync_runs.detail and qbo_connections.last_error,
+    // so the raw detail goes to the service-role-only qbo_sync_errors and the
+    // client-visible columns get a reference to it.
+    const ref = crypto.randomUUID();
+    const { error: refErr } = await admin
+      .from("qbo_sync_errors")
+      .insert({ ref, client_id: clientId, detail });
+    if (refErr) console.error(`qbo-sync: could not record error ${ref}: ${refErr.message}`);
+    const shortRef = ref.slice(0, 8);
+    // TokenStoreError (_shared/qbo.ts): Intuit rotated the refresh token but
+    // saving it failed, so the old one is dead and only a reconnect helps.
+    const needsReconnect = (e instanceof IntuitError && e.status === 401) || e instanceof TokenStoreError;
+    const publicError = needsReconnect
+      ? `QuickBooks rejected the connection — please reconnect. (ref ${shortRef})`
+      : `Sync failed (ref ${shortRef})`;
     await admin.from("qbo_sync_runs").insert({
       client_id: clientId,
       started_at: startedAt,
       finished_at: new Date().toISOString(),
       status: "error",
-      detail,
+      detail: publicError,
       counts,
     });
-    if (e instanceof IntuitError && e.status === 401) {
+    if (needsReconnect) {
       await admin
         .from("qbo_connections")
-        .update({
-          status: "error",
-          last_error:
-            e instanceof IntuitAuthError
-              ? detail
-              : `QuickBooks rejected the connection — please reconnect. (${detail})`,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ status: "error", last_error: publicError, updated_at: new Date().toISOString() })
         .eq("client_id", clientId);
     } else if (e instanceof QboKeysMissingError) {
       // Secret names only; status left alone (works again once they're set).
@@ -1414,11 +1428,11 @@ async function syncClient(
     } else {
       await admin
         .from("qbo_connections")
-        .update({ last_error: detail, updated_at: new Date().toISOString() })
+        .update({ last_error: publicError, updated_at: new Date().toISOString() })
         .eq("client_id", clientId);
     }
-    console.log(`qbo-sync: client ${clientId} failed — ${detail}`);
-    return { client_id: clientId, error: detail };
+    console.log(`qbo-sync: client ${clientId} failed (ref ${shortRef}) — ${detail}`);
+    return { client_id: clientId, error: publicError };
   }
 }
 
@@ -1641,8 +1655,29 @@ async function balanceSheetAsOf(admin: any, clientId: string, endDate: unknown):
 // ---------------------------------------------------------------------------
 
 // A user-triggered sync is skipped if the connection synced successfully
-// less than this long ago.
+// less than this long ago, and refused if any Sync now attempt on it (failed
+// ones included) started less than this long ago.
 const USER_SYNC_MIN_INTERVAL_MS = 60 * 1000;
+// Sync now attempts per person in a rolling 24 hours, counted from
+// qbo_manual_sync_attempts. Each attempt costs up to ~9 Intuit calls, and
+// the Intuit allowance is shared by every client of the app.
+const CLIENT_DAILY_SYNC_CAP = 30;
+const STAFF_DAILY_SYNC_CAP = 200;
+
+// A refused Sync now, in the shape both Sync now buttons already handle:
+// status "error" plus errors[0].error. `code` is for future UI use. The
+// messages must not say "reconnect" or "included with Pro" (the client
+// button keys its wording off those).
+function syncRefused(code: string, message: string, clientId: string, syncedAt: string | null) {
+  return json({
+    status: "error",
+    code,
+    error: message,
+    synced_at: syncedAt,
+    synced: [],
+    errors: [{ client_id: clientId, error: message }],
+  });
+}
 
 // Sync schedule by client plan (clients.plan; owner decisions 2026-09-27 and
 // 2026-09-30). The cron calls this function every 5 minutes; each run syncs
@@ -1755,7 +1790,8 @@ async function handle(req: Request): Promise<Response> {
       return json({ error: "unknown action" }, 400);
     }
     // Intuit usage guard (supabase/qbo-usage-guard.sql). Past the hard stop,
-    // scheduled syncs stop for the rest of the month; Sync now still works.
+    // scheduled syncs stop for the rest of the month; Sync now still works
+    // for staff (client users are refused in mode (b) below).
     // If the status can't be read, carry on at the normal cadence.
     const { data: usageData, error: usageErr } = await admin.rpc("qbo_usage_status");
     if (!usageErr && usageData) usage = usageData;
@@ -1877,6 +1913,76 @@ async function handle(req: Request): Promise<Response> {
     const lastMs = conn.last_synced_at ? new Date(conn.last_synced_at).getTime() : 0;
     if (!isStaff && lastMs && Date.now() - lastMs < USER_SYNC_MIN_INTERVAL_MS) {
       return json({ status: "fresh", synced_at: conn.last_synced_at, synced: [], errors: [] });
+    }
+
+    // Intuit usage guard: past the hard stop, client users can't spend more
+    // of the shared allowance. Staff still can (that's how they check a fix).
+    // Unreadable status carries on, same as the scheduled path.
+    if (!isStaff) {
+      const { data: usageData, error: usageErr } = await admin.rpc("qbo_usage_status");
+      if (!usageErr && usageData?.mode === "stopped") {
+        return syncRefused(
+          "usage_stopped",
+          "Sync now is paused for the rest of the month. Your numbers will refresh automatically next month.",
+          clientId!,
+          conn.last_synced_at,
+        );
+      }
+    }
+
+    // Daily cap per person, rolling 24 hours. Fails closed: if the count
+    // can't be read, the cap can't be enforced.
+    const actorEmail = (user.email || "").toLowerCase();
+    const { count: recent, error: countErr } = await admin
+      .from("qbo_manual_sync_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("actor_email", actorEmail)
+      .gte("attempted_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+    if (countErr) {
+      console.error(`qbo-sync: could not count Sync now attempts: ${countErr.message}`);
+      return syncRefused("unavailable", "Sync now isn't available right now. Please try again later.", clientId!, conn.last_synced_at);
+    }
+    if ((recent ?? 0) >= (isStaff ? STAFF_DAILY_SYNC_CAP : CLIENT_DAILY_SYNC_CAP)) {
+      return syncRefused(
+        "daily_limit",
+        "You've reached today's Sync now limit. Your numbers still refresh on their regular schedule.",
+        clientId!,
+        conn.last_synced_at,
+      );
+    }
+
+    // Throttle on the last ATTEMPT, failed ones included. The conditional
+    // UPDATE ... RETURNING stamps last_sync_attempt_at and is its own check:
+    // of two concurrent callers only one gets a row back.
+    const attemptIso = new Date().toISOString();
+    const { data: stamped, error: stampErr } = await admin
+      .from("qbo_connections")
+      .update({ last_sync_attempt_at: attemptIso })
+      .eq("client_id", clientId)
+      .or(
+        `last_sync_attempt_at.is.null,last_sync_attempt_at.lt."${
+          new Date(Date.now() - USER_SYNC_MIN_INTERVAL_MS).toISOString()
+        }"`,
+      )
+      .select("client_id");
+    if (stampErr) {
+      console.error(`qbo-sync: could not stamp Sync now attempt: ${stampErr.message}`);
+      return syncRefused("unavailable", "Sync now isn't available right now. Please try again later.", clientId!, conn.last_synced_at);
+    }
+    if (!stamped || !stamped.length) {
+      return syncRefused(
+        "too_soon",
+        "A sync was just tried for this account. Please wait a minute and try again.",
+        clientId!,
+        conn.last_synced_at,
+      );
+    }
+    const { error: logErr } = await admin
+      .from("qbo_manual_sync_attempts")
+      .insert({ client_id: clientId, actor_email: actorEmail, attempted_at: attemptIso });
+    if (logErr) {
+      console.error(`qbo-sync: could not record Sync now attempt: ${logErr.message}`);
+      return syncRefused("unavailable", "Sync now isn't available right now. Please try again later.", clientId!, conn.last_synced_at);
     }
     // And one sync per connection at a time. Two concurrent delete-then-
     // insert runs on the same client would trip each other's primary keys.

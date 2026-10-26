@@ -91,24 +91,6 @@ const safeHttpUrl = (u) => {
   }
 };
 
-// Security audit finding M3: crypto.randomUUID() is unavailable on some
-// older/non-HTTPS contexts, but the old fallback (`Math.random()`) is not
-// cryptographically secure and must never back a security-sensitive token
-// (an OAuth state value, an access-request link). getRandomValues() is
-// supported far more broadly than randomUUID() and is genuinely random; if
-// even THAT is unavailable, fail loudly instead of silently downgrading.
-const secureRandomToken = () => {
-  if (crypto.randomUUID) return crypto.randomUUID();
-  if (crypto.getRandomValues) {
-    return Array.from(crypto.getRandomValues(new Uint8Array(32)))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-  throw new Error(
-    "This browser doesn't support secure random token generation.",
-  );
-};
-
 // Today as YYYY-MM-DD in the viewer's own timezone. Deliberately not
 // toISOString(), which returns the UTC date — west of UTC that stamps
 // anything created after ~7pm with tomorrow's date, and fmtDate above reads
@@ -24771,19 +24753,22 @@ function AccessRequestForm({ token }) {
     // (it let anon dump every link, client id, staff email and live token).
     // A security definer RPC now resolves a single token to a single
     // client_id, returning null for anything invalid/inactive.
+    // access_link_info also returns the org's name: anonymous visitors can't
+    // read `clients`, so CLIENTS is empty for the people this form is for.
     supabase
-      .rpc("access_link_client", { p_token: token })
-      .then(({ data: clientId, error }) => {
-        if (error || !clientId) {
+      .rpc("access_link_info", { p_token: token })
+      .then(({ data, error }) => {
+        const row = Array.isArray(data) ? data[0] : data;
+        if (error || !row || !row.client_id) {
           setStatus("invalid");
           return;
         }
-        const c = CLIENTS.find((c) => c.id === clientId);
-        if (!c) {
-          setStatus("invalid");
-          return;
-        }
-        setClient(c);
+        // A signed-in staffer previewing the link still gets the full record
+        // (budget categories); everyone else gets the id and name only.
+        const c = (CLIENTS || []).find((c) => c.id === row.client_id);
+        setClient(
+          c || { id: row.client_id, name: row.client_name || "your organization" },
+        );
         setStatus("ready");
       });
   }, [token, supabase]);
@@ -25716,15 +25701,18 @@ function TabSettingsModal({
         .update({ active: false })
         .eq("token", activeLink.token);
     }
-    const token = secureRandomToken().replace(/-/g, "");
-    const { error } = await supabase.from("access_request_links").insert({
-      token,
-      client_id: client.id,
-      created_by: staffUser && staffUser.email,
-    });
+    // The token and created_by are set server-side (a trigger generates the
+    // token and stamps the caller), so neither is sent from the browser.
+    const { data, error } = await supabase
+      .from("access_request_links")
+      .insert({ client_id: client.id })
+      .select("token")
+      .single();
     setGeneratingLink(false);
-    if (error) {
-      showToast("Couldn't generate a link: " + error.message);
+    if (error || !data || !data.token) {
+      showToast(
+        "Couldn't generate a link: " + (error ? error.message : "no token"),
+      );
       return;
     }
     loadRequestsTab();
