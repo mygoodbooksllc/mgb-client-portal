@@ -708,7 +708,26 @@ function TD_buildRows(x) {
   // 7 days behave as before: today's sit in "now", the rest in "this week",
   // ranked at the top. Days 8-30 are "far": ranked low and never Do next.
   // "Gift sent" or "Dismiss" hides one. Pure rules: celebrationLead.js.
-  CEL_items(x.celebrations || [], x.today).forEach((it) => {
+  if (!x.isAdmin) {
+    // Everyone else: coworkers' birthdays and anniversaries in the next 7
+    // days, each with "Give a shout out" (hidden in View as, which is
+    // read-only). Always in "this week", never Do next. Your own day shows
+    // with no action. No gift marks, no birth year, no age.
+    CEL_peerItems(x.celebrations || [], x.today, x.me).forEach((it) => {
+      week.push({
+        key: it.key,
+        kind: "celebrate",
+        rank: 8,
+        far: true,
+        sort: it.days,
+        title: it.title,
+        detail: it.detail,
+        onClick: it.shout && !x.readOnly ? () => x.openShoutout(it.email) : undefined,
+        actions: it.shout && !x.readOnly ? [{ label: "Give a shout out", primary: true, onClick: () => x.openShoutout(it.email) }] : [],
+      });
+    });
+  }
+  (x.isAdmin ? CEL_items(x.celebrations || [], x.today) : []).forEach((it) => {
     const r = it.row;
     const kind = it.kind;
     (it.days === 0 ? now : week).push({
@@ -1032,7 +1051,7 @@ function TD_MilestonesCard({ clients, onOpenClientMilestone, celebrations }) {
       <h3 className="card-title" id="td-milestones-title">
         This week
       </h3>
-      <p className="card-subtitle">Birthdays and anniversaries (admins see the next 30 days, so there is time to send a gift), and milestones to review: numbers pointing to a different milestone, not confirmed yet, or close to the next one.</p>
+      <p className="card-subtitle">Birthdays and anniversaries (the next 7 days; admins see the next 30, so there is time to send a gift), and milestones to review: numbers pointing to a different milestone, not confirmed yet, or close to the next one.</p>
       <div className="td-card-scroll">
       {cel.length > 0 && (
         <ul className="td-mini-list">
@@ -1260,10 +1279,10 @@ function TD_ListCard({ id, title, subtitle, lines, extra, emptyText, loaded, tou
 // staff_celebrations) plus the "gift sent" / "dismiss" actions that clear
 // an occurrence. Rows re-fetch after each action.
 function TD_useCelebrations(admin, today) {
+  // Admins act on the month ahead; everyone else gets the 7-day heads-up.
   const [rows, setRows] = React.useState([]);
   const [tick, setTick] = React.useState(0);
   React.useEffect(() => {
-    if (!admin) return;
     const sb = window.mgbSupabase;
     if (!sb || typeof sb.rpc !== "function") return;
     let alive = true;
@@ -1287,7 +1306,7 @@ function TD_useCelebrations(admin, today) {
     if (!error) setTick((t) => t + 1);
     return error;
   }, []);
-  return { rows: admin ? rows : [], act };
+  return { rows, act };
 }
 
 function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMilestone, isAdmin, impersonating, deskOn }) {
@@ -1537,6 +1556,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         me,
         nowMs,
         celebrations: cel.rows,
+        readOnly: ro,
         celebrate,
         openShoutout,
         profileIncomplete,

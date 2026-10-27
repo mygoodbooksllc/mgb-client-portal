@@ -2,12 +2,14 @@
 title: How do I give a teammate a shout-out?
 section: Daily work
 audience: staff
-keywords: [shout-out, shoutout, shout out, thanks, thank you, kudos, appreciation, recognition, teammate, praise, hide shout-out]
+keywords: [give a shout out, birthday shout-out, anniversary shout-out, shout-out, shoutout, shout out, thanks, thank you, kudos, appreciation, recognition, teammate, praise, hide shout-out]
 sort: 147
 ---
 A **shout-out** is a short public thank-you to a teammate. The whole team can see them.
 
 ### Give one
+
+A quick way: when a coworker's birthday or work anniversary is within 7 days, Today's **This week** card and **Team › People › Celebrations** show **Give a shout out**. It opens the same form with them already picked.
 
 1. Open **Team › People** (`#/team/people`) and find the **Shout-outs** card.
 2. Click **+ Give a shout-out**.

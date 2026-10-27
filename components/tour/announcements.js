@@ -1942,6 +1942,42 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    // A 7-day heads-up on coworkers' birthdays and work anniversaries for
+    // everyone who is not an admin (admins already have the 30-day view), with a
+    // Give a shout out button that opens the existing shout-out composer.
+    id: "celebration-heads-up",
+    date: "2026-10-27",
+    title: "Birthday and anniversary heads-up",
+    summary: "See coworkers' birthdays and work anniversaries 7 days ahead on Today and in Team › People, and give them a shout out.",
+    roles: ["tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/today",
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "A heads-up on birthdays and anniversaries",
+        body: () =>
+          "You now see coworkers' birthdays and work anniversaries a week ahead, with a button to give them a shout out. No birth year or age is ever shown. About a minute.",
+      },
+      {
+        id: "ann-today-week",
+        go: () => {
+          if (!/^#\/today(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/today";
+        },
+        targets: ["today-week"],
+        wait: true,
+        title: "On Today",
+        body: () =>
+          "The This week card lists them, for example \"Debra Ruffin's birthday, May 27, in 5 days\". Click Give a shout out to open the shout-out form with that person already picked. Your own day shows too, with no button. If you hid this card, turn it back on from Today's card menu.",
+      },
+      TOUR_tabStep(
+        "team",
+        "people",
+        "Team › People",
+        "Celebrations here lists the next 30 days, and anything in the next 7 days has Give a shout out. Nothing is sent until you write a note and send it, and then the person gets the usual notice in their bell.",
+      ),
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

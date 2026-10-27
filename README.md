@@ -1392,6 +1392,20 @@ step with the browser file; test `tests/edge/celebrations_digest.test.mjs`). Cli
 `org_anniversaries_digest_count` (30 days, a count only). "N years on the team" is time since the start date,
 never an age; no birth year is shown anywhere.
 
+**Celebration heads-up for non-admins (2026-10-27, no database change).** Everyone who is not an admin gets a
+7-day heads-up (`CEL_STAFF_LEAD_DAYS`, `CEL_peerItems(rows, today, meEmail)` in `celebrationLead.js`) on
+coworkers' birthdays and work anniversaries. `TD_useCelebrations` now loads `staff_celebrations()` rows for
+everyone; `TD_buildRows` uses `CEL_items` for admins and `CEL_peerItems` for the rest (always "this week", rank 8,
+`far: true` so never Do next). Each other person's line has **Give a shout out**, which calls the existing
+`SO_openCompose(email)` (Shoutouts.jsx); the shout-out insert and the recipient's bell notice are unchanged, so
+nothing new is sent or notified by this feature. The person's own day shows with no action. Gift sent / dismissed
+marks are admin-only and never shown. No actions in View as (`ro`). `TP_UpcomingCard` (Team › People) takes `me`
+and adds the button within 7 days for non-admins; its 30-day date-only list is otherwise unchanged. Anniversary
+lines say "N years with the firm" (as the old view did); birthdays carry no tenure; no birth year or age.
+Launch notice `celebration-heads-up` (announcements.js, tempAdmin / bookkeeper / accountManager; admins have
+had theirs). Guide: `celebrations`, `home-page`, `shoutouts`, `whats-new`
+(`supabase/staff-guide-celebration-peer-heads-up.sql`, applied). Tests: `celebrationLead.test.js`.
+
 ### Staff ops features (added 2026-10-07)
 
 Eight staff-only features, built one per commit. Shared pieces: pure rules in

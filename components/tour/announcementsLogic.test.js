@@ -470,8 +470,20 @@ t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view
   // nothing answered. (Entries with visible(), such as the hidden draft
   // client-org-profile-launch, do not compete while their switch is off. The
   // admins-only view-as-whole-app notice is newer but no bookkeeper gets it.)
-  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
+  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.id !== "celebration-heads-up" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
   assert.strictEqual(a.date, newest);
+});
+
+t("registry: celebration-heads-up is for non-admins, 3 steps, no admin-only wording", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "celebration-heads-up");
+  assert.ok(a);
+  assert.deepStrictEqual(a.roles, ["tempAdmin", "bookkeeper", "accountManager"]);
+  assert.strictEqual(a.date, "2026-10-27");
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-today-week", "team-people"]);
+  assert.deepStrictEqual(steps[1].targets, ["today-week"]);
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
+  assert.ok(!/colour|gift sent|dismiss|\b(19|20)\d\d\b/i.test(text), text);
 });
 
 t("registry: view-as-whole-app is an admins-only notice that tours HR > Members", () => {
@@ -733,7 +745,7 @@ t("order: with Slate, Month rhythm and the org profile all on: Slate, the Slate 
         rows[pick.id] = { status: "dismissed", later_count: 0 };
       }
     });
-    const s = seq.filter((id) => id !== "view-as-whole-app");
+    const s = seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up");
     assert.deepStrictEqual(s.slice(0, 4), ["slate-app-launch", "slate-start-to-finish", "month-rhythm-launch", "client-org-profile-launch"]);
   });
 });
@@ -760,7 +772,7 @@ function walk(ctx, store, narrow, first) {
     }
   });
   // The admins-only View as notice (2026-10-23) is newer than these; leave it out of the order checks.
-  return seq.filter((id) => id !== "view-as-whole-app");
+  return seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up");
 }
 
 t("order: with all three eligible, slate-app-launch comes first and supersedes the view bar", () => {

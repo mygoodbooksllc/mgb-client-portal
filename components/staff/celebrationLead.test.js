@@ -94,14 +94,55 @@ assert.ok(!/\b(19|20)\d\d\b/.test(shown), shown);
 const read = (...p) => fs.readFileSync(path.join(__dirname, "..", "..", ...p), "utf8");
 const today = read("components", "staff", "Today.jsx");
 assert.ok(today.includes("CEL_items(x.celebrations || [], x.today)"), "Today builds celebration rows from CEL_items");
-assert.ok(/rows: admin \? rows : \[\]/.test(today), "Today celebration rows are admin-only");
+assert.ok(/return \{ rows, act \};/.test(today), "Today loads celebration rows for everyone (admins get CEL_items, others CEL_peerItems)");
+assert.ok(today.includes("x.isAdmin ? CEL_items("), "month-ahead rows only for admins");
+assert.ok(today.includes("CEL_peerItems(x.celebrations || [], x.today, x.me)"), "non-admins get the 7-day peer rows");
 assert.ok(/rank: it\.near \? 0 : 8/.test(today), "month-ahead rows rank low; the first 7 days keep rank 0");
 assert.ok(/filter\(\(r\) => !r\.far\)/.test(today), "a far celebration is never the Do next top item");
 const team = read("components", "staff", "TeamPage.jsx");
-assert.ok(team.includes("<TP_UpcomingCard admin={isAdmin} />"), "Team card gets the admin flag");
+assert.ok(team.includes("<TP_UpcomingCard admin={isAdmin} me={staffUser && staffUser.email} />"), "Team card gets the admin flag and who is signed in");
+assert.ok(/d <= 7 && !ro/.test(team), "shout-out button: 7 days, not in View as");
 assert.ok(/if \(admin && typeof CEL_items === "function"\)/.test(team), "month-ahead detail only for admins");
 const html = read("index.html");
 assert.ok(html.includes('"components/staff/celebrationLead.js"'), "celebrationLead.js is loaded by index.html");
 assert.ok(html.indexOf("celebrationLead.js") < html.indexOf('"components/staff/Today.jsx"'), "loaded before Today.jsx");
+
+// ---- non-admin 7-day heads-up (owner request 2026-10-27) ----
+assert.strictEqual(L.CEL_STAFF_LEAD_DAYS, 7);
+const ME = "me@x.org";
+let peers = L.CEL_peerItems([row({ next_birthday: "2026-11-02" })], TODAY, ME);
+assert.strictEqual(peers.length, 1);
+assert.strictEqual(peers[0].title, "Debra Ruffin's birthday, November 2");
+assert.strictEqual(peers[0].detail, "in 6 days \u00b7 give a shout out");
+assert.strictEqual(peers[0].shout, true);
+assert.strictEqual(peers[0].self, false);
+// window: 7 days in, 8 out, past out
+assert.strictEqual(L.CEL_peerItems([row({ next_birthday: "2026-11-03" })], TODAY, ME).length, 1);
+assert.strictEqual(L.CEL_peerItems([row({ next_birthday: "2026-11-04" })], TODAY, ME).length, 0);
+assert.strictEqual(L.CEL_peerItems([row({ next_birthday: "2026-10-26" })], TODAY, ME).length, 0);
+// anniversary says years with the firm only; no tenure on a birthday
+peers = L.CEL_peerItems([row({ next_anniversary: "2026-10-30", years: 3 })], TODAY, ME);
+assert.strictEqual(peers[0].title, "Debra Ruffin: 3 years with the firm, October 30");
+assert.strictEqual(peers[0].detail, "in 3 days \u00b7 give a shout out");
+assert.ok(!/on the team/.test(JSON.stringify(L.CEL_peerItems([row({ next_birthday: "2026-10-30" })], TODAY, ME))));
+// admin gift marks are ignored and never shown
+peers = L.CEL_peerItems([row({ next_birthday: "2026-10-30", birthday_action: "gift" })], TODAY, ME);
+assert.strictEqual(peers.length, 1);
+assert.ok(!/gift|dismiss/i.test(JSON.stringify(peers.map((i) => [i.title, i.detail, i.what]))));
+// your own day shows, with no shout-out (case-insensitive email match)
+peers = L.CEL_peerItems([row({ email: "Me@X.org", name: "Me Myself", next_birthday: "2026-10-30", next_anniversary: "2026-10-31", years: 2 })], TODAY, ME);
+assert.deepStrictEqual(peers.map((i) => [i.title, i.shout, i.self]), [["Your birthday, October 30", false, true], ["Your work anniversary, October 31", false, true]]);
+assert.strictEqual(peers[1].detail, "in 4 days \u00b7 2 years with the firm");
+// no signed-in email: nobody counts as you
+assert.strictEqual(L.CEL_peerItems([row({ next_birthday: "2026-10-30" })], TODAY, "")[0].shout, true);
+// sorted, bad input safe, never a birth year or age
+peers = L.CEL_peerItems([row({ email: "b@x.org", name: "Bo", next_birthday: "2026-10-30" }), row({ email: "c@x.org", name: "Cy", next_birthday: "2026-10-28" })], TODAY, ME);
+assert.deepStrictEqual(peers.map((i) => i.name), ["Cy", "Bo"]);
+assert.deepStrictEqual(L.CEL_peerItems(null, TODAY, ME), []);
+const peerShown = JSON.stringify(L.CEL_peerItems([row({ birthday: "1985-11-02", next_birthday: "2026-11-02", next_anniversary: "2026-11-01", years: 3 })], TODAY, ME).map((i) => [i.title, i.detail, i.what]));
+assert.ok(!/1985|\bage\b|turns|years old/i.test(peerShown), peerShown);
+assert.ok(!/\b(19|20)\d\d\b/.test(peerShown), peerShown);
+// wiring: non-admin rows never reach Do next, no actions in View as
+assert.ok(/far: true/.test(today) && today.includes("x.readOnly"), "peer rows are far (never Do next) and hide the action in View as");
 
 console.log("celebrationLead tests passed");

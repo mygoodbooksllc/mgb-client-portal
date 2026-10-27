@@ -6,10 +6,13 @@
 // Rows are what the staff_celebrations() RPC returns. Nothing here reads or
 // shows a birth year or an age: dates are the NEXT occurrence ("May 27"), and
 // "3 years on the team" is time since the start date, never the person's age.
-// Only admins get the month-ahead list: callers pass the rows only when the
-// signed-in person is an admin. Everyone else keeps what they had.
+// Only admins get the month-ahead list (CEL_items). Everyone else gets the
+// 7-day peer heads-up (CEL_peerItems).
 
 var CEL_ADMIN_LEAD_DAYS = 30;
+// Everyone else (owner request 2026-10-27): a 7-day heads-up on coworkers'
+// birthdays and work anniversaries, with the option to give a shout-out.
+var CEL_STAFF_LEAD_DAYS = 7;
 // Today keeps its original "this week" behavior for the first 7 days (ranked
 // at the top, Do next can use it); days 8-30 are the month-ahead rows.
 var CEL_NEAR_DAYS = 7;
@@ -119,9 +122,66 @@ function CEL_items(rows, today, leadDays, includeHandled) {
   return out;
 }
 
+// Non-admin heads-up: coworkers' birthdays and work anniversaries within 7
+// days, nearest first. Same row shape as CEL_items, minus anything admin-only:
+// the gift-sent / dismissed marks are ignored and never shown, birthdays carry
+// no tenure, and nothing holds a birth year or age. `self` is true for the
+// signed-in person's own day (they may see it, but there is nothing to shout
+// out to yourself, so callers add no action for it). `shout` is true for the
+// items that get a "Give a shout out" action.
+function CEL_peerItems(rows, today, meEmail) {
+  var me = String(meEmail == null ? "" : meEmail).trim().toLowerCase();
+  var out = [];
+  (Array.isArray(rows) ? rows : []).forEach(function (r) {
+    if (!r) return;
+    var self = !!me && String(r.email || "").trim().toLowerCase() === me;
+    var name = r.name || r.email || "";
+    function add(kind, on, title, what, detailParts) {
+      if (!on) return;
+      var d = CEL_daysBetween(on, today);
+      if (!(d >= 0 && d <= CEL_STAFF_LEAD_DAYS)) return;
+      out.push({
+        key: "cel-" + kind + "-" + r.email,
+        kind: kind,
+        email: r.email,
+        name: name,
+        on: on,
+        days: d,
+        self: self,
+        shout: !self,
+        what: what,
+        away: CEL_awayText(d),
+        title: title,
+        detail: [CEL_awayText(d)].concat(detailParts).filter(Boolean).join(" \u00b7 "),
+        row: r,
+      });
+    }
+    var yrs = r.years;
+    var yrsText = yrs ? yrs + " year" + (yrs === 1 ? "" : "s") + " with the firm" : "";
+    add(
+      "birthday",
+      r.next_birthday,
+      (self ? "Your birthday" : name + "'s birthday") + ", " + CEL_dateLabel(r.next_birthday),
+      "birthday",
+      self ? [] : ["give a shout out"],
+    );
+    add(
+      "anniversary",
+      r.next_anniversary,
+      self ? "Your work anniversary, " + CEL_dateLabel(r.next_anniversary) : name + ": " + yrsText + ", " + CEL_dateLabel(r.next_anniversary),
+      yrsText || "work anniversary",
+      self ? [yrsText] : ["give a shout out"],
+    );
+  });
+  out.sort(function (a, b) {
+    return a.days - b.days || String(a.name).localeCompare(String(b.name));
+  });
+  return out;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    CEL_ADMIN_LEAD_DAYS: CEL_ADMIN_LEAD_DAYS, CEL_NEAR_DAYS: CEL_NEAR_DAYS, CEL_daysBetween: CEL_daysBetween,
+    CEL_ADMIN_LEAD_DAYS: CEL_ADMIN_LEAD_DAYS, CEL_STAFF_LEAD_DAYS: CEL_STAFF_LEAD_DAYS, CEL_peerItems: CEL_peerItems, CEL_NEAR_DAYS: CEL_NEAR_DAYS, CEL_daysBetween: CEL_daysBetween,
     CEL_dateLabel: CEL_dateLabel, CEL_awayText: CEL_awayText, CEL_tenureYears: CEL_tenureYears,
     CEL_tenureText: CEL_tenureText, CEL_items: CEL_items,
   };

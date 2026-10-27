@@ -802,7 +802,7 @@ function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, rend
 // staff_celebrations. Everyone sees the day (month and day, never a year).
 // Admins get the month-ahead list instead (celebrationLead.js): date, how many
 // days away and years on the team, with a tag once a gift is sent or dismissed.
-function TP_UpcomingCard({ admin }) {
+function TP_UpcomingCard({ admin, me }) {
   const [st, setSt] = useState({ loading: true, rows: [] });
   useEffect(() => {
     const sb = window.mgbSupabase;
@@ -825,6 +825,9 @@ function TP_UpcomingCard({ admin }) {
   }, []);
   const today = todayLocal();
   const items = [];
+  const mine = String(me || "").trim().toLowerCase();
+  // View as is read-only: no shout-out button.
+  const ro = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
   if (admin && typeof CEL_items === "function") {
     CEL_items(st.rows, today, CEL_ADMIN_LEAD_DAYS, true).forEach((it) => {
       items.push({ key: it.key, d: it.days, on: it.on, name: it.name, what: it.what, admin: true, away: it.away, tenure: it.tenure, handled: it.handled });
@@ -835,7 +838,9 @@ function TP_UpcomingCard({ admin }) {
         if (!on) return;
         const d = daysUntil(on, today);
         if (d < 0 || d > 30) return;
-        items.push({ key: key + r.email, d, on, name: r.name, what });
+        // Within 7 days (the staff heads-up) and not you: offer a shout-out.
+        const shout = d <= 7 && !ro && !!mine && String(r.email || "").trim().toLowerCase() !== mine;
+        items.push({ key: key + r.email, d, on, name: r.name, what, email: r.email, shout });
       };
       add(r.next_birthday, "birthday", "b-");
       add(r.next_anniversary, `${r.years} year${r.years === 1 ? "" : "s"} with the firm`, "a-");
@@ -850,7 +855,7 @@ function TP_UpcomingCard({ admin }) {
       <p className="card-subtitle">
         {admin
           ? "Birthdays and work anniversaries in the next 30 days, so there is time to send a gift. Mark them on Today. Add yours in Settings › Profile."
-          : "Birthdays and work anniversaries in the next 30 days. Add yours in Settings › Profile."}
+          : "Birthdays and work anniversaries in the next 30 days. Anything in the next 7 days has a Give a shout out button. Add yours in Settings › Profile."}
       </p>
       {st.loading ? (
         <p className="card-subtitle">Loading…</p>
@@ -863,6 +868,14 @@ function TP_UpcomingCard({ admin }) {
               <span className="tp-upcoming-when">{it.admin ? CEL_dateLabel(it.on) : it.d === 0 ? "Today" : it.d === 1 ? "Tomorrow" : fmtDate(it.on)}</span>
               <span className="tp-upcoming-who">
                 <b>{it.name}</b> · {it.what}
+                {it.shout && typeof SO_openCompose === "function" && (
+                  <>
+                    {" · "}
+                    <button type="button" className="link-btn" onClick={() => SO_openCompose(it.email)}>
+                      Give a shout out
+                    </button>
+                  </>
+                )}
                 {it.admin && " · " + it.away + (it.tenure ? " · " + it.tenure : "") + (it.handled ? (it.handled === "gift" ? " · gift sent" : " · dismissed") : "")}
               </span>
             </li>
@@ -882,7 +895,7 @@ function TP_PeopleTab({ staffUser, isAdmin, clients }) {
       <SO_ShoutoutsBody clients={clients} staffUser={staffUser} />
     </section>
   );
-  const upcoming = <TP_UpcomingCard admin={isAdmin} />;
+  const upcoming = <TP_UpcomingCard admin={isAdmin} me={staffUser && staffUser.email} />;
   if (coverage) {
     return (
       <div className="tp-people">
