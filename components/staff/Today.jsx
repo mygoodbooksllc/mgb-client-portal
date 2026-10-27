@@ -755,7 +755,7 @@ function TD_buildRows(x) {
       rank: 10,
       sort: 0,
       title: "Complete your profile",
-      detail: "Add your birthday and start date so the team can celebrate with you.",
+      detail: "Add your birthday and start date so admins can celebrate with you.",
       onClick: x.goProfile,
       actions: [{ label: "Open my profile", primary: true, onClick: x.goProfile }],
     });
@@ -1802,7 +1802,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
             </button>
           </div>
           <div className="modal-body">
-            <p>Add your birthday (just the month and day) and start date so the team can celebrate with you. Your name, title and photo show on your clients' dashboards too.</p>
+            <p>Add your birthday (just the month and day) and start date so admins can celebrate with you. Your name, title and photo show on your clients' dashboards too.</p>
             <p className="card-subtitle">This stays on your Today list until it's done.</p>
           </div>
           <div className="modal-footer">

@@ -819,7 +819,7 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
   const files = (rows || []).filter((r) => r.attachment_name);
   const premium = typeof hasPremiumPlan === "function" && hasPremiumPlan(client, false);
   const extras = SI_useClientExtras(client.id);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = typeof todayLocal === "function" ? todayLocal() : new Date().toISOString().slice(0, 10);
   const isOverdue = (d) => d && String(d).slice(0, 10) < today;
   const users = (extras && extras.users) || null;
   const activeUsers = users ? users.filter((u) => u.active !== false) : null;

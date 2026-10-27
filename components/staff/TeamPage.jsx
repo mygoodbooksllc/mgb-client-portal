@@ -825,7 +825,7 @@ function TP_UpcomingCard({ admin, me }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [canSee]);
   if (!canSee) return null;
   const today = todayLocal();
   const items = [];

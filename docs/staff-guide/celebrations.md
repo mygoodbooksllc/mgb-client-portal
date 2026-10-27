@@ -5,7 +5,7 @@ audience: staff
 keywords: [month ahead, a month ahead, gift lead time, birthday, birthdays, anniversary, work anniversary, start date, employment start date, celebrate, celebrations, gift, gift sent, shout-out, profile, complete your profile, finish your profile, welcome, first sign-in]
 sort: 62
 ---
-Add your **birthday** and **start date** in **Settings › Profile** so the team can celebrate with you. For your birthday you pick just a **month** and a **day**: the portal never asks for the year and never shows an age.
+Add your **birthday** and **start date** in **Settings › Profile** so admins can celebrate with you. For your birthday you pick just a **month** and a **day**: the portal never asks for the year and never shows an age.
 
 ### Your first sign-in
 

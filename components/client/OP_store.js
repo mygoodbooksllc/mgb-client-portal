@@ -247,6 +247,10 @@ var OP_mine = (function () {
         else set({ status: "error", data: null });
       });
     },
+    // Sign-out or a different person signing in: forget the last answer.
+    reset: function () {
+      set({ status: "idle", data: null });
+    },
     // After a save: the RPC returns the fresh mine() shape.
     setData: function (data) {
       set({ status: "ready", data: data });
@@ -303,7 +307,7 @@ function OP_useNeedsItem(active) {
   return {
     key: "op-profile",
     text: "Finish your organization profile",
-    sub: "A few details so we can mark your milestones with you.",
+    sub: "A few details so we can celebrate your anniversaries with you.",
     action: "Finish",
     onClick: OP_openForm,
   };

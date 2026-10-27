@@ -28,7 +28,19 @@
 
     const supabase = window.mgbSupabase;
 
+    // The organization-profile state (OP_store.js) is one object per page
+    // load. When the signed-in person changes or signs out, drop it so the
+    // next client never sees the previous client's answers.
+    function noteUser(session) {
+      const uid = session && session.user ? session.user.id : null;
+      if (window.__mgbClientUid !== undefined && window.__mgbClientUid !== uid) {
+        if (typeof OP_mine !== "undefined" && OP_mine.reset) OP_mine.reset();
+      }
+      window.__mgbClientUid = uid;
+    }
+
     async function checkClientRow(session) {
+      noteUser(session);
       const sessionEmail = session.user.email;
       // The mirror of AuthGate's check: a staff session (from the staff app
       // in another tab) belongs in the staff gate, so hand it to RootGate
@@ -86,6 +98,22 @@
       // row breaks.
       // Clients never get the install links (staff-only for now).
       if (window.mgbInstallApp) window.mgbInstallApp.set(false);
+      // The client roster is read once at boot. Typing the emailed 6-digit
+      // code signs in with no reload, after a boot that had no session, so
+      // the roster is still empty and the portal would say the account isn't
+      // linked. Reload it now (and the QuickBooks numbers with it) before
+      // rendering. A link sign-in boots with the session and skips this.
+      if (
+        window.mgbReloadRoster &&
+        !(window.CLIENTS || []).some((c) => c.id === data.client_id)
+      ) {
+        setStatus("checking-row");
+        try {
+          await window.mgbReloadRoster();
+        } catch (e) {
+          // The guard in app.jsx still explains an unlinked account.
+        }
+      }
       setClientUser({ ...data, premiumThrottled: data.premium_throttled });
       setStatus("authorized");
     }
@@ -111,6 +139,7 @@
         (_event, session) => {
           if (session) checkClientRow(session);
           else {
+            noteUser(null);
             setClientUser(null);
             setStatus("signed-out");
           }

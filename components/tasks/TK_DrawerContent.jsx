@@ -825,7 +825,11 @@ function TK_DwRepeatRow(props) {
   var timeOf = typeof TK_dlTimeOf === "function" ? TK_dlTimeOf(task.due_at) : "";
   var summary = isCustom ? TK_repeatText(task.recurrence_rule, task.due_date) : "";
   var saveRule = function (rule) {
-    rule = Object.assign({}, rule, { start: task.due_date });
+    // Keep the series' own first date when the schedule is unchanged: a due
+    // date pushed by skip weekends / holidays must not move the schedule.
+    rule = Object.assign({}, rule, {
+      start: TK_repeatSaveStart(isCustom ? task.recurrence_rule : null, rule, task.due_date),
+    });
     var patch = { recurrence: "custom", recurrence_rule: rule };
     if (rule.time && task.due_date) {
       patch.due_at = TK_repeatDueAt(task.due_date, rule.time, rule.tz || "America/Chicago");

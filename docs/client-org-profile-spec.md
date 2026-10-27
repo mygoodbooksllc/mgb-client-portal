@@ -11,7 +11,7 @@ Owner decisions (2026-10-14, 2026-10-16) are final. Built hidden behind a previe
 ## 2. Who is prompted
 - A real client session only: `clientPortalUser`, not a staff session, not impersonating, not previewing a user (the same rule as the client tour's `isRealClient`).
 - The user has `client_users.access` of 'full' or null. Scoped users are never prompted, including Basic-plan scoped users. The server enforces the same rule.
-- The prompt appears once per sign-in while the profile is incomplete. Dismissing it ("Later") stores a sessionStorage key, so it returns at the next sign-in.
+- The prompt appears once per page load (once per browser session or tab) while the profile is incomplete. Dismissing it ("Later") stores a sessionStorage key, so it returns in the next browser session or tab.
 - A "Finish your organization profile" item stays in the client home "Needs you" card until the profile is complete, and it reopens the form.
 
 ## 3. Fields (client form)

@@ -364,7 +364,33 @@ var TK_repeat = (function () {
     return r;
   }
 
+  // The `start` a task's rule should be saved with. `start` is the series'
+  // unmoved first date. A task whose due date was pushed past a weekend or
+  // holiday must not re-anchor the schedule just because its Repeat menu was
+  // saved again, so an existing start is kept while the schedule itself
+  // (frequency, interval, weekdays, day of month) is unchanged. A new rule, a
+  // changed schedule or an old rule with no start takes the due date.
+  function repeatSaveStart(oldRule, newRule, dueDate) {
+    function shape(r) {
+      var dows = r && r.dows ? r.dows.slice().sort(function (a, b) { return a - b; }) : [];
+      return JSON.stringify([
+        r && r.freq,
+        r && r.interval == null ? 1 : r && r.interval,
+        dows,
+        r && r.by ? r.by : "dom",
+        r && r.day == null ? null : r && r.day,
+        r && r.n == null ? null : r && r.n,
+        r && r.dow == null ? null : r && r.dow,
+      ]);
+    }
+    if (oldRule && valid(oldRule.start) && repeatValid(oldRule) && shape(oldRule) === shape(newRule)) {
+      return oldRule.start;
+    }
+    return dueDate;
+  }
+
   return {
+    TK_repeatSaveStart: repeatSaveStart,
     TK_repeatValid: repeatValid,
     TK_repeatNext: repeatNext,
     TK_repeatSeries: repeatSeries,
@@ -380,6 +406,7 @@ var TK_repeat = (function () {
   };
 })();
 
+var TK_repeatSaveStart = TK_repeat.TK_repeatSaveStart;
 var TK_repeatValid = TK_repeat.TK_repeatValid;
 var TK_repeatNext = TK_repeat.TK_repeatNext;
 var TK_repeatSeries = TK_repeat.TK_repeatSeries;

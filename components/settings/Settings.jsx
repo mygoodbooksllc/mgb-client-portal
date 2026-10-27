@@ -1039,7 +1039,7 @@ function ST_StaffProfileCard({ staffUser, readOnly }) {
         <ST_Field label="Phone">
           <ST_AutoInput value={row.phone} maxLength={40} disabled={!!readOnly} onSave={(v) => save({ phone: v.trim() || null })} autoComplete="tel" inputMode="tel" />
         </ST_Field>
-        <ST_Field label="Birthday" hint="Just the month and day, so the team can celebrate with you. We never ask for the year.">
+        <ST_Field label="Birthday" hint="Just the month and day, so admins can celebrate with you. We never ask for the year.">
           <ST_MonthDayInput value={row.birthday} disabled={!!readOnly} ariaLabel="Birthday" onSave={(v) => save({ birthday: v }, v ? "Birthday saved" : "Birthday cleared")} />
         </ST_Field>
         <ST_Field label="Start date" hint="Your first day with the firm, for work anniversaries.">

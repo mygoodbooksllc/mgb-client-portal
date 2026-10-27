@@ -654,7 +654,7 @@ function CLIENT_HomeTop({ client, access, needs: baseNeeds, onOpenMilestone, onS
           </button>
           <div className="client-org-plan">
             <span className="client-org-label">Plan</span>
-            <span>{planLabel(access.plan)}</span>
+            <span>{planLabel(access && access.plan)}</span>
           </div>
           <button type="button" className="btn-secondary btn-sm" onClick={onSeePlans}>
             See plans
@@ -668,6 +668,30 @@ function CLIENT_HomeTop({ client, access, needs: baseNeeds, onOpenMilestone, onS
 // Messages, Finances, Reports, and More → Documents, Settings.
 function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const navRef = useRef(null);
+  const moreBtnRef = useRef(null);
+  // The More menu closes on Esc (focus returns to the More button) and on a
+  // click or tap anywhere outside the bar.
+  useEffect(() => {
+    if (!moreOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setMoreOpen(false);
+        if (moreBtnRef.current) moreBtnRef.current.focus();
+      }
+    };
+    const onDown = (e) => {
+      if (navRef.current && !navRef.current.contains(e.target)) setMoreOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+    };
+  }, [moreOpen]);
   const placeOf = CLIENT_PLACE_OF_PAGE[page];
   const pagesOf = (place) =>
     place.tabs ? place.tabs.filter((k) => visibleKeys.has(k)) : visibleKeys.has(place.page) ? [place.page] : [];
@@ -676,7 +700,7 @@ function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) 
   const showDocs = pagesOf(docs).length > 0;
   const moreActive = placeOf === "documents" || placeOf === "settings";
   return (
-    <nav className="client-tabbar" aria-label="Main">
+    <nav className="client-tabbar" aria-label="Main" ref={navRef}>
       {main.map((place) => {
         const pages = pagesOf(place);
         const active = placeOf === place.key;
@@ -699,6 +723,7 @@ function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) 
       })}
       <button
         type="button"
+        ref={moreBtnRef}
         className={"client-tabbar-item" + (moreActive ? " active" : "")}
         aria-expanded={moreOpen}
         onClick={() => setMoreOpen((o) => !o)}
@@ -8904,7 +8929,8 @@ function StaffQuickActions({ client, onNavigate, only, onMessage, headless }) {
     showToast(done);
     setModal(null);
     notifyStaffTools();
-    if (modal === "task" && window.mgbRefreshStaffItems) window.mgbRefreshStaffItems();
+    // staffItemsApi.add already fired STAFF_ITEMS_CHANGED_EVENT, which reloads
+    // TB_useMyItems (search, bell, badge), so nothing else to refresh here.
   }
   const titles = { task: "Add a task", request: "Request a document", note: "Add a note" };
   const canSubmit = (f.text || "").trim().length > 0;
@@ -30063,8 +30089,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         action: "Answer",
         tone: overdueReqs ? "urgent" : null,
         onClick: () => {
-          setClientSub({ clientId: selectedClientId, page: "messages", sub: "requests" });
-          setPage("messages");
+          // Requests live under Messages; a client without the Messages tab
+          // answers them from Documents.
+          if (access.tabs.has("messages")) {
+            setClientSub({ clientId: selectedClientId, page: "messages", sub: "requests" });
+            setPage("messages");
+          } else setPage("documents");
         },
       });
     if (tqWaitingForMe.length)

@@ -34,7 +34,7 @@ var OP_GTK_FIELDS = [
 var OP_FIELD_LABELS = {
   card_name: "Name for cards and gifts",
   org_type: "Organization type",
-  established_date: "Established date",
+  established_date: "Founding date",
   gift_address: "Gift mailing address",
   receiver_name: "Who receives deliveries",
   courier_phone: "Phone for couriers",

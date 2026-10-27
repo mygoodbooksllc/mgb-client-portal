@@ -81,3 +81,31 @@ console.log("TK_repeatLogic: " + n + " checks passed");
   assert.strictEqual(L.TK_repeatDueAt("2026-07-15", "19:00", "America/Chicago"), "2026-07-16T00:00:01.000Z");
   console.log("TK_repeatLogic: review-fix checks passed");
 }
+
+// Re-saving the Repeat menu on a task whose due date was pushed keeps the series' start
+{
+  const hol = ["2026-11-27"];
+  // quarterly, last day, skip weekends; started 2026-10-31, Jan 31 2027 is a Sunday so the task sits on Mon Feb 1
+  const q = { v: 1, freq: "monthly", interval: 3, by: "last", skip: true, start: "2026-10-31", end: { type: "never" } };
+  const resavedQ = Object.assign({}, q, { skip: true }); // the menu hands back the same schedule
+  const keptQ = L.TK_repeatSaveStart(q, resavedQ, "2027-02-01");
+  assert.strictEqual(keptQ, "2026-10-31");
+  assert.strictEqual(L.TK_repeatNext(Object.assign({}, resavedQ, { start: keptQ }), "2027-02-01", "2027-02-01", hol), "2027-04-30");
+  // the old behavior (start = pushed due date) gave 2027-03-01
+  assert.strictEqual(L.TK_repeatNext(Object.assign({}, resavedQ, { start: "2027-02-01" }), "2027-02-01", "2027-02-01", hol), "2027-03-01");
+  // every 2 weeks on Friday, skip; Nov 27 2026 is a holiday so the task sits on Mon Nov 30
+  const w = { v: 1, freq: "weekly", interval: 2, dows: [5], skip: true, start: "2026-11-13", end: { type: "never" } };
+  const keptW = L.TK_repeatSaveStart(w, Object.assign({}, w), "2026-11-30");
+  assert.strictEqual(keptW, "2026-11-13");
+  assert.strictEqual(L.TK_repeatNext(Object.assign({}, w, { start: keptW }), "2026-11-30", "2026-11-30", hol), "2026-12-11");
+  assert.strictEqual(L.TK_repeatNext(Object.assign({}, w, { start: "2026-11-30" }), "2026-11-30", "2026-11-30", hol), "2026-12-04");
+  // changing the schedule (every 2 weeks -> every week, or a new weekday) takes the due date
+  assert.strictEqual(L.TK_repeatSaveStart(w, Object.assign({}, w, { interval: 1 }), "2026-11-30"), "2026-11-30");
+  assert.strictEqual(L.TK_repeatSaveStart(w, Object.assign({}, w, { dows: [4] }), "2026-11-30"), "2026-11-30");
+  // changing only skip, time or end keeps the start
+  assert.strictEqual(L.TK_repeatSaveStart(w, Object.assign({}, w, { skip: false, time: "09:00" }), "2026-11-30"), "2026-11-13");
+  // first creation, and an old rule with no start, take the due date
+  assert.strictEqual(L.TK_repeatSaveStart(null, w, "2026-11-30"), "2026-11-30");
+  assert.strictEqual(L.TK_repeatSaveStart({ v: 1, freq: "weekly", interval: 2, dows: [5] }, w, "2026-11-30"), "2026-11-30");
+  console.log("TK_repeatLogic: keep-start checks passed");
+}

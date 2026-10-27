@@ -9,6 +9,11 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-27: small fixes
+- **Custom repeats keep their schedule.** Opening a repeating task's **Repeat** menu and saving again no longer shifts the schedule when the due date had moved off a weekend or holiday. It still counts from the first date.
+- **Wording.** The profile prompt, **Settings › Profile** and the celebrations article now say admins celebrate with you, since celebrations are admin only for now. The client profile form now says **Founding date** and "celebrate your anniversaries" (the Staff card matches), and its fiscal year end day list fits the month.
+- **Smaller fixes.** The Inbox uses your local date for "overdue", the Team upcoming card loads when it becomes visible, and a client signing in with the emailed code now lands in their portal without a reload.
+
 ### 2026-10-27: Work › Slate is now a short summary
 - **One full Slate.** The Slate page is now the only full Slate. **Work › Slate** shows a short summary instead: what's **Late**, what's **Due today**, and your **Next** five tasks, with an **Open Slate** button. Click a row to open the task, just as you would on the Slate page; if there are more, a line says so and links to Slate.
 - **Nothing else moved.** Notes & SOPs, Close, Deadlines and Ledger review are unchanged. The Desk keeps its compact **Slate** tab, now with an **Open in Slate** link. On the Classic tasks page, **Work › Slate** is unchanged. See [What's on the Work page?](#/help/work-page).
