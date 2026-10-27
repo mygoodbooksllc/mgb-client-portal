@@ -5,7 +5,7 @@ audience: staff
 keywords: [birthday, birthdays, anniversary, work anniversary, start date, employment start date, celebrate, celebrations, gift, gift sent, shout-out, profile, complete your profile, finish your profile, welcome, first sign-in]
 sort: 62
 ---
-Add your **birthday** and **start date** in **Settings › Profile** so the team can celebrate with you. Teammates see the day and month; only admins see the birth year.
+Add your **birthday** and **start date** in **Settings › Profile** so the team can celebrate with you. For your birthday you pick just a **month** and a **day**: the portal never asks for the year and never shows an age.
 
 ### Your first sign-in
 
@@ -19,4 +19,4 @@ The first time you sign in, Today asks you to finish your profile. **Later** clo
 
 ### Admins: filling in dates for someone
 
-**HR › Members** has a **Birthday** and a **Start date** column. Type or pick a date and it saves on its own. Staff can change their own dates in Settings › Profile at any time.
+**HR › Members** has a **Birthday** and a **Start date** column. Pick a month and day for the birthday and a date for the start date, and each saves on its own. **Clear** empties a birthday. Staff can change their own dates in Settings › Profile at any time.

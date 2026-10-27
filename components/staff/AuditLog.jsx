@@ -73,6 +73,8 @@ const AL_ACTIONS = {
   "staff_photo.exempt_off": "Photo required again",
   "staff_photo.version_hidden": "Photo version hidden",
   "staff_photo.downloaded": "Profile photo downloaded",
+  "staff_profile.birthday_set": "Staff birthday filled in (month and day)",
+  "staff_profile.start_date_set": "Staff start date filled in",
   "gl_review.dup_mode": "Ledger review possible duplicates mode changed",
 };
 

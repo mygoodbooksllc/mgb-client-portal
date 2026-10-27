@@ -1362,6 +1362,21 @@ member. Database `supabase/staff-hr-records.sql` (checks in `staff-hr-records-te
   role admin and not in "View as"), and `TP_TeamHub` renders it only for a real admin. The open
   record is component state, never the hash. Guide: `docs/staff-guide/employee-records.md`.
 
+### Birthdays: month and day only (added 2026-10-27)
+
+Owner request: staff are no longer asked for a birth year. `staff_profiles.birthday` stays a Postgres `date`
+(no schema change), so the app saves the placeholder year **1904** (a leap year, so 29 Feb works) with the real
+month and day. That year is not anyone's birth year: no age is shown or worked out anywhere, and a real year
+saved before this change is kept out of sight (it is only reused if the same person's month and day change).
+Pure rules are in `components/staff/birthdayLogic.js` (`BDAY_`: parse, build, label; node test
+`birthdayLogic.test.js`, which also checks that the Profile and Members birthday fields never use a date
+picker). The field is `ST_MonthDayInput` in `components/settings/Settings.jsx` (Settings › Profile and the
+HR › Members Birthday column); the start date is still a full date. `supabase/staff-birthday-month-day.sql`
+(applied 2026-10-27) makes `staff_celebrations()` stop returning the stored date to admins (its `birthday` column
+is always null; celebrations, Today and the digest use `birthday_md` / `next_birthday`).
+`supabase/staff-dates-entry-2026-10-27.sql` is the one-time fill of birthdays and start dates from the owner's
+sheet (blanks only, audited as `staff_profile.birthday_set` / `.start_date_set` in `audit_log`).
+
 ### Staff ops features (added 2026-10-07)
 
 Eight staff-only features, built one per commit. Shared pieces: pure rules in

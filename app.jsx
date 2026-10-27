@@ -15032,10 +15032,9 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                       )}
                       <td data-label="Email">{row.email}</td>
                       <td data-label="Birthday">
-                        {typeof ST_DateInput === "function" ? (
-                          <ST_DateInput
+                        {typeof ST_MonthDayInput === "function" ? (
+                          <ST_MonthDayInput
                             value={(profiles[row.email] || {}).birthday}
-                            max={new Date().toISOString().slice(0, 10)}
                             disabled={readOnly}
                             ariaLabel={`Birthday for ${row.name}`}
                             onSave={(v) => updateProfile(row, { birthday: v })}

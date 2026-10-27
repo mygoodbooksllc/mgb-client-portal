@@ -9,6 +9,9 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-27: birthdays are just a month and day
+- **No more birth year.** **Settings › Profile** and **HR › Members** now ask for the **month** and **day** of a birthday, nothing else. The portal never shows or works out an age, and a year entered earlier is no longer shown anywhere. Celebrations, Today and the weekly digest work the same as before. See [Birthdays, work anniversaries and gift reminders](#/help/celebrations).
+
 ### 2026-10-25: Custom repeats in Slate
 - **A Repeat menu like Asana's.** In a task, **Repeat** → **Custom…** lets you repeat daily, weekly on chosen weekdays, monthly (a day, the 2nd Tuesday, or the last day), quarterly, yearly, or every 2 weeks, every 3 months and so on. Add a time of day, skip weekends and firm holidays, and set an end (never, on a date, or after some times). It lists the next five dates before you save.
 - **Recurring templates** have a new **Custom schedule** option with the same menu (date only, no time of day). The old choices work as before.
