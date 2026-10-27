@@ -2,7 +2,7 @@
 -- Self-test: gift anniversary basis (supabase/client-org-gift-basis.sql).
 --
 -- Covers: anon and non-admin refused on both RPCs, the default
--- (no row = client_since), saving established, bad values refused (RPC and
+-- (no row = established, the founding date), saving client_since and back, bad values refused (RPC and
 -- direct write), the list for each basis, the fallback to Client since for a
 -- client with no known founding date ("Not sure" or blank), the digest count
 -- following the basis, and the audit row.
@@ -78,13 +78,22 @@ select pg_temp.expect_err('select public.admin_gift_basis()', 'not allowed', 'no
 select pg_temp.expect_err($q$select public.admin_set_gift_basis('established')$q$, 'not allowed', 'non-admin cannot set the basis');
 select pg_temp.expect_err('select public.op__gift_basis()', 'permission denied', 'authenticated cannot call the internal reader');
 
--- 3. admin: default is client_since, only Client since rows
+-- 3. admin: default is established (founding date), Client since as the fallback
 select pg_temp.as_staff(pg_temp.ctx('ad'));
-select pg_temp.ok(public.admin_gift_basis() = 'client_since', 'no row: basis is client_since');
-select pg_temp.ok(pg_temp.occ('grace-community') = 'client_since', 'client_since basis: grace lists Client since only');
-select pg_temp.ok(pg_temp.occ('basic-test') = 'client_since', 'client_since basis: basic-test lists Client since');
-select pg_temp.ok((select occasion_date = current_date + 5 and years = 3 from public.admin_upcoming_anniversaries(30)
-                   where client_id = 'grace-community'), 'Client since date and years unchanged');
+select pg_temp.ok(public.admin_gift_basis() = 'established', 'no row: basis is established (founding date)');
+select pg_temp.ok(pg_temp.occ('grace-community') = 'established', 'default: grace lists the founding date only');
+select pg_temp.ok((select occasion_date = current_date + 10 and years = 20 from public.admin_upcoming_anniversaries(30)
+                   where client_id = 'grace-community'), 'default: founding date and years');
+select pg_temp.ok(pg_temp.occ('basic-test') = 'client_since', 'default: founding "Not sure" falls back to Client since');
+select pg_temp.ok((select client_since = current_date + 5 - interval '3 years' and established_date = current_date + 10 - interval '20 years'
+                   from public.admin_gift_dates(array['grace-community'])), 'admin_gift_dates returns both dates');
+reset role;
+select pg_temp.as_staff(pg_temp.ctx('nb'));
+set local role authenticated;
+select pg_temp.expect_err($q$select * from public.admin_gift_dates(array['grace-community'])$q$, 'not allowed', 'non-admin cannot read admin_gift_dates');
+reset role;
+set local role authenticated;
+select pg_temp.as_staff(pg_temp.ctx('ad'));
 
 -- 4. bad values refused
 select pg_temp.expect_err($q$select public.admin_set_gift_basis('both')$q$, 'org_gift_basis_invalid', 'RPC refuses an unknown basis');
@@ -93,14 +102,16 @@ select pg_temp.expect_err($q$insert into tk_settings (key, value) values ('org_g
                           'org_gift_basis_invalid', 'direct write of an unknown value refused');
 select pg_temp.expect_err($q$insert into tk_settings (key, value) values ('org_gift_basis', 'true'::jsonb)$q$,
                           'org_gift_basis_invalid', 'direct write of a non-string refused');
-select pg_temp.ok(public.admin_gift_basis() = 'client_since', 'still client_since after refused writes');
+select pg_temp.ok(public.admin_gift_basis() = 'established', 'still established after refused writes');
 
--- 5. established: founding date, with Client since as the fallback
-select pg_temp.ok(public.admin_set_gift_basis('established') = 'established', 'admin saves established');
-select pg_temp.ok(public.admin_gift_basis() = 'established', 'basis reads back established');
-select pg_temp.ok(pg_temp.occ('grace-community') = 'established', 'established basis: grace lists the founding date only');
-select pg_temp.ok((select occasion_date = current_date + 10 and years = 20 from public.admin_upcoming_anniversaries(30)
-                   where client_id = 'grace-community'), 'founding date and years');
+-- 5. client_since chosen explicitly: only Client since rows (admins can switch back)
+select pg_temp.ok(public.admin_set_gift_basis('client_since') = 'client_since', 'admin saves client_since');
+select pg_temp.ok(public.admin_gift_basis() = 'client_since', 'basis reads back client_since');
+select pg_temp.ok(pg_temp.occ('grace-community') = 'client_since', 'client_since basis: grace lists Client since only');
+select pg_temp.ok((select occasion_date = current_date + 5 and years = 3 from public.admin_upcoming_anniversaries(30)
+                   where client_id = 'grace-community'), 'Client since date and years');
+select pg_temp.ok(public.admin_set_gift_basis('established') = 'established', 'admin switches to established');
+select pg_temp.ok(pg_temp.occ('grace-community') = 'established', 'established again: grace lists the founding date only');
 select pg_temp.ok(pg_temp.occ('basic-test') = 'client_since', 'founding date "Not sure": falls back to Client since');
 reset role;
 update client_org_profile set established_unknown = false, established_date = null where client_id = 'basic-test';
@@ -124,11 +135,11 @@ select pg_temp.ok(exists (select 1 from tk_settings_audit where id > pg_temp.ctx
                             and lower(changed_by) = lower(pg_temp.ctx('ad'))),
                   'basis change audited with the admin email');
 
--- 8. back to client_since restores the default list
+-- 8. switching to client_since still works
 set local role authenticated;
 select pg_temp.as_staff(pg_temp.ctx('ad'));
 select pg_temp.ok(public.admin_set_gift_basis('client_since') = 'client_since'
-                  and pg_temp.occ('grace-community') = 'client_since', 'switching back lists Client since again');
+                  and pg_temp.occ('grace-community') = 'client_since', 'switching to Client since lists Client since');
 reset role;
 
 select 'Gift basis self-test passed';

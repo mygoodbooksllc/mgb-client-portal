@@ -9,6 +9,9 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-27: client gifts follow the founding date (admins)
+- **Founding date is now the default.** On **Team › Client gifts**, **Anniversary to follow** now starts on the **Founding date**, the client's own birthday, instead of **Client since**. A client with no founding date yet (blank or **Not sure**) still shows on their Client since date, so nobody drops off. Admins can switch back to **Client since** at any time. **Client since** stays on file and now has its own column in the list, and the Organization profile card on a client's Overview still shows both dates. See [How client gifts work](#/help/client-org-profile).
+
 ### 2026-10-27: celebrations a month ahead (admins)
 - **Time to plan gifts.** Admins now see staff birthdays and work anniversaries **30 days ahead** (it was 7) on **Today** (the **This week** card, with **Gift sent** and **Dismiss** under each line), in **Team › People › Celebrations**, and in the weekly digest's **Coming up** section (it was 14 days). Each line gives the date, how many days away, and years on the team, for example "Debra Ruffin's birthday, May 27 · in 30 days · 3 years on the team". No birth year or age is shown. Client anniversaries already looked 30 days ahead in **Team › Client gifts** and the digest. Nothing changes for non-admins. See [Birthdays, work anniversaries and gift reminders](#/help/celebrations).
 
@@ -60,7 +63,7 @@ See [How do recurring tasks from templates work?](#/help/task-templates), [What'
 - **Clients fill in a short profile.** When they sign in, clients are asked for the name for cards, organization type, established date, gift address, who receives deliveries, a main contact and their fiscal year end. **Later** puts it off until the next sign-in. Optional get-to-know questions too.
 - **Organization profile card.** On a client's Overview, under Key dates: their answers, a note when their fiscal year end differs from Key dates (Key dates is not changed), and **Client since**, which you can set by hand.
 - **Onboarding step.** **Client finished organization profile** ticks itself.
-- **Team › Client gifts (admins).** Anniversaries in the next 30 days with **Plan**, **Mark sent** and **Skip**, past gifts, and the line the weekly digest shows. **Anniversary to follow** picks **Client since** (the default) or the **Founding date** for the whole firm. Nothing emails clients or orders gifts.
+- **Team › Client gifts (admins).** Anniversaries in the next 30 days with **Plan**, **Mark sent** and **Skip**, past gifts, and the line the weekly digest shows. **Anniversary to follow** picks the **Founding date** (the default) or **Client since** for the whole firm. Nothing emails clients or orders gifts.
 
 See [What is a client's organization profile, and how do client gifts work?](#/help/client-org-profile).
 

@@ -718,7 +718,7 @@ t("client-org-profile-launch: live date, gifts step names the anniversary basis"
   const a = opEntry();
   assert.strictEqual(a.date, "2026-10-25");
   const gifts = a.steps({ isAdmin: true }).find((s) => s.id === "team-gifts");
-  assert.ok(/Anniversary to follow/.test(gifts.body()) && /Client since \(the default\)/.test(gifts.body()));
+  assert.ok(/Anniversary to follow/.test(gifts.body()) && /founding date \(the default\)/.test(gifts.body()));
 });
 
 t("order: with Slate, Month rhythm and the org profile all on: Slate, the Slate tour, Month rhythm, then the org profile", () => {

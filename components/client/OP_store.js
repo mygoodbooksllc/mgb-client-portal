@@ -157,6 +157,11 @@ var OP_api = {
   upcoming: function (days) {
     return OP__rpc("admin_upcoming_anniversaries", { p_days: days || 30 });
   },
+  // Admin: Client since and the founding date for these clients (the gift list
+  // shows both whichever date it follows).
+  giftDates: function (clientIds) {
+    return OP__rpc("admin_gift_dates", { p_client_ids: clientIds || [] });
+  },
   // Admin: which anniversary the gift list follows ("client_since" | "established").
   giftBasis: function () {
     return OP__rpc("admin_gift_basis");

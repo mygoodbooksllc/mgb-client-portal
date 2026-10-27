@@ -676,7 +676,7 @@ const TIPS_CATALOG = [
     roles: "admin",
     match: (r) => r.page === "team" && TIPS_tab("tp-tab-gifts"),
     target: "op-gifts-basis",
-    text: "Anniversary to follow is one choice for the whole firm: Client since (the default) or the founding date. It changes this list and the weekly digest count.",
+    text: "Anniversary to follow is one choice for the whole firm: the founding date (the default) or Client since. Client since stays on file and shows in the list either way. It changes the date we follow and the weekly digest count.",
     slug: "client-org-profile",
     adminDoc: true,
     ready: () => !!document.querySelector('[data-tour="op-gifts-basis"]'),

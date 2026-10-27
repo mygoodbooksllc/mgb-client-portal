@@ -1468,7 +1468,7 @@ var ANN_REGISTRY = [
               "team",
               "gifts",
               "Team › Client gifts",
-              "Admins see anniversaries in the next 30 days and Plan, Mark sent or Skip a gift for each. Anniversary to follow, at the top, picks Client since (the default) or the founding date. The usual budget is $30-45. Nothing here emails anyone or orders anything.",
+              "Admins see anniversaries in the next 30 days and Plan, Mark sent or Skip a gift for each. Anniversary to follow, at the top, picks the founding date (the default) or Client since. Client since stays on file and shows in the list. The usual budget is $30-45. Nothing here emails anyone or orders anything.",
             )
           : null,
         {
