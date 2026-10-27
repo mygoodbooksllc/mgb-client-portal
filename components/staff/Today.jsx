@@ -64,6 +64,9 @@ const TD_CARDS = [
 const TD_CARD_DEFAULTS = { attention: true, waiting: true, reminders: true, milestones: true, recent: true };
 // Clients shown per "needing attention" / "waiting" card.
 const TD_CARD_ROWS = 4;
+// Admins see celebrations a month ahead (celebrationLead.js), so the This
+// week card shows more of them than the 4 rows other cards use.
+const TD_CEL_CARD_ROWS = 10;
 // The word shown beside each row's icon. Color never carries the meaning
 // on its own: the band heading and this label say it in words.
 const TD_KIND_LABEL = {
@@ -700,31 +703,29 @@ function TD_buildRows(x) {
   // SOPs not edited or marked accurate in 180 days (SopFreshness.jsx).
   (x.staleSops || []).forEach((r) => week.push({ ...r, kind: "sop", rank: 9 }));
 
-  // Birthdays and work anniversaries within 7 days (admins). Today's sit in
-  // "now", the rest in "this week". "Gift sent" or "Dismiss" hides one.
-  (x.celebrations || []).forEach((r) => {
-    const push = (kind, on, action, title, what) => {
-      if (!on || action) return;
-      const d = daysUntil(on, x.today);
-      if (d < 0 || d > 7) return;
-      const when = d === 0 ? "Today" : d === 1 ? "Tomorrow" : fmtDate(on);
-      (d === 0 ? now : week).push({
-        key: "cel-" + kind + "-" + r.email,
-        kind: "celebrate",
-        rank: 0,
-        sort: d,
-        title,
-        detail: `${when} · ${what}`,
-        onClick: () => x.openShoutout(r.email),
-        actions: [
-          { label: "Send shout-out", primary: true, onClick: () => x.openShoutout(r.email) },
-          { label: "Gift sent", onClick: () => x.celebrate(r, kind, "gift") },
-          { label: "Dismiss", onClick: () => x.celebrate(r, kind, "dismissed") },
-        ],
-      });
-    };
-    push("birthday", r.next_birthday, r.birthday_action, `${r.name}'s birthday`, "send a gift or a shout-out");
-    push("anniversary", r.next_anniversary, r.anniversary_action, `${r.name}: ${r.years} year${r.years === 1 ? "" : "s"} with the firm`, "work anniversary");
+  // Birthdays and work anniversaries within 30 days (admins only; the rows
+  // are empty for everyone else), so there is time to send a gift. The first
+  // 7 days behave as before: today's sit in "now", the rest in "this week",
+  // ranked at the top. Days 8-30 are "far": ranked low and never Do next.
+  // "Gift sent" or "Dismiss" hides one. Pure rules: celebrationLead.js.
+  CEL_items(x.celebrations || [], x.today).forEach((it) => {
+    const r = it.row;
+    const kind = it.kind;
+    (it.days === 0 ? now : week).push({
+      key: it.key,
+      kind: "celebrate",
+      rank: it.near ? 0 : 8,
+      far: !it.near,
+      sort: it.days,
+      title: it.title,
+      detail: it.detail,
+      onClick: () => x.openShoutout(r.email),
+      actions: [
+        { label: "Send shout-out", primary: true, onClick: () => x.openShoutout(r.email) },
+        { label: "Gift sent", onClick: () => x.celebrate(r, kind, "gift") },
+        { label: "Dismiss", onClick: () => x.celebrate(r, kind, "dismissed") },
+      ],
+    });
   });
 
   // My own profile is missing its birthday or start date. Stays until done.
@@ -1031,16 +1032,25 @@ function TD_MilestonesCard({ clients, onOpenClientMilestone, celebrations }) {
       <h3 className="card-title" id="td-milestones-title">
         This week
       </h3>
-      <p className="card-subtitle">Birthdays and anniversaries, and milestones to review: numbers pointing to a different milestone, not confirmed yet, or close to the next one.</p>
+      <p className="card-subtitle">Birthdays and anniversaries (admins see the next 30 days, so there is time to send a gift), and milestones to review: numbers pointing to a different milestone, not confirmed yet, or close to the next one.</p>
       <div className="td-card-scroll">
       {cel.length > 0 && (
         <ul className="td-mini-list">
-          {cel.slice(0, TD_CARD_ROWS).map((r) => (
+          {cel.slice(0, TD_CEL_CARD_ROWS).map((r) => (
             <li key={r.key}>
               <button type="button" className="td-mini-row" onClick={r.onClick}>
                 <span className="td-mini-title">{r.title}</span>
                 <span className="td-mini-sub">{r.detail}</span>
               </button>
+              {(r.actions || []).filter((a) => !a.primary).length > 0 && (
+                <div className="td-mini-actions">
+                  {r.actions.filter((a) => !a.primary).map((a) => (
+                    <button type="button" className="link-btn" key={a.label} onClick={a.onClick}>
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -1731,7 +1741,8 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const errors = [waiting.error, mine.error, access.error, upgrades.error, grantError, dl && dl.error ? dl.error : ""].filter(Boolean);
   // Do next from Today's own order (classic, and the Desk's fallback while
   // wb_inbox isn't live): first row of Now, then This week.
-  const ranked = rows.now.concat(rows.week);
+  // A month-ahead celebration (days 8-30) is never the one top item.
+  const ranked = rows.now.concat(rows.week).filter((r) => !r.far);
   const topRow = ranked[0] || null;
   const topDo = TD_doNext(topRow);
   // "N more tasks in Slate": only what Slate holds; the rest is in the fold.

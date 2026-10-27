@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { defaultFrom, emailConfigured, esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
 import { orgAnniversaryCount, orgAnniversaryText } from "./orgAnniversaries.ts";
+import { celebrationItems } from "./celebrations.ts";
 
 // Weekly admin digest (supabase/weekly-digest.sql has the design + schema).
 //
@@ -298,32 +299,21 @@ function feeChangesSection(f: any): Section | null {
   return { title: "Fee changes to review", html, text, link: { label: "Open Milestones to review on Today", href: `${APP_URL}/#/today` } };
 }
 
-// Birthdays and work anniversaries in the next 14 days, so gifts have lead
-// time. Rows come from staff_celebrations(); an occurrence already marked
-// "gift sent" or dismissed on Today is left out.
+// Birthdays and work anniversaries in the next 30 days, so gifts have a
+// month of lead time. Rows come from staff_celebrations(); an occurrence
+// already marked "gift sent" or dismissed on Today is left out. Rules live in
+// celebrations.ts (month and day only, never a birth year or an age).
 function comingUpSection(d: any): Section | null {
   const rows: any[] = Array.isArray(d.celebrations) ? d.celebrations : [];
   const today = String(d.today || new Date().toISOString().slice(0, 10));
-  const t0 = Date.parse(today + "T00:00:00Z");
-  const items: { days: number; when: string; who: string; what: string }[] = [];
-  for (const r of rows) {
-    const add = (iso: string | null, action: string | null, what: string) => {
-      if (!iso || action) return;
-      const days = Math.round((Date.parse(iso + "T00:00:00Z") - t0) / 86400000);
-      if (days < 0 || days > 14) return;
-      items.push({ days, when: fmtDay(iso, true), who: r.name || r.email, what });
-    };
-    add(r.next_birthday, r.birthday_action, "birthday");
-    add(r.next_anniversary, r.anniversary_action, `${r.years} year${r.years === 1 ? "" : "s"} with the firm`);
-  }
+  const items = celebrationItems(rows, today);
   // Client anniversaries (next 30 days): one line, only when the firm switch
   // is on and the count is positive. Null leaves this section unchanged.
   const orgLine = orgAnniversaryText(orgAnniversaryCount(d.org_anniversaries));
   if (items.length === 0 && !orgLine) return null;
-  items.sort((a, b) => a.days - b.days || a.who.localeCompare(b.who));
   let html = items.length
     ? tableHtml(["When", "Who", "What"], items.map((i) => [esc(i.when), esc(i.who), esc(i.what)])) +
-      para("Today reminds you a week ahead with Send shout-out, Gift sent and Dismiss.", "muted")
+      para("Today shows each one a month ahead with Send shout-out, Gift sent and Dismiss.", "muted")
     : "";
   let text = items.length ? textTable(items.map((i) => `${i.when}: ${i.who}, ${i.what}`)) : "";
   if (orgLine) {

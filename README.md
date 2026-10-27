@@ -1377,6 +1377,21 @@ is always null; celebrations, Today and the digest use `birthday_md` / `next_bir
 `supabase/staff-dates-entry-2026-10-27.sql` is the one-time fill of birthdays and start dates from the owner's
 sheet (blanks only, audited as `staff_profile.birthday_set` / `.start_date_set` in `audit_log`).
 
+**Celebrations a month ahead for admins (2026-10-27, no database change).** Admins see staff birthdays and
+work anniversaries 30 days ahead (`CEL_ADMIN_LEAD_DAYS`) so there is time to send a gift. Pure rules:
+`components/staff/celebrationLead.js` (`CEL_items(rows, today, leadDays, includeHandled)`; node test
+`celebrationLead.test.js`). Today (`TD_buildRows`, admins only: `TD_useCelebrations` returns no rows for anyone
+else) keeps the first 7 days at rank 0 as before; days 8-30 rank 8 with `far: true` and are filtered out of the
+Do next list; the This week card shows up to 10 with Gift sent / Dismiss under each line (they were
+unreachable there before). `TP_UpcomingCard` (Team › People) takes `admin` and shows date, days away, years on
+the team and a gift sent / dismissed tag for admins only; the other staff version is unchanged (it has always
+shown 30 days to every staff member, month and day only). The weekly digest "Coming up" section now looks 30
+days (was 14) through `supabase/functions/weekly-admin-digest/celebrations.ts` (`celebrationItems`; keep it in
+step with the browser file; test `tests/edge/celebrations_digest.test.mjs`). Client anniversaries were already
+30 days: Team › Client gifts calls `admin_upcoming_anniversaries(30)` and the digest line comes from
+`org_anniversaries_digest_count` (30 days, a count only). "N years on the team" is time since the start date,
+never an age; no birth year is shown anywhere.
+
 ### Staff ops features (added 2026-10-07)
 
 Eight staff-only features, built one per commit. Shared pieces: pure rules in

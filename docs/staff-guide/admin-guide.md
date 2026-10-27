@@ -37,7 +37,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Bookkeeper** on a client's Slate list | Click it to change the client's bookkeeper; the old bookkeeper's open tasks there can move too (in-review and private ones stay; no email) | [Task lists and projects](#/help/task-lists-and-projects) |
 | **Slate › Recurring** | Recurring task templates: drafts, **Turn on**, previews, **Make due tasks now**, **Missed periods** and the standard close set | [Recurring tasks](#/help/task-templates) |
 | **Settings › Firm settings** | **Task templates** (a link to Slate › Recurring), **Client roster** (where new clients are added), **Emails**, **QuickBooks usage**, **Usage stats**, **Audit log** and **Developer tools**, plus the **Late tasks** and **Month rhythm** cards (the three monthly Slate dates, 4th, 14th and 24th by default) | [Settings](#/help/staff-settings), [Usage stats and Developer tools](#/help/admin-insight), [Audit log](#/help/audit-log) |
-| **Today** | Every client you can open, which for an admin is all of them, plus birthdays and work anniversaries a week ahead; once the Desk is on, **Mine** or **Everyone** to see every staff member's items | [Today](#/help/home-page), [Desk](#/help/workbench), [Celebrations](#/help/celebrations) |
+| **Today** | Every client you can open, which for an admin is all of them, plus birthdays and work anniversaries a month ahead; once the Desk is on, **Mine** or **Everyone** to see every staff member's items | [Today](#/help/home-page), [Desk](#/help/workbench), [Celebrations](#/help/celebrations) |
 | **Email** to admin@mygoodbooks.org | Health-check alerts and the weekly digest | [Alerts](#/help/health-alerts), [Weekly digest](#/help/weekly-digest) |
 
 ### A routine

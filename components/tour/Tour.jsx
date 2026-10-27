@@ -1317,7 +1317,7 @@ function TOUR_adminSteps(ctx) {
       spot: "top",
       title: "Your Today, admin edition",
       body: () =>
-        "Today covers every client you can open, and admins can open them all: access and upgrade requests under Waiting on others, clients needing attention, and birthdays and work anniversaries a week ahead in This week, which also lists pricing milestones to review.",
+        "Today covers every client you can open, and admins can open them all: access and upgrade requests under Waiting on others, clients needing attention, and birthdays and work anniversaries a month ahead in This week, which also lists pricing milestones to review.",
     },
     {
       id: "done",
