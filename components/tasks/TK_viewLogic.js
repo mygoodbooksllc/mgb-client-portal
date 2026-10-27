@@ -3257,8 +3257,43 @@ function TK_ixDockPeople(me, people, staff) {
   return out;
 }
 
+// ---- Work > Slate summary (Slate single home, 2026-10-27) ---------------------------
+// With the Slate app on, Work > Slate is a short summary, not a second full list:
+// the late tasks, what is due today and the next few after that, then an Open
+// Slate button. groups: TK_groupMyTasks output (built with todayGroup on).
+// Returns { late, today, next, lateMore, todayMore, nextMore }: every list is
+// capped at opts.cap (default 5) and the *More counts say how many were left
+// out. "Next" is the open tasks after today (this week, then later), in the
+// order Slate sorts them; waiting on client, unassigned and done never show.
+var TK_SUMMARY_CAP = 5;
+
+function TK_slateSummary(groups, opts) {
+  var g = groups || {};
+  var o = opts || {};
+  var cap = typeof o.cap === "number" && o.cap > 0 ? Math.floor(o.cap) : TK_SUMMARY_CAP;
+  var list = function (k) {
+    return Array.isArray(g[k]) ? g[k] : [];
+  };
+  var cut = function (rows) {
+    return { shown: rows.slice(0, cap), more: Math.max(0, rows.length - cap) };
+  };
+  var late = cut(list("overdue"));
+  var today = cut(list("today"));
+  var next = cut(list("week").concat(list("later")));
+  return {
+    late: late.shown,
+    today: today.shown,
+    next: next.shown,
+    lateMore: late.more,
+    todayMore: today.more,
+    nextMore: next.more,
+  };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   Object.assign(module.exports, {
+    TK_slateSummary: TK_slateSummary,
+    TK_SUMMARY_CAP: TK_SUMMARY_CAP,
     TK_copySkipText: TK_copySkipText,
     TK_manualUndoPlan: TK_manualUndoPlan,
     TK_ixDueFor: TK_ixDueFor,

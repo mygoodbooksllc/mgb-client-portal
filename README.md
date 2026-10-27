@@ -1420,6 +1420,26 @@ Shout-outs card, composer from a profile) stays for everyone. To bring the 7-day
 still returns the active staff list (month and day, no year) to any signed-in staff member, so the gate is in the
 app, not the database.
 
+### Work > Slate is a short summary (2026-10-27, no database change, no new flag)
+
+The Slate page (`#/tasks/my`) is the one full Slate. `WorkPage.jsx` renders the Slate tab as
+`<TK_MyTasks embedded summary={slateOn && !viewingAs} />` where `slateOn = TK_useSlateAppOn()` (firm switch
+`slate_app_enabled`, per-person preview and the Classic opt-out, Classic wins). `TK_MyTasks` dispatches
+`snapshotFor` -> `TK_vSnapshotBody` (View as, unchanged, keeps `data-tour="va-slate-snapshot"`), `summary` ->
+`TK_vSummaryBody` (new), else the full `TK_vMyTasksBody`. With the switch off, Classic, or View as, nothing changes.
+`TK_vSummaryBody` shows **Late**, **Due today** and **Next** (this week, then later; waiting, unassigned and done
+are left out), each capped at 5 by the pure helper `TK_slateSummary(groups, {cap})` in `TK_viewLogic.js` (with a
+"N more" line that links to Slate), plus an **Open Slate** button (`data-tour="tk-summary-open"`). It reads the same
+shared store list (`"mine"`) as the Slate page. Rows are plain links built with `TK_vTaskHref` and
+`TK_openTaskClick`, so a click opens the task drawer exactly as on the Slate page; no right-click, drag, select-many
+or swipes. Styles `.tk-summary*` are in `tk-views.css`. The Desk's compact Slate tab keeps its list; its footer
+link is now **Open in Slate** (`data-tour="wb-hub-open-slate"`). Tips: six `tk-*` tips stay off the summary
+(`TIPS_workSummary()`), new tip `tk-summary-open`. The Work > Slate tour step reads "short summary" when the Slate
+app is on. Launch notice `slate-single-home` (admins, bookkeepers, account managers; `visible` = Slate app on).
+Guide: `work-page`, `my-tasks`, `workbench`, `home-page`, `staff-settings`, `tips`, `whats-new`
+(`supabase/staff-guide-slate-single-home.sql`, applied). Known: on a cold direct load of `#/work/tasks` the full
+list can show for a moment before the flag read finishes and the summary replaces it.
+
 ### Staff ops features (added 2026-10-07)
 
 Eight staff-only features, built one per commit. Shared pieces: pure rules in

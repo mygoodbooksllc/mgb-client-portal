@@ -1982,6 +1982,46 @@ var ANN_REGISTRY = [
       ),
     ],
   },
+  {
+    // Slate single home (2026-10-27): with the Slate app on, Work > Slate is a short
+    // summary (late, due today, next few, Open Slate) and the Slate page is the one
+    // full Slate. Gated like the Slate app launch (ANN_slateLaunchOn): anyone on
+    // Classic tasks page, or with the firm switch off, still has the full list on
+    // the Work tab, so there is nothing to announce to them.
+    id: "slate-single-home",
+    date: "2026-10-27",
+    title: "Work › Slate is now a summary",
+    summary: "Work › Slate shows what's late, due today and next, with Open Slate for the full list. The Slate page is the one full Slate.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/work/tasks",
+    visible: () => ANN_slateLaunchOn(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Work › Slate is shorter now",
+        body: () =>
+          "Slate used to show up twice: as a full list on the Slate page and again under Work. Now the Slate page is the one full Slate, and Work › Slate is a quick look. Nothing about your tasks changed. About a minute.",
+      },
+      {
+        id: "ann-summary",
+        go: TOUR_go("work", "tasks"),
+        targets: ["tk-summary-groups", "tk-summary"],
+        wait: true,
+        title: "A quick look",
+        body: () =>
+          "Late tasks, what is due today and your next few, five at most in each. Click a task to open its details, the same as on the Slate page. If there are more, a link under the list says how many.",
+      },
+      {
+        id: "ann-open-slate",
+        go: TOUR_go("work", "tasks"),
+        targets: ["tk-summary-open"],
+        wait: true,
+        title: "Open Slate",
+        body: () =>
+          "This opens the Slate page, where the full list lives: every group, views, filters and the rest. The Desk's Slate tab stays compact and has Open in Slate at the bottom too.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

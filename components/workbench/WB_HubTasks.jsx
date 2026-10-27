@@ -406,8 +406,8 @@ function WB_HubTasksBody(props) {
         <button type="button" className="btn-secondary wb-hub-add" onClick={addTask}>
           Add to your {WB_SLATE}
         </button>
-        <a className="wb-hub-link" href="#/tasks/my">
-          Slate page
+        <a className="wb-hub-link" href="#/tasks/my" data-tour="wb-hub-open-slate">
+          Open in Slate
         </a>
       </div>
     </div>

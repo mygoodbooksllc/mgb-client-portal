@@ -7,7 +7,7 @@ sort: 40
 ---
 **Today** is your starting point: the one thing to do next, and a few small cards about everything around it. It's the first of the five places in the left rail (**Today**, **Inbox**, **Work**, **Clients**, **Team**), and it opens when you sign in unless you picked another start page in [Settings](#/help/staff-settings).
 
-Today no longer repeats your whole list. The full list lives in **Work › Slate** and, once the owner turns it on, in the Desk on the right of every page (press **D**). See [How do I use the Desk?](#/help/workbench).
+Today no longer repeats your whole list. The full list lives on the Slate page (**Open Slate**; **Work › Slate** has a short summary of it) and, once the owner turns it on, in the Desk on the right of every page (press **D**). See [How do I use the Desk?](#/help/workbench).
 
 ### The top of the page
 
@@ -47,5 +47,5 @@ In **View as** (admins), Today is always the classic page, read-only, and a line
 ### Troubleshooting
 
 - **Do next is empty, but I know something's due.** Today only covers clients you can open. If one is missing, ask an admin to assign you from that client's settings.
-- **I miss the long list.** Open **Work › Slate**, or press **D** for the Desk. Approvals and other less common items are under **Also needs you** on Today.
+- **I miss the long list.** Click **Open Slate**, or press **D** for the Desk. Approvals and other less common items are under **Also needs you** on Today.
 - **I'd rather have the old Today.** Click **?** on the Do next card and pick **Use classic Today in this browser**.

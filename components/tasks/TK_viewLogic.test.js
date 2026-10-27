@@ -2367,4 +2367,25 @@ t("ix: undo check sorts changed and gone; unstamped ids are not checked", () => 
   assert.deepStrictEqual(L.TK_ixUndoCheck({ a: "2026-10-23T14:00:00Z" }, null), { changed: [], gone: ["a"] });
 });
 
+// ---- Work > Slate summary -------------------------------------------------------
+t("slateSummary: late, today and next, each capped at 5 with a more count", () => {
+  const mk = (p, n) => Array.from({ length: n }, (_, i) => tk(p + i));
+  const s = L.TK_slateSummary({ overdue: mk("o", 7), today: mk("t", 2), week: mk("w", 4), later: mk("l", 3), waiting: mk("x", 2), unassigned: mk("u", 2), done: mk("d", 2) });
+  assert.strictEqual(s.late.length, 5);
+  assert.strictEqual(s.lateMore, 2);
+  assert.strictEqual(s.today.length, 2);
+  assert.strictEqual(s.todayMore, 0);
+  assert.deepStrictEqual(s.next.map((x) => x.id), ["w0", "w1", "w2", "w3", "l0"]);
+  assert.strictEqual(s.nextMore, 2);
+});
+t("slateSummary: empty or missing groups give empty lists", () => {
+  assert.deepStrictEqual(L.TK_slateSummary(null), { late: [], today: [], next: [], lateMore: 0, todayMore: 0, nextMore: 0 });
+  assert.deepStrictEqual(L.TK_slateSummary({ waiting: [tk("w")], unassigned: [tk("u")], done: [tk("d")] }), { late: [], today: [], next: [], lateMore: 0, todayMore: 0, nextMore: 0 });
+});
+t("slateSummary: a custom cap is honored and a bad one falls back to 5", () => {
+  const rows = [tk("a"), tk("b"), tk("c")];
+  assert.strictEqual(L.TK_slateSummary({ overdue: rows }, { cap: 2 }).lateMore, 1);
+  assert.strictEqual(L.TK_slateSummary({ overdue: rows }, { cap: 0 }).late.length, 3);
+});
+
 console.log(n + " checks passed");

@@ -64,7 +64,7 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | A client's Messages | Click i for this client's portal logins, open requests, pinned notes, SOP and recent portal visits, right beside the thread. | [How do I message a client or a teammate?](#/help/inbox) |
 | Any client page | The sync pill: QuickBooks syncs on the plan's schedule (Basic monthly, Pro every hour). Staff can click it to Sync now on any plan after changing something in QuickBooks. | [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection) |
 | Any client page | Client view shows the client's own pages. View as client, at the bottom of it, shows them exactly as one of the client's people sees them. Nothing changes for them; Exit preview brings you back. | [How do I see the portal the way a client sees it?](#/help/preview-as) |
-| Work › Slate | Pick a client and tick Share with this client's team so other staff on it can see and tick off the task. Repeat needs a Due date; Custom… sets weekdays, an end and more. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate | Pick a client and tick Share with this client's team so other staff on it can see and tick off the task. Repeat needs a Due date; Custom… sets weekdays, an end and more. | [How do I use my Slate?](#/help/my-tasks) |
 | Work › Close | Click a cell to set the month's status and add a note, like waiting on a bank statement. The cell shows who changed it and when. | [How do I track month-end close?](#/help/month-end-close) |
 | Work › Deadlines | Weekend due dates move to Monday, but holidays don't, so verify each date before filing. Mark filed shows the team who filed it. | [How do I track filing deadlines?](#/help/deadlines) |
 | HR › Reviews | Your self-review saves as a draft as you go. Once both forms are in, set up a time with your reviewer; you see the comparison together in that meeting. Other admins can follow along. | [How do quarterly reviews work?](#/help/quarterly-reviews) |
@@ -74,10 +74,11 @@ Here is every tip, in the order they're considered when two fit the same page (t
 
 #### Everyone: Slate
 
-These show on **Work › Slate** (the Slate pages), after the tips above. The newest are **Select many tasks**, **Month-end tasks from the Close checklist**, **Quick add in plain words**, **Subtasks**, **project colors**, **Group by** and **Manage projects**.
+These show on the Slate pages, after the tips above. **Work › Slate** is a short summary with its own tip. The newest are **Select many tasks**, **Month-end tasks from the Close checklist**, **Quick add in plain words**, **Subtasks**, **project colors**, **Group by** and **Manage projects**.
 
 | Page | Tip | Learn more |
 |---|---|---|
+| Work › Slate | This tab shows what's late, due today and coming up next. Open Slate has the full list. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate | Press q on any staff page to add a task (on a touch screen, tap Add task). Type it in one line: @name assigns it, #client files it, fri or 10/31 sets the date, and !high marks it urgent. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate | Click a group's heading to fold it; it stays that way next time. Done starts folded, and View can turn the Today group off. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate | Click a status to change it. On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note. | [What's in a task's details?](#/help/task-details) |

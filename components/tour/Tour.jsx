@@ -95,6 +95,9 @@
 //   #st-tab-firm     Settings' Firm settings tab, found by id (Settings.jsx)
 //   Tasks tour (TOUR_StaffRoot too; on the portal's #/tasks/my page, never
 //   in the /tasks shell, where tours aren't mounted; components/tasks/)
+//   tk-summary       Work › Slate summary (Slate app on): the card; tk-summary-groups its
+//                    lists and tk-summary-open the Open Slate button (TK_MyTasks.jsx)
+//   wb-hub-open-slate the Desk Slate tab's Open in Slate link (WB_HubTasks.jsx)
 //   tk-add           My Tasks' Add task button (TK_MyTasks.jsx; a list's
 //                    Add task in TK_List.jsx carries it too)
 //   tk-groups        My Tasks' groups, only when there are tasks
@@ -1182,7 +1185,11 @@ function TOUR_bookkeeperSteps(ctx) {
       "work",
       "tasks",
       "Work › Slate",
-      "Your tasks, grouped by when they're due. Notes and client SOPs are on the Notes & SOPs tab next to it.",
+      // Slate app on: Work › Slate is a short summary and the Slate page is the full list.
+      () =>
+        typeof TK_slateAppOn === "function" && TK_slateAppOn()
+          ? "A quick look at what's late, due today and next, with Open Slate for the full list. Notes and client SOPs are on the Notes & SOPs tab next to it."
+          : "Your tasks, grouped by when they're due. Notes and client SOPs are on the Notes & SOPs tab next to it.",
     ),
     TOUR_tabStep(
       "work",

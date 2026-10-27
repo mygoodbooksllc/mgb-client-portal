@@ -36,7 +36,7 @@ The emails only say what happened and link to the portal. They never include the
 ### Appearance & start page
 
 - **Theme**: **Light**, **Dark** or **Match my computer** (follows your computer's light or dark setting). The **Light mode** / **Dark mode** item in the account menu still works as a quick switch, and it saves here too.
-- **Start page**: where you land when you sign in: **Today**, **Work › Slate** (Slate inside Work) or **Last client opened**. A link you open (for example from an email) still goes straight to its page.
+- **Start page**: where you land when you sign in: **Today**, **Work › Slate** (a short Slate summary inside Work) or **Last client opened**. A link you open (for example from an email) still goes straight to its page.
 
 ### Email signature
 

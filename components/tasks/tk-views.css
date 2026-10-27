@@ -3664,3 +3664,88 @@ a.tk-card-title:hover {
 .tk-optc-item input[disabled] + span { opacity: 0.6; }
 .tk-optc-desc { margin-left: 24px; font-size: 0.9em; }
 @media (prefers-reduced-motion: reduce) { .tk-optc details > summary::before { transition: none; } }
+
+/* ---- Work > Slate summary (Slate single home, 2026-10-27) ------------------------------ */
+/* Late, due today and the next few, with an Open Slate button. Plain link rows:
+   no tick, no menu, no drag. The full list lives on the Slate page. */
+.tk-summary .tk-view-head {
+  align-items: flex-start;
+}
+.tk-sum-lede {
+  flex: 1 1 260px;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+.tk-sum-open {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+.tk-sum-head {
+  cursor: default;
+}
+.tk-sum-head::after,
+.tk-sum-head:hover::after {
+  content: none;
+}
+.tk-sum-head:hover {
+  background: transparent;
+}
+.tk-sum-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  align-items: center;
+  column-gap: 10px;
+  min-height: var(--tk-row-h);
+  padding: 6px 12px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.tk-rows > li:last-child > .tk-sum-row {
+  border-bottom: 0;
+}
+.tk-sum-row:hover,
+.tk-sum-row:focus-visible {
+  background: var(--hover-bg);
+}
+.tk-sum-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--selected-outline);
+}
+.tk-sum-main {
+  min-width: 0;
+}
+.tk-sum-main .tk-row-title {
+  display: block;
+}
+.tk-sum-due {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.tk-sum-due.is-late {
+  color: var(--bad);
+  font-weight: 600;
+}
+.tk-sum-status {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.tk-sum-more {
+  margin: 6px 4px 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+@media (max-width: 760px) {
+  .tk-sum-row {
+    grid-template-columns: 10px minmax(0, 1fr) auto;
+  }
+  .tk-sum-status {
+    display: none;
+  }
+}

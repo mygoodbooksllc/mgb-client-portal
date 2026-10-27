@@ -172,6 +172,14 @@ function TIPS_tab(id) {
   return !!el && el.getAttribute("aria-selected") === "true";
 }
 
+// Slate single home (2026-10-27): with the Slate app on, Work > Slate is a short
+// summary (TK_vSummaryBody), so the tips about the full list (Add task, group
+// headings, status, select, claim, draft email) wait for the Slate page. With the
+// app off or Classic the tab is the full list and they show there as before.
+function TIPS_workSummary() {
+  return typeof TK_slateAppOn === "function" && TK_slateAppOn() && !!document.querySelector('[data-tour="tk-summary"]');
+}
+
 function TIPS_touch() {
   return typeof TOUR_touchOnly === "function" && TOUR_touchOnly();
 }
@@ -384,9 +392,20 @@ const TIPS_CATALOG = [
   // Not in the /tasks shell, where tips aren't mounted. While the task
   // drawer (aria-modal) or a menu is open, TIPS_BUSY holds them.
   {
+    // Slate single home (2026-10-27): Work > Slate is a summary while the Slate app is on.
+    id: "tk-summary-open",
+    roles: "all",
+    match: (r) => r.page === "work" && TIPS_tab("wk-tab-tasks"),
+    target: "tk-summary-open",
+    snug: true,
+    text: "This tab shows what's late, due today and coming up next. Open Slate has the full list.",
+    slug: "my-tasks",
+    ready: () => !!document.querySelector('[data-tour="tk-summary-open"]'),
+  },
+  {
     id: "tk-add",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-add",
     snug: true,
     text: (env) =>
@@ -398,7 +417,7 @@ const TIPS_CATALOG = [
   {
     id: "tk-groups",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-groups",
     part: ".tk-group-head",
     snug: true,
@@ -408,7 +427,7 @@ const TIPS_CATALOG = [
   {
     id: "tk-status",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-status",
     snug: true,
     text: "Click a status to change it (the person, due date and priority change in place too). On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note.",
@@ -469,7 +488,7 @@ const TIPS_CATALOG = [
   {
     id: "tk-email-draft",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-email-draft",
     snug: true,
     text: "Draft email builds from the latest data each time you open it. Start over rebuilds it. Slate never sends it: you copy it.",
@@ -509,7 +528,7 @@ const TIPS_CATALOG = [
   {
     id: "tk-select",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-select",
     snug: true,
     text: (env) =>
@@ -552,7 +571,7 @@ const TIPS_CATALOG = [
   {
     id: "tk-claim",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-claim",
     snug: true,
     text: "Nobody is on this task yet. Assign opens a list of people: pick yourself and it moves into your groups, or pick a teammate to hand it to them.",

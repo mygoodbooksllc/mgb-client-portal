@@ -470,7 +470,7 @@ t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view
   // nothing answered. (Entries with visible(), such as the hidden draft
   // client-org-profile-launch, do not compete while their switch is off. The
   // admins-only view-as-whole-app notice is newer but no bookkeeper gets it.)
-  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.id !== "celebration-heads-up" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
+  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.id !== "celebration-heads-up" && x.id !== "slate-single-home" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
   assert.strictEqual(a.date, newest);
 });
 
@@ -662,6 +662,23 @@ t("slate-app-launch gate: an entry with a throwing visible() is hidden", () => {
 // ---- Client org profile launch: draft, invisible until the firm switch is on -----
 const opEntry = () => ANN_REGISTRY.find((x) => x.id === "client-org-profile-launch");
 
+t("registry: slate-single-home is gated like the Slate app launch and tours the Work > Slate summary", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "slate-single-home");
+  assert.ok(a);
+  assert.strictEqual(a.date, "2026-10-27");
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  assert.strictEqual(a.hash, "#/work/tasks");
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-summary", "ann-open-slate"]);
+  assert.deepStrictEqual(steps[2].targets, ["tk-summary-open"]);
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
+  assert.ok(!/colour/i.test(text), text);
+  // Off with the firm switch off, and for anyone on Classic.
+  withWin({}, false, () => assert.strictEqual(a.visible(), false));
+  withWin({ mgb_slate_cache: "1" }, false, () => assert.strictEqual(a.visible(), true));
+  withWin({ mgb_slate_cache: "1", mgb_slate_classic: "1" }, false, () => assert.strictEqual(a.visible(), false));
+});
+
 t("registry: client-org-profile-launch shape, roles, steps and wording", () => {
   const a = opEntry();
   assert.ok(a);
@@ -748,7 +765,7 @@ t("order: with Slate, Month rhythm and the org profile all on: Slate, the Slate 
         rows[pick.id] = { status: "dismissed", later_count: 0 };
       }
     });
-    const s = seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up");
+    const s = seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up" && id !== "slate-single-home");
     assert.deepStrictEqual(s.slice(0, 4), ["slate-app-launch", "slate-start-to-finish", "month-rhythm-launch", "client-org-profile-launch"]);
   });
 });
@@ -775,7 +792,7 @@ function walk(ctx, store, narrow, first) {
     }
   });
   // The admins-only View as notice (2026-10-23) is newer than these; leave it out of the order checks.
-  return seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up");
+  return seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up" && id !== "slate-single-home");
 }
 
 t("order: with all three eligible, slate-app-launch comes first and supersedes the view bar", () => {

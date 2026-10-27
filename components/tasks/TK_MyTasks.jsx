@@ -2,7 +2,9 @@
 // TK_MyTasks.jsx — My Tasks, grouped (Row 3.1), at #/tasks/my and embedded
 // under Work › Tasks.
 //
-// TK_MyTasks({ staffUser, clients, isAdmin, embedded=false })
+// TK_MyTasks({ staffUser, clients, isAdmin, embedded=false, summary=false })
+//   summary: Work > Slate with the Slate app on, a short summary (TK_vSummaryBody)
+//   instead of the full list; snapshotFor (View as) still wins over it.
 //   Groups: Overdue, Today (the view option; off merges it into This week),
 //   This week, Later, Waiting on client, Done (collapsed by default). Empty
 //   groups hide. Collapsed groups live in mgb_tk_groups_v1, the view options
@@ -347,7 +349,134 @@ function TK_MyTasks(props) {
     );
   }
   if (props.snapshotFor) return <TK_vSnapshotBody {...props} />;
+  if (props.summary) return <TK_vSummaryBody {...props} />;
   return <TK_vMyTasksBody {...props} />;
+}
+
+// Work > Slate with the Slate app on (Slate single home, 2026-10-27): not a second
+// full Slate, a short summary. Late, due today and the next few tasks (the rules
+// are TK_slateSummary), each row a plain link that opens the task the way a row on
+// the Slate page does (same drawer, same link), then Open Slate. No Done tick, no
+// status menu, no drag, no select: those live on the Slate page only. Reads the
+// same "mine" list as the Slate page, so a change shows here at once.
+function TK_vSummaryBody(props) {
+  var staffUser = props.staffUser || {};
+  var email = TK_vLower(staffUser.email);
+  var today = TK_vToday();
+  var loader = function () {
+    if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.listMine !== "function") return Promise.resolve([]);
+    return TK_api.listMine(email, { showOlder: typeof TK_prefsGet === "function" ? TK_prefsGet().showOlder === true : false });
+  };
+  var list = TK_vUseList(email ? "mine" : null, loader);
+  var projects = TK_vUseProjects();
+  var clientNames = React.useMemo(
+    function () {
+      return TK_vNameMap(props.clients, "id", "name");
+    },
+    [props.clients],
+  );
+  var projectNames = React.useMemo(
+    function () {
+      return TK_vNameMap(projects, "id", "name");
+    },
+    [projects],
+  );
+  var all = Array.isArray(list.tasks) ? list.tasks : [];
+  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(all, today, { email: email, todayGroup: true, isAdmin: !!props.isAdmin }) : {};
+  var sum = typeof TK_slateSummary === "function" ? TK_slateSummary(groups) : { late: [], today: [], next: [], lateMore: 0, todayMore: 0, nextMore: 0 };
+  var slateHref = typeof LK_href === "function" ? LK_href({ place: "tasks", tab: "my" }) : "#/tasks/my";
+  var loading = !!list.loading && !all.length;
+  var err = list.error && !all.length ? list.error : null;
+  var empty = !sum.late.length && !sum.today.length && !sum.next.length;
+
+  var sections = [
+    { key: "late", label: "Late", rows: sum.late, more: sum.lateMore },
+    { key: "today", label: "Due today", rows: sum.today, more: sum.todayMore },
+    { key: "next", label: "Next up", rows: sum.next, more: sum.nextMore },
+  ];
+  var body;
+  if (loading) body = <TK_vSkeletonRows count={4} />;
+  else if (err) body = <TK_vErrorState onRetry={list.reload} />;
+  else if (empty) {
+    body = (
+      <div className="tk-empty">
+        <p>Nothing late, due today or coming up.</p>
+      </div>
+    );
+  } else {
+    body = (
+      <div className="tk-groups tk-sum-groups" data-tour="tk-summary-groups">
+        {sections.map(function (sec) {
+          if (!sec.rows.length) return null;
+          var gid = "tk-sum-" + sec.key;
+          return (
+            <section key={sec.key} className={"tk-group tk-sum-group tk-group-" + (sec.key === "late" ? "overdue" : sec.key === "today" ? "today" : "week")} aria-labelledby={gid}>
+              <h3 className="tk-group-head" id={gid}>
+                <span className="tk-group-btn tk-sum-head">
+                  <span className="tk-group-name">{sec.label}</span>
+                  <span className="tk-count">{sec.rows.length + sec.more}</span>
+                </span>
+              </h3>
+              <ul className="tk-rows tk-sum-rows" aria-label={sec.label}>
+                {sec.rows.map(function (t) {
+                  var href = typeof TK_vTaskHref === "function" ? TK_vTaskHref(t.id) : slateHref;
+                  var client = t.client_id != null ? clientNames[String(t.client_id)] || "" : "";
+                  var due = typeof TK_dueLabel === "function" ? TK_dueLabel(t, today) : "";
+                  var late = sec.key === "late";
+                  var project = t.project_id ? projectNames[t.project_id] || "" : "";
+                  var status = TK_vStatusOf(t);
+                  return (
+                    <li key={t.id}>
+                      <a
+                        className="tk-sum-row"
+                        href={href}
+                        onClick={function (e) {
+                          if (typeof TK_openTaskClick === "function") {
+                            TK_openTaskClick(t.id)(e);
+                            return;
+                          }
+                          if (!TK_vPlainClick(e)) return;
+                          e.preventDefault();
+                          TK_vOpenTask(t.id, { from: "list" });
+                        }}
+                      >
+                        <span className={"tk-dot tk-st-" + status} aria-hidden="true" />
+                        <span className="tk-sum-main">
+                          <span className="tk-row-title">{t.text || "Untitled task"}</span>
+                          <span className="tk-row-meta">
+                            {client ? <span className="tk-meta-client">{client}</span> : null}
+                            {project ? <span>{project}</span> : null}
+                          </span>
+                        </span>
+                        {due ? <span className={"tk-sum-due" + (late ? " is-late" : "")}>{due}</span> : null}
+                        {status !== "todo" ? <span className="tk-sum-status">{TK_vStatusLabel(status)}</span> : null}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+              {sec.more > 0 ? (
+                <p className="tk-sum-more">
+                  {sec.more} more · <a href={slateHref}>See all in Slate</a>
+                </p>
+              ) : null}
+            </section>
+          );
+        })}
+      </div>
+    );
+  }
+  return (
+    <div className="tk-view tk-my tk-embedded tk-summary" data-tour="tk-summary">
+      <div className="tk-view-head">
+        <p className="tk-sum-lede">Your Slate at a glance. The full list lives on the Slate page.</p>
+        <a className="btn-primary tk-sum-open" href={slateHref} data-tour="tk-summary-open">
+          Open Slate
+        </a>
+      </div>
+      {body}
+    </div>
+  );
 }
 
 // View as (snapshotFor = the viewed person's email): their open tasks loaded

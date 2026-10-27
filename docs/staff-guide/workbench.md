@@ -113,7 +113,7 @@ The Desk has three tabs: **Inbox**, **Slate** and **Client** (see the next secti
 
 - Click a row to open the task in the Desk; **← Back** or **Esc** puts you back on the row. Tick the circle to mark it done from the list. The count on the tab is your open tasks.
 - Click a group's name to fold it; the panel remembers which groups you folded.
-- **Add to your Slate** opens quick add. **Slate page** goes to the full page.
+- **Add to your Slate** opens quick add. **Open in Slate** goes to the full Slate page.
 - It shows up to 200 tasks. If you have more, a line says how many more there are and links to **Slate**.
 - **Show older** on the Slate page doesn't change this tab, and this tab doesn't change the Slate page.
 - Your filter, scroll and open tab are remembered for you only, on this browser. If you share a computer, the next person starts clean.
