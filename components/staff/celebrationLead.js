@@ -9,6 +9,19 @@
 // Only admins get the month-ahead list (CEL_items). Everyone else gets the
 // 7-day peer heads-up (CEL_peerItems).
 
+// ONE switch for non-admin staff (owner decision 2026-10-27): celebrations are
+// ADMIN ONLY for now. While false, bookkeepers, temp admins and account
+// managers see no celebrations anywhere (no Today lines, no Team > People
+// Celebrations card, no shout-out button from a celebration, no launch notice
+// or tour) and the app does not even load the rows for them. To bring the
+// 7-day peer heads-up back, change this to true (everything below is kept).
+var CEL_STAFF_VISIBLE = false;
+// True when this person may see celebrations: admins always, others only
+// while CEL_STAFF_VISIBLE is on. Every UI entry point goes through this.
+function CEL_canSee(isAdmin) {
+  return !!isAdmin || CEL_STAFF_VISIBLE === true;
+}
+
 var CEL_ADMIN_LEAD_DAYS = 30;
 // Everyone else (owner request 2026-10-27): a 7-day heads-up on coworkers'
 // birthdays and work anniversaries, with the option to give a shout-out.
@@ -181,7 +194,7 @@ function CEL_peerItems(rows, today, meEmail) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    CEL_ADMIN_LEAD_DAYS: CEL_ADMIN_LEAD_DAYS, CEL_STAFF_LEAD_DAYS: CEL_STAFF_LEAD_DAYS, CEL_peerItems: CEL_peerItems, CEL_NEAR_DAYS: CEL_NEAR_DAYS, CEL_daysBetween: CEL_daysBetween,
+    CEL_STAFF_VISIBLE: CEL_STAFF_VISIBLE, CEL_canSee: CEL_canSee, CEL_ADMIN_LEAD_DAYS: CEL_ADMIN_LEAD_DAYS, CEL_STAFF_LEAD_DAYS: CEL_STAFF_LEAD_DAYS, CEL_peerItems: CEL_peerItems, CEL_NEAR_DAYS: CEL_NEAR_DAYS, CEL_daysBetween: CEL_daysBetween,
     CEL_dateLabel: CEL_dateLabel, CEL_awayText: CEL_awayText, CEL_tenureYears: CEL_tenureYears,
     CEL_tenureText: CEL_tenureText, CEL_items: CEL_items,
   };

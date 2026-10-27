@@ -9,8 +9,8 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
-### 2026-10-27: a 7-day heads-up on coworkers' birthdays and anniversaries
-- **Know a few days ahead.** Everyone now sees coworkers' birthdays and work anniversaries **7 days ahead** in **Today** (the **This week** card) and in **Team › People › Celebrations**, with a **Give a shout out** button. It opens the shout-out form with that person already picked; nothing is sent until you write a note and send it, and they get the usual bell notice. Your own day shows with no button. No birth year or age is shown. Admins keep their 30-day view. See [Birthdays, work anniversaries and gift reminders](#/help/celebrations).
+### 2026-10-27: celebrations are for admins only (for now)
+- **Birthdays and work anniversaries are admin only.** Only admins see them now, 30 days ahead on **Today**, in **Team › People › Celebrations** and in the weekly digest. Bookkeepers, temporary admins and account managers no longer see celebration lines, the Celebrations card or a celebration shout-out button, and the short-lived 7-day heads-up for them is withdrawn. Shout-outs themselves are unchanged: anyone can still thank a teammate from **Team › People › Shout-outs** or a profile. See [Birthdays, work anniversaries and gift reminders](#/help/celebrations).
 
 ### 2026-10-27: client gifts follow the founding date (admins)
 - **Founding date is now the default.** On **Team › Client gifts**, **Anniversary to follow** now starts on the **Founding date**, the client's own birthday, instead of **Client since**. A client with no founding date yet (blank or **Not sure**) still shows on their Client since date, so nobody drops off. Admins can switch back to **Client since** at any time. **Client since** stays on file and now has its own column in the list, and the Organization profile card on a client's Overview still shows both dates. See [How client gifts work](#/help/client-org-profile).

@@ -9,7 +9,7 @@ A **shout-out** is a short public thank-you to a teammate. The whole team can se
 
 ### Give one
 
-A quick way: when a coworker's birthday or work anniversary is within 7 days, Today's **This week** card and **Team › People › Celebrations** show **Give a shout out**. It opens the same form with them already picked.
+Admins also get a quick way in from a birthday or work anniversary on Today (**Send shout-out**), which opens the same form with that person already picked.
 
 1. Open **Team › People** (`#/team/people`) and find the **Shout-outs** card.
 2. Click **+ Give a shout-out**.

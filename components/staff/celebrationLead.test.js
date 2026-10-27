@@ -95,12 +95,15 @@ const read = (...p) => fs.readFileSync(path.join(__dirname, "..", "..", ...p), "
 const today = read("components", "staff", "Today.jsx");
 assert.ok(today.includes("CEL_items(x.celebrations || [], x.today)"), "Today builds celebration rows from CEL_items");
 assert.ok(/return \{ rows, act \};/.test(today), "Today loads celebration rows for everyone (admins get CEL_items, others CEL_peerItems)");
-assert.ok(today.includes("x.isAdmin ? CEL_items("), "month-ahead rows only for admins");
+assert.ok(today.includes("x.celAdmin ? CEL_items("), "month-ahead rows only for real admins");
+assert.ok(today.includes("!x.celAdmin && CEL_canSee(false)"), "peer rows only while CEL_STAFF_VISIBLE is on");
+assert.ok(today.includes("if (!CEL_canSee(admin)) return;"), "non-admins do not even load celebration rows");
 assert.ok(today.includes("CEL_peerItems(x.celebrations || [], x.today, x.me)"), "non-admins get the 7-day peer rows");
 assert.ok(/rank: it\.near \? 0 : 8/.test(today), "month-ahead rows rank low; the first 7 days keep rank 0");
 assert.ok(/filter\(\(r\) => !r\.far\)/.test(today), "a far celebration is never the Do next top item");
 const team = read("components", "staff", "TeamPage.jsx");
 assert.ok(team.includes("<TP_UpcomingCard admin={isAdmin} me={staffUser && staffUser.email} />"), "Team card gets the admin flag and who is signed in");
+assert.ok(team.includes("if (!canSee) return null;") && team.includes("CEL_canSee(admin)"), "Team card is hidden for non-admins while CEL_STAFF_VISIBLE is off");
 assert.ok(/d <= 7 && !ro/.test(team), "shout-out button: 7 days, not in View as");
 assert.ok(/if \(admin && typeof CEL_items === "function"\)/.test(team), "month-ahead detail only for admins");
 const html = read("index.html");
@@ -108,6 +111,11 @@ assert.ok(html.includes('"components/staff/celebrationLead.js"'), "celebrationLe
 assert.ok(html.indexOf("celebrationLead.js") < html.indexOf('"components/staff/Today.jsx"'), "loaded before Today.jsx");
 
 // ---- non-admin 7-day heads-up (owner request 2026-10-27) ----
+// admin only by default (owner decision 2026-10-27); one switch brings the peer view back
+assert.strictEqual(L.CEL_STAFF_VISIBLE, false);
+assert.strictEqual(L.CEL_canSee(true), true);
+assert.strictEqual(L.CEL_canSee(false), false);
+assert.strictEqual(L.CEL_canSee(undefined), false);
 assert.strictEqual(L.CEL_STAFF_LEAD_DAYS, 7);
 const ME = "me@x.org";
 let peers = L.CEL_peerItems([row({ next_birthday: "2026-11-02" })], TODAY, ME);

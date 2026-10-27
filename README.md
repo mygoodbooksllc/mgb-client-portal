@@ -1406,6 +1406,20 @@ Launch notice `celebration-heads-up` (announcements.js, tempAdmin / bookkeeper /
 had theirs). Guide: `celebrations`, `home-page`, `shoutouts`, `whats-new`
 (`supabase/staff-guide-celebration-peer-heads-up.sql`, applied). Tests: `celebrationLead.test.js`.
 
+**Celebrations are admin only for now (2026-10-27, no database change).** One constant,
+`CEL_STAFF_VISIBLE` (default `false`) in `components/staff/celebrationLead.js`, with the helper
+`CEL_canSee(isAdmin)`. While it is false: Today builds no celebration lines for non-admins and does not load
+`staff_celebrations()` for them (`celAdmin` in `TD_TodayPage`: a real admin, not a temporary admin, not View as);
+`TP_UpcomingCard` (Team › People) renders nothing for non-admins; the `celebration-heads-up` notice and its tour
+are hidden everywhere through `visible: () => CEL_STAFF_VISIBLE === true` in announcements.js. Admins keep the
+30-day view, Gift sent and Dismiss, and the weekly digest is unchanged. The shout-out feature itself (Team › People
+Shout-outs card, composer from a profile) stays for everyone. To bring the 7-day peer heads-up back, set
+`CEL_STAFF_VISIBLE = true`; `CEL_peerItems`, the peer code paths, the notice, the tour and their tests are all kept
+(the section above describes that version). Guide: `celebrations`, `home-page`, `shoutouts`, `whats-new`
+(`supabase/staff-guide-celebrations-admin-only.sql`, applied). Known and left alone: the `staff_celebrations()` RPC
+still returns the active staff list (month and day, no year) to any signed-in staff member, so the gate is in the
+app, not the database.
+
 ### Staff ops features (added 2026-10-07)
 
 Eight staff-only features, built one per commit. Shared pieces: pure rules in

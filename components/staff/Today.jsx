@@ -708,8 +708,8 @@ function TD_buildRows(x) {
   // 7 days behave as before: today's sit in "now", the rest in "this week",
   // ranked at the top. Days 8-30 are "far": ranked low and never Do next.
   // "Gift sent" or "Dismiss" hides one. Pure rules: celebrationLead.js.
-  if (!x.isAdmin) {
-    // Everyone else: coworkers' birthdays and anniversaries in the next 7
+  if (!x.celAdmin && CEL_canSee(false)) {
+    // Everyone else (only while CEL_STAFF_VISIBLE is on; off = admin only): coworkers' birthdays and anniversaries in the next 7
     // days, each with "Give a shout out" (hidden in View as, which is
     // read-only). Always in "this week", never Do next. Your own day shows
     // with no action. No gift marks, no birth year, no age.
@@ -727,7 +727,7 @@ function TD_buildRows(x) {
       });
     });
   }
-  (x.isAdmin ? CEL_items(x.celebrations || [], x.today) : []).forEach((it) => {
+  (x.celAdmin ? CEL_items(x.celebrations || [], x.today) : []).forEach((it) => {
     const r = it.row;
     const kind = it.kind;
     (it.days === 0 ? now : week).push({
@@ -1285,6 +1285,8 @@ function TD_useCelebrations(admin, today) {
   React.useEffect(() => {
     const sb = window.mgbSupabase;
     if (!sb || typeof sb.rpc !== "function") return;
+    // Admin only for now (CEL_STAFF_VISIBLE): do not even load the rows for others.
+    if (!CEL_canSee(admin)) return;
     let alive = true;
     sb.rpc("staff_celebrations").then(({ data, error }) => {
       let rows = Array.isArray(data) ? data : [];
@@ -1370,7 +1372,10 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const st = typeof ST_useSettings === "function" ? ST_useSettings() : null;
   // Celebrations to act on (admins) and whether my own profile still needs
   // its birthday and start date (everyone; stays on the list until done).
-  const cel = TD_useCelebrations(admin, today);
+  // Celebrations are for real admins only (not temporary admins, not View as);
+  // CEL_STAFF_VISIBLE in celebrationLead.js is the one switch for everyone else.
+  const celAdmin = admin && !impersonating && !!staffUser && staffUser.role === "admin";
+  const cel = TD_useCelebrations(celAdmin, today);
   // View as: no profile load and no "finish your profile" prompt (its Save is
   // a write and its seen-key is per person).
   const myProfile = typeof ST_useMyProfile === "function" ? ST_useMyProfile(ro ? null : me) : null;
@@ -1556,6 +1561,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         me,
         nowMs,
         celebrations: cel.rows,
+        celAdmin,
         readOnly: ro,
         celebrate,
         openShoutout,

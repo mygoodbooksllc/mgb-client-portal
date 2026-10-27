@@ -474,9 +474,12 @@ t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view
   assert.strictEqual(a.date, newest);
 });
 
-t("registry: celebration-heads-up is for non-admins, 3 steps, no admin-only wording", () => {
+t("registry: celebration-heads-up is withdrawn (admin-only celebrations); for non-admins, 3 steps, no admin-only wording when re-enabled", () => {
   const a = ANN_REGISTRY.find((x) => x.id === "celebration-heads-up");
   assert.ok(a);
+  // CEL_STAFF_VISIBLE is not defined in this node run (and is false in the app): hidden everywhere.
+  assert.strictEqual(typeof a.visible, "function");
+  assert.strictEqual(a.visible(), false);
   assert.deepStrictEqual(a.roles, ["tempAdmin", "bookkeeper", "accountManager"]);
   assert.strictEqual(a.date, "2026-10-27");
   const steps = a.steps({});

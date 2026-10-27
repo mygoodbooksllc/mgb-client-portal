@@ -1951,6 +1951,10 @@ var ANN_REGISTRY = [
     title: "Birthday and anniversary heads-up",
     summary: "See coworkers' birthdays and work anniversaries 7 days ahead on Today and in Team › People, and give them a shout out.",
     roles: ["tempAdmin", "bookkeeper", "accountManager"],
+    // WITHDRAWN 2026-10-27: celebrations are admin only for now. Hidden while
+    // CEL_STAFF_VISIBLE (components/staff/celebrationLead.js) is false; flip it
+    // to true to bring this notice and tour back.
+    visible: () => typeof CEL_STAFF_VISIBLE !== "undefined" && CEL_STAFF_VISIBLE === true,
     hash: "#/today",
     steps: () => [
       {

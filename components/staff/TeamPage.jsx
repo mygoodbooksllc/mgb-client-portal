@@ -804,8 +804,11 @@ function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, rend
 // days away and years on the team, with a tag once a gift is sent or dismissed.
 function TP_UpcomingCard({ admin, me }) {
   const [st, setSt] = useState({ loading: true, rows: [] });
+  // Admin only for now (CEL_STAFF_VISIBLE in celebrationLead.js).
+  const canSee = CEL_canSee(admin);
   useEffect(() => {
     const sb = window.mgbSupabase;
+    if (!canSee) return;
     if (!sb || typeof sb.rpc !== "function") {
       setSt({ loading: false, rows: [] });
       return;
@@ -823,6 +826,7 @@ function TP_UpcomingCard({ admin, me }) {
       alive = false;
     };
   }, []);
+  if (!canSee) return null;
   const today = todayLocal();
   const items = [];
   const mine = String(me || "").trim().toLowerCase();
