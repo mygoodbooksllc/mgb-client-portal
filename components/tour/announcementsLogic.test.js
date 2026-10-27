@@ -469,8 +469,9 @@ t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view
   // The newest by date among ungated entries, so it is picked first for a person with
   // nothing answered. (Entries with visible(), such as the hidden draft
   // client-org-profile-launch, do not compete while their switch is off. The
-  // admins-only view-as-whole-app notice is newer but no bookkeeper gets it.)
-  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.id !== "celebration-heads-up" && x.id !== "slate-single-home" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
+  // admins-only view-as-whole-app notice is newer but no bookkeeper gets it. custom-repeat, 2026-10-25, is a
+  // newer ungated notice and is excluded here: it is its own check above.)
+  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.id !== "celebration-heads-up" && x.id !== "slate-single-home" && x.id !== "custom-repeat" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
   assert.strictEqual(a.date, newest);
 });
 
@@ -998,6 +999,19 @@ t("thread-menu gate: hidden until the thread menu switch is cached, never in Vie
   assert.deepStrictEqual(steps.map((x) => x.id), ["ann-welcome", "ann-thread-menu", "ann-desk"]);
   assert.deepStrictEqual(steps[1].targets, ["inbox-list"]);
   assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
+});
+
+t("registry: custom-repeat is a plain staff notice for the four task roles, dated when it shipped", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "custom-repeat");
+  assert.ok(a);
+  assert.strictEqual(a.date, "2026-10-25");
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  assert.strictEqual(a.visible, undefined, "not behind a switch: Repeat > Custom is live for everyone");
+  const admin = a.steps({ isAdmin: true });
+  const bk = a.steps({});
+  assert.deepStrictEqual(admin.map((x) => x.id), ["ann-welcome", "ann-where", "ann-templates"]);
+  assert.ok(/Slate > Recurring/.test(admin[2].body()) && !/Slate > Recurring/.test(bk[2].body()), "templates step differs by audience");
+  assert.ok(!/colour/i.test(JSON.stringify(admin.map((x) => x.body()))));
 });
 
 console.log("announcementsLogic: " + n + " checks passed");

@@ -6,7 +6,7 @@
 // Time via qbo_hours_by_staff, the same RPC as the People table:
 //   - this week (Monday start) so far
 //   - the last 4 full weeks, averaged per week
-// Utilisation = 4-week average / target: under 70% "has room", 70–100% OK,
+// Utilization = 4-week average / target: under 70% "has room", 70–100% OK,
 // over 100% overloaded. The weekly digest agent reads staff_capacity too, so
 // keep the table and column names.
 //
@@ -263,7 +263,7 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
       <h3 className="card-title">Capacity</h3>
       <p className="card-subtitle">
         QuickBooks Time hours this week so far and the average of the last 4 full weeks, against each person's weekly
-        target. Utilisation uses the 4-week average: under 70% has room, over 100% is overloaded.
+        target. Utilization uses the 4-week average: under 70% has room, over 100% is overloaded.
         {qboOn && cap && cap.ok && cap.hoursOk && (counts.room || counts.over) ? (
           <>
             {" "}
@@ -282,7 +282,7 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
               <th className="num">Target / wk</th>
               <th className="num">This week</th>
               <th className="num">Avg / wk (4 wks)</th>
-              <th>Utilisation</th>
+              <th>Utilization</th>
               <th className="num">Clients</th>
               <th className="num">Open</th>
               {lateOn && <th className="num">Overdue</th>}
@@ -329,7 +329,7 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
                     )}
                   </td>
                   <td className="num" data-label="Avg / wk (4 wks)">{p.c.avgMin == null ? "–" : TP_fmtHM(p.c.avgMin)}</td>
-                  <td data-label="Utilisation">
+                  <td data-label="Utilization">
                     <TP_UtilBar util={p.c.util} />
                   </td>
                   <td className="num" data-label="Clients">

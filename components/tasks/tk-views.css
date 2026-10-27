@@ -3156,7 +3156,7 @@ body:has(.ltip-ring.ltip-on) .tk-row .tk-sel {
 }
 .tk-bulk-hint {
   font-size: 12px;
-  color: var(--ink-muted, var(--muted));
+  color: var(--ink-muted, var(--text-muted));
 }
 @media (hover: none) {
   .tk-bulk-hint {
@@ -3640,7 +3640,7 @@ a.tk-card-title:hover {
   font-size: 12px; font-weight: normal; white-space: normal; pointer-events: none;
 }
 .tk-email-draft-compact .tk-email-draft-peek { left: auto; right: 0; }
-.tk-email-draft-peek-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.tk-email-draft-peek-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
 .tk-email-draft .tk-email-draft-body { max-height: min(75vh, 720px); overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .tk-email-draft-subject { width: 100%; }
 .tk-email-draft-text { width: 100%; min-height: 320px; font-family: inherit; line-height: 1.45; resize: vertical; }

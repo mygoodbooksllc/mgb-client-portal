@@ -7,7 +7,7 @@ sort: 260
 ---
 On any client page there are two preview controls. Neither changes anything for the client.
 
-Inside a client, **View as client…** at the bottom of the **Client view** menu (next to the tabs) is a shortcut to the same thing: it shows the client's pages as one of the client's people sees them. If the client has several people, you pick one. If no one at the client can sign in yet, it's greyed out. **Exit preview** brings you back.
+Inside a client, **View as client…** at the bottom of the **Client view** menu (next to the tabs) is a shortcut to the same thing: it shows the client's pages as one of the client's people sees them. If the client has several people, you pick one. If no one at the client can sign in yet, it's grayed out. **Exit preview** brings you back.
 
 ### Preview as a client user
 

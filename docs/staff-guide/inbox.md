@@ -82,7 +82,7 @@ The chat button at the bottom right (once the Desk is on, the messages icon on t
 - They can delete their own message for 24 hours after sending it (**Delete** under it, then **Delete** to confirm). It disappears for everyone, including you.
 - The title says **Conversation with your MyGoodBooks team**, with the account manager and bookkeeper named under it.
 - Each reply shows who wrote it: the name and **Title** from that person's **Settings → Profile**. With no title set, it says **Account manager** or **Bookkeeper** if that's their role for the client, otherwise just the name.
-- The **Send** button stays greyed out until they type something or attach a file.
+- The **Send** button stays grayed out until they type something or attach a file.
 
 ### Team chat
 

@@ -96,7 +96,7 @@ See [How does the client guided tour work?](#/help/client-tour). **Preview as** 
 
 ### Troubleshooting
 
-- **Add organization stays greyed out.** Fill in both **Organization name** and **Org type**, and make sure the ID isn't already in use.
+- **Add organization stays grayed out.** Fill in both **Organization name** and **Org type**, and make sure the ID isn't already in use.
 - **I can't find Client roster, or I can't type in it.** Only admins can change it. Ask an admin.
 - **The bookkeeper can't open the new client.** Check the bookkeeper picker on the client's row (**Edit**). It must be a staff member, not **Not assigned**.
 - **The client didn't get an invite.** Click **Invite / Resend invite** on their row and read the message. If it says they already have a sign-in account, no email is sent; they sign in from the login page instead. See [How does a client sign in, and what do I tell them if they can't?](#/help/client-sign-in-help).

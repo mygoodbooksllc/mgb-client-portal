@@ -17,7 +17,7 @@ When a client's QuickBooks Online is connected, their portal shows real numbers 
 
 The first sync can take a minute. Until it finishes, the pages may still show sample numbers.
 
-**Test clients vs. real clients.** A test client connects to an Intuit **sandbox** (test) company, not a real one, so use it to practise. Real clients connect to their real QuickBooks company. The firm's own QuickBooks (Team › QuickBooks Time) also connects to a real company. Which kind of connection you get depends on the client; there's nothing to choose.
+**Test clients vs. real clients.** A test client connects to an Intuit **sandbox** (test) company, not a real one, so use it to practice. Real clients connect to their real QuickBooks company. The firm's own QuickBooks (Team › QuickBooks Time) also connects to a real company. Which kind of connection you get depends on the client; there's nothing to choose.
 
 **If connecting fails.**
 
@@ -30,8 +30,8 @@ The first sync can take a minute. Until it finishes, the pages may still show sa
 At the top right of every client page:
 
 - **Every hour · synced 5m ago** (Pro clients) or **Synced monthly · synced …** (Basic) means the numbers are real QuickBooks numbers. The first part is how often that plan syncs; the second is when it last did. Pro isn't instant: it syncs every hour, so a change made in QuickBooks can take up to an hour (2 hours when the firm is near its Intuit limit) to show unless you use **Sync now**.
-- A grey **Setting up — connecting QuickBooks** badge (just **Setting up** on a phone) means a real client isn't connected yet (or hasn't synced yet). They see empty pages, never sample numbers.
-- A grey **Prototype · Sample Data** badge is the same thing for a test client. Test clients show sample numbers until QuickBooks is connected.
+- A gray **Setting up — connecting QuickBooks** badge (just **Setting up** on a phone) means a real client isn't connected yet (or hasn't synced yet). They see empty pages, never sample numbers.
+- A gray **Prototype · Sample Data** badge is the same thing for a test client. Test clients show sample numbers until QuickBooks is connected.
 
 The **Client overview** status line also shows the last sync (*QuickBooks synced 2 hours ago*), or **QuickBooks not connected** with a **Connect** link, or **QuickBooks needs reconnecting** with a **Reconnect** link.
 

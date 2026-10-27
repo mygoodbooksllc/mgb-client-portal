@@ -59,7 +59,7 @@ These work in the Slate app only, on My tasks and on project, client and person 
 - **Swipes on a touch screen.** Swipe a task right to mark it done, or left to snooze it a day. Press and hold to pick a task up and drag it.
 - **Swipe back.** Swipe two fingers right on a trackpad (or from the left edge of a touch screen) to close the open menu, then the open task, then go to the previous page. In Safari, the trackpad swipe is Safari's own Back.
 - **Undo.** In the app, **Undo** (or **Cmd+Z**) works for 9 minutes after a change, instead of 10 seconds, and **Cmd+Z** steps back through your last 5 changes, newest first (the Undo button on the message always undoes the newest). Undoing a duplicate or a paste deletes the copies, the same way **Delete** does. If someone changed the task since (you or a teammate), a late **Undo** leaves it alone and says so, so it never wipes out newer work.
-- **Back, Forward and Refresh.** The app has no browser buttons, so three round buttons sit beside the Slate logo (not in the sliver or compact sizes). **Back** and **Forward** walk the pages you have opened (greyed out when there is nowhere to go), and **Refresh** reloads the window where you are.
+- **Back, Forward and Refresh.** The app has no browser buttons, so three round buttons sit beside the Slate logo (not in the sliver or compact sizes). **Back** and **Forward** walk the pages you have opened (grayed out when there is nowhere to go), and **Refresh** reloads the window where you are.
 
 ### Settings and the tour
 

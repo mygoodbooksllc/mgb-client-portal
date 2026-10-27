@@ -63,6 +63,7 @@
     --desk-row-bg: rgba(255, 255, 255, 0.06);
     --desk-row-bg-hover: rgba(255, 255, 255, 0.1);
     --desk-grip: rgba(255, 255, 255, 0.3);
+    --wb-week: #e0a33a; /* same lift as --td-week in today.css */
   }
 }
 :root[data-theme="dark"] {
@@ -72,6 +73,7 @@
   --desk-row-bg: rgba(255, 255, 255, 0.06);
   --desk-row-bg-hover: rgba(255, 255, 255, 0.1);
   --desk-grip: rgba(255, 255, 255, 0.3);
+  --wb-week: #e0a33a;
 }
 
 /* ---- Page card ---- */

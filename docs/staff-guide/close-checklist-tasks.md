@@ -11,7 +11,7 @@ It's off for every client to start. The firm is trying it on one or two clients 
 
 ### Turning it on for a client (admins and account managers)
 
-1. Go to **Work › Slate › Recurring** and pick the client under **One client**.
+1. Open the **Slate** page, go to **Recurring** and pick the client under **One client**.
 2. Turn on **Create month-end tasks from the Close checklist**.
 3. Tick **Also this month** first if you want tasks for the month you're in. Without it, the first tasks are next month's close.
 

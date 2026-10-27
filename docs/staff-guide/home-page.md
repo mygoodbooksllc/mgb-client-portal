@@ -25,7 +25,7 @@ Under Do next, a row of small cards that fits your window (side by side on a com
 
 - **Clients needing attention**: up to four clients, each with why: **Reply waiting**, **Close blocked**, **At risk** or **Watch** (client health), or **No backup while out** (admins). Click one to go to the first reason: the conversation, the Close tab, or the health reasons on the client's Overview.
 - **Waiting on others**: teammates asking you for temporary access (click to open the request under **Also needs you**), client portal access requests, upgrade and Add Payroll requests, and a count of client replies waiting on us. Click a line to go to it. Clients on Basic can look over what Pro adds first with the Pro tour; see [How does the Pro tour work?](#/help/pro-tour).
-- **Your reminders**: a quick list with a box to add one. For times, repeats and sharing, open the reminder from **Work › Slate**.
+- **Your reminders**: a quick list with a box to add one. For times, repeats and sharing, open the reminder from the **Slate** page.
 - **This week**: birthdays and work anniversaries coming up (admins only: the next 30 days with the date and days away, so there is time to send a gift, with **Gift sent** and **Dismiss** under each line; other staff don't see celebrations), and **Milestones to review**: clients whose numbers point to a different pricing milestone, aren't confirmed yet, or are close to the next one.
 
 Below them, **Recent clients** is a single line with the clients you opened lately on this device. Click one to go back. With the left sidebar on, those clients are listed in the sidebar instead and this card is hidden.
@@ -36,7 +36,7 @@ At the bottom, **Also show** has a switch for each card: **Clients needing atten
 
 ### Looking for something that used to be on Today?
 
-- The four number tiles and the long **Needs you** list are gone. Replies, tasks, reviews and files are in **Work › Slate**, the **Inbox**, and the Desk. Closes open: **Work › Close**.
+- The four number tiles and the long **Needs you** list are gone. Replies, tasks, reviews and files are on the **Slate** page, the **Inbox**, and the Desk. Closes open: **Work › Close**.
 - Your client list, with health, backup and hours: the **Clients** page. See [How do I use the Clients page?](#/help/clients-page).
 - Month-end close progress and filing deadlines: **Work › Close** and **Work › Deadlines**. See [What's on the Work page?](#/help/work-page).
 - Shout-outs, your time off and who's out: **Team › People**. Your onboarding checklist: **HR › Onboarding**. See [What's on the Team page?](#/help/team-page).

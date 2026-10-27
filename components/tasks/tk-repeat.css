@@ -9,7 +9,7 @@
 .tk-rpt-unit { font-size: 13px; color: var(--text-muted); }
 .tk-rpt-dows { display: flex; gap: 4px; flex-wrap: wrap; }
 .tk-rpt-dow { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; }
-.tk-rpt-dow.is-on { background: var(--gold); border-color: var(--gold); color: #fff; }
+.tk-rpt-dow.is-on { background: var(--gold); border-color: var(--gold); color: var(--on-gold); }
 .tk-rpt-dow:disabled { opacity: .5; cursor: default; }
 .tk-rpt-note { margin: 0; }
 .tk-rpt-sum { padding: 10px 12px; border-radius: 8px; background: var(--surface-2); }
@@ -19,7 +19,7 @@
 .tk-rpt-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .tk-rpt-summary-btn { text-align: left; }
 @media (max-width: 520px) { .tk-rpt-row { grid-template-columns: 1fr; } }
-.tk-rpt-link { background: none; border: 0; padding: 0; color: var(--gold); font: inherit; text-decoration: underline; cursor: pointer; }
+.tk-rpt-link { background: none; border: 0; padding: 0; color: var(--gold-deep); font: inherit; text-decoration: underline; cursor: pointer; }
 .tk-rpt-actions .tk-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; }
-.tk-rpt-actions .tk-btn-primary { background: var(--gold); border-color: var(--gold); color: #fff; }
+.tk-rpt-actions .tk-btn-primary { background: var(--gold); border-color: var(--gold); color: var(--on-gold); }
 .tk-rpt-actions .tk-btn:disabled { opacity: .5; cursor: default; }

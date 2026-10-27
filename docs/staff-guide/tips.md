@@ -39,7 +39,7 @@ Under the switch it says where you stand: **On, 23 days left**, **Off**, or **Yo
 - **Turning off** stops tips right away. Nothing is lost: the tips you've seen stay marked as seen.
 - **Turning on again** (from Off, or after your 30 days ended) starts a fresh 30 days and shows every tip again, including ones you dismissed before.
 
-While an admin uses **View as**, nothing can be saved, so the switch is greyed out in Settings and the **?** menu row is hidden. Stop viewing as first.
+While an admin uses **View as**, nothing can be saved, so the switch is grayed out in Settings and the **?** menu row is hidden. Stop viewing as first.
 
 ### All tips
 

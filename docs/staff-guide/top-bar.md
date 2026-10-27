@@ -9,7 +9,7 @@ Across the top of every staff page there's a dark bar, joined to the rail, with 
 
 ### Left side
 
-- **Back**, **Forward** and **Refresh** (installed app only): when you use MyGoodBooks as an installed app, there's no browser toolbar, so these three round buttons come first. **Back** and **Forward** walk the pages you have opened (each is greyed out when there's nowhere to go), and **Refresh** reloads the page. The Slate app has the same three beside its logo. In a browser tab, use the browser's own buttons.
+- **Back**, **Forward** and **Refresh** (installed app only): when you use MyGoodBooks as an installed app, there's no browser toolbar, so these three round buttons come first. **Back** and **Forward** walk the pages you have opened (each is grayed out when there's nowhere to go), and **Refresh** reloads the page. The Slate app has the same three beside its logo. In a browser tab, use the browser's own buttons.
 - **Client picker**: shows the client you have open, with their plan and health (for example "Pro · Looking good"). Click it to search for and open another client. On a staff page it says **Choose a client**. More in [How do I find and open a client?](#/help/finding-a-client).
 - **Sync pill** (client pages only): how often the client's plan syncs, and when it last did: **Every hour · synced 5m ago** (Pro) or **Synced monthly · synced …** (Basic). Click it to run **Sync now** for that client. Clients without QuickBooks show **Setting up — connecting QuickBooks** instead (test clients show **Prototype · Sample Data**). See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).
 

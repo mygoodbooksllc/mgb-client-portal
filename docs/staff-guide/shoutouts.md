@@ -29,7 +29,7 @@ The card lists shout-outs from the last 90 days, newest first. Click **Show all*
 ### Hide one
 
 - You can **Hide** shout-outs you wrote. Admins can hide any.
-- A hidden shout-out disappears for everyone else. You (and admins) still see it greyed out, marked **Hidden**, with **Show again** to undo.
+- A hidden shout-out disappears for everyone else. You (and admins) still see it grayed out, marked **Hidden**, with **Show again** to undo.
 - Shout-outs are never deleted.
 
 ### In quarterly reviews

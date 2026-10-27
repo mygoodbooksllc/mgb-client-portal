@@ -145,8 +145,8 @@ In **View as** (admins) the tab doesn't pull from QuickBooks by itself. It shows
 ### Troubleshooting
 
 - **There's nothing to pull.** The client's QuickBooks isn't connected. Reconnect it, or use **Review a file**.
-- **Send by email is greyed out.** Add a contact email under Client setup above.
-- **Send via portal is greyed out.** The client has no active portal users who can see the whole company. If it says *portal users couldn't load*, the database update isn't applied yet; email still works.
+- **Send by email is grayed out.** Add a contact email under Client setup above.
+- **Send via portal is grayed out.** The client has no active portal users who can see the whole company. If it says *portal users couldn't load*, the database update isn't applied yet; email still works.
 - **"The firm watch list didn't load."** That pull used the built-in list, so nothing was marked fixed. Pull from QuickBooks again later.
 - **I can't tick Ledger reviewed.** That's on purpose. Click **Mark reviewed**.
 - **A duplicate flag I expected is missing.** In Smart mode it may have been set aside; open the list under the **Possible duplicates** chip, or ask an admin to switch the client to Strict.

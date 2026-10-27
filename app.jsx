@@ -1081,6 +1081,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by SS_store (components/staff/StaffSidebar.jsx) and SS_navIsOn; wins over the firm switch.
+    key: "mgb_nav_classic",
+    label: "Classic sidebar",
+    description:
+      "Turns the new left sidebar off for you only, in this browser, even though the owner switched it on for everyone: you get the plain staff rail back, without Pinned and Recent clients or the Customize button. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     // Read by TK_slateAppIsOn (components/tasks/TK_viewLogic.js) through TK_slateFlag (TK_store.js);
     // wins over Slate app preview and the firm switch. Also hides the Slate app launch notice and tour.
     key: "mgb_slate_classic",
@@ -15691,7 +15699,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Each person can try it early with Client org profile + gifts (preview) in Feature flags. Nothing emails clients and nothing orders gifts either way."],
             ["org_gift_basis", "Client gifts: anniversary to follow", "Which anniversary Team › Client gifts and the weekly digest follow, for the whole firm: established (the founding date, the default; not set means this; Client since is used for clients whose founding date is Not sure or blank) or client_since (Client since, when an admin picks it). Admins change it on Team › Client gifts › Anniversary to follow (every change audited; the database refuses any other value)."],
             ["slate_app_enabled", "Slate app on for staff", "On since 2026-10-25 (launched for Monday 2026-10-26): every staff member gets the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app), plus the launch notice and tour. Owner-only, set with one SQL line, never from here; read-only here. Each person can opt out with Classic tasks page in Feature flags. Off (or missing) would put Slate back the way it was for everyone (Open in own window opens the old small window) right away."],
-            ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar, plus the Alerts section for real admins. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
+            ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize button (sliders icon) in the left sidebar, plus the Alerts section for real admins. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
             ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can opt out with Classic fonts in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the look for every staff member right away, so do it only at launch."],
             ["brand_enabled", "Brand colors for everyone", "Off (or missing, the default) keeps the current colors and headings for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to the brand guide's navy and dark teal with Montserrat headings. Each person can opt out with Classic colors in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the look for every staff member right away, so do it only at launch."],
             ["hovernav_enabled", "Hover menus for everyone", "Off (or missing, the default) keeps the sidebars as they are for everyone. Owner turns it on (true) with one SQL line, never from here, to open a small menu of tabs when you point at a sidebar icon (Work, Team, HR, Finances) and to replace the gray browser tooltips with themed ones. Each person can opt out with Classic menus in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the sidebars for every staff member right away, so do it only at launch."],
@@ -27047,7 +27055,7 @@ const PAGE_META = {
   },
   work: {
     title: "Work",
-    subtitle: "Slate, notes and SOPs, month-end close and deadlines",
+    subtitle: "Slate, notes and SOPs, month-end close, deadlines and Ledger review",
   },
   tasks: {
     title: "Slate",

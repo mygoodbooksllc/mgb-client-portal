@@ -1677,7 +1677,8 @@ var ANN_REGISTRY = [
   },
   {
     // Desk additions launch (S1-S4), HELD: visible only once the owner flips tk_settings.deskplus_enabled
-    // (cached as mgb_deskplus_cache) and the person is not on Classic Today. A separate small notice
+    // (cached as mgb_deskplus_cache) and the person is not on Classic Today. RE-DATE `date` to the launch
+    // day when the switch goes on: the notice stops showing 60 days after `date`. A separate small notice
     // because the Desk itself (new-look-and-layout, ann-desk) is already live. Drafts and guide SQL:
     // docs/staff-guide/drafts/staff-guide-desk-additions.md, supabase/staff-guide-desk-additions.sql.
     id: "desk-client-actions",
@@ -1750,7 +1751,8 @@ var ANN_REGISTRY = [
   },
   {
     // Thread menu launch, HELD: visible only once the owner flips tk_settings.threadmenu_enabled
-    // (cached as mgb_threadmenu_cache), never in View as. Set `date` to the launch day.
+    // (cached as mgb_threadmenu_cache), never in View as. Set `date` to the launch day: RE-DATE it when
+    // the switch goes on, because the notice stops showing 60 days after `date`.
     // Drafts and guide SQL: docs/staff-guide/drafts/staff-guide-thread-menu.md, supabase/staff-guide-thread-menu.sql.
     id: "thread-menu",
     date: "2026-10-25",
@@ -1786,6 +1788,39 @@ var ANN_REGISTRY = [
             ? "On the Desk, a message row's ⋯ has Thread actions… with the same Rename, Mark done, Reassign, Create task, Copy link and Hide. "
             : "") +
           "To see this again, press ? and pick the launch, or read How do I message a client or a teammate? in Help.",
+      },
+    ],
+  },
+  {
+    // Custom repeats (commit f1e5afa): not gated by a switch, the Repeat menu is in every task's details.
+    id: "custom-repeat",
+    date: "2026-10-25",
+    title: "Custom repeats in Slate",
+    summary:
+      "In a task, Repeat > Custom… repeats it daily, on chosen weekdays, monthly, quarterly, yearly or every few weeks, with a time of day, skipped weekends and holidays, an end and the next five dates.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Custom repeats",
+        body: () =>
+          "A task can now repeat on a schedule you set yourself, like every 2 weeks on Monday or the 2nd Tuesday of each month. About a minute.",
+      },
+      {
+        id: "ann-where",
+        title: "Repeat, then Custom…",
+        body: () =>
+          "Open a task's details, set a due date, then open Repeat and pick Custom…. Choose the pattern, add a time of day if you want one, skip weekends and firm holidays, and set when it ends. It lists the next five dates before you save. Repeat needs a due date.",
+      },
+      {
+        id: "ann-templates",
+        title: "Recurring templates too",
+        body: () =>
+          (ctx && (ctx.isAdmin || ctx.tempAdmin)
+            ? "In Slate > Recurring, a template's Repeats list now has Custom schedule with the same menu (date only, no time of day). The old choices work as before."
+            : "Admins can use the same menu for recurring templates, as a Custom schedule (date only, no time of day). The old choices work as before.") +
+          " To see this again, press ? and pick the launch, or read What's in a task's details? in Help.",
       },
     ],
   },
