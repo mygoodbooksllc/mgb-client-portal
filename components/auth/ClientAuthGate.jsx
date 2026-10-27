@@ -11,7 +11,7 @@
 // resolveAccess() already expects from client.users mock data, so nothing
 // downstream of it needs to change.
 (function () {
-  const { useEffect, useState } = React;
+  const { useEffect, useRef, useState } = React;
 
   function ClientAuthGate({ children }) {
     // "loading" -> "signed-out" -> "link-sent" -> "checking-row" -> "authorized" | "denied"
@@ -27,6 +27,11 @@
     const [notice, setNotice] = useState("");
 
     const supabase = window.mgbSupabase;
+    // "<user id>:<client id>" of the last roster reload this gate attempted, so a
+    // client missing from window.CLIENTS gets the splash and the reload once,
+    // not on every TOKEN_REFRESHED or repeat SIGNED_IN event. Cleared when the
+    // signed-in person changes or signs out (noteUser).
+    const rosterTried = useRef("");
 
     // The organization-profile state (OP_store.js) is one object per page
     // load. When the signed-in person changes or signs out, drop it so the
@@ -36,6 +41,7 @@
       if (window.__mgbClientUid !== undefined && window.__mgbClientUid !== uid) {
         if (typeof OP_mine !== "undefined" && OP_mine.reset) OP_mine.reset();
       }
+      if (window.__mgbClientUid !== uid) rosterTried.current = "";
       window.__mgbClientUid = uid;
     }
 
@@ -105,8 +111,10 @@
       // rendering. A link sign-in boots with the session and skips this.
       if (
         window.mgbReloadRoster &&
-        !(window.CLIENTS || []).some((c) => c.id === data.client_id)
+        !(window.CLIENTS || []).some((c) => c.id === data.client_id) &&
+        rosterTried.current !== session.user.id + ":" + data.client_id
       ) {
+        rosterTried.current = session.user.id + ":" + data.client_id;
         setStatus("checking-row");
         try {
           await window.mgbReloadRoster();

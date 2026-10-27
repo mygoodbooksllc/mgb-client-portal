@@ -107,5 +107,24 @@ console.log("TK_repeatLogic: " + n + " checks passed");
   // first creation, and an old rule with no start, take the due date
   assert.strictEqual(L.TK_repeatSaveStart(null, w, "2026-11-30"), "2026-11-30");
   assert.strictEqual(L.TK_repeatSaveStart({ v: 1, freq: "weekly", interval: 2, dows: [5] }, w, "2026-11-30"), "2026-11-30");
+  // staff moved the due date by hand to another valid occurrence: the series follows it
+  assert.strictEqual(L.TK_repeatSaveStart(w, Object.assign({}, w), "2026-11-20"), "2026-11-20"); // other week
+  const yr = { v: 1, freq: "yearly", interval: 1, by: "dom", day: 15, skip: false, start: "2026-03-15", end: { type: "never" } };
+  assert.strictEqual(L.TK_repeatSaveStart(yr, Object.assign({}, yr), "2026-04-15"), "2026-04-15"); // yearly move
+  assert.strictEqual(L.TK_repeatSaveStart(yr, Object.assign({}, yr), "2027-03-15"), "2026-03-15"); // on the series
+  // month-end: a manual move off the last day re-anchors; the weekend shift keeps
+  const me = { v: 1, freq: "monthly", interval: 1, by: "last", skip: true, start: "2026-10-31", end: { type: "never" } };
+  assert.strictEqual(L.TK_repeatSaveStart(me, Object.assign({}, me), "2026-11-30"), "2026-10-31"); // Nov 30 is the last day
+  assert.strictEqual(L.TK_repeatSaveStart(me, Object.assign({}, me), "2026-11-12"), "2026-11-12");
+  assert.strictEqual(L.TK_repeatSaveStart(me, Object.assign({}, me), "2027-02-01"), "2026-10-31"); // Jan 31 Sun -> Mon Feb 1
+  // nth weekday (2nd Tuesday): 2026-11-10 is on the series, 2026-11-17 is not
+  const nth = { v: 1, freq: "monthly", interval: 1, by: "nth", n: 2, dow: 2, skip: false, start: "2026-10-13", end: { type: "never" } };
+  assert.strictEqual(L.TK_repeatSaveStart(nth, Object.assign({}, nth), "2026-11-10"), "2026-10-13");
+  assert.strictEqual(L.TK_repeatSaveStart(nth, Object.assign({}, nth), "2026-11-17"), "2026-11-17");
+  // no due date: nothing to compare, keep the old start
+  assert.strictEqual(L.TK_repeatSaveStart(w, Object.assign({}, w), null), "2026-11-13");
+  // with a holiday list the shifted date must be exact
+  assert.strictEqual(L.TK_repeatSaveStart(w, Object.assign({}, w), "2026-11-30", hol), "2026-11-13");
+  assert.strictEqual(L.TK_repeatSaveStart(w, Object.assign({}, w), "2026-11-16", hol), "2026-11-16");
   console.log("TK_repeatLogic: keep-start checks passed");
 }
