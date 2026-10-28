@@ -511,7 +511,7 @@ function TK_slatePresetsOk() {
   if (!TK__smInApp()) return false;
   // A missed resize hides the buttons for 2 minutes only (never the whole
   // session), so the way back to the normal view always returns.
-  if (typeof TK_slateMissActive === "function" && TK_slateMissActive(TK__smSsGet(TK_SLATE_SIZE_MISS_KEY), Date.now())) return false;
+  if (typeof TK_slateMissHides === "function" && TK_slateMissHides(TK__smSsGet(TK_SLATE_SIZE_MISS_KEY), Date.now(), { w: window.innerWidth, h: window.innerHeight })) return false;
   var opener = false;
   try {
     opener = !!window.opener;
@@ -526,7 +526,8 @@ function TK_slatePresetsOk() {
 }
 
 function TK__smMiss(id) {
-  TK__smSsSet(TK_SLATE_SIZE_MISS_KEY, String(Date.now()));
+  // Time plus the window size now: growing the window clears the hide.
+  TK__smSsSet(TK_SLATE_SIZE_MISS_KEY, Date.now() + "|" + window.innerWidth + "|" + window.innerHeight);
   TK__smNotify(TK__sm.presetSubs);
   setTimeout(function () {
     TK__smNotify(TK__sm.presetSubs);
@@ -592,7 +593,13 @@ function TK_slateApplyPreset(id) {
 function TK__smPresetSub(fn) {
   TK__sm.presetSubs.push(fn);
   var off = typeof TK__slSubscribe === "function" ? TK__slSubscribe(fn) : function () {};
+  // A resize re-checks the hide, so the buttons return as soon as the window grows.
+  var onResize = function () {
+    fn();
+  };
+  window.addEventListener("resize", onResize);
   return function () {
+    window.removeEventListener("resize", onResize);
     TK__sm.presetSubs = TK__sm.presetSubs.filter(function (f) {
       return f !== fn;
     });

@@ -1280,7 +1280,7 @@ function TK_vMyTasksBody(props) {
             }}
           </TK_vMenuButton>
           {cal.switchEl}
-          {boardCan && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardLay.by} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
+          {boardCan && !cal.on && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardLay.by} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
           {touch ? null : (
             <button type="button" className="tk-icon-btn tk-keys-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={keys.openHelp}>
               <TK_vIcon name="keyboard" size={16} />
@@ -1308,9 +1308,9 @@ function TK_vMyTasksBody(props) {
             />
           ) : null
         }
-        noGroupBy={boardOn}
+        noGroupBy={boardOn || cal.on}
         manual={
-          manualCan && !boardOn
+          manualCan && !boardOn && !cal.on
             ? {
                 on: manualOn,
                 onToggle: function (on) {

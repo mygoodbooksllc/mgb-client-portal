@@ -19,6 +19,7 @@
 // ----------------------------------------------------------------------------
 
 function TK_mpKindLabel(r) {
+  if (r && r.kind === "onboarding" && typeof TKP_projectTag === "function" && typeof TKP_on === "function" && TKP_projectTag(r, TKP_on()) === "Client") return r.client_name ? "Client project for " + r.client_name : "Client";
   if (r && r.kind === "onboarding") return r.client_name ? "Onboarding for " + r.client_name : "Onboarding";
   return "Internal";
 }

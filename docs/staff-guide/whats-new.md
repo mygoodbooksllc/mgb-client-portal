@@ -9,6 +9,10 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-28: Slate app size buttons come back
+
+In the Slate app, if clicking **Sliver**, **List** or **Full page** did not resize the window, the size buttons used to disappear for a while. Now they come back as soon as you drag the window larger.
+
 ### 2026-10-27: search your Slate list
 - **A search box on the Slate page.** Next to **Add task**, type part of a task's title, its client's name or a word from its notes, and the list narrows as you type. Every word you type has to match. Groups, counts and the board show only the matches. **Esc** or the **×** clears it. It's in the Slate app's list too; the **Search tasks** box at the top of the Slate app still searches every task you can see. See [How do I use my Slate?](#/help/my-tasks).
 

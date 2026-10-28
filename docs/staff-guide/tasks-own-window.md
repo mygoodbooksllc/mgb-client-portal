@@ -28,7 +28,7 @@ The app changes what it shows to fit the window, so you can shrink it to a slive
 - **Regular** (about 720 to 1100 wide): the full list with a left rail of lists and projects. A task opens in a drawer over the list.
 - **Full** (about 1100 wide and up): the rail, the list and a **detail pane** side by side. Click a task, or move with **j** and **k**, and its details show in the pane; **Esc** clears it.
 
-Drag the window's edge to any size, or click **Sliver**, **List** or **Full page** (in the bar, or in the menu in a compact window) to jump to one. The size buttons need the app window, so they do not show in an ordinary browser tab; there, drag the edge.
+Drag the window's edge to any size, or click **Sliver**, **List** or **Full page** (in the bar, or in the menu in a compact window) to jump to one. The size buttons need the app window, so they do not show in an ordinary browser tab; there, drag the edge. If a size click does not land and the buttons disappear, drag the window larger and they come back at once (or wait 2 minutes).
 
 ### The sliver: your current task
 

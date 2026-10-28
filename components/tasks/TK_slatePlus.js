@@ -229,8 +229,20 @@ function TKP_useOn() {
   return TKP__snapshot();
 }
 
+// The tag shown next to a project: "Onboarding" for a project of kind
+// onboarding, else null. A project tied to a client made from the Slate plus
+// New project form is also saved as kind onboarding (database rule), so with
+// the gate on (on === true) one whose name does not contain "onboarding"
+// (any case) reads "Client" instead. Gate off: always the old answer.
+function TKP_projectTag(p, on) {
+  if (!p || p.kind !== "onboarding") return null;
+  if (on === true && !/onboarding/i.test(String(p.name == null ? "" : p.name))) return "Client";
+  return "Onboarding";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    TKP_projectTag: TKP_projectTag,
     TKP_on: TKP_on,
     TKP_useOn: TKP_useOn,
     TKP_isOn: TKP_isOn,

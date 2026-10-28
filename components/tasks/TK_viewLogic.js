@@ -2174,6 +2174,22 @@ function TK_slateMissActive(missAt, now) {
   return n >= m && n - m < TK_SLATE_MISS_MS;
 }
 
+// Should a recorded miss still hide the size buttons? raw: the stored value,
+// "<ms>" or "<ms>|<innerW>|<innerH>" (the window size when the resize missed);
+// cur: { w, h } now. Hidden only while the miss is under 2 minutes old AND the
+// window has not grown since (by more than 8px either way), so dragging the
+// window larger brings the buttons back at once. A miss with no recorded size
+// falls back to the timer alone.
+function TK_slateMissHides(raw, now, cur) {
+  var parts = String(raw == null ? "" : raw).split("|");
+  if (!TK_slateMissActive(parts[0], now)) return false;
+  var mw = parseFloat(parts[1]);
+  var mh = parseFloat(parts[2]);
+  if (!isFinite(mw) || !isFinite(mh) || !cur) return true;
+  if (typeof cur.w !== "number" || typeof cur.h !== "number" || !isFinite(cur.w) || !isFinite(cur.h)) return true;
+  return !(cur.w > mw + 8 || cur.h > mh + 8);
+}
+
 // The size preset buttons in the bar: in regular and full (the menu holds
 // them in compact). Never in a sliver.
 function TK_slatePresetPlace(mode) {
@@ -2287,6 +2303,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_slateSizeHit: TK_slateSizeHit,
     TK_slatePresetPlace: TK_slatePresetPlace,
     TK_slateMissActive: TK_slateMissActive,
+    TK_slateMissHides: TK_slateMissHides,
     TK_slateSliverFit: TK_slateSliverFit,
     TK_slateSliverPick: TK_slateSliverPick,
     TK_slateSliverRest: TK_slateSliverRest,

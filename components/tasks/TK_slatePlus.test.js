@@ -12,6 +12,18 @@ const path = require("path");
 const vm = require("vm");
 const P = require("./TK_slatePlus.js");
 
+{
+  const T = P.TKP_projectTag;
+  assert.strictEqual(T({ kind: "onboarding", name: "Acme Q4" }, true), "Client");
+  assert.strictEqual(T({ kind: "onboarding", name: "Acme Q4" }, false), "Onboarding");
+  assert.strictEqual(T({ kind: "onboarding", name: "Acme Q4" }), "Onboarding");
+  assert.strictEqual(T({ kind: "onboarding", name: "Acme ONBOARDING" }, true), "Onboarding");
+  assert.strictEqual(T({ kind: "onboarding", name: "onboarding steps" }, true), "Onboarding");
+  assert.strictEqual(T({ kind: "onboarding", name: null }, true), "Client");
+  assert.strictEqual(T({ kind: "internal", name: "x" }, true), null);
+  assert.strictEqual(T(null, true), null);
+}
+
 let n = 0;
 function t(name, fn) {
   try {

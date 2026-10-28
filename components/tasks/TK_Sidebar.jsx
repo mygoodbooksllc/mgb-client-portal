@@ -383,7 +383,7 @@ function TK_Sidebar(props) {
                 route={r}
                 label={p.name || "Project"}
                 dot={TK_projectColorOf(p)}
-                tag={p.kind === "onboarding" ? "Onboarding" : null}
+                tag={typeof TKP_projectTag === "function" ? TKP_projectTag(p, plusOn) : p.kind === "onboarding" ? "Onboarding" : null}
                 active={TK_vSameRoute(route, r)}
                 onNavigate={nav}
               />

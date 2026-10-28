@@ -816,7 +816,7 @@ function TK_vProjectHeader(props) {
               <h2 className="tk-head-name">{project.name || "Project"}</h2>
             </React.Fragment>
           )}
-          {project.kind === "onboarding" ? <span className="pill neutral">Onboarding</span> : null}
+          {project.kind === "onboarding" ? <span className="pill neutral">{typeof TKP_projectTag === "function" ? TKP_projectTag(project, typeof TKP_on === "function" && TKP_on()) : "Onboarding"}</span> : null}
           {project.open_to_staff ? <span className="pill good tk-open-chip">{TK_vCopy("openToStaff", "Open to all staff")}</span> : null}
         </div>
         <div className="tk-head-actions">
@@ -1516,11 +1516,11 @@ function TK_vListBody(props) {
       ) : (
         <TK_vFilters value={filters} onChange={patchFilters} people={people} hideAssignee={route.view === "person"} />
       )}
-      {closeOrder && closeOrder.on && !boardOn && typeof TK_CloseOrderSwitch === "function" ? <TK_CloseOrderSwitch value={closeOrder.choice} onChange={closeOrder.setChoice} /> : null}
-      {route.view === "person" && !boardOn ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
+      {closeOrder && closeOrder.on && !boardOn && !cal.on && typeof TK_CloseOrderSwitch === "function" ? <TK_CloseOrderSwitch value={closeOrder.choice} onChange={closeOrder.setChoice} /> : null}
+      {route.view === "person" && !boardOn && !cal.on ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
       {cal.switchEl}
-      {boardCan && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardBy} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
-      {manualCan && !boardOn && !closePills ? (
+      {boardCan && !cal.on && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardBy} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
+      {manualCan && !boardOn && !cal.on && !closePills ? (
         <button
           type="button"
           className={"tk-tool-btn tk-manual-btn" + (manualOn ? " is-on" : "")}

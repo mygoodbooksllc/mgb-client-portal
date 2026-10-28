@@ -1534,6 +1534,19 @@ t("slateSizeHit: within 4px both ways", () => {
   assert.strictEqual(L.TK_slateSizeHit(want, { w: NaN, h: 800 }), false);
   assert.strictEqual(L.TK_slateSizeHit(want, null), false);
 });
+t("slateMissHides: growing the window clears the hide", () => {
+  const now = 1800000000000;
+  const raw = now - 1000 + "|600|400";
+  assert.strictEqual(L.TK_slateMissHides(raw, now, { w: 600, h: 400 }), true);
+  assert.strictEqual(L.TK_slateMissHides(raw, now, { w: 500, h: 300 }), true); // smaller stays hidden
+  assert.strictEqual(L.TK_slateMissHides(raw, now, { w: 700, h: 400 }), false); // wider
+  assert.strictEqual(L.TK_slateMissHides(raw, now, { w: 600, h: 500 }), false); // taller
+  assert.strictEqual(L.TK_slateMissHides(raw, now, { w: 605, h: 405 }), true); // within jitter
+  assert.strictEqual(L.TK_slateMissHides(now - 130000 + "|600|400", now, { w: 600, h: 400 }), false); // expired
+  assert.strictEqual(L.TK_slateMissHides(String(now - 1000), now, { w: 900, h: 900 }), true); // old format: timer only
+  assert.strictEqual(L.TK_slateMissHides("1", now, null), false);
+  assert.strictEqual(L.TK_slateMissHides(null, now, null), false);
+});
 t("slateMissActive", () => {
   const now = 1800000000000;
   assert.strictEqual(L.TK_slateMissActive(String(now - 1000), now), true);

@@ -206,7 +206,7 @@ function TKR_flyModel(section, d, cap) {
     title = "Projects";
     var pr = function (prefix, p) {
       var r = typeof d.projectRoute === "function" ? d.projectRoute(p) : null;
-      return r ? link(prefix + p.id, p.name || "Project", r, { dot: p.color || null, tag: p.kind === "onboarding" ? "Onboarding" : null }) : null;
+      return r ? link(prefix + p.id, p.name || "Project", r, { dot: p.color || null, tag: typeof TKP_projectTag === "function" ? TKP_projectTag(p, true) : p.kind === "onboarding" ? "Onboarding" : null }) : null;
     };
     add("pinned", "Pinned", arr(d.pinnedProjects).map(function (p) { return pr("pin-", p); }).filter(Boolean));
     var projects = arr(d.projects);
