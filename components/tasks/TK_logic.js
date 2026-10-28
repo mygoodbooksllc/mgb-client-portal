@@ -1073,6 +1073,8 @@ function TK_parseRoute(hash) {
     var pk = String(parts[2] || "").toLowerCase();
     return /^[0-9a-f]{16}$/.test(pk) ? { view: "profile", key: pk } : unknown;
   }
+  // Slate plus Portfolio (TK_ProjectUpdates.jsx): gate on only, like profile.
+  if (n === 2 && kind === "portfolio" && TK__profileRoutesOn()) return { view: "portfolio" };
   return unknown;
 }
 
@@ -1099,6 +1101,7 @@ function TK_formatRoute(route) {
   if (r.view === "templates") return "#/tasks/templates";
   if (r.view === "waiting") return "#/tasks/waiting";
   if (r.view === "manage") return "#/tasks/manage";
+  if (r.view === "portfolio") return "#/tasks/portfolio";
   if (r.view === "settings") return "#/tasks/settings";
   return "#/tasks/my";
 }

@@ -2298,6 +2298,72 @@ var TK_api = (function () {
     });
   };
 
+  // ---- Project status updates (Slate plus, hidden preview) ----------------
+  // supabase/slateplus-project-updates.sql. RLS decides who reads (anyone who
+  // can see the project), posts and hides (tk_can_manage_project, or the
+  // author for hide). No delete: hiding sets hidden_at. No emails or
+  // notifications. Callers gate on TKP_on(); these never run with it off.
+  var PROJECT_UPDATE_COLS = "id, project_id, author_email, status, body, created_at, hidden_at";
+
+  function projUpdatesChanged(projectId) {
+    try {
+      if (typeof window !== "undefined" && window.dispatchEvent && typeof CustomEvent === "function") {
+        window.dispatchEvent(new CustomEvent("mgb:tk-projupdates-changed", { detail: { projectId: projectId || null } }));
+      }
+    } catch (e) {}
+  }
+
+  api.listProjectUpdates = function (projectId) {
+    if (!projectId) return Promise.resolve([]);
+    return run(function (c) {
+      return c
+        .from("tk_project_updates")
+        .select(PROJECT_UPDATE_COLS)
+        .eq("project_id", projectId)
+        .is("hidden_at", null)
+        .order("created_at", { ascending: false })
+        .limit(200);
+    }, { where: "listProjectUpdates" }).then(function (rows) { return rows || []; });
+  };
+
+  api.postProjectUpdate = function (projectId, status, body) {
+    var off = requireOnline();
+    if (off) return off;
+    var text = String(body || "").trim();
+    if (!projectId || !text) return Promise.reject(errOf("22023", "Empty update"));
+    return run(function (c) {
+      return c
+        .from("tk_project_updates")
+        .insert({ project_id: projectId, status: String(status || ""), body: text })
+        .select(PROJECT_UPDATE_COLS)
+        .single();
+    }, { where: "postProjectUpdate" }).then(function (row) {
+      projUpdatesChanged(projectId);
+      return row;
+    });
+  };
+
+  // Hide (soft) one update. The server stamps hidden_by and the time.
+  api.hideProjectUpdate = function (id) {
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.from("tk_project_updates").update({ hidden_at: nowIso() }).eq("id", id).select("id, project_id");
+    }, { where: "hideProjectUpdate" }).then(function (rows) {
+      var row = Array.isArray(rows) ? rows[0] : rows;
+      if (!row) throw errOf("tk_forbidden", "forbidden");
+      projUpdatesChanged(row.project_id);
+      return row;
+    });
+  };
+
+  // The newest visible update per project I can see (one read, for Portfolio).
+  api.projectUpdatesLatest = function () {
+    return run(function (c) {
+      return c.from("tk_project_update_latest").select("project_id, id, status, author_email, created_at").limit(2000);
+    }, { where: "projectUpdatesLatest" }).then(function (rows) { return rows || []; });
+  };
+
   // Set a project's color (a palette key; the server checks it). Admin or
   // project manager; audited. Resolves with the saved key. The store's project
   // row is updated at once and the list re-read after, so every dot follows.

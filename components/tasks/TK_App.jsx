@@ -123,6 +123,9 @@ function TK_App(props) {
   } else if (route.view === "profile" && typeof TK_Profile === "function" && typeof TKP_on === "function" && TKP_on()) {
     // Slate plus person profile (hidden; TK_parseRoute only returns it while the gate is on).
     main = <TK_Profile route={route} staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  } else if (route.view === "portfolio" && typeof TKPU_Portfolio === "function" && TKP_on()) {
+    // Slate plus Portfolio (hidden; TK_parseRoute only returns it while the gate is on).
+    main = <TKPU_Portfolio staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   } else {
     main = (
       <div className="tk-state" role="status">

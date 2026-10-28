@@ -15,7 +15,7 @@ var TKR_W_PANEL = 248;
 function TKR_sectionOf(route) {
   var v = route && route.view;
   if (v === "profile" || v === "person") return "people";
-  if (v === "project" || v === "manage") return "projects";
+  if (v === "project" || v === "manage" || v === "portfolio") return "projects";
   if (v === "client") return "clients";
   return null;
 }
@@ -215,6 +215,7 @@ function TKR_flyModel(section, d, cap) {
     add("all", "All projects", ai);
     var ex = [{ key: "new", label: "New project", action: "newProject" }];
     if (d.isRoleAdmin) ex.push(link("manage", "Manage projects", { view: "manage" }));
+    ex.push(link("portfolio", "Portfolio", { view: "portfolio" })); // Slate plus (the rail is gate-on only)
     add("actions", "", ex);
   } else if (section === "clients") {
     title = "Clients";

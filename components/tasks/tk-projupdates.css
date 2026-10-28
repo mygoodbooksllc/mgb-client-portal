@@ -1,0 +1,284 @@
+/* Slate plus project status updates + Portfolio, hidden behind the Slate plus
+   gate. TK_ProjectUpdates.jsx / TK_projectUpdatesLogic.js. Colors come from
+   the shared variables only, so dark mode follows. Pills always carry the
+   word; color is never the only signal. */
+
+/* ---- Status block under a project header ---- */
+.tkpu-status {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  max-width: 760px;
+}
+
+.tkpu-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tkpu-pill {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.tkpu-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.tkpu-earlier {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.tkpu-item {
+  padding: 6px 0;
+}
+
+.tkpu-earlier .tkpu-item + .tkpu-item {
+  border-top: 1px solid var(--border);
+}
+
+.tkpu-item-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.tkpu-hide {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.tkpu-body {
+  margin: 4px 0 0;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tkpu-more {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.tkpu-loading {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+/* Composer */
+.tkpu-form {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tkpu-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tkpu-choice {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tkpu-choice:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.tkpu-choice.is-on {
+  font-weight: 600;
+  border-color: currentColor;
+}
+
+.tkpu-choice.tkpu-on_track.is-on { background: var(--good-soft); color: var(--good); }
+.tkpu-choice.tkpu-at_risk.is-on { background: var(--warm-bg); color: var(--warm-text); }
+.tkpu-choice.tkpu-off_track.is-on { background: var(--bad-soft); color: var(--bad); }
+.tkpu-choice.tkpu-done.is-on { background: var(--surface-2); color: var(--text); }
+
+.tkpu-text {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 64px;
+}
+
+.tkpu-count {
+  margin: 0;
+  font-size: 12px;
+}
+
+.tkpu-count.is-over {
+  color: var(--bad);
+}
+
+.tkpu-note {
+  margin: 0;
+  font-size: 12px;
+}
+
+.tkpu-form-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---- Portfolio page ---- */
+.tkpu-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+}
+
+.tkpu-summary {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.tkpu-arch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tkpu-table-wrap {
+  margin-top: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.tkpu-table {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tkpu-table th,
+.tkpu-table td {
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+
+.tkpu-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tkpu-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+
+.tkpu-sort {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tkpu-sort.is-on {
+  color: var(--text);
+}
+
+.tkpu-sort:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.tkpu-sort-mark {
+  font-size: 10px;
+}
+
+.tkpu-row {
+  cursor: pointer;
+}
+
+.tkpu-row:hover td {
+  background: var(--surface-2);
+}
+
+.tkpu-row.is-archived .tkpu-name {
+  color: var(--text-muted);
+}
+
+.tkpu-c-name a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tkpu-c-name a:hover .tkpu-name,
+.tkpu-c-name a:focus-visible .tkpu-name {
+  text-decoration: underline;
+}
+
+.tkpu-c-name .tk-nav-tag {
+  margin-left: 6px;
+}
+
+.tkpu-c-updated {
+  white-space: nowrap;
+}
+
+.tkpu-stale {
+  margin-left: 6px;
+}
+
+.tkpu-c-due {
+  white-space: nowrap;
+}
+
+.tkpu-late {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .tkpu-status {
+    padding: 8px 10px;
+  }
+
+  .tkpu-table th,
+  .tkpu-table td {
+    padding: 8px;
+  }
+}

@@ -405,6 +405,11 @@ function TK_Sidebar(props) {
             <TK_vNavItem route={{ view: "manage" }} label="Manage projects" icon="folder" tour="tk-manage-nav" active={route.view === "manage"} onNavigate={nav} />
           </ul>
         ) : null}
+        {plusOn && typeof TKPU_Portfolio === "function" ? (
+          <ul className="tk-nav">
+            <TK_vNavItem route={{ view: "portfolio" }} label="Portfolio" icon="list" tour="tk-portfolio-nav" active={route.view === "portfolio"} onNavigate={nav} />
+          </ul>
+        ) : null}
       </div>
 
       {isAdmin && noTeam.length ? (

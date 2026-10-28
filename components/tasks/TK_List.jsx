@@ -956,6 +956,9 @@ function TK_vProjectHeader(props) {
           {plusDesc ? <p className="tkpf-head-desc">{plusDesc}</p> : null}
         </div>
       ) : null}
+      {plusOn && typeof TKPU_ProjectStatus === "function" ? (
+        <TKPU_ProjectStatus project={project} canManage={canManage} email={email} staff={staff} />
+      ) : null}
       {err ? (
         <p className="tk-field-error" role="alert">
           {err}

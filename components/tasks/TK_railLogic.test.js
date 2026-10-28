@@ -20,6 +20,7 @@ t("sectionOf: profile/person -> people, project/manage -> projects, client -> cl
   assert.strictEqual(L.TKR_sectionOf({ view: "person", staffId: "x" }), "people");
   assert.strictEqual(L.TKR_sectionOf({ view: "project", projectId: "p" }), "projects");
   assert.strictEqual(L.TKR_sectionOf({ view: "manage" }), "projects");
+  assert.strictEqual(L.TKR_sectionOf({ view: "portfolio" }), "projects");
   assert.strictEqual(L.TKR_sectionOf({ view: "client", clientId: "1" }), "clients");
   assert.strictEqual(L.TKR_sectionOf({ view: "my" }), null);
   assert.strictEqual(L.TKR_sectionOf(null), null);
@@ -182,12 +183,13 @@ t("flyModel projects: pinned, all, New project action, Manage for role admins on
   assert.strictEqual(all[0].tag, "Onboarding");
   assert.strictEqual(all[0].dot, "#222");
   const acts = m.groups[2].items;
-  assert.deepStrictEqual(acts.map((i) => i.label), ["New project", "Manage projects"]);
+  assert.deepStrictEqual(acts.map((i) => i.label), ["New project", "Manage projects", "Portfolio"]);
+  assert.strictEqual(acts[2].route.view, "portfolio");
   assert.strictEqual(acts[0].action, "newProject");
   assert.ok(!acts[0].route && acts[1].route.view === "manage");
   const m2 = L.TKR_flyModel("projects", { ...baseD, isRoleAdmin: false, pinnedProjects: [] });
   assert.deepStrictEqual(m2.groups.map((g) => g.title), ["", ""], "a lone All heading only repeats the flyout title");
-  assert.deepStrictEqual(m2.groups[1].items.map((i) => i.label), ["New project"]);
+  assert.deepStrictEqual(m2.groups[1].items.map((i) => i.label), ["New project", "Portfolio"]);
 });
 
 t("flyModel clients: No team yet (admin), pinned, all, current flag, Find a client only past 8", () => {
