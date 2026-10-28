@@ -50,6 +50,17 @@ var TK_api = (function () {
   var FOLLOWER_COLS = "task_id, staff_email, added_by, added_at";
   var ATTACH_COLS = "id, task_id, kind, client_file_id, storage_path, url, name, size, mime, added_by, created_at, removed_at";
   var PROJECT_COLS = "id, name, kind, client_id, owner_email, open_to_staff, sections, archived_at, created_at, updated_at, color";
+  // Slate plus (hidden): the New project form's description and due date
+  // (supabase/slateplus-project-form.sql). Selected only while the gate is on,
+  // so with it off every project read is exactly as before.
+  var PROJECT_COLS_PLUS = PROJECT_COLS + ", description, due_on";
+  function projectCols() {
+    try {
+      return typeof TKP_on === "function" && TKP_on() ? PROJECT_COLS_PLUS : PROJECT_COLS;
+    } catch (e) {
+      return PROJECT_COLS;
+    }
+  }
   var MEMBER_COLS = "project_id, staff_email, role, added_by, added_at";
   var STAFF_COLS = "id, email, name, role, active";
   var PROJECT_UPDATE_FIELDS = ["name", "sections", "open_to_staff", "archived_at"];
@@ -2178,13 +2189,25 @@ var TK_api = (function () {
 
   api.listProjects = function () {
     return run(function (c) {
-      return c.from("tk_projects").select(PROJECT_COLS).order("name", { ascending: true });
+      return c.from("tk_projects").select(projectCols()).order("name", { ascending: true });
     }, { where: "listProjects" }).then(function (rows) {
       var list = rows || [];
       dispatch({ type: "projects", projects: list });
       return list;
     });
   };
+
+  // Slate plus (hidden): when the gate's answer changes in this page (the
+  // firm switch read lands), re-read loaded projects so the extra columns
+  // appear or drop. Only ever fires on a change; never with the gate unused.
+  try {
+    if (typeof window !== "undefined" && window.addEventListener) {
+      window.addEventListener("mgb:slateplus", function () {
+        var s = store();
+        if (s && s.getState && s.getState().projects != null) api.listProjects().catch(function () {});
+      });
+    }
+  } catch (e) {}
 
   api.createProject = function (fields) {
     var off = requireOnline();
@@ -2202,8 +2225,13 @@ var TK_api = (function () {
         : [],
     };
     if (f.open_to_staff === true) row.open_to_staff = true; // the server keeps it only for admins
+    // Slate plus form only (the old form never sends these): a palette color
+    // (the color guard keeps a valid key on insert), description, due date.
+    if (typeof f.color === "string" && f.color) row.color = f.color;
+    if (typeof f.description === "string" && f.description.trim()) row.description = f.description.trim().slice(0, 500);
+    if (typeof f.due_on === "string" && /^\d{4}-\d{2}-\d{2}$/.test(f.due_on)) row.due_on = f.due_on;
     return run(function (c) {
-      return c.from("tk_projects").insert(row).select(PROJECT_COLS).single();
+      return c.from("tk_projects").insert(row).select(projectCols()).single();
     }, { where: "createProject", uniqueAs: "tk_name_taken" }).then(function (p) {
       putProject(p);
       afterWrite(null, { legacy: false });
@@ -2217,7 +2245,7 @@ var TK_api = (function () {
     var clean = pick(patch || {}, PROJECT_UPDATE_FIELDS);
     if (clean.name != null) clean.name = String(clean.name).trim().slice(0, 120);
     return run(function (c) {
-      return c.from("tk_projects").update(clean).eq("id", id).select(PROJECT_COLS);
+      return c.from("tk_projects").update(clean).eq("id", id).select(projectCols());
     }, { where: "updateProject", uniqueAs: "tk_name_taken" }).then(function (rows) {
       var p = Array.isArray(rows) ? rows[0] : rows;
       if (!p) throw errOf("tk_forbidden", "forbidden");

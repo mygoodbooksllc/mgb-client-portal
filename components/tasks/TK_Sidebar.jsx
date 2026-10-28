@@ -7,13 +7,20 @@
 //   My Tasks, Review (admins see a count of work they can approve), Search,
 //   Projects (archived hidden, "New project"; admins also get "Manage projects"), Clients and, for admins, People. Every item is a real link (TK_formatRoute), so a
 //   modifier click opens a new tab; a plain click calls onNavigate.
-// TK_NewProjectModal({ isAdmin, kind, clientId, clientName, onClose, onCreated(project) })
+// TK_NewProjectModal({ isAdmin, kind, clientId, clientName, clients, staffUser, onClose, onCreated(project) })
 //   name, sections (one per line) and, for admins only, "Open to all staff".
 //   A duplicate name shows TK_COPY.projectNameTaken under the name field and
-//   keeps the modal open.
+//   keeps the modal open. Slate plus (hidden, TKP_useOn()): the upgraded form
+//   TKPF_NewProjectModal (TK_ProjectForm.jsx) instead; gate off = this form.
 // ----------------------------------------------------------------------------
 
 function TK_NewProjectModal(props) {
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  if (plusOn && typeof TKPF_NewProjectModal === "function") return <TKPF_NewProjectModal {...props} />;
+  return <TK_vNewProjectModalClassic {...props} />;
+}
+
+function TK_vNewProjectModalClassic(props) {
   var isAdmin = props.isAdmin === true;
   var onboarding = props.kind === "onboarding";
   var fields = typeof TK_newProjectFields === "function" ? TK_newProjectFields({ isAdmin: isAdmin }) : ["name", "sections"];
@@ -454,6 +461,8 @@ function TK_Sidebar(props) {
         <TK_NewProjectModal
           isAdmin={isAdmin}
           kind="internal"
+          clients={pickedClients}
+          staffUser={props.staffUser}
           onClose={function () {
             setNewOpen(false);
           }}

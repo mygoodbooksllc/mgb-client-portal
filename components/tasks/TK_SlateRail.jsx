@@ -951,6 +951,8 @@ function TKR_Rail(props) {
         <TK_NewProjectModal
           isAdmin={isAdmin}
           kind="internal"
+          clients={props.clients}
+          staffUser={props.staffUser}
           onClose={function () {
             setNewOpen(false);
           }}

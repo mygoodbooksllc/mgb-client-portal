@@ -637,6 +637,7 @@ function TK_ClientHeader(props) {
           kind="onboarding"
           clientId={id}
           clientName={name}
+          staffUser={props.staffUser}
           onClose={function () {
             setNewOnboarding(false);
           }}

@@ -675,9 +675,13 @@ function TK_vProjectHeader(props) {
   var cPair = React.useState(null);
   var counts = cPair[0];
   var setCounts = cPair[1];
+  // Slate plus (hidden): the project's description and due date under the title.
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
 
   if (!project) return null;
   var archived = !!project.archived_at;
+  var plusDue = plusOn && typeof TKPF_dueInfo === "function" ? TKPF_dueInfo(project, TK_vToday()) : null;
+  var plusDesc = plusOn && typeof project.description === "string" ? project.description.trim() : "";
   var canManage = !archived && TK_canManageProjectHint(project, { email: email, isAdmin: isAdmin, members: members });
 
   var saveName = function (e) {
@@ -946,6 +950,12 @@ function TK_vProjectHeader(props) {
           ) : null}
         </div>
       </div>
+      {plusDue || plusDesc ? (
+        <div className="tkpf-head-meta">
+          {plusDue ? <span className={"pill tkpf-due " + (plusDue.late ? "bad is-late" : "neutral")}>{plusDue.text}</span> : null}
+          {plusDesc ? <p className="tkpf-head-desc">{plusDesc}</p> : null}
+        </div>
+      ) : null}
       {err ? (
         <p className="tk-field-error" role="alert">
           {err}
