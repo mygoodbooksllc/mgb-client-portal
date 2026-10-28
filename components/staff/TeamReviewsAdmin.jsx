@@ -234,7 +234,7 @@ function TR_HistoryTab({ ov }) {
             None yet.
           </p>
         ) : (
-          <div className="al-table-wrap">
+          <div className="al-table-wrap mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled tr-table">
               <thead>
                 <tr>
@@ -924,7 +924,7 @@ function TR_TeamStatusTab({ ov }) {
                 Nobody in this cycle yet.
               </p>
             ) : (
-              <div className="al-table-wrap">
+              <div className="al-table-wrap mgb-sticky-wrap">
                 <table className="tx-table tx-table-labeled tr-table">
                   <thead>
                     <tr>

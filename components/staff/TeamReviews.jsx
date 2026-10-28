@@ -850,7 +850,7 @@ function TR_GivingTab({ ov }) {
   return (
     <div className="card">
       <h2 className="card-title">Reviews I’m giving · {ov.cycle ? ov.cycle.label : ""}</h2>
-      <div className="al-table-wrap">
+      <div className="al-table-wrap mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled tr-table">
           <thead>
             <tr>

@@ -520,7 +520,7 @@ function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, o
         In app is automatic active time in the app{appTotal ? ` (${TP_qHours(appTotal)} in all)` : ""}, not billed
         hours. Open{lateOn ? " and overdue" : ""} are as of today; completed is within the period. Select a row for details.
       </p>
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled tp-table">
           <thead>
             <tr>
@@ -851,7 +851,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
           </button>
         ))}
       </div>
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled tp-table">
           <thead>
             <tr>
@@ -1225,7 +1225,7 @@ function TP_QboDrill({ spec, range, groupBy, emptyText }) {
         <p className="card-subtitle">
           {rows.length} entr{rows.length === 1 ? "y" : "ies"} in the period, as synced from QuickBooks.
         </p>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>

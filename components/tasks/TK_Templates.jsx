@@ -961,7 +961,7 @@ function TK_tplResultTables(props) {
     return (
       <div className="tk-tpl-result" key={key}>
         <h4 className="tk-tpl-result-title">{caption + " (" + rows.length + ")"}</h4>
-        <div className="tk-rq-table-wrap">
+        <div className="tk-rq-table-wrap mgb-sticky-wrap">
           <table className="tk-rq-table">
             <thead>
               <tr>
@@ -2289,7 +2289,7 @@ function TK_vTemplatesBody(props) {
           <h3 className="tk-group-head" id="tk-tpl-runs-title">
             <span className="tk-group-name">Recent runs</span>
           </h3>
-          <div className="tk-rq-table-wrap">
+          <div className="tk-rq-table-wrap mgb-sticky-wrap">
             <table className="tk-rq-table">
               <thead>
                 <tr>

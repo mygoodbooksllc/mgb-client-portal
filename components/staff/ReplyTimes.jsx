@@ -183,7 +183,7 @@ function RT_ReplyTimesTab() {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">By staff member</h3>
         <p className="card-subtitle">Credited to whoever sent the reply.</p>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled rt-table">
             <thead>
               <tr>
@@ -218,7 +218,7 @@ function RT_ReplyTimesTab() {
       <div className="card">
         <h3 className="card-title">By client</h3>
         <p className="card-subtitle">Slowest first. Waiting counts any open wait over {goal} hours.</p>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled rt-table">
             <thead>
               <tr>

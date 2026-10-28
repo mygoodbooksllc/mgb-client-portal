@@ -74,7 +74,7 @@ function HB_StatusGrid({ status }) {
       {!people.length ? (
         <p className="hb-muted">No active bookkeepers.</p>
       ) : (
-        <div className="hb-gc-wrap" role="region" aria-label="Signature status grid" tabIndex={0}>
+        <div className="hb-gc-wrap mgb-sticky-wrap" role="region" aria-label="Signature status grid" tabIndex={0}>
           <table className="hb-gc-table">
             <thead>
               <tr>

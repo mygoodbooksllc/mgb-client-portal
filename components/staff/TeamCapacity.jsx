@@ -274,7 +274,7 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
         ) : null}
       </p>
       {note && <p className="tp-muted" style={{ margin: "0 0 10px" }}>{note}</p>}
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled tp-table tp-cap-table">
           <thead>
             <tr>

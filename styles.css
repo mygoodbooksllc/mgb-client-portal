@@ -11167,3 +11167,28 @@ html[data-brand="mgb"] .wb-bar {
   margin-right: auto;
   margin-left: 8px;
 }
+
+/* ---- 2026-10-28: sticky table headers (staff data tables) ----
+   A table wrapper that scrolls sideways (overflow-x) can't let its header stick to the
+   page, because cards clip and the wrapper becomes the scroll parent. So long staff
+   tables get .mgb-sticky-wrap: the wrapper is capped near viewport height and scrolls
+   both ways inside, and the header row sticks to its top. Short tables never reach the
+   cap, so nothing changes for them. Phone widths (<=760px) restack tables as cards with
+   no header row, so this is desktop/tablet only. Colors use existing tokens (dark safe). */
+@media (min-width: 761px) {
+  div.mgb-sticky-wrap {
+    overflow: auto;
+    max-height: max(320px, calc(100vh - 160px));
+  }
+  .mgb-sticky-wrap thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--surface);
+    box-shadow: 0 1px 0 var(--border);
+  }
+  /* Close tracker: the corner cell is sticky both ways, so it sits above the rest. */
+  .mgb-sticky-wrap thead .ct-client-col {
+    z-index: 4;
+  }
+}

@@ -448,7 +448,7 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
               {staffCosts.length === 0 ? (
                 <p className="tp-muted">No QuickBooks Time hours on this client in this period.</p>
               ) : (
-                <div className="table-scroll">
+                <div className="table-scroll mgb-sticky-wrap">
                   <table className="tx-table tx-table-labeled tp-table">
                     <thead>
                       <tr>

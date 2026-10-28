@@ -14983,7 +14983,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
         </h3>
         {list.length === 0 && <p className="card-subtitle">{grp.empty}</p>}
         {list.length > 0 && (
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -15852,7 +15852,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             <p className="card-subtitle">No scheduled jobs found.</p>
           )}
           {jobs && jobs.length > 0 && (
-            <div className="dt-table-wrap">
+            <div className="dt-table-wrap mgb-sticky-wrap">
               <table className="dt-table">
                 <thead>
                   <tr>
@@ -15952,7 +15952,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             <p className="card-subtitle">No errors reported. Good.</p>
           )}
           {clientErrors && clientErrors.length > 0 && (
-            <div className="dt-table-wrap">
+            <div className="dt-table-wrap mgb-sticky-wrap">
               <table className="dt-table">
                 <thead>
                   <tr>
@@ -17974,7 +17974,7 @@ function UsageStatsPage() {
           </div>
         )}
         {visiblePeople.length > 0 && (
-          <div className="dt-table-wrap">
+          <div className="dt-table-wrap mgb-sticky-wrap">
             <table className="dt-table">
               <thead>
                 <tr>
@@ -18910,7 +18910,7 @@ function ClientAccessPage({ readOnly }) {
           {orgRows === null ? (
             <p className="card-subtitle">Loading…</p>
           ) : (
-            <div className="table-scroll" style={{ marginBottom: 16 }}>
+            <div className="table-scroll mgb-sticky-wrap" style={{ marginBottom: 16 }}>
               <table className="tx-table tx-table-labeled">
                 <thead>
                   <tr>
@@ -19291,7 +19291,7 @@ function ClientAccessPage({ readOnly }) {
           )}
 
           {filteredRows.length > 0 && (
-            <div className="table-scroll">
+            <div className="table-scroll mgb-sticky-wrap">
               <table className="tx-table tx-table-labeled">
                 <thead>
                   <tr>

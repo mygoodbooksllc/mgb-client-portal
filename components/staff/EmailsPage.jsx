@@ -361,7 +361,7 @@ function EM_SendLog({ reloadKey }) {
       {st.error && <p className="al-error" role="alert">{st.error}</p>}
 
       {!st.error && (
-        <div className="al-table-wrap">
+        <div className="al-table-wrap mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled al-table em-log">
             <thead>
               <tr>

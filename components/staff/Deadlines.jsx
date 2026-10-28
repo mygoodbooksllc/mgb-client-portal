@@ -247,7 +247,7 @@ function DL_TaskButton({ it, made }) {
 
 function DL_Table({ items, taskRefs, empty }) {
   return (
-    <div className="table-scroll">
+    <div className="table-scroll mgb-sticky-wrap">
       <table className="tx-table tx-table-labeled dl-table">
         <thead>
           <tr>

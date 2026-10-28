@@ -310,7 +310,7 @@ function LR_ReviewFilePage({ staffUser }) {
           that are wrong and the checks rerun. These changes last until you leave the page.
         </p>
         {showAccounts && (
-          <div id="lrf-accts" className="lr-table-wrap">
+          <div id="lrf-accts" className="lr-table-wrap mgb-sticky-wrap">
             <table className="lr-table lr-accts">
               <caption className="lr-sr">Accounts in the file, their type and pass-through setting</caption>
               <thead>

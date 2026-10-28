@@ -512,7 +512,7 @@ function AL_AuditLogPage({ clients }) {
         {state.error && <p className="al-error" role="alert">{state.error}</p>}
 
         {!state.error && (
-          <div className="al-table-wrap">
+          <div className="al-table-wrap mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled al-table">
               <thead>
                 <tr>

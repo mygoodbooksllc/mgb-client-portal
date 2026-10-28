@@ -696,7 +696,7 @@ function CV_CoverageTab() {
           </div>
         </div>
         <CV_Handoff row={t} isAdmin coveredCount={covCount[t.id] || 0} />
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled cv-table">
             <thead>
               <tr>

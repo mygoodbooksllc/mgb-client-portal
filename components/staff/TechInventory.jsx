@@ -243,7 +243,7 @@ function TI_MyTech({ me, requests, assets, setup, categories, sb, run }) {
 
       <section className="card">
         <h3 className="card-title">My requests</h3>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled ti-table">
             <thead>
               <tr><th scope="col">Item</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Requested</th><th scope="col"><span className="tp-sr">Actions</span></th></tr>
@@ -316,7 +316,7 @@ function TI_Requests({ requests, setup, nameOf, me, sb, run }) {
         <TI_RequestForm setup={setup} onCancel={() => setAdding(false)}
           onSubmit={(d) => run(sb.from("tech_requests").insert({ ...d, staff_email: me }), "Request sent").then((ok) => ok && setAdding(false))} />
       )}
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled ti-table">
           <thead>
             <tr><th scope="col">Requested</th><th scope="col">Person</th><th scope="col">Item</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col"><span className="tp-sr">Actions</span></th></tr>
@@ -402,7 +402,7 @@ function TI_AssetTable({ rows, nameOf, withPerson, editId, setEditId, categories
     run(sb.from("tech_assets").update({ archived_at: new Date().toISOString() }).eq("id", a.id), "Item archived");
   };
   return (
-    <div className="table-scroll">
+    <div className="table-scroll mgb-sticky-wrap">
       <table className="tx-table tx-table-labeled ti-table">
         <thead>
           <tr>
@@ -460,7 +460,7 @@ function TI_Roster({ roster, essentials, onOpen }) {
     <section className="card">
       <h3 className="card-title">Roster</h3>
       <p className="card-subtitle">Everyone on the team and the essentials they don't have yet ({essentials.join(", ") || "none set"}). Click a name to see their items.</p>
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled ti-table">
           <thead>
             <tr><th scope="col">Person</th><th scope="col">Laptop</th><th scope="col" className="num">Items</th><th scope="col" className="num">Open requests</th><th scope="col">Missing essentials</th></tr>
@@ -513,7 +513,7 @@ function TI_Directory({ staff, contacts, me, sb, run }) {
     <section className="card">
       <h3 className="card-title">Directory</h3>
       <p className="card-subtitle">Admins only. Names, emails and roles come from HR › Members; add someone there and they appear here.</p>
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled ti-table">
           <thead>
             <tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Phone</th><th scope="col">Home address</th><th scope="col"><span className="tp-sr">Actions</span></th></tr>
@@ -599,7 +599,7 @@ function TI_Setup({ setup, isAdmin, sb, run }) {
         <TI_SetupForm onCancel={() => setAdding(false)}
           onSubmit={(d) => run(sb.from("tech_setup").insert({ ...d, sort: nextSort }), "Item added").then((ok) => ok && setAdding(false))} />
       )}
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled ti-table">
           <thead>
             <tr><th scope="col">Item</th><th scope="col">Type</th><th scope="col" className="num">Price</th>{isAdmin && <th scope="col"><span className="tp-sr">Actions</span></th>}</tr>
