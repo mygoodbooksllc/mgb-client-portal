@@ -97,7 +97,7 @@ function TP_PF_useProfit(enabled, range, version) {
         TP_PF_safe(supabase.rpc("client_profitability", { p_from: range.from, p_to: range.to, p_default_fees: tierFees })),
         TP_PF_safe(supabase.from("profitability_settings").select("target_margin_pct").limit(1)),
         TP_PF_safe(supabase.from("staff_cost_rates").select("staff_email, effective_from, hourly_cost").order("staff_email").order("effective_from", { ascending: false })),
-        TP_PF_safe(supabase.from("client_fees").select("client_id, monthly_fee")),
+        TP_PF_safe(supabase.from("client_fees").select("client_id, monthly_fee, needs_review, review_note")),
       ]);
       if (!alive) return;
       const firstErr = [p, s, rt, f].find((r) => r.error);
@@ -122,8 +122,10 @@ function TP_PF_useProfit(enabled, range, version) {
         byId[r.client_id] = r;
       });
       const fees = {};
+      const feeReview = {};
       (f.data || []).forEach((r) => {
         fees[r.client_id] = TP_PF_num(r.monthly_fee);
+        if (r.needs_review) feeReview[r.client_id] = r.review_note || "Double check this price";
       });
       const settings = (s.data || [])[0];
       setState({
@@ -135,6 +137,7 @@ function TP_PF_useProfit(enabled, range, version) {
         target: settings && settings.target_margin_pct != null ? Number(settings.target_margin_pct) : TP_PF_DEFAULT_TARGET,
         rates: (rt.data || []).map((r) => ({ ...r, hourly_cost: TP_PF_num(r.hourly_cost) })),
         fees,
+        feeReview,
         tierFees,
       });
     })();
@@ -189,6 +192,7 @@ function TP_PF_rowView(profit, qboOn, clientId) {
   return {
     fee: fee.fee,
     feeSource: fee.source,
+    feeReview: (profit && profit.feeReview && profit.feeReview[clientId]) || null,
     revenue: r ? r.revenue : null,
     cost: show ? r.cost : null,
     profit: show ? r.profit : null,
@@ -211,9 +215,17 @@ function TP_PF_effRate(fee, row) {
   return fee / (row.basis / 60);
 }
 
-function TP_PF_FeeTag({ source }) {
-  if (source === "tier_default") return <span className="pf-fee-tag" title="No actual fee set: using the pricing tier's fee">tier default</span>;
-  return null;
+function TP_PF_FeeTag({ source, review }) {
+  return (
+    <>
+      {source === "tier_default" && <span className="pf-fee-tag" title="No actual fee set: using the pricing tier's fee">tier default</span>}
+      {review && (
+        <span className="pf-fee-tag pf-fee-check" title={review}>
+          check price
+        </span>
+      )}
+    </>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -349,13 +361,24 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
     }
     setSaving(true);
     setErr(null);
-    const res = await TP_PF_safe(sb.from("client_fees").upsert({ client_id: clientId, monthly_fee: n, updated_at: new Date().toISOString() }, { onConflict: "client_id" }));
+    const res = await TP_PF_safe(sb.from("client_fees").upsert({ client_id: clientId, monthly_fee: n, needs_review: false, review_note: null, updated_at: new Date().toISOString() }, { onConflict: "client_id" }));
     setSaving(false);
     if (res.error) {
       setErr(`Couldn't save: ${res.error.message || res.error}`);
       return;
     }
     setDraft("");
+    profit.reload();
+  };
+  const markChecked = async () => {
+    setSaving(true);
+    setErr(null);
+    const res = await TP_PF_safe(sb.from("client_fees").update({ needs_review: false, review_note: null }).eq("client_id", clientId));
+    setSaving(false);
+    if (res.error) {
+      setErr(`Couldn't save: ${res.error.message || res.error}`);
+      return;
+    }
     profit.reload();
   };
   const clearFee = async () => {
@@ -384,7 +407,7 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
       ) : (
         <>
           <div className="tp-stats">
-            <TP_Stat label="Monthly fee" value={v.fee != null ? <>{fmtMoney(v.fee)} <TP_PF_FeeTag source={v.feeSource} /></> : "Not set"} />
+            <TP_Stat label="Monthly fee" value={v.fee != null ? <>{fmtMoney(v.fee)} <TP_PF_FeeTag source={v.feeSource} review={v.feeReview} /></> : "Not set"} />
             <TP_Stat label="Revenue (period)" value={v.revenue != null ? fmtMoney(Math.round(v.revenue)) : "–"} />
             <TP_Stat label={v.estimated ? "Cost (part estimated)" : "Cost"} value={v.cost != null ? fmtMoney(Math.round(v.cost)) : "–"} />
             <TP_Stat label="Profit" value={v.profit != null ? fmtMoney(Math.round(v.profit)) : "–"} bad={v.profit != null && v.profit < 0} />
@@ -407,6 +430,11 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
             <button type="button" className="btn-primary pf-btn" onClick={saveFee} disabled={saving}>
               {saving ? "Saving…" : "Save fee"}
             </button>
+            {v.feeReview && (
+              <button type="button" className="btn-secondary pf-btn" onClick={markChecked} disabled={saving} title={v.feeReview}>
+                Price checked
+              </button>
+            )}
             {hasActual && (
               <button type="button" className="btn-secondary pf-btn" onClick={clearFee} disabled={saving}>
                 {tierFee != null ? `Use tier default (${fmtMoney(tierFee)})` : "Clear actual fee"}
@@ -608,7 +636,7 @@ function TP_PF_OverviewLines({ clientId, qboOn, from, to }) {
     <>
       <li>
         <span>
-          Monthly fee <TP_PF_FeeTag source={v.feeSource} />
+          Monthly fee <TP_PF_FeeTag source={v.feeSource} review={v.feeReview} />
         </span>
         <span>{v.fee != null ? fmtMoney(v.fee) : "Not set"}</span>
       </li>

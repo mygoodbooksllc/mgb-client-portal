@@ -890,6 +890,11 @@
   background: var(--bad-soft);
   border-color: var(--bad);
 }
+.pf-fee-tag.pf-fee-check {
+  color: var(--warm-text);
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  border-color: var(--gold-deep);
+}
 .pf-fee-tag {
   display: inline-block;
   font-family: var(--font-body);

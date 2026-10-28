@@ -938,7 +938,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                           {m.fee != null ? (
                             <span>
                               {fmtMoney(m.fee)}
-                              <TP_PF_FeeTag source={m.feeSource} />
+                              <TP_PF_FeeTag source={m.feeSource} review={m.feeReview} />
                             </span>
                           ) : (
                             "–"
