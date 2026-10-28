@@ -358,6 +358,8 @@ var TK_MY_GROUPS = [
   { key: "today", label: "Today" },
   { key: "week", label: "This week" },
   { key: "later", label: "Later" },
+  // Slate plus dependencies: only filled when TK_groupMyTasks gets opts.isBlocked.
+  { key: "blocked", label: "Blocked" },
   { key: "waiting", label: "Waiting on client" },
   { key: "unassigned", label: "Unassigned" },
   { key: "done", label: "Done" },
@@ -1157,6 +1159,8 @@ var TK_BULK_REASONS = {
   changed_since: "It changed after your action.",
   // Slate app P3 (tk_bulk_set)
   done_use_reopen: "It's done. Reopen it first.",
+  // Slate plus dependencies (only for tasks with a blocker)
+  blocked: "It's blocked by unfinished tasks.",
   no_project: "It isn't in a project.",
   section_missing: "Its project has no section by that name.",
   error: "Something went wrong with this one.",

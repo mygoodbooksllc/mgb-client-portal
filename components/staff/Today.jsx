@@ -464,9 +464,12 @@ function TD_buildRows(x) {
   // for review with one toast. The link stays work/tasks: LK_go hands it to
   // the task drawer when that's ready.
   if (typeof TK_groupMyTasks === "function") {
+    // Slate plus dependencies: blocked tasks that aren't late leave Now and
+    // This week (isBlocked is undefined while off: the groups are as before).
+    const isBlocked = typeof TKD_groupOpt === "function" ? TKD_groupOpt() : undefined;
     const g = TK_groupMyTasks(
       (x.items || []).filter((t) => t.kind !== "note"),
-      { today, email: me },
+      isBlocked ? { today, email: me, isBlocked } : { today, email: me },
     );
     const complete = (t) => {
       if (typeof TK_api !== "undefined" && TK_api && typeof TK_api.complete === "function") {
@@ -1552,6 +1555,8 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // returns every client's), and the admin's own approvals queue is left out.
   const vaIds = React.useMemo(() => new Set(openableClients.map((c) => c && c.id)), [openableClients]);
   const inScope = (r) => !ro || (r && vaIds.has(r.client_id));
+  // Slate plus dependencies (TKP_on): re-build when the deps load; 0 while off.
+  const depsVer = typeof TKD_useDeps === "function" ? TKD_useDeps() : 0;
   const rowsAll = React.useMemo(
     () =>
       TD_buildRows({
@@ -1620,6 +1625,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       admin,
       ro,
       vaIds,
+      depsVer,
     ],
   );
   // View as: every row action is disabled (the guard would refuse it anyway).

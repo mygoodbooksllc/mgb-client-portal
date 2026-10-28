@@ -1782,6 +1782,8 @@ function TK_DrawerContent(props) {
             {!!task.review_required && !isAdmin && <p className="tk-dw-hint">Only an admin can turn this off.</p>}
           </div>
 
+          {typeof TK_DwDepsRow === "function" ? <TK_DwDepsRow task={task} readOnly={readOnly} isAdmin={isAdmin} /> : null}
+
           {task.client_id && (
             <React.Fragment>
               <label className="tk-dw-label" htmlFor="tk-dw-sop">

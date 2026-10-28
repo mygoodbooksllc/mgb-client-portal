@@ -162,7 +162,9 @@ function WB_HubTasksBody(props) {
     [projects],
   );
 
-  var groups = TK_groupMyTasks(all, today, { email: email, showOlder: false, todayGroup: true, isAdmin: isAdmin });
+  // Slate plus dependencies (TKP_on): a Blocked group after Later; undefined while off.
+  if (typeof TKD_useDeps === "function") TKD_useDeps(); // re-render when the deps load
+  var groups = TK_groupMyTasks(all, today, { email: email, showOlder: false, todayGroup: true, isAdmin: isAdmin, isBlocked: typeof TKD_groupOpt === "function" ? TKD_groupOpt() : undefined });
   var view = TK_myGroupsView(groups, { collapsed: props.collapsed || {}, showDone: false });
   var subs = TK_vUseSubtasks(all);
   if (typeof TK_subNestGroups === "function") view = TK_subNestGroups(view, subs.kidsOf);

@@ -401,7 +401,12 @@ function TK_groupMyTasks(tasks, today, opts) {
   var isAdmin = !!opts.isAdmin;
   var inMyBook = typeof opts.inMyBook === "function" ? opts.inMyBook : null;
   var me = TK__lower(email);
+  // Slate plus dependencies: opts.isBlocked(task) (TKD_groupOpt, only while
+  // TKP_on). Open blocked tasks that aren't late go to g.blocked; late ones
+  // stay in Overdue so they still count as late. Without it: as before.
+  var isBlocked = typeof opts.isBlocked === "function" ? opts.isBlocked : null;
   var g = { overdue: [], today: [], week: [], later: [], waiting: [], unassigned: [], done: [] };
+  if (isBlocked) g.blocked = [];
   var list = Array.isArray(tasks) ? tasks : [];
   for (var i = 0; i < list.length; i++) {
     var t = list[i];
@@ -424,6 +429,10 @@ function TK_groupMyTasks(tasks, today, opts) {
     }
     var due = t.due_date ? String(t.due_date).slice(0, 10) : "";
     var d = due ? TK_dayDiff(today, due) : NaN;
+    if (isBlocked && st !== "ready_for_review" && !(d < 0 && !TK_lateExcused(t)) && isBlocked(t)) {
+      g.blocked.push(t);
+      continue;
+    }
     if (isNaN(d)) g.later.push(t);
     else if (d < 0 && TK_lateExcused(t)) g.waiting.push(t);   // tk rhythm s4: never late
     else if (d < 0) g.overdue.push(t);
@@ -437,6 +446,7 @@ function TK_groupMyTasks(tasks, today, opts) {
   g.later.sort(TK_compareTasks);
   g.waiting.sort(TK_compareTasks);
   g.unassigned.sort(TK_compareTasks);
+  if (g.blocked) g.blocked.sort(TK_compareTasks);
   g.done.sort(function (a, b) {
     var c = TK__cmpNullsLast(b.completed_at || b.updated_at, a.completed_at || a.updated_at);
     // nulls last even in descending order

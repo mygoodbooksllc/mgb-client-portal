@@ -69,6 +69,8 @@ var TK_api = (function () {
     "tk_project_trashed", "tk_bad_name", "tk_trash_expired", "tk_restore_name_taken", "tk_task_in_trash",
     "tk_bad_color", "tk_use_close_tick",
     "tk_too_many", "tk_bad_patch", "tk_project_missing", "tk_project_archived", "tk_undo_used", "tk_undo_expired",
+    // Slate plus dependencies (supabase/slateplus-deps.sql); only raised for tasks that have one.
+    "tk_blocked", "tk_dep_self", "tk_dep_cycle", "tk_dep_limit", "tk_dep_reason", "tk_dep_step",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -724,6 +726,9 @@ var TK_api = (function () {
     var s = store();
     var cached = s && s.getState().tasks[id];
     var from = cached ? effectiveStatus(cached) : null;
+    // Slate plus (TKP_on): a blocked task can't start, go to review or finish.
+    // TKD_precheck is false while off or when the task has no open blocker.
+    if (cached && from !== status && typeof TKD_precheck === "function" && TKD_precheck(cached, status)) return Promise.resolve(from);
     return statusRpc(id, status, note).then(function (result) {
       toastFor(from, status, result);
       return refresh(id).then(function (t) {
@@ -757,6 +762,11 @@ var TK_api = (function () {
     if (completing[task.id]) return completing[task.id];
     var off = requireOnline();
     if (off) return off;
+    // Slate plus (TKP_on): a blocked task can't be finished; TKD_precheck
+    // toasts why (admins get Override). False while off or not blocked.
+    if (done && typeof TKD_precheck === "function" && TKD_precheck(task, "done", opts && typeof opts.isAdmin === "boolean" ? opts.isAdmin : undefined)) {
+      return Promise.resolve({ status: current, sentForReview: false, nextId: null, blocked: true });
+    }
     // Slate rhythm slice 4 (b): a "Send reports" row completed from a list
     // checkbox, Today or the Overview opens the task instead, so the drawer
     // asks Full or Preliminary. The drawer picker passes skipReportPick.
@@ -1505,6 +1515,29 @@ var TK_api = (function () {
   api.bulkRun = function (kind, ids, patch) {
     var list = idList(ids);
     var isField = Object.prototype.hasOwnProperty.call(FIELD_KINDS, kind);
+    // Slate plus (TKP_on): blocked rows are skipped here with reason
+    // "blocked" (the server skips them too if this list is stale). Off or
+    // nothing blocked: the call below is exactly as before.
+    var depSkips = [];
+    if (typeof TKD_splitBulk === "function" && typeof TKD_ready === "function" && TKD_ready()) {
+      var resumeOk = kind === "set_status" && patch && patch.status === "in_progress";
+      var split = TKD_splitBulk(list, kind, patch, function (id) {
+        // Back from review / waiting on the client is a resume, never skipped.
+        var st = resumeOk ? store() : null;
+        var c = st ? st.getState().tasks[String(id)] : null;
+        if (c && (c.status === "ready_for_review" || c.status === "waiting_client")) return false;
+        return TKD_isBlockedId(id);
+      });
+      if (split.skipped.length) {
+        depSkips = split.skipped;
+        list = split.keep;
+        if (!list.length) {
+          var none = { opId: null, done: [], review: [], skipped: depSkips, spawned: [] };
+          api.offerUndo(summaryText(kind, none), none, { ids: [] });
+          return Promise.resolve(none);
+        }
+      }
+    }
     var call =
       kind === "complete" ? api.bulkComplete(list)
       : kind === "reopen" ? api.bulkReopen(list)
@@ -1512,6 +1545,7 @@ var TK_api = (function () {
       : isField ? api.bulkSet(list, patch)
       : api.bulkUpdate(list, patch);
     return call.then(function (r) {
+      if (depSkips.length) r = Object.assign({}, r, { skipped: (Array.isArray(r.skipped) ? r.skipped : []).concat(depSkips) });
       api.offerUndo(summaryText(kind, r), r, isField ? { ids: list, fields: true } : { ids: list });
       return r;
     });
@@ -1998,6 +2032,39 @@ var TK_api = (function () {
         .map(function (r) { return lower(r && typeof r === "object" ? r.email : r); })
         .filter(Boolean);
     });
+  };
+
+  // ---- Slate plus dependencies (hidden preview, TKP_on) ----------------------
+  // supabase/slateplus-deps.sql. Only TK_deps.js, TK_Deps.jsx and the bell
+  // call these, and only while TKP_on() is true. Staff only on the server.
+  api.depList = function (taskIds) {
+    var ids = Array.isArray(taskIds) ? idList(taskIds) : null;
+    return run(function (c) {
+      return c.rpc("tk_dep_list", { p_task_ids: ids && ids.length ? ids : null });
+    }, { where: "depList" }).then(function (rows) { return rows || []; });
+  };
+  api.depAdd = function (taskId, blockerId) {
+    return rpcWrite("tk_dep_add", { p_task: taskId, p_blocker: blockerId }, "depAdd");
+  };
+  api.depRemove = function (taskId, blockerId) {
+    return rpcWrite("tk_dep_remove", { p_task: taskId, p_blocker: blockerId }, "depRemove");
+  };
+  api.depOverride = function (taskId, reason) {
+    return rpcWrite("tk_dep_override", { p_task: taskId, p_reason: String(reason || "") }, "depOverride");
+  };
+  api.depMyNotices = function () {
+    return run(function (c) {
+      return c.rpc("tk_dep_my_notices", { p_days: 14 });
+    }, { where: "depMyNotices" }).then(function (rows) { return rows || []; });
+  };
+  api.templateDepStep = function (templateId) {
+    if (!templateId) return Promise.resolve(null);
+    return run(function (c) {
+      return c.from("task_templates").select("id, dep_step").eq("id", templateId).maybeSingle();
+    }, { where: "templateDepStep" }).then(function (row) { return row && row.dep_step != null ? Number(row.dep_step) : null; });
+  };
+  api.setTemplateDepStep = function (templateId, step) {
+    return rpcWrite("tk_set_template_dep_step", { p_id: templateId, p_step: step == null ? null : Number(step) }, "setTemplateDepStep");
   };
 
   api.listMentions = function (email, opts) {

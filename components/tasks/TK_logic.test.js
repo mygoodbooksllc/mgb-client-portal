@@ -1258,4 +1258,26 @@ t("the file is pure: no React, DOM writes, Supabase or lookbehind", () => {
   tops.forEach((d) => assert.ok(/ (TK_|SLATE_NAME$)/.test(d), d)); // SLATE_NAME is the one shared constant
 });
 
+t("groupMyTasks isBlocked (Slate plus deps): blocked group, late stays late", () => {
+  const list = [
+    task({ text: "b-today", due_date: TODAY }),
+    task({ text: "b-late", due_date: "2026-10-01" }),
+    task({ text: "b-none" }),
+    task({ text: "b-review", status: "ready_for_review" }),
+    task({ text: "b-wait", status: "waiting_client" }),
+    task({ text: "free", due_date: TODAY }),
+  ];
+  const blocked = (t) => /^b-/.test(t.text);
+  const g = L.TK_groupMyTasks(list, TODAY, { email: ME, isBlocked: blocked });
+  assert.deepStrictEqual(ids(g.blocked).sort(), ["b-none", "b-today"]);
+  assert.deepStrictEqual(ids(g.overdue), ["b-late"]);
+  assert.deepStrictEqual(ids(g.today), ["free"]);
+  assert.deepStrictEqual(ids(g.waiting), ["b-wait"]);
+  assert.ok(ids(g.later).indexOf("b-review") >= 0 || ids(g.week).indexOf("b-review") >= 0 || ids(g.today).indexOf("b-review") >= 0 || ids(g.overdue).indexOf("b-review") >= 0);
+  // Without the option: no blocked key and the old groups.
+  const g0 = L.TK_groupMyTasks(list, TODAY, { email: ME });
+  assert.strictEqual("blocked" in g0, false);
+  assert.deepStrictEqual(ids(g0.today).sort(), ["b-today", "free"]);
+});
+
 console.log(n + " checks passed");

@@ -920,6 +920,32 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
     const id = setInterval(() => !document.hidden && loadRhy(), TB_BELL_REFRESH_MS);
     return () => clearInterval(id);
   }, [loadRhy, page]);
+  // Slate plus "Blocked by" (hidden preview): "Ready to start" notices for me
+  // (tk_dep_my_notices: my own rows, open tasks, last 14 days). Only while
+  // TKP_on(); never in View as (TKP_on is false there).
+  const [depNotices, setDepNotices] = useState([]);
+  const loadDeps = useCallback(() => {
+    const on = typeof TKP_on === "function" && TKP_on();
+    if (!me || !on || typeof TK_api === "undefined" || !TK_api || typeof TK_api.depMyNotices !== "function") {
+      setDepNotices((x) => (x.length ? [] : x));
+      return;
+    }
+    Promise.resolve(TK_api.depMyNotices()).then(
+      (rows) => setDepNotices(Array.isArray(rows) ? rows : []),
+      () => setDepNotices([]),
+    );
+  }, [me]);
+  useEffect(() => {
+    loadDeps();
+    const id = setInterval(() => !document.hidden && loadDeps(), TB_BELL_REFRESH_MS);
+    window.addEventListener("mgb:slateplus", loadDeps);
+    window.addEventListener("mgb:tkdeps", loadDeps);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("mgb:slateplus", loadDeps);
+      window.removeEventListener("mgb:tkdeps", loadDeps);
+    };
+  }, [loadDeps, page]);
   const idsKey = (clients || []).map((c) => c.id).sort().join(",");
   const load = useCallback(async () => {
     const sb = window.mgbSupabase;
@@ -1042,6 +1068,21 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
         at: row.created_at,
         title: `Preliminary reports two months in a row: ${nameOf(row.client_id)}`,
         sub: "Follow-up task is open",
+        go: () =>
+          TB_tkCanOpen()
+            ? TK_openTask(row.task_id, { from: "bell" })
+            : lkGo({ place: "tasks", tab: "my", item: "task:" + row.task_id }),
+      }),
+    );
+  depNotices
+    .filter((row) => row && row.task_id && !skipped(row.client_id))
+    .forEach((row) =>
+      out.push({
+        // "task:" prefix: follows the "Tasks assigned to me" bell setting.
+        id: "task:dep:" + row.id,
+        at: row.created_at,
+        title: `Ready to start: ${row.task_text || "a task"}`,
+        sub: [row.client_id ? nameOf(row.client_id) : "", "What it waited on is done"].filter(Boolean).join(" · "),
         go: () =>
           TB_tkCanOpen()
             ? TK_openTask(row.task_id, { from: "bell" })

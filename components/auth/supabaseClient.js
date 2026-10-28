@@ -75,6 +75,10 @@ window.MGB_VIEW_AS_SILENT_RPCS = new Set([
   "wb_inbox",
   "sp_my_photo_status",
   "tk_project_task_counts",
+  // Slate plus "Blocked by" (STABLE, answers for the admin's own JWT). The
+  // preview is off in View as (TKP_on), so these normally never run there.
+  "tk_dep_list",
+  "tk_dep_my_notices",
 ]);
 // The admin's own telemetry (JWT-bound server-side).
 window.MGB_VIEW_AS_WRITE_OK = new Set(["usage_events", "client_errors"]);

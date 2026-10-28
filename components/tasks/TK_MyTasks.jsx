@@ -361,6 +361,16 @@ function TK_MyTasks(props) {
 // the Slate page does (same drawer, same link), then Open Slate. No Done tick, no
 // status menu, no drag, no select: those live on the Slate page only. Reads the
 // same "mine" list as the Slate page, so a change shows here at once.
+// Slate plus dependencies (components/tasks/TK_deps.js, hidden preview): the
+// hook re-renders when the deps load (no network and returns 0 while off) and
+// the opt is TK_groupMyTasks' isBlocked (undefined while off).
+function TK_vUseDepsVer() {
+  return typeof TKD_useDeps === "function" ? TKD_useDeps() : 0;
+}
+function TK_vDepsOpt() {
+  return typeof TKD_groupOpt === "function" ? TKD_groupOpt() : undefined;
+}
+
 function TK_vSummaryBody(props) {
   var staffUser = props.staffUser || {};
   var email = TK_vLower(staffUser.email);
@@ -384,7 +394,10 @@ function TK_vSummaryBody(props) {
     [projects],
   );
   var all = Array.isArray(list.tasks) ? list.tasks : [];
-  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(all, today, { email: email, todayGroup: true, isAdmin: !!props.isAdmin }) : {};
+  // Slate plus dependencies (TKP_on): blocked tasks leave Due today / Next up.
+  // isBlocked is undefined while off, so the groups are built as before.
+  TK_vUseDepsVer();
+  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(all, today, { email: email, todayGroup: true, isAdmin: !!props.isAdmin, isBlocked: TK_vDepsOpt() }) : {};
   var sum = typeof TK_slateSummary === "function" ? TK_slateSummary(groups) : { late: [], today: [], next: [], lateMore: 0, todayMore: 0, nextMore: 0 };
   var slateHref = typeof LK_href === "function" ? LK_href({ place: "tasks", tab: "my" }) : "#/tasks/my";
   var loading = !!list.loading && !all.length;
@@ -527,7 +540,8 @@ function TK_vSnapshotBody(props) {
     },
     [projects],
   );
-  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(st.tasks, today, { email: email, todayGroup: true }) : {};
+  TK_vUseDepsVer();
+  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(st.tasks, today, { email: email, todayGroup: true, isBlocked: TK_vDepsOpt() }) : {};
   var view = TK_myGroupsView(groups, { collapsed: {}, showDone: false });
   // Links and buttons inside the rows would open the drawer or a menu.
   var stopClicks = function (e) {
@@ -730,6 +744,9 @@ function TK_vMyTasksBody(props) {
       },
     });
   }
+  // Slate plus dependencies (TKP_on): a Blocked group after Later. Off: as before.
+  TK_vUseDepsVer();
+  groupOpts.isBlocked = TK_vDepsOpt();
   var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(tasks, today, groupOpts) : {};
   // Rhythm slice 0: Group by (Due date, Client, 4/14/24th, Status), Sort
   // chips and quick chips, saved per person. Nothing chosen builds the groups

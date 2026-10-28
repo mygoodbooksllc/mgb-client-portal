@@ -755,6 +755,8 @@ function TK_tplEditor(props) {
             />
           </div>
 
+          {typeof TK_tplDepStepField === "function" ? <TK_tplDepStepField templateId={d.id} /> : null}
+
           <fieldset className="tk-field tk-tpl-applies">
             <legend className="tk-field-label">Which clients</legend>
             <div className="tk-tpl-tiers">

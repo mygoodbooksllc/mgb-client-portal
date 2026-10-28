@@ -88,6 +88,11 @@ function TK_vCopy(key, fallback) {
 // The C10 line for a failed write or read.
 function TK_vErrText(err, fallbackKey) {
   var code = err && err.code ? String(err.code) : "";
+  // Slate plus dependencies: the server refused a start or finish (only ever
+  // raised for a task that has a blocker, supabase/slateplus-deps.sql).
+  if ((err && err.reason === "tk_blocked") || /tk_blocked/.test(String((err && err.message) || ""))) {
+    return "Blocked by unfinished tasks. Finish those first.";
+  }
   var rk = typeof TK_reviewErrorKey === "function" ? TK_reviewErrorKey(err) : null; // tasks p2 s3
   if (rk && TK_vCopy(rk)) return TK_vCopy(rk);
   // P4-3: a one-row bulk call the server skipped; the message is the reason.
@@ -1669,6 +1674,15 @@ function TK_vRowMore(props) {
 //   Workbench hub): onSelect(id, shiftKey) shows a select box before the title
 //   (on hover, or always once anything is selected: `selecting`), selected.
 
+// Slate plus dependencies: the small lock on the "Blocked by N" chip.
+function TK_vLockIcon() {
+  return (
+    <svg className="tk-lock-icon" width="11" height="11" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M5 7V5a3 3 0 0 1 6 0v2h.5A1.5 1.5 0 0 1 13 8.5v5A1.5 1.5 0 0 1 11.5 15h-7A1.5 1.5 0 0 1 3 13.5v-5A1.5 1.5 0 0 1 4.5 7H5zm1.5 0h3V5a1.5 1.5 0 0 0-3 0v2z" />
+    </svg>
+  );
+}
+
 function TK_TaskRow(props) {
   var task = props.task;
   var ref = React.useRef(null);
@@ -1696,6 +1710,9 @@ function TK_TaskRow(props) {
     },
     [unassignedOpen],
   );
+  // Slate plus dependencies (TKP_on): re-render when the deps load. No
+  // network and returns 0 while off.
+  if (typeof TKD_useDeps === "function") TKD_useDeps();
   if (!task) return null;
   var id = task.id;
   // R2: the task showing in the Desk's task view (TK_store.deskTaskId) is marked
@@ -1800,6 +1817,15 @@ function TK_TaskRow(props) {
   if (cl) meta.push(<span key="cl" className="tk-meta-check" title="Checklist">{cl.done + "/" + cl.total}</span>);
   // tasks p2 s4: made by a recurring template
   if (task.source === "template") meta.push(<span key="rc" className="tk-meta-recurring" title="Made by a recurring template">Recurring</span>);
+  // Slate plus dependencies: "Blocked by N" (null while off or not loaded).
+  var depOpen = !done && typeof TKD_blockersOf === "function" ? TKD_blockersOf(task) : null;
+  if (depOpen && depOpen.length)
+    meta.push(
+      <span key="dep" className="tk-meta-blocked" title={TKD_chipTitle(depOpen)}>
+        <TK_vLockIcon />
+        {TKD_chipText(depOpen.length)}
+      </span>,
+    );
   if (props.snippet) meta.push(<span key="sn" className="tk-meta-snippet">{"In a comment: " + props.snippet}</span>);
   if (props.note) meta.push(<span key="nt" className="tk-meta-note">{props.note}</span>);
   // Month rhythm S6 (Close order): the first open step, or one waiting on the client

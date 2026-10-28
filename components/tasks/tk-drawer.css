@@ -1364,3 +1364,129 @@
 .tk-dw-report-list { list-style: none; padding: 0; margin: 6px 0 8px; display: grid; gap: 6px; }
 .tk-dw-report-item { display: flex; gap: 6px; align-items: center; }
 .tk-dw-report-item .tk-dw-input { flex: 1; min-width: 0; }
+
+/* ---- Slate plus "Blocked by" drawer row and template step (hidden preview) ------------- */
+
+.tk-deps .tk-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-strong);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.tk-deps .tk-link:hover {
+  color: var(--text);
+}
+
+.tk-dep-list {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.tk-dep-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tk-dep-item.is-open {
+  color: var(--warm-text);
+}
+
+.tk-dep-item.is-clear .tk-dep-name {
+  color: var(--text-muted);
+}
+
+.tk-dep-tick {
+  flex: none;
+  width: 11px;
+  color: var(--good);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.tk-dep-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-dep-meta {
+  flex: none;
+  font-size: 12px;
+}
+
+.tk-dep-remove {
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  font-size: 16px;
+}
+
+.tk-dep-picker {
+  position: relative;
+  display: grid;
+  gap: 4px;
+}
+
+.tk-dep-options {
+  display: grid;
+  max-height: 240px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  list-style: none;
+}
+
+.tk-dep-option {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tk-dep-option:hover,
+.tk-dep-option:focus-visible {
+  background: var(--hover-bg);
+}
+
+.tk-dep-option-text {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-dep-option .tk-muted {
+  font-size: 12px;
+}
+
+.tk-dep-none {
+  padding: 6px 8px;
+}
+
+.tk-tpl-depstep-input {
+  max-width: 120px;
+}
