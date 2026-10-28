@@ -30702,7 +30702,26 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   <ClientNotifications
                     clientId={client.id}
                     items={[
-                      ...(access.tabs.has("documents")
+                      // Tasks p2 minors (7): the bell counts the same open
+                      // requests as Home's Needs you (ClientNeeds: questions and
+                      // documents); the old document list is the fallback.
+                      // Legacy requests keep their ids, so "seen" carries over.
+                      ...(cnRequests && cnRequests.loaded && !cnRequests.error
+                        ? access.tabs.has("messages") || access.tabs.has("documents")
+                          ? CN_openOf(cnRequests.rows).map((r) => ({
+                              id: "req:" + r.id,
+                              title: `${r.needs_upload || r.kind === "document" ? "Please upload" : "Please answer"}: ${r.title}`,
+                              sub: r.due_date ? `Due ${fmtDate(r.due_date)}` : "Requested " + (relTime(r.asked_at || r.created_at) || ""),
+                              cta: r.needs_upload || r.kind === "document" ? "Upload now" : "Answer now",
+                              onOpen: () => {
+                                if (access.tabs.has("messages")) {
+                                  setClientSub({ clientId: selectedClientId, page: "messages", sub: "requests" });
+                                  setPage("messages");
+                                } else setPage("documents");
+                              },
+                            }))
+                          : []
+                        : access.tabs.has("documents")
                         ? openDocRequests.map((r) => ({
                             id: "req:" + r.id,
                             title: `Please upload: ${r.title}`,
