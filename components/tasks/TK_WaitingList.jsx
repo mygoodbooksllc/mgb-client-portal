@@ -19,6 +19,15 @@ function TK_WaitingList(props) {
   var errPair = React.useState(null);
   var minePair = React.useState(!isAdmin);
   var cancelPair = React.useState(null);
+  // The Desk's "See all" leaves a one-shot client id: show only that client until "Show all clients".
+  var onlyPair = React.useState(function () {
+    var h = null;
+    try {
+      h = window.TK_waitingClientHint || null;
+      window.TK_waitingClientHint = null;
+    } catch (e) {}
+    return h;
+  });
   var seq = React.useRef(0);
 
   var load = React.useCallback(function () {
@@ -64,6 +73,7 @@ function TK_WaitingList(props) {
 
   var all = rows || [];
   var shown = minePair[0] ? all.filter(function (r) { return String(r.assignee_email || "").toLowerCase() === me; }) : all;
+  if (onlyPair[0]) shown = shown.filter(function (r) { return String(r.client_id) === String(onlyPair[0]); });
   var groups = TK_waitingGroups(shown);
 
   var send = function (r, action) {
@@ -138,6 +148,12 @@ function TK_WaitingList(props) {
           <input type="checkbox" checked={minePair[0]} onChange={function (e) { minePair[1](e.target.checked); }} />
           Just my tasks
         </label>
+        {onlyPair[0] ? (
+          <p className="tk-muted tk-view-sub">
+            {"Showing one client. "}
+            <button type="button" className="link-btn" onClick={function () { onlyPair[1](null); }}>Show all clients</button>
+          </p>
+        ) : null}
       </div>
       {!online ? <TK_vOfflineBanner /> : null}
       {body}

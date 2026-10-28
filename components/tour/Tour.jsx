@@ -1033,6 +1033,8 @@ function TOUR_tabStep(place, tab, title, body, when) {
 function TOUR_deskPlusOn() {
   try {
     if (typeof WB_plusOn !== "function") return false;
+    // View as shows the tour but never mounts the Desk, so no Desk additions text there.
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
     if (typeof WB_store === "undefined" || !WB_store.getState().on) return false;
     return !!WB_plusOn(true);
   } catch (e) {

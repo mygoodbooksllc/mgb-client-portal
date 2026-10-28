@@ -282,6 +282,14 @@ t("Pick a date: bounds tomorrow..+30; past or bad dates refused; capped at 30 da
   assert.ok(Date.parse(far) <= NOW + 30 * D, far);
 });
 
+t("Pick a date: early morning stops the picker a day sooner so no odd clamped time", () => {
+  const early = Date.parse("2026-10-20T11:00:00Z"); // Tue 6am Chicago: day +30 at 8am is past 30 days
+  assert.deepStrictEqual(L.TM_dateBounds(early), { min: "2026-10-21", max: "2026-11-18" });
+  const last = L.TM_snoozeAt("date", early, L.TM_dateBounds(early).max);
+  assert.strictEqual(L.TM_shortWhen(last), "Wed 8am");
+  assert.ok(Date.parse(last) < early + 30 * D);
+});
+
 t("Wake timer: earliest future snooze, at most 60s; null when none", () => {
   assert.strictEqual(L.TM_nextWakeMs({}, NOW), null);
   assert.strictEqual(L.TM_nextWakeMs({ a: { snoozed_until: iso(NOW - 1) } }, NOW), null);

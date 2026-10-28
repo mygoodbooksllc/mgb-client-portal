@@ -121,6 +121,7 @@ function TM_useThreadStates(on, idsKey, bump) {
   var setNow = nPair[1];
   var tokenRef = React.useRef(0);
   var firstRef = React.useRef(true);
+  var reloadRef = React.useRef(0);
   var load = React.useCallback(
     function () {
       if (!on || !idsKey) return;
@@ -167,8 +168,11 @@ function TM_useThreadStates(on, idsKey, bump) {
       var onRow = function (e) {
         var row = e && e.detail && e.detail.row;
         if (!row || !row.client_id) return;
-        // A list() already in flight was read before this write: drop it.
+        // A list() already in flight was read before this write: drop it, then
+        // read again shortly so a teammate's change in that list still arrives.
         tokenRef.current++;
+        clearTimeout(reloadRef.current);
+        reloadRef.current = setTimeout(load, 600);
         var k = TM__key(row.client_id, row.participant_email);
         setStates(function (s) {
           var next = Object.assign({}, s);
@@ -187,6 +191,7 @@ function TM_useThreadStates(on, idsKey, bump) {
       window.addEventListener("focus", onFocus);
       document.addEventListener("visibilitychange", onVis);
       return function () {
+        clearTimeout(reloadRef.current);
         window.removeEventListener(TM_STATE_EVENT, onRow);
         window.removeEventListener("focus", onFocus);
         document.removeEventListener("visibilitychange", onVis);
