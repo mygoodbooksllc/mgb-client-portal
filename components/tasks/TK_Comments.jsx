@@ -295,7 +295,14 @@ function TK_cmComment(props) {
       </span>
       <div className="tk-cm-main">
         <div className="tk-cm-meta">
-          <span className="tk-cm-name">{name}</span>
+          <span className="tk-cm-name">
+            {staffRow && TK_cmPersonOn() ? (
+              // Slate plus: staff authors open their profile. Client authors never link.
+              <TKP_PersonLink email={staffRow.email} title={"Open " + name + "'s profile"}>{name}</TKP_PersonLink>
+            ) : (
+              name
+            )}
+          </span>
           {c.kind && TK_CM_KIND_LABELS[c.kind] && <span className="tk-cm-kind">{TK_CM_KIND_LABELS[c.kind]}</span>}
           <TK_cmTime at={c.created_at} />
           {c.edited_at && !deleted && (
@@ -360,15 +367,33 @@ function TK_cmComment(props) {
   );
 }
 
+// Slate plus: a staff name links to the profile (plain check, no hook).
+function TK_cmPersonOn() {
+  return typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on();
+}
+
+// The staff row for an email, or null (client authors and unknown emails).
+function TK_cmStaffOf(staff, email) {
+  var em = TK_dwLower(email);
+  if (!em) return null;
+  return (staff || []).filter(function (s) { return TK_dwLower(s.email) === em; })[0] || null;
+}
+
 function TK_cmActivityLine(props) {
   var a = props.entry;
   var text = TK_activityText(a, { nameOf: props.nameOf, statusLabel: TK_dwStatusLabel, today: TK_dwToday() });
+  var actorName = (typeof TK_requestAuthorLabel === "function" && TK_requestAuthorLabel(a.actor_email, props.requestNames)) || props.nameOf(a.actor_email);
+  var actorStaff = TK_cmPersonOn() ? TK_cmStaffOf(props.staff, a.actor_email) : null;
   return (
     <li className="tk-cm-activity">
       <span className="tk-cm-dot" aria-hidden="true" />
       <span className="tk-cm-activity-text">
         <span className="tk-cm-name">
-          {(typeof TK_requestAuthorLabel === "function" && TK_requestAuthorLabel(a.actor_email, props.requestNames)) || props.nameOf(a.actor_email)}
+          {actorStaff ? (
+            <TKP_PersonLink email={actorStaff.email} title={"Open " + actorName + "'s profile"}>{actorName}</TKP_PersonLink>
+          ) : (
+            actorName
+          )}
         </span>{" "}
         {text}
       </span>
@@ -500,7 +525,7 @@ function TK_Comments(props) {
         <ul className="tk-cm-thread" ref={listRef} aria-live="polite">
           {items.map(function (it) {
             if (it.type === "activity") {
-              return <TK_cmActivityLine key={"a" + it.item.id} entry={it.item} nameOf={nameOf} />;
+              return <TK_cmActivityLine key={"a" + it.item.id} entry={it.item} nameOf={nameOf} staff={staff} />;
             }
             return (
               <TK_cmComment

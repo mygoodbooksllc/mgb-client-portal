@@ -372,6 +372,23 @@ function TK_SlateFilterBar(props) {
   var canAdd = list.length < TK_FILTER_VIEW_MAX;
   return (
     <div className={"tk-fb" + (active ? " is-on" : "")} role="group" aria-label="Filter the Slate list" data-tour="tk-filter-bar">
+      {value.q && typeof TKS_SearchBox === "function" ? (
+        // Profile 2: the in-list box is gone (the unified search sets this);
+        // the text filter shows here as a removable chip.
+        <span className="tks-text-chip">
+          <span className="tks-text-chip-label">{'Text: "' + value.q + '"'}</span>
+          <button
+            type="button"
+            className="tks-text-chip-x"
+            aria-label={'Remove the text filter "' + value.q + '"'}
+            onClick={function () {
+              set({ q: "" });
+            }}
+          >
+            ×
+          </button>
+        </span>
+      ) : null}
       <TK__fbSelect
         label="Assignee"
         value={value.assignee}

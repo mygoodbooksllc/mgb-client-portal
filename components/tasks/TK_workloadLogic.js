@@ -104,8 +104,109 @@ function TKW_readCollapsed(lsGet) {
   }
 }
 
+// ---- Four-week bars (tk_slateplus_workload_weeks, docs/slateplus-profile2-spec.md §12.4)
+
+var TKW_YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function TKW__addDays(ymd, days) {
+  var p = String(ymd).split("-").map(Number);
+  var d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + days));
+  return d.toISOString().slice(0, 10);
+}
+
+// RPC rows -> { weeks: [4 Monday dates], unassigned: row|null, people: [row] }.
+// Each row: { id, email, name, me, unassigned, cells: [n,n,n,n], open }.
+// Missing weeks count 0. Dated rows fill cells; the week_start=null row holds
+// the all-dates open count. People sort like the strip (this week, then
+// open, then name); Unassigned is kept apart (the UI shows it first, muted).
+function TKW_weekRows(raw) {
+  var list = Array.isArray(raw) ? raw : [];
+  var dates = {};
+  list.forEach(function (r) {
+    if (r && r.week_start && TKW_YMD_RE.test(String(r.week_start).slice(0, 10))) dates[String(r.week_start).slice(0, 10)] = 1;
+  });
+  var sorted = Object.keys(dates).sort();
+  var weeks = [];
+  if (sorted.length) for (var i = 0; i < 4; i++) weeks.push(TKW__addDays(sorted[0], 7 * i));
+  var byKey = {};
+  var order = [];
+  list.forEach(function (r) {
+    if (!r) return;
+    var un = r.is_unassigned === true;
+    var email = un ? "" : String(r.email || "").trim().toLowerCase();
+    if (!un && !email) return;
+    var key = un ? "~unassigned" : email;
+    var row = byKey[key];
+    if (!row) {
+      row = byKey[key] = {
+        id: !un && r.staff_id ? String(r.staff_id) : null,
+        email: un ? null : email,
+        name: un ? "Unassigned" : String(r.name || email.split("@")[0]),
+        me: !un && r.is_me === true,
+        unassigned: un,
+        cells: [0, 0, 0, 0],
+        open: 0,
+      };
+      order.push(key);
+    }
+    if (r.week_start == null) {
+      row.open = TKW__int(r.due_count);
+      return;
+    }
+    var idx = weeks.indexOf(String(r.week_start).slice(0, 10));
+    if (idx !== -1) row.cells[idx] = TKW__int(r.due_count);
+  });
+  var people = [];
+  var unassigned = null;
+  order.forEach(function (k) {
+    if (k === "~unassigned") unassigned = byKey[k];
+    else people.push(byKey[k]);
+  });
+  people.sort(function (a, b) {
+    return b.cells[0] - a.cells[0] || b.open - a.open || a.name.localeCompare(b.name);
+  });
+  return { weeks: weeks, unassigned: unassigned, people: people };
+}
+
+// Bar width (0..100) of one cell against the largest visible cell (people
+// and Unassigned). 0 -> 0%.
+function TKW_weekPct(value, pivot) {
+  var max = 0;
+  var rows = pivot ? (pivot.people || []).concat(pivot.unassigned ? [pivot.unassigned] : []) : [];
+  rows.forEach(function (r) {
+    (r.cells || []).forEach(function (c) {
+      if (c > max) max = c;
+    });
+  });
+  var v = TKW__int(value);
+  if (!max || !v) return 0;
+  return Math.round((v / max) * 100);
+}
+
+var TKW_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// Column headers: "This week", "Next week", then the Monday dates ("Nov 9").
+function TKW_weekLabels(weeks) {
+  return (weeks || []).map(function (w, i) {
+    if (i === 0) return "This week";
+    if (i === 1) return "Next week";
+    var p = String(w).split("-").map(Number);
+    return TKW_MONTHS[p[1] - 1] + " " + p[2];
+  });
+}
+
+// First chip on Team › People: "Unassigned: 4 open · 1 due this week".
+function TKW_unassignedText(row) {
+  if (!row) return "";
+  return "Unassigned: " + TKW__int(row.open) + " open · " + TKW__int(row.cells && row.cells[0]) + " due this week";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    TKW_weekRows: TKW_weekRows,
+    TKW_weekPct: TKW_weekPct,
+    TKW_weekLabels: TKW_weekLabels,
+    TKW_unassignedText: TKW_unassignedText,
     TKW_rows: TKW_rows,
     TKW_lateOn: TKW_lateOn,
     TKW_barPct: TKW_barPct,

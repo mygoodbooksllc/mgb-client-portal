@@ -2068,7 +2068,8 @@ var ANN_REGISTRY = [
       "The Slate page has a search box next to Add task. Type part of a task's title, its client's name or a word from its notes, and the list narrows as you type. Esc clears it.",
     roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
     hash: "#/tasks/my",
-    visible: () => ANN_slateLaunchOn(),
+    // Slate plus Profile 2 swaps this box for the unified search, so no tour to it then.
+    visible: () => ANN_slateLaunchOn() && !(typeof TKP_on === "function" && TKP_on()),
     steps: () => [
       {
         id: "ann-welcome",

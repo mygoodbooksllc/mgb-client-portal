@@ -298,7 +298,17 @@ function TK_dwReview(props) {
     <div className="tk-dw-review is-waiting" role="status" data-tour="tk-review-strip">
       <div className="tk-dw-review-text">
         <strong>Waiting for review</strong>
-        <span>{" · Reviewer: " + reviewerName}</span>
+        {task.reviewer_email && typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on() ? (
+          // Slate plus: the reviewer's name opens their profile.
+          <span>
+            {" · Reviewer: "}
+            <TKP_PersonLink email={task.reviewer_email} title={"Open " + reviewerName + "'s profile"}>
+              {reviewerName}
+            </TKP_PersonLink>
+          </span>
+        ) : (
+          <span>{" · Reviewer: " + reviewerName}</span>
+        )}
         {wait ? <span>{" · " + wait}</span> : null}
         {task.send_back_count > 0 ? (
           <span>{" · Sent back " + task.send_back_count + (task.send_back_count === 1 ? " time" : " times")}</span>
@@ -707,6 +717,17 @@ function TK_dwFollowers(props) {
         {stack.shown.map(function (r) {
           var name = p.nameOf(r.staff_email);
           var staffRow = (p.staff || []).filter(function (s) { return TK_dwLower(s.email) === TK_dwLower(r.staff_email); })[0];
+          if (typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on()) {
+            // Slate plus: each follower opens their profile (the initials stay decorative).
+            return (
+              <TKP_PersonLink key={r.staff_email} email={r.staff_email} className="tkp-dw-follower" title={"Open " + name + "'s profile"}>
+                <span className="tk-dw-avatar" aria-hidden="true">
+                  {TK_dlInitials(staffRow ? staffRow.name : "", r.staff_email)}
+                </span>
+                <span className="tk-sr">{"Open " + name + "'s profile"}</span>
+              </TKP_PersonLink>
+            );
+          }
           return (
             <span key={r.staff_email} className="tk-dw-avatar" title={name} aria-hidden="true">
               {TK_dlInitials(staffRow ? staffRow.name : "", r.staff_email)}
@@ -1417,11 +1438,21 @@ function TK_DrawerContent(props) {
     : {
         assignee: (
           <div className="tk-dw-value">
+            {curAssignee && typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on() ? (
+              // Slate plus: the assignee's name opens their profile; the select
+              // below is the separate Reassign control (same id, so key `a` and
+              // the field label still land on it).
+              <TKP_PersonLink email={curAssignee} className="tkp-dw-person" title={"Open " + nameOf(curAssignee) + "'s profile"}>
+                <TK_vAvatar name={nameOf(curAssignee)} email={curAssignee} size="sm" title="" decorative />
+                <span className="tkp-dw-person-name">{nameOf(curAssignee)}</span>
+              </TKP_PersonLink>
+            ) : null}
             <select
               id="tk-dw-assignee"
               ref={assigneeRef}
               className="tk-dw-select"
               value={curAssignee}
+              aria-label={curAssignee && typeof TKP_on === "function" && TKP_on() ? "Assignee, reassign. Assigned to " + nameOf(curAssignee) : undefined}
               disabled={!gf.assignee.editable}
               title={
                 gf.assignee.hint === "inReview"
@@ -1907,7 +1938,7 @@ function TK_DrawerContent(props) {
           </div>
           <div id="tk-dw-tabpanel" role="tabpanel" aria-labelledby={"tk-dw-tab-" + tab}>
             {tab === "activity"
-              ? typeof TK_Activity === "function" && <TK_Activity taskId={task.id} nameOf={nameOf} stamp={task.updated_at} />
+              ? typeof TK_Activity === "function" && <TK_Activity taskId={task.id} nameOf={nameOf} stamp={task.updated_at} staff={staff} />
               : typeof TK_Comments === "function" && (
                   <TK_Comments
                     task={task}
@@ -1994,7 +2025,15 @@ function TK_DrawerContent(props) {
                 if (/late$/.test(dl)) return " · " + dl;
                 return " · Due " + (dl === "Today" || dl === "Tomorrow" || dl === "Yesterday" ? dl.toLowerCase() : dl);
               })()}
-              {task.assignee_email ? " · " + nameOf(task.assignee_email) : " · Unassigned"}
+              {task.assignee_email && typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on() ? (
+                // Slate plus: the assignee's name opens their profile.
+                <React.Fragment>
+                  {" · "}
+                  <TKP_PersonLink email={task.assignee_email} title={"Open " + nameOf(task.assignee_email) + "'s profile"}>
+                    {nameOf(task.assignee_email)}
+                  </TKP_PersonLink>
+                </React.Fragment>
+              ) : task.assignee_email ? " · " + nameOf(task.assignee_email) : " · Unassigned"}
               {task.source === "template" ? <span className="tk-dw-recurring" title="Made by a recurring template. See Slate › Recurring."> · Recurring</span> : null}
             </p>
           )}

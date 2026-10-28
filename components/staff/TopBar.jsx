@@ -1823,7 +1823,12 @@ function TB_StaffTopBar({
   // L2: the left sidebar's Alerts section has taken over the QuickBooks usage
   // warning, but only while it is really on screen (never both, never neither).
   const ssAlertsShown = TB_useSidebarAlertsShown();
+  // Slate plus Profile 2 (hidden preview): the unified search replaces
+  // TB_Search while the gate is on (TKP_useOn is false in View as).
+  // TB_Search itself is untouched. typeof is fixed for the page's life.
+  const tksGate = typeof TKP_useOn === "function" ? TKP_useOn() : false;
   if (!staffUser || !realStaffUser) return null;
+  const tksOn = tksGate && own && typeof TKS_SearchBox === "function";
   const isRealAdmin = realStaffUser.role === "admin";
   const isAdmin = staffUser.role === "admin";
   // Same shape the rail hands StaffNav.jsx (NAV_visiblePlaces).
@@ -1851,6 +1856,20 @@ function TB_StaffTopBar({
         <TB_SyncPill client={client} plan={plan} onSynced={onSynced} />
       </div>
       <div className="tb-middle">
+        {tksOn ? (
+          <TKS_SearchBox
+            variant="tb"
+            clients={clients}
+            items={items}
+            isAdmin={isAdmin}
+            navCtx={navCtx}
+            client={client}
+            effectiveTheme={effectiveTheme}
+            onToggleTheme={onToggleTheme}
+            onSignOut={onSignOut}
+            onOpenSettings={onOpenSettings}
+          />
+        ) : (
         <TB_Search
           clients={clients}
           items={items}
@@ -1865,6 +1884,7 @@ function TB_StaffTopBar({
           onSignOut={onSignOut}
           onOpenSettings={onOpenSettings}
         />
+        )}
       </div>
       <div className="tb-right">
         {isRealAdmin && own && !ssAlertsShown && <TB_ThrottleBadge />}

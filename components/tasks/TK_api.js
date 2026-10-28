@@ -2021,6 +2021,33 @@ var TK_api = (function () {
     }, { where: "search" }).then(function (rows) { return rows || []; });
   };
 
+  // Slate plus (hidden preview, TKP_on): word-prefix task search for the
+  // unified search box (supabase/slateplus-profile2.sql, tk_search_prefix).
+  // Rows: { task_id, task_text, kind, client_id, project_id, status, due_date,
+  // done, match: 'title'|'client'|'notes'|'comment', snippet, rank }. Any error
+  // (including the RPC not applied yet) resolves [] so the Tasks group just
+  // stays empty; no toast.
+  api.searchPrefix = function (q, limit) {
+    var text = String(q || "").trim();
+    if (!text || text.length > 200) return Promise.resolve([]);
+    var lim = Math.max(1, Math.min(25, Number(limit) || 12));
+    return run(function (c) {
+      return c.rpc("tk_search_prefix", { q: text, p_limit: lim });
+    }, { where: "searchPrefix" }).then(function (rows) { return arr(rows); }, function () { return []; });
+  };
+
+  // Slate plus profile card (tk_profile_card): one jsonb for any active staff
+  // email, or null (unknown / inactive / not staff). Own email = the full row
+  // (is_self true); anyone else = only what they share, filtered to what the
+  // viewer can access. Always carries org {manager, reports} and teams.
+  api.profileCard = function (email) {
+    var e = lower(email);
+    if (!e) return Promise.resolve(null);
+    return run(function (c) {
+      return c.rpc("tk_profile_card", { p_email: e });
+    }, { where: "profileCard" }).then(function (j) { return j && typeof j === "object" ? j : null; });
+  };
+
   // Slate plus (hidden preview, TKP_on): who will actually see an @mention on
   // this task (supabase/slateplus-mentions.sql). Lowercase emails, never the
   // caller. Only TK_Comments calls it, and only while TKP_on() is true.
@@ -2601,6 +2628,163 @@ var TK_api = (function () {
     return run(function (c) {
       return c.rpc("tk_filter_view_set_default", { p_id: id || null });
     }, { where: "filterViewSetDefault" }).then(function () { return true; });
+  };
+
+  // Slate plus profile 2 (hidden preview, TKP_on): my own profile fields
+  // (supabase/slateplus-profile2.sql, tk_staff_profile_prefs; RLS own row only,
+  // the trigger stamps the owner and validates). Called only by the profile
+  // when the viewer is the profile's owner and not in View as.
+  var PROFILE_PREF_COLS =
+    "owner_email, status_line, status_set_at, focus_quarter, focus_goals, bio, skills, working_hours, " +
+    "pinned_client_ids, pinned_project_ids, favorites, section_order, hidden_sections, time_zone, share, created_at, updated_at";
+  var PROFILE_PREF_KEYS = [
+    "status_line", "focus_quarter", "focus_goals", "bio", "skills", "working_hours",
+    "pinned_client_ids", "pinned_project_ids", "favorites", "section_order", "hidden_sections", "time_zone", "share",
+  ];
+  api.profilePrefs = {
+    // My row, or null when I have not saved anything yet.
+    get: function () {
+      var who = me();
+      if (!who) return Promise.resolve(null);
+      return run(function (c) {
+        return c.from("tk_staff_profile_prefs").select(PROFILE_PREF_COLS).eq("owner_email", who).maybeSingle();
+      }, { where: "profilePrefsGet" }).then(function (row) { return row || null; });
+    },
+    // patch: any of PROFILE_PREF_KEYS. Unpatched columns keep their stored
+    // value; share is merged key by key on the stored share. Resolves the
+    // saved row (as the trigger cleaned it).
+    save: function (patch) {
+      var off = requireOnline();
+      if (off) return off;
+      var who = me();
+      if (!who) return Promise.reject(errOf("tk_forbidden", "forbidden"));
+      var src = patch || {};
+      var body = { owner_email: who };
+      PROFILE_PREF_KEYS.forEach(function (k) {
+        if (Object.prototype.hasOwnProperty.call(src, k)) body[k] = src[k];
+      });
+      var before = body.share && typeof body.share === "object"
+        ? api.profilePrefs.get().then(function (cur) {
+            body.share = Object.assign({}, (cur && cur.share) || {}, body.share);
+          })
+        : Promise.resolve();
+      return before.then(function () {
+        return run(function (c) {
+          return c
+            .from("tk_staff_profile_prefs")
+            .upsert(body, { onConflict: "owner_email" })
+            .select(PROFILE_PREF_COLS)
+            .single();
+        }, { where: "profilePrefsSave" });
+      });
+    },
+  };
+
+  // Slate plus teams (tk_staff_teams + tk_staff_team_members). Read: any
+  // active staff (cached 60 s, shared by the Teams card, profile and search).
+  // Writes: admins only (RLS + trigger; others get tk_forbidden).
+  var TEAM_COLS = "id, name, description, color, sort, created_by, created_at, updated_at, archived_at";
+  var teamsCache = { at: 0, rows: null, promise: null };
+  function teamsDirty() {
+    teamsCache.at = 0;
+    teamsCache.rows = null;
+    teamsCache.promise = null;
+  }
+  // Resolves [{ id, name, description, color, sort, ..., members: [email] }],
+  // non-archived teams only, sorted by sort then name. force skips the cache.
+  api.teamsList = function (force) {
+    if (!force && teamsCache.rows && Date.now() - teamsCache.at < 60000) return Promise.resolve(teamsCache.rows);
+    if (!force && teamsCache.promise) return teamsCache.promise;
+    var teams = run(function (c) {
+      return c.from("tk_staff_teams").select(TEAM_COLS).is("archived_at", null).order("sort", { ascending: true }).order("name", { ascending: true });
+    }, { where: "teamsList" });
+    var members = run(function (c) {
+      return c.from("tk_staff_team_members").select("team_id, staff_email").limit(2000);
+    }, { where: "teamsList" });
+    var p = Promise.all([teams, members]).then(function (res) {
+      var by = {};
+      arr(res[1]).forEach(function (m) {
+        if (!m || !m.team_id) return;
+        (by[m.team_id] = by[m.team_id] || []).push(lower(m.staff_email));
+      });
+      var rows = arr(res[0]).map(function (t) {
+        return Object.assign({}, t, { members: (by[t.id] || []).sort() });
+      });
+      teamsCache.rows = rows;
+      teamsCache.at = Date.now();
+      teamsCache.promise = null;
+      return rows;
+    }, function (e) {
+      teamsCache.promise = null;
+      throw e;
+    });
+    teamsCache.promise = p;
+    return p;
+  };
+
+  // fields: { name, description?, color? } (color: gold|sage|sky|plum|rose|slate).
+  api.teamCreate = function (fields) {
+    var off = requireOnline();
+    if (off) return off;
+    var f = fields || {};
+    var row = { name: String(f.name || "").trim(), description: f.description || null, color: f.color || null };
+    if (f.sort != null) row.sort = Number(f.sort) || 0;
+    return run(function (c) {
+      return c.from("tk_staff_teams").insert(row).select(TEAM_COLS).single();
+    }, { where: "teamCreate", uniqueAs: "tk_name_taken" }).then(function (r) { teamsDirty(); return r; });
+  };
+
+  // patch: any of { name, description, color, sort }.
+  api.teamUpdate = function (id, patch) {
+    var off = requireOnline();
+    if (off) return off;
+    var src = patch || {};
+    var p = {};
+    ["name", "description", "color", "sort"].forEach(function (k) {
+      if (Object.prototype.hasOwnProperty.call(src, k)) p[k] = src[k];
+    });
+    return run(function (c) {
+      return c.from("tk_staff_teams").update(p).eq("id", id).select(TEAM_COLS).single();
+    }, { where: "teamUpdate", uniqueAs: "tk_name_taken" }).then(function (r) { teamsDirty(); return r; });
+  };
+
+  // Archive (soft): the team drops off profiles and lists; members are kept.
+  api.teamArchive = function (id) {
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.from("tk_staff_teams").update({ archived_at: nowIso() }).eq("id", id).select(TEAM_COLS).single();
+    }, { where: "teamArchive" }).then(function (r) { teamsDirty(); return r; });
+  };
+
+  api.teamMemberAdd = function (teamId, email) {
+    var off = requireOnline();
+    if (off) return off;
+    var e = lower(email);
+    if (!teamId || !e) return Promise.reject(errOf("tk_error", "Pick a person"));
+    return run(function (c) {
+      return c.from("tk_staff_team_members").insert({ team_id: teamId, staff_email: e }).select("team_id, staff_email").single();
+    }, { where: "teamMemberAdd", uniqueAs: "tk_already_member" }).then(function (r) { teamsDirty(); return r; });
+  };
+
+  api.teamMemberRemove = function (teamId, email) {
+    var off = requireOnline();
+    if (off) return off;
+    var e = lower(email);
+    return run(function (c) {
+      return c.from("tk_staff_team_members").delete().eq("team_id", teamId).eq("staff_email", e);
+    }, { where: "teamMemberRemove" }).then(function () { teamsDirty(); return true; });
+  };
+
+  // Slate plus 4-week workload bars (tk_slateplus_workload_weeks). Counts only.
+  // Rows: { staff_id, email, name, is_me, is_unassigned, week_start, due_count };
+  // per person 4 dated rows (Mondays, America/Chicago) plus one week_start=null
+  // row carrying the all-dates open count; the same for Unassigned. Pivot with
+  // TKW_weekRows.
+  api.workloadWeeks = function () {
+    return run(function (c) {
+      return c.rpc("tk_slateplus_workload_weeks");
+    }, { where: "workloadWeeks" }).then(function (rows) { return arr(rows); });
   };
 
   // Grace period for late tasks (supabase/tasks-grace-period.sql). The date

@@ -93,14 +93,80 @@ t("wiring: scripts and css load, gate file never writes the switch", () => {
   assert.ok(!/\.(upsert|insert|update|delete)\(/.test(ui), "strip is read-only");
   assert.ok(/TKP_useOn\(\)/.test(ui));
 });
-t("wiring: Slate mounts the strip and the Unassigned line only when not embedded", () => {
+t("wiring: Slate shows the strip and the Unassigned line only when not embedded and Profile 2 is off", () => {
   const my = read("components/tasks/TK_MyTasks.jsx");
-  assert.ok(/!embedded && typeof TK_WorkloadStrip === "function" \? <TK_WorkloadStrip/.test(my));
-  assert.ok(/g\.key === "unassigned" && !embedded && !g\.collapsed && typeof TK_WorkloadLine === "function"/.test(my));
+  assert.ok(/!embedded && !plusGate && typeof TK_WorkloadStrip === "function" \? <TK_WorkloadStrip/.test(my));
+  assert.ok(/g\.key === "unassigned" && !embedded && !g\.collapsed && !plusGate && typeof TK_WorkloadLine === "function"/.test(my));
+});
+t("wiring: Profile 2 moves Team load to Team > People and the profile", () => {
+  const team = read("components/staff/TeamPage.jsx");
+  assert.ok(/data-tour="tp-team-load"/.test(team));
+  assert.ok(/<TK_WorkloadUnassigned/.test(team) && /<TK_WorkloadWeeks/.test(team));
+  const prof = read("components/tasks/TK_Profile.jsx");
+  assert.ok(/<TK_ProfileLoad /.test(prof));
+  const ui = read("components/tasks/TK_Workload.jsx");
+  assert.ok(/function TK_ProfileLoad\(/.test(ui) && /function TK_WorkloadWeeks\(/.test(ui));
 });
 t("wiring: Feature flags row reloads, Dev Tools switch row present", () => {
   const app = read("app.jsx");
   assert.ok(/key: "mgb_slateplus_preview",[\s\S]{0,900}?reloads: true/.test(app));
   assert.ok(app.includes('["slateplus_enabled", "Slate plus for all staff (owner only)"'));
 });
+// ---- Four-week bars (tk_slateplus_workload_weeks) --------------------------
+const W0 = "2026-10-26";
+const wk = [
+  // Ana: weeks 0 and 2 only (weeks 1, 3 missing -> 0), open 9
+  { staff_id: U(1), email: "Ana@x.org", name: "Ana Ruiz", is_me: false, is_unassigned: false, week_start: W0, due_count: 3 },
+  { staff_id: U(1), email: "ana@x.org", name: "Ana Ruiz", is_me: false, is_unassigned: false, week_start: "2026-11-09", due_count: 6 },
+  { staff_id: U(1), email: "ana@x.org", name: "Ana Ruiz", is_me: false, is_unassigned: false, week_start: null, due_count: 9 },
+  // Me: all four
+  { staff_id: U(3), email: "me@x.org", name: "Me Person", is_me: true, is_unassigned: false, week_start: W0, due_count: 5 },
+  { staff_id: U(3), email: "me@x.org", name: "Me Person", is_me: true, is_unassigned: false, week_start: "2026-11-02", due_count: 1 },
+  { staff_id: U(3), email: "me@x.org", name: "Me Person", is_me: true, is_unassigned: false, week_start: "2026-11-09", due_count: 0 },
+  { staff_id: U(3), email: "me@x.org", name: "Me Person", is_me: true, is_unassigned: false, week_start: "2026-11-16", due_count: 12 },
+  { staff_id: U(3), email: "me@x.org", name: "Me Person", is_me: true, is_unassigned: false, week_start: null, due_count: 20 },
+  // Unassigned
+  { staff_id: null, email: null, name: "Unassigned", is_me: false, is_unassigned: true, week_start: W0, due_count: 1 },
+  { staff_id: null, email: null, name: "Unassigned", is_me: false, is_unassigned: true, week_start: "2026-11-02", due_count: 0 },
+  { staff_id: null, email: null, name: "Unassigned", is_me: false, is_unassigned: true, week_start: null, due_count: 4 },
+  // junk
+  null,
+  { staff_id: null, email: "", is_unassigned: false, week_start: W0, due_count: 99 },
+];
+
+t("weekRows: pivots to 4 cells per person, missing weeks = 0, open from the null-week row", () => {
+  const p = L.TKW_weekRows(wk);
+  assert.deepStrictEqual(p.weeks, ["2026-10-26", "2026-11-02", "2026-11-09", "2026-11-16"]);
+  assert.deepStrictEqual(p.people.map((r) => r.email), ["me@x.org", "ana@x.org"]);
+  assert.deepStrictEqual(p.people[1].cells, [3, 0, 6, 0]);
+  assert.strictEqual(p.people[1].open, 9);
+  assert.deepStrictEqual(p.people[0].cells, [5, 1, 0, 12]);
+  assert.strictEqual(p.people[0].me, true);
+  assert.deepStrictEqual(p.unassigned.cells, [1, 0, 0, 0]);
+  assert.strictEqual(p.unassigned.open, 4);
+  assert.strictEqual(p.unassigned.email, null);
+  assert.deepStrictEqual(L.TKW_weekRows(null), { weeks: [], unassigned: null, people: [] });
+});
+
+t("weekPct: relative to the largest visible cell; 0 -> 0%", () => {
+  const p = L.TKW_weekRows(wk);
+  assert.strictEqual(L.TKW_weekPct(12, p), 100);
+  assert.strictEqual(L.TKW_weekPct(6, p), 50);
+  assert.strictEqual(L.TKW_weekPct(0, p), 0);
+  assert.strictEqual(L.TKW_weekPct(3, { people: [], unassigned: null }), 0);
+  const onlyU = L.TKW_weekRows(wk.filter((r) => r && r.is_unassigned));
+  assert.strictEqual(L.TKW_weekPct(1, onlyU), 100);
+});
+
+t("week labels and the Unassigned chip text", () => {
+  assert.deepStrictEqual(L.TKW_weekLabels(["2026-10-26", "2026-11-02", "2026-11-09", "2026-11-16"]), ["This week", "Next week", "Nov 9", "Nov 16"]);
+  const p = L.TKW_weekRows(wk);
+  assert.strictEqual(L.TKW_unassignedText(p.unassigned), "Unassigned: 4 open · 1 due this week");
+  assert.strictEqual(L.TKW_unassignedText(null), "");
+});
+
+t("strip sort unchanged by the weeks additions", () => {
+  assert.deepStrictEqual(L.TKW_rows(raw).map((x) => x.email), ["ben@x.org", "ana@x.org", "me@x.org"]);
+});
+
 console.log("TK_workloadLogic: " + n + " passed");

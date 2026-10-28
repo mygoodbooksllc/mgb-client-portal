@@ -1013,6 +1013,22 @@ function TK_vProjectHeader(props) {
 
 function TK_vPersonHeader(props) {
   var s = props.person || {};
+  // Slate plus: the name and face are the profile link (no separate button).
+  if (s.email && typeof TKP_on === "function" && TKP_on() && typeof TKP_PersonLink === "function") {
+    return (
+      <header className="tk-head tk-person-head">
+        <div className="tk-head-row">
+          <div className="tk-head-title">
+            <TKP_PersonLink email={s.email} className="tkp-head-person" title={s.name ? "Open " + s.name + "'s profile" : "Open profile"}>
+              <TK_vAvatar name={s.name || ""} decorative />
+              <h2 className="tk-head-name">{s.name || "Staff member"}</h2>
+            </TKP_PersonLink>
+            <span className="pill neutral">{TK_vRoleLabel(s.role)}</span>
+          </div>
+        </div>
+      </header>
+    );
+  }
   return (
     <header className="tk-head tk-person-head">
       <div className="tk-head-row">
@@ -1021,22 +1037,6 @@ function TK_vPersonHeader(props) {
           <h2 className="tk-head-name">{s.name || "Staff member"}</h2>
           <span className="pill neutral">{TK_vRoleLabel(s.role)}</span>
         </div>
-        {s.email && typeof TKP_on === "function" && TKP_on() && typeof TKP_personHref === "function" ? (
-          // Slate plus: their profile (hidden while the gate is off).
-          <div className="tk-head-actions">
-            <a
-              className="btn-secondary"
-              href={TKP_personHref(s.email)}
-              onClick={function (e) {
-                if (!TK_vPlainClick(e)) return;
-                e.preventDefault();
-                TKP_openPerson(s.email);
-              }}
-            >
-              See profile
-            </a>
-          </div>
-        ) : null}
       </div>
     </header>
   );
@@ -1794,7 +1794,10 @@ function TK_vSearchBody(props) {
       setRes({ q: t, rows: [], loading: false, error: "tk_error" });
       return;
     }
-    TK_api.search(t, 50).then(
+    // Slate plus Profile 2: the word-prefix search (tk_search_prefix, max 25)
+    // that the unified box uses, so "See all task matches" shows the same hits.
+    var prefixOn = typeof TKP_on === "function" && TKP_on() && typeof TK_api.searchPrefix === "function";
+    (prefixOn ? TK_api.searchPrefix(t, 25) : TK_api.search(t, 50)).then(
       function (rows) {
         if (n !== seq.current) return;
         setRes({ q: t, rows: Array.isArray(rows) ? rows : [], loading: false, error: null });

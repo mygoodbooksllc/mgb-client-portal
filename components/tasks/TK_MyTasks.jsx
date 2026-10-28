@@ -671,6 +671,27 @@ function TK_vMyTasksBody(props) {
   var sigPair = React.useState({ id: null, n: 0 });
   var sig = sigPair[0];
   var setSig = sigPair[1];
+  // Slate plus Profile 2: the unified search (TK_UnifiedSearch.jsx) replaces
+  // the in-list box. While this full list is mounted it offers "Filter this
+  // Slate list" and sends tks:filter-list {q}. Off: no listener, no flag.
+  var unifiedOn = plusOn && typeof TKS_SearchBox === "function";
+  React.useEffect(
+    function () {
+      if (!unifiedOn) return undefined;
+      TKS__listMounted = true;
+      var onFilter = function (e) {
+        var q = e && e.detail && typeof e.detail.q === "string" ? e.detail.q : "";
+        setSearchText(q.slice(0, 200));
+        setFocusedId(null);
+      };
+      window.addEventListener("tks:filter-list", onFilter);
+      return function () {
+        TKS__listMounted = false;
+        window.removeEventListener("tks:filter-list", onFilter);
+      };
+    },
+    [unifiedOn],
+  );
 
   var loader = function () {
     if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.listMine !== "function") return Promise.resolve([]);
@@ -1077,7 +1098,7 @@ function TK_vMyTasksBody(props) {
                 {!g.collapsed && typeof TK_BulkGroupBox === "function" ? <TK_BulkGroupBox select={bulk} tasks={g.tasks} label={g.label} /> : null}
               </h3>
               {/* Slate plus (hidden preview): team load before you claim. Renders nothing when off. */}
-              {g.key === "unassigned" && !embedded && !g.collapsed && typeof TK_WorkloadLine === "function" ? <TK_WorkloadLine bump={loading ? null : all.length} email={email} /> : null}
+              {g.key === "unassigned" && !embedded && !g.collapsed && !plusGate && typeof TK_WorkloadLine === "function" ? <TK_WorkloadLine bump={loading ? null : all.length} email={email} /> : null}
               {g.collapsed ? null : (
                 <ul className="tk-rows" role="grid" aria-label={g.label} data-tk-group={manualOn ? String(gi) : undefined}>
                   {g.tasks.map(function (t) {
@@ -1162,7 +1183,7 @@ function TK_vMyTasksBody(props) {
             <TK_vIcon name="plus" size={15} />
             <span>Add task</span>
           </button>
-          {!embedded && typeof TK_SlateListSearch === "function" ? (
+          {!embedded && !unifiedOn && typeof TK_SlateListSearch === "function" ? (
             <TK_SlateListSearch
               value={searchText}
               count={searchCount}
@@ -1264,8 +1285,9 @@ function TK_vMyTasksBody(props) {
             : undefined
         }
       />
-      {/* Slate plus (hidden preview): Team load strip. Renders nothing when off. */}
-      {!embedded && typeof TK_WorkloadStrip === "function" ? <TK_WorkloadStrip isAdmin={isAdmin} bump={loading ? null : all.length} email={email} /> : null}
+      {/* Slate plus (hidden preview): Team load strip. Renders nothing when off.
+          Profile 2: gate on, it lives on Team › People and the profile instead. */}
+      {!embedded && !plusGate && typeof TK_WorkloadStrip === "function" ? <TK_WorkloadStrip isAdmin={isAdmin} bump={loading ? null : all.length} email={email} /> : null}
       {plusOn ? (
         <TK_SlateFilterBar
           value={Object.assign({}, plusF || {}, { q: searchText, client: clientFilter })}

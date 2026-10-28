@@ -622,7 +622,8 @@ const TIPS_CATALOG = [
     snug: true,
     text: "Type here to narrow this list: part of a title, a client's name or a word from the notes. Esc clears it.",
     slug: "my-tasks",
-    ready: () => !!document.querySelector('[data-tour="tk-search"]'),
+    // Slate plus Profile 2 replaces this box with the unified search; skip it then.
+    ready: () => !!document.querySelector('[data-tour="tk-search"]') && !(typeof TKP_on === "function" && TKP_on()),
   },
   {
     // "Slate, start to finish" (2026-10-26): the presenter tour, in the ? menu.

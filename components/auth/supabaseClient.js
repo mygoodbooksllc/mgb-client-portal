@@ -79,6 +79,11 @@ window.MGB_VIEW_AS_SILENT_RPCS = new Set([
   // preview is off in View as (TKP_on), so these normally never run there.
   "tk_dep_list",
   "tk_dep_my_notices",
+  // Slate plus profile 2 (unified search, profile card, 4-week bars): JWT "me"
+  // reads; the preview is off in View as, so these normally never run there.
+  "tk_search_prefix",
+  "tk_profile_card",
+  "tk_slateplus_workload_weeks",
 ]);
 // The admin's own telemetry (JWT-bound server-side).
 window.MGB_VIEW_AS_WRITE_OK = new Set(["usage_events", "client_errors"]);

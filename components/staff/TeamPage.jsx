@@ -900,16 +900,38 @@ function TP_PeopleTab({ staffUser, isAdmin, clients }) {
     </section>
   );
   const upcoming = <TP_UpcomingCard admin={isAdmin} me={staffUser && staffUser.email} />;
+  // Slate plus Profile 2 (hidden preview): Team load moved here from Slate,
+  // with the Unassigned chip and the 4-week bars. Off: nothing, same DOM.
+  const loadGate = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  const me = String((staffUser && staffUser.email) || "").toLowerCase();
+  const load =
+    loadGate && typeof TK_WorkloadStrip === "function" ? (
+      <div className="tkw-people" data-tour="tp-team-load">
+        <TK_WorkloadStrip
+          isAdmin={isAdmin}
+          bump={0}
+          email={me}
+          listId="tkw-list-team"
+          before={typeof TK_WorkloadUnassigned === "function" ? <TK_WorkloadUnassigned email={me} /> : null}
+        />
+        {typeof TK_WorkloadWeeks === "function" ? <TK_WorkloadWeeks isAdmin={isAdmin} email={me} /> : null}
+      </div>
+    ) : null;
+  // Slate plus Profile 2: the Teams card (real admins only, never in View as).
+  const teams =
+    loadGate && isAdmin && !(typeof CV_ro === "function" && CV_ro()) && typeof TKP2_TeamsCard === "function" ? <TKP2_TeamsCard staffUser={staffUser} /> : null;
   if (coverage) {
     return (
       <div className="tp-people">
+        {load}
+        {teams}
         <CV_CoverageTab />
         {upcoming}
         {shoutouts}
       </div>
     );
   }
-  return (
+  const grid = (
     <div className="tp-people tp-people-grid">
       <div className="tp-people-col">
         <TP_WhosOutCard staffUser={staffUser} />
@@ -928,6 +950,14 @@ function TP_PeopleTab({ staffUser, isAdmin, clients }) {
         {upcoming}
         {shoutouts}
       </div>
+    </div>
+  );
+  if (!load && !teams) return grid;
+  return (
+    <div className="tkw-people-wrap">
+      {load}
+      {teams}
+      {grid}
     </div>
   );
 }
