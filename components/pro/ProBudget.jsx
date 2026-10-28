@@ -1380,7 +1380,7 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
             {client.dataSource === "quickbooks" ? " (month to date)" : ""}. Notes explain a variance and are visible to
             everyone on this budget.
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="budget-table tx-table-labeled">
               <thead>
                 <tr>
@@ -1549,7 +1549,7 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
               </div>
             )}
 
-            <div className="table-scroll">
+            <div className="table-scroll mgb-sticky-wrap">
               <table className="tx-table tx-table-labeled pb-draft-table">
                 <thead>
                   <tr>

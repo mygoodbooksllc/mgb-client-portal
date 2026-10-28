@@ -4909,7 +4909,7 @@ function ScopedDashboardPage({
                   <p className="card-subtitle">
                     Budgeted vs. actual, current month
                   </p>
-                  <div className="table-scroll">
+                  <div className="table-scroll mgb-sticky-wrap">
                     <table className="budget-table tx-table-labeled">
                       <thead>
                         <tr>
@@ -9534,7 +9534,7 @@ function BudgetPage({ client, searchTarget }) {
         >
           <h3 className="card-title">Spending by Category</h3>
           <p className="card-subtitle">Budgeted vs. actual, current month</p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="budget-table tx-table-labeled">
               <thead>
                 <tr>
@@ -9711,7 +9711,7 @@ function ContributionsCard({ client, subtitle, contributions, title, emptyText, 
           <p className="card-subtitle">{subtitle || "Individual gifts and grants received"}</p>
         </>
       )}
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-stack tx-stack-giving">
           <thead>
             <tr>
@@ -10269,7 +10269,7 @@ function FundAccountingProPage({ client, qbo, plan, isStaff }) {
             between funds aren&rsquo;t synced from QuickBooks, so they
             aren&rsquo;t listed here.
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -10312,7 +10312,7 @@ function FundAccountingProPage({ client, qbo, plan, isStaff }) {
           <p className="card-subtitle">
             Transfers between funds, with the reason for each move
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -10358,7 +10358,7 @@ function FundAccountingProPage({ client, qbo, plan, isStaff }) {
               ? " · every pledge is fulfilled"
               : ""}
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -10462,7 +10462,7 @@ function FundAccountingProPage({ client, qbo, plan, isStaff }) {
             </button>
             </div>
           </div>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -10673,7 +10673,7 @@ function RP_OpenItemsTable({ kind, items, today }) {
           </select>
         </div>
       )}
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled">
           <thead>
             <tr>
@@ -11204,7 +11204,7 @@ function PayrollDetail({ client }) {
         >
           <h3 className="card-title">Tax deposits</h3>
           <p className="card-subtitle">Federal and state, current quarter</p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -11252,7 +11252,7 @@ function PayrollDetail({ client }) {
             Rate, YTD pay, and withholding are on the Payroll YTD report under
             Reports
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -11564,7 +11564,7 @@ function ReconciliationPanel({ client, initialAccountId }) {
             Download Reconciliation Report
           </button>
         </div>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table
             className="tx-table tx-table-labeled"
             style={{ marginTop: 16 }}
@@ -11628,7 +11628,7 @@ function ReconciliationPanel({ client, initialAccountId }) {
             No prior periods closed yet for this account.
           </p>
         ) : (
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -13189,7 +13189,7 @@ function BudgetingToolPage({ client }) {
           Adjust proposed amounts for next period. This year's actual is shown
           for reference.
         </p>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>
@@ -13665,7 +13665,7 @@ function APCommandCenterPage({ client }) {
           </div>
         </div>
 
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>
@@ -23708,7 +23708,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             </div>
           )}
         </div>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>

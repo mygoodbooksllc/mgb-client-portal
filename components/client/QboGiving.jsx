@@ -566,7 +566,7 @@ function QG_QboGivingPage({ client, plan, isStaff }) {
           deposit split across several accounts isn't listed here, but it is in
           the totals above.
         </p>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-stack">
             <thead>
               <tr>

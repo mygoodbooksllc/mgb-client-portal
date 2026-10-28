@@ -986,7 +986,7 @@ function BA_BankTransactionsPanel({
               </span>
             </div>
 
-            <div className="table-scroll">
+            <div className="table-scroll mgb-sticky-wrap">
               <table className="tx-table tx-table-labeled ba-table">
                 <thead>
                   <tr>
