@@ -923,7 +923,7 @@ function TR_PdfAndDrive({ review, onChanged }) {
               {note}
             </p>
             <span className="tr-mono">
-              ~ MGB Personelle / {r.staff ? r.staff.name : ""} / {TR_reviewFileName(r)}
+              ~ MGB: Personelle (Portal Connected) / {r.staff ? r.staff.name : ""} / {TR_reviewFileName(r)}
             </span>
           </>
         ) : (
