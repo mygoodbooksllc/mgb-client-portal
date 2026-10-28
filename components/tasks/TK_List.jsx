@@ -1271,8 +1271,25 @@ function TK_vListBody(props) {
           ixLongPress: manualInApp ? function (id, x, y) { if (ixRef.current && ixRef.current.onLongPress) ixRef.current.onLongPress(id, x, y); } : undefined,
         })
       : { ids: [], el: null };
+  // Slate plus Calendar (hidden preview, TK_Calendar.jsx): a month grid of this
+  // list's tasks under the same filters (done shown, dimmed). Off: nothing.
+  var cal = typeof TK_useCalendar === "function"
+    ? TK_useCalendar({
+        enabled: !!listKey && (route.view === "project" || route.view === "client" || route.view === "person"),
+        tasks: function () {
+          return TK_applyFilters(all, { assignee: filters.assignee, statuses: filters.statuses, showDone: true, showOlder: filters.showOlder, today: today });
+        },
+        today: today,
+        clientNames: clientNames,
+        readOnly: archived || !online,
+        isAdmin: isAdmin,
+        email: email,
+        label: route.view === "project" ? (project && project.name) || "Project" : route.view === "client" ? (client && client.name) || "Client" : "List",
+      })
+    : { on: false, switchEl: null, el: null };
   var ids = [];
-  if (boardOn) ids = board.ids;
+  if (cal.on) ids = [];
+  else if (boardOn) ids = board.ids;
   else
     groups.forEach(function (g) {
       if (collapsed[g.key]) return;
@@ -1330,7 +1347,7 @@ function TK_vListBody(props) {
   var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
   var bulk = TK_useBulkSelect({
     ids: ids,
-    enabled: !readOnly && slateWide && !boardOn,
+    enabled: !readOnly && slateWide && !boardOn && !cal.on,
     keys: keysOn,
   });
 
@@ -1501,6 +1518,7 @@ function TK_vListBody(props) {
       )}
       {closeOrder && closeOrder.on && !boardOn && typeof TK_CloseOrderSwitch === "function" ? <TK_CloseOrderSwitch value={closeOrder.choice} onChange={closeOrder.setChoice} /> : null}
       {route.view === "person" && !boardOn ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
+      {cal.switchEl}
       {boardCan && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardBy} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
       {manualCan && !boardOn && !closePills ? (
         <button
@@ -1582,6 +1600,7 @@ function TK_vListBody(props) {
   var body;
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (list.error && !all.length) body = <TK_vErrorState onRetry={list.reload} />;
+  else if (cal.on) body = cal.el;
   else if (boardOn) body = board.el;
   else {
     var rowFor = function (t) {

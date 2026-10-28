@@ -854,6 +854,40 @@ function TK_vMyTasksBody(props) {
       });
     });
   }
+  // Slate plus Calendar (hidden preview, TK_Calendar.jsx): a month grid of the
+  // same filtered tasks by due date. Off (gate off, View as, embedded): nothing.
+  var cal = typeof TK_useCalendar === "function"
+    ? TK_useCalendar({
+        enabled: plusOn && !embedded,
+        tasks: function () {
+          // the same chips and sort as the list; done tasks shown (dimmed)
+          if (boardOn) return boardTasks;
+          var out = [];
+          if (typeof TK_slateBuildView !== "function") return out;
+          TK_slateBuildView(groups, { groupBy: "status", sort: sv.sort, chip: sv.chip }, {
+            collapsed: {},
+            showDone: true,
+            email: email,
+            today: today,
+            clients: props.clients || [],
+            flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
+            emailTemplates: emailTemplates,
+            emailsLoading: !emailTemplates && typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled(),
+          }).groups.forEach(function (g) {
+            (g.tasks || []).forEach(function (t) {
+              out.push(t);
+            });
+          });
+          return out;
+        },
+        today: today,
+        clientNames: clientNames,
+        readOnly: !online,
+        isAdmin: isAdmin,
+        email: email,
+        label: "Slate",
+      })
+    : { on: false, switchEl: null, el: null };
   var addStaff = TK_vUseStaff(false) || []; // for the group add rows and board names: the store's list, no extra fetch
   var board =
     typeof TK_useBoard === "function"
@@ -882,7 +916,7 @@ function TK_vMyTasksBody(props) {
           ixLongPress: slateApp ? function (id, x, y) { if (ixRef.current && ixRef.current.onLongPress) ixRef.current.onLongPress(id, x, y); } : undefined,
         })
       : { ids: [], el: null };
-  var ids = boardOn ? board.ids : TK_focusIds(view);
+  var ids = cal.on ? [] : boardOn ? board.ids : TK_focusIds(view);
   var manualBoxRef = React.useRef(null);
   var manualSay = typeof TK_useManualAnnouncer === "function" ? TK_useManualAnnouncer() : null;
   var manualRun = function (plan) {
@@ -936,7 +970,7 @@ function TK_vMyTasksBody(props) {
   // Slate app full mode: the task sits in the pane, so the list keeps its keys.
   var keysOn = typeof TK_useListKeysOn === "function" ? TK_useListKeysOn(drawerId) : !drawerId;
   var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
-  var bulk = TK_useBulkSelect({ ids: ids, enabled: online && slateWide && !boardOn, keys: keysOn });
+  var bulk = TK_useBulkSelect({ ids: ids, enabled: online && slateWide && !boardOn && !cal.on, keys: keysOn });
   var bulkStaff = TK_vUseStaff(bulk.count > 0);
 
   var keys = TK_useKeys({
@@ -1021,6 +1055,7 @@ function TK_vMyTasksBody(props) {
   var body;
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (err) body = <TK_vErrorState onRetry={list.reload} />;
+  else if (cal.on) body = cal.el;
   else if (boardOn) body = board.el;
   else if (!view.length && plusOn && TK_slateFiltersActive(Object.assign({}, plusF, { client: clientFilter }))) {
     body = (
@@ -1244,6 +1279,7 @@ function TK_vMyTasksBody(props) {
               );
             }}
           </TK_vMenuButton>
+          {cal.switchEl}
           {boardCan && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardLay.by} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
           {touch ? null : (
             <button type="button" className="tk-icon-btn tk-keys-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={keys.openHelp}>
