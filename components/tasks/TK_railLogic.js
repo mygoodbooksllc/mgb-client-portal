@@ -287,10 +287,22 @@ function TKR_triggerKey(key, isOpen) {
 }
 
 // Keys inside the flyout: { move: next index or -1, close: bool }. Left arrow and
-// Escape close and hand focus back to the icon.
+// Escape close and hand focus back to the icon. Space picks the item, like
+// Enter ({ activate: true }), instead of scrolling the page (which closes it).
 function TKR_flyKey(key, i, n) {
   if (key === "Escape" || key === "ArrowLeft") return { move: -1, close: true };
+  if (key === " " || key === "Spacebar") return { move: -1, close: false, activate: true };
   return { move: TKR_nextIndex(i, n, key), close: false };
+}
+
+// The flyout's top once its real height h is measured: level with the icon
+// when it fits, pulled up so its bottom stays 8px inside the window, never
+// above 8px (TKR_flyPos only estimates the height before it renders).
+function TKR_flyClampTop(top, h, viewH) {
+  var t = Number(top) || 0;
+  var hh = Math.max(0, Number(h) || 0);
+  var vh = Number(viewH) || 0;
+  return Math.round(Math.max(8, Math.min(t, vh - hh - 8)));
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -324,5 +336,6 @@ if (typeof module !== "undefined" && module.exports) {
     TKR_flyPos: TKR_flyPos,
     TKR_triggerKey: TKR_triggerKey,
     TKR_flyKey: TKR_flyKey,
+    TKR_flyClampTop: TKR_flyClampTop,
   };
 }

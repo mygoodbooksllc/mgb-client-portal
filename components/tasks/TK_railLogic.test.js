@@ -245,6 +245,14 @@ t("keyboard: ArrowRight enters, Escape closes, arrows wrap inside the menu", () 
   assert.deepStrictEqual(L.TKR_flyKey("ArrowUp", 0, 4), { move: 3, close: false });
   assert.deepStrictEqual(L.TKR_flyKey("End", 0, 4), { move: 3, close: false });
   assert.deepStrictEqual(L.TKR_flyKey("a", 0, 4), { move: -1, close: false });
+  assert.deepStrictEqual(L.TKR_flyKey(" ", 1, 4), { move: -1, close: false, activate: true });
+});
+
+t("flyClampTop: the measured flyout stays inside the window", () => {
+  assert.strictEqual(L.TKR_flyClampTop(300, 200, 1000), 300, "fits: level with the icon");
+  assert.strictEqual(L.TKR_flyClampTop(400, 620, 900), 272, "pulled up so the bottom is 8px inside");
+  assert.strictEqual(L.TKR_flyClampTop(400, 2000, 900), 8, "taller than the window: top at 8px");
+  assert.strictEqual(L.TKR_flyClampTop("x", null, 0), 8);
 });
 
 // Wiring: the CSS widths match the logic, the scripts load, and the gate-off path is untouched.

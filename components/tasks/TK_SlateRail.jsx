@@ -307,6 +307,14 @@ function TKR_Rail(props) {
       if (hvTimer.current) clearTimeout(hvTimer.current);
     };
   }, []);
+  // Once the hover menu renders, measure it and pull it up so its bottom stays
+  // inside the window (TKR_flyPos only estimates; rows can also load while open).
+  React.useLayoutEffect(function () {
+    var el = flyRef.current;
+    if (!el || !hv || typeof TKR_flyClampTop !== "function") return;
+    var t = TKR_flyClampTop(hv.top, el.offsetHeight, window.innerHeight) + "px";
+    if (el.style.top !== t) el.style.top = t;
+  });
 
   // While a hover menu is open: Escape closes it (focus back on its icon if it
   // was inside), a press outside closes it, and so does scrolling or resizing
@@ -575,7 +583,13 @@ function TKR_Rail(props) {
     }
     var items = Array.prototype.slice.call(root.querySelectorAll('[role="menuitem"]'));
     var k = TKR_flyKey(e.key, items.indexOf(document.activeElement), items.length);
-    if (k.close) {
+    if (k.activate) {
+      var at = items.indexOf(document.activeElement);
+      if (at >= 0) {
+        e.preventDefault();
+        items[at].click();
+      }
+    } else if (k.close) {
       e.preventDefault();
       e.stopPropagation();
       closeFly();
@@ -584,6 +598,15 @@ function TKR_Rail(props) {
       e.preventDefault();
       items[k.move].focus();
     }
+  };
+  // Focus moving out of the menu to anything outside it and the rail (Ctrl or
+  // Cmd+K search, a shortcut) closes it, so it never sits open over that and
+  // keeps Slate's list keys paused. Pointer presses outside are the listener above.
+  var onFlyBlur = function (e) {
+    var to = e.relatedTarget;
+    if (!to) return;
+    if ((flyRef.current && flyRef.current.contains(to)) || (rootRef.current && rootRef.current.contains(to))) return;
+    closeFly();
   };
   var pickFlyAction = function (it, sec, e) {
     closeFly();
@@ -899,8 +922,10 @@ function TKR_Rail(props) {
 
       {flyShown && flyModel
         ? ReactDOM.createPortal(
-            <div className="hn-fly tkr-fly" id="tkr-fly" role="menu" aria-label={flyModel.title} ref={flyRef} style={{ left: hv.left, top: hv.top }} onMouseEnter={cancelFly} onMouseLeave={scheduleFly} onKeyDown={onFlyKey}>
-              <div className="hn-fly-head">{flyModel.title}</div>
+            <div className="hn-fly tkr-fly" id="tkr-fly" role="menu" aria-label={flyModel.title} ref={flyRef} style={{ left: hv.left, top: hv.top }} onMouseEnter={cancelFly} onMouseLeave={scheduleFly} onKeyDown={onFlyKey} onBlur={onFlyBlur}>
+              <div className="hn-fly-head" aria-hidden="true">
+                {flyModel.title}
+              </div>
               <div className="tkr-fly-scroll">
                 {flyModel.groups.map(function (g) {
                   return (
