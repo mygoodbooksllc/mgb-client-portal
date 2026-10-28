@@ -182,6 +182,12 @@ function TK_stMatches(state, key, task) {
   if (kind === "wb" && val.indexOf("client:") === 0) return task.client_id != null && String(task.client_id) === val.slice(7);
   if (kind === "project") return task.project_id != null && String(task.project_id) === val;
   if (kind === "children") return task.parent_id != null && String(task.parent_id) === val;
+  // Slate plus person profile (TK_Profile.jsx): one person's assigned tasks.
+  // The key is the profile key (TKP_personKey, TK_personLink.js), never an email.
+  if (kind === "assignee") {
+    if (!val || typeof TKP_personKey !== "function") return null;
+    return !!task.assignee_email && TKP_personKey(task.assignee_email) === val;
+  }
   if (kind === "person") {
     var staff = state.staff || [];
     for (var s = 0; s < staff.length; s++) {

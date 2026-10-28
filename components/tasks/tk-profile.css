@@ -1,0 +1,224 @@
+/* Slate plus person profile (TK_Profile.jsx, docs/slateplus-profile-spec.md).
+   Every rule is scoped to .tkp-* classes that only render while the Slate plus
+   gate is on, so nothing here changes the app with the preview off. */
+
+.tkp-profile {
+  max-width: 1180px;
+}
+
+.tkp-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tkp-id {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.tkp-id .tkp-avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 20px;
+  flex: 0 0 auto;
+}
+
+.tkp-id-text {
+  min-width: 0;
+}
+
+.tkp-name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tkp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 4px;
+}
+
+.tkp-title {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.tkp-out {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.tkp-out.is-now {
+  font-weight: 600;
+}
+
+.tkp-line {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.tkp-muted {
+  color: var(--text-muted);
+}
+
+.tkp-note {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+
+/* This week at a glance: four tiles, 2x2 on phones. Late is not red (grace
+   period: late tasks do not count against anyone). */
+.tkp-glance {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.tkp-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.tkp-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  line-height: 1.1;
+}
+
+.tkp-lbl {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tkp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.tkp-main {
+  min-width: 0;
+}
+
+.tkp-h {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: var(--ink-strong);
+}
+
+/* Group heads here are labels, not toggles. */
+.tkp-profile .tkp-group .tk-group-btn {
+  cursor: default;
+}
+.tkp-profile .tkp-group .tk-group-btn::after {
+  content: none;
+}
+.tkp-profile .tkp-group .tk-group-btn:hover {
+  background: transparent;
+}
+
+.tkp-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tkp-card {
+  padding: 14px 16px;
+}
+
+.tkp-card .card-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.tkp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.tkp-list li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tkp-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+.tkp-shout-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.tkp-when {
+  font-size: 12px;
+}
+
+.tkp-shout-body {
+  margin: 2px 0 0;
+  color: var(--text);
+}
+
+/* Profile links elsewhere (row assignee, Team, shout-outs). */
+.tkp-plink {
+  color: inherit;
+  text-decoration: none;
+}
+.tkp-plink:hover,
+.tkp-plink:focus-visible {
+  text-decoration: underline;
+}
+.tkp-asg-link {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+}
+
+@media (max-width: 900px) {
+  .tkp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .tkp-glance {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tkp-id .tkp-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+  .tkp-head .tk-head-actions {
+    width: 100%;
+  }
+}

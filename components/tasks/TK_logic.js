@@ -1056,7 +1056,21 @@ function TK_parseRoute(hash) {
   if (kind === "u" && n === 3) {
     return TK_isUuid(parts[2]) ? { view: "person", staffId: parts[2] } : unknown;
   }
+  // Slate plus person profile (TK_Profile.jsx): an opaque key, never an email.
+  // Only while the Slate plus gate is on; off it stays "unknown" as before.
+  if (kind === "person" && n === 3 && TK__profileRoutesOn()) {
+    var pk = String(parts[2] || "").toLowerCase();
+    return /^[0-9a-f]{16}$/.test(pk) ? { view: "profile", key: pk } : unknown;
+  }
   return unknown;
+}
+
+function TK__profileRoutesOn() {
+  try {
+    return typeof TKP_on === "function" && TKP_on() === true;
+  } catch (e) {
+    return false;
+  }
 }
 
 // Anything that can't be written safely (no id, a bad uuid, an "@" in a
@@ -1068,6 +1082,7 @@ function TK_formatRoute(route) {
   }
   if (r.view === "project" && TK_isUuid(r.projectId)) return "#/tasks/p/" + r.projectId;
   if (r.view === "person" && TK_isUuid(r.staffId)) return "#/tasks/u/" + r.staffId;
+  if (r.view === "profile" && typeof r.key === "string" && /^[0-9a-f]{16}$/.test(r.key)) return "#/tasks/person/" + r.key;
   if (r.view === "search") return "#/tasks/search";
   if (r.view === "review") return "#/tasks/review";
   if (r.view === "templates") return "#/tasks/templates";

@@ -106,7 +106,11 @@ function TK_WorkloadStrip(props) {
       {collapsed ? null : (
         <ul className="tkw-list" id="tkw-list">
           {rows.map(function (r) {
-            var href = TKW_href(r, isAdmin);
+            // Someone else's row opens their Slate plus profile (TK_personLink.js);
+            // the strip only renders with the same gate on. Admins still get
+            // their full list from the profile's "Open full list".
+            var profileHref = !r.me && r.email && typeof TKP_personHref === "function" ? TKP_personHref(r.email) : "";
+            var href = profileHref || TKW_href(r, isAdmin);
             var h = hoursOn ? TP_capFor(cap, r.email) : null;
             var inner = (
               <>
@@ -141,7 +145,7 @@ function TK_WorkloadStrip(props) {
             return (
               <li key={r.email} className={"tkw-item" + (r.me ? " is-me" : "")}>
                 {href ? (
-                  <a className="tkw-person" href={href} title={TKW_title(r) + (r.me ? "" : ". Open their list")}>
+                  <a className="tkw-person" href={href} title={TKW_title(r) + (r.me ? "" : profileHref ? ". Open their profile" : ". Open their list")}>
                     {inner}
                   </a>
                 ) : (

@@ -948,7 +948,7 @@ function TP_WhosOutCard({ staffUser }) {
     <ul className="tp-out-list">
       {items.map((r) => (
         <li key={r.id}>
-          <span className="tp-out-name">{name(r.staff_email)}</span>
+          <span className="tp-out-name">{typeof TKP_who === "function" ? TKP_who(r.staff_email, name(r.staff_email)) : name(r.staff_email)}</span>
           <span className="tp-out-when">{CV_range(r)}</span>
           {r.note && <span className="tp-out-note">{r.note}</span>}
         </li>
@@ -1031,7 +1031,7 @@ function TP_MyBackupsCard({ staffUser, clients }) {
                 </a>
                 {b ? (
                   <span className="tp-backup-who">
-                    {CV_nameOf(dir, b)}
+                    {typeof TKP_who === "function" ? TKP_who(b, CV_nameOf(dir, b)) : CV_nameOf(dir, b)}
                     {typeof CV_OutTag === "function" && <CV_OutTag email={b} />}
                   </span>
                 ) : (

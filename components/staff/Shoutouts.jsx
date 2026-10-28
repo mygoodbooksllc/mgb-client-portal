@@ -108,11 +108,11 @@ function SO_Item({ row, dir, me, isAdmin, clientName }) {
   return (
     <li className={"so-item" + (row.hidden_at ? " so-hidden" : "")}>
       <div className="so-head">
-        <strong>{SO_name(dir, row.from_email)}</strong>
+        <strong>{typeof TKP_who === "function" ? TKP_who(row.from_email, SO_name(dir, row.from_email)) : SO_name(dir, row.from_email)}</strong>
         <span className="so-arrow" aria-label="to">
           →
         </span>
-        <strong>{SO_name(dir, row.to_email)}</strong>
+        <strong>{typeof TKP_who === "function" ? TKP_who(row.to_email, SO_name(dir, row.to_email)) : SO_name(dir, row.to_email)}</strong>
         {tag && <span className="pill so-client">{tag}</span>}
         <span className="so-when">{typeof relTime === "function" ? relTime(row.created_at) : fmtDate(String(row.created_at).slice(0, 10))}</span>
       </div>

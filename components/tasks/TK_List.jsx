@@ -1021,6 +1021,22 @@ function TK_vPersonHeader(props) {
           <h2 className="tk-head-name">{s.name || "Staff member"}</h2>
           <span className="pill neutral">{TK_vRoleLabel(s.role)}</span>
         </div>
+        {s.email && typeof TKP_on === "function" && TKP_on() && typeof TKP_personHref === "function" ? (
+          // Slate plus: their profile (hidden while the gate is off).
+          <div className="tk-head-actions">
+            <a
+              className="btn-secondary"
+              href={TKP_personHref(s.email)}
+              onClick={function (e) {
+                if (!TK_vPlainClick(e)) return;
+                e.preventDefault();
+                TKP_openPerson(s.email);
+              }}
+            >
+              See profile
+            </a>
+          </div>
+        ) : null}
       </div>
     </header>
   );

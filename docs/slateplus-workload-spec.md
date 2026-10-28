@@ -20,7 +20,7 @@ The person handing out work sees, on the Slate page, who is overloaded this week
 
 ## 4. Visibility decision
 Team > Capacity and the Team page are admin-only (staff_capacity RLS, qbo_hours_by_staff, TP_ pages). Following that:
-- Admins: everyone, with hours. Click a person opens their list (`#/tasks/u/<staff id>`, the existing admin-only person list in Slate).
+- Admins: everyone, with hours. Click a person opens their list (`#/tasks/u/<staff id>`, the existing admin-only person list in Slate). Since the person profile (2026-10-27, `docs/slateplus-profile-spec.md`), a click on someone else opens their profile instead; admins reach the list from there.
 - Account managers (account_manager_email on any real client, the same rule as the AM tour): everyone, task counts only, no hours. Rows for other people are not clickable, because the person list is admin-only.
 - Everyone else: only their own row, no team totals (Team capacity shows non-admins nothing, so no extra counts are exposed). Their own row links to their Slate.
 There are no non-admin account managers on the live roster today (checked 2026-10-27), so the AM branch is tested in SQL when one exists.

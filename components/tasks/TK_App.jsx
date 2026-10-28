@@ -114,6 +114,9 @@ function TK_App(props) {
   else if (route.view === "manage") main = <TK_ManageProjects staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "client" || route.view === "project" || route.view === "person") {
     main = <TK_List route={route} staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  } else if (route.view === "profile" && typeof TK_Profile === "function" && typeof TKP_on === "function" && TKP_on()) {
+    // Slate plus person profile (hidden; TK_parseRoute only returns it while the gate is on).
+    main = <TK_Profile route={route} staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   } else {
     main = (
       <div className="tk-state" role="status">
@@ -244,7 +247,7 @@ function TK_App(props) {
           </a>
           <button
             type="button"
-            className={"tk-bb-item" + (route.view === "client" || route.view === "project" || route.view === "person" ? " is-active" : "")}
+            className={"tk-bb-item" + (route.view === "client" || route.view === "project" || route.view === "person" || route.view === "profile" ? " is-active" : "")}
             aria-haspopup="dialog"
             onClick={function () {
               setListsOpen(true);

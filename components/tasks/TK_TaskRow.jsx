@@ -1298,6 +1298,19 @@ function TK_vRowAssignee(props) {
   var shownName = props.showName && email ? <span className="tk-who-name">{name}</span> : null;
   var hint = email ? null : <span className="tk-ph-label">Assign</span>;
   if (!props.editable) {
+    // Slate plus: a link to their profile while the gate is on. A plain check
+    // (no hook per row); off, the row renders exactly as before.
+    if (email && typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on()) {
+      return (
+        <span className="tk-asg" title={email ? name : "Unassigned"}>
+          <TKP_PersonLink email={email} className="tkp-asg-link" title={"See " + name + "'s profile"}>
+            {face}
+            {shownName}
+          </TKP_PersonLink>
+          <span className="tk-sr">{email ? "Assignee: " + name : "Unassigned"}</span>
+        </span>
+      );
+    }
     return (
       <span className="tk-asg" title={email ? name : "Unassigned"}>
         {face}
@@ -1341,6 +1354,22 @@ function TK_vRowAssignee(props) {
       </button>
       {menu.open ? (
         <div className="tk-menu" role="menu" aria-label="Assign to" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
+          {email && typeof TKP_on === "function" && TKP_on() ? (
+            // Slate plus: open the assignee's profile (hidden while the gate is off).
+            <button
+              type="button"
+              role="menuitem"
+              className="tk-menu-item tkp-menu-profile"
+              onClick={function (e) {
+                e.stopPropagation();
+                menu.close(true);
+                if (typeof TKP_openPerson === "function") TKP_openPerson(email);
+              }}
+            >
+              <TK_vIcon name="user" size={14} />
+              <span className="tk-menu-label">{"See " + name + "'s profile"}</span>
+            </button>
+          ) : null}
           {people === null ? <span className="tk-menu-note">Loading…</span> : null}
           {list.map(function (p) {
             var em = String(p.email).toLowerCase();
