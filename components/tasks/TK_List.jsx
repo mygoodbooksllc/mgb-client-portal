@@ -1024,6 +1024,17 @@ function TK_vPersonHeader(props) {
               <h2 className="tk-head-name">{s.name || "Staff member"}</h2>
             </TKP_PersonLink>
             <span className="pill neutral">{TK_vRoleLabel(s.role)}</span>
+            <a
+              className="tk-link tkp-head-profile"
+              href={typeof TKP_personHref === "function" ? TKP_personHref(s.email) : "#/tasks/my"}
+              onClick={function (e) {
+                if (!TK_vPlainClick(e)) return;
+                e.preventDefault();
+                if (typeof TKP_openPerson === "function") TKP_openPerson(s.email);
+              }}
+            >
+              Profile
+            </a>
           </div>
         </div>
       </header>

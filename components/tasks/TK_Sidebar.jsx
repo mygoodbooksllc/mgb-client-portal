@@ -293,6 +293,8 @@ function TK_Sidebar(props) {
     [isAdmin],
   );
   var reviewCount = isAdmin && typeof TK_reviewQueueCount === "function" ? TK_reviewQueueCount(reviewList && reviewList.tasks, me) : 0;
+  // Slate plus (hidden): People rows open the profile; off = the old person list.
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
   var people = (Array.isArray(staff) ? staff : []).filter(function (s) {
     return s && s.active !== false && s.id && (typeof TK_isUuid !== "function" || TK_isUuid(s.id));
   });
@@ -316,6 +318,11 @@ function TK_Sidebar(props) {
             {staff == null ? <li className="tk-nav-empty">Loading…</li> : null}
             {people.map(function (s) {
               var r = { view: "person", staffId: s.id };
+              var pr = plusOn && typeof TKP_peopleRowRoute === "function" ? TKP_peopleRowRoute(s.email, true) : null;
+              if (pr) {
+                // Real link to #/tasks/person/<key>; modifier-click opens a new tab.
+                return <TK_vNavItem key={s.id} route={pr} label={s.name || "Staff member"} avatarName={s.name || "Staff member"} avatarEmail={s.email} active={TKP_isProfileRoute(route, pr.key)} onNavigate={nav} />;
+              }
               return <TK_vNavItem key={s.id} route={r} label={s.name || "Staff member"} avatarName={s.name || "Staff member"} avatarEmail={s.email} active={TK_vSameRoute(route, r)} onNavigate={nav} />;
             })}
           </ul>

@@ -275,4 +275,15 @@ t("TKP_lastSeenAt picks the later of view and action", () => {
   assert.strictEqual(P.TKP_lastSeenAt("x"), "");
 });
 
+t("People rows: gate on opens the profile, off keeps the old route, active on the profile", () => {
+  const k = K.TKP_personKey(SIERRA);
+  assert.deepStrictEqual(K.TKP_peopleRowRoute(SIERRA, true), { view: "profile", key: k });
+  assert.strictEqual(K.TKP_peopleRowRoute(SIERRA, false), null);
+  assert.strictEqual(K.TKP_peopleRowRoute(SIERRA, undefined), null);
+  assert.strictEqual(K.TKP_peopleRowRoute("", true), null);
+  assert.ok(K.TKP_isProfileRoute({ view: "profile", key: k }, k));
+  assert.ok(!K.TKP_isProfileRoute({ view: "person", staffId: "x" }, k));
+  assert.ok(!K.TKP_isProfileRoute({ view: "profile", key: "other" }, k));
+});
+
 console.log("TK_profileLogic: " + n + " tests passed");

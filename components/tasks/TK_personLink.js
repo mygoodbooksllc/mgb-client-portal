@@ -50,6 +50,20 @@ function TKP_personHref(email) {
   return k ? "#/tasks/person/" + k : "";
 }
 
+// Slate sidebar People rows (TK_Sidebar.jsx). Gate ON: the row's route is the
+// person's profile; OFF (or no email): null, so the caller keeps the old admin
+// task-list route byte for byte.
+function TKP_peopleRowRoute(email, gateOn) {
+  if (gateOn !== true) return null;
+  var key = TKP_personKey(email);
+  return key ? { view: "profile", key: key } : null;
+}
+
+// True while `route` is that profile page (active highlight for the row).
+function TKP_isProfileRoute(route, key) {
+  return !!(route && route.view === "profile" && key && route.key === key);
+}
+
 function TKP__gateOn() {
   try {
     return typeof TKP_on === "function" && TKP_on() === true;
@@ -115,6 +129,8 @@ if (typeof module !== "undefined" && module.exports) {
     TKP_personKey: TKP_personKey,
     TKP_isPersonKey: TKP_isPersonKey,
     TKP_personHref: TKP_personHref,
+    TKP_peopleRowRoute: TKP_peopleRowRoute,
+    TKP_isProfileRoute: TKP_isProfileRoute,
     TKP_openPerson: TKP_openPerson,
   };
 }
