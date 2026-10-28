@@ -2057,6 +2057,44 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    // Slate page search box (docs/slateplus-filters-spec.md part A), LIVE for all staff from
+    // 2026-10-27: no switch of its own. Gated like the other Slate notices (visible:
+    // ANN_slateLaunchOn), so anyone on Classic tasks page is not toured to it.
+    id: "slate-search",
+    date: "2026-10-27",
+    title: "Search your Slate list",
+    summary:
+      "The Slate page has a search box next to Add task. Type part of a task's title, its client's name or a word from its notes, and the list narrows as you type. Esc clears it.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    visible: () => ANN_slateLaunchOn(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Search your Slate list",
+        body: () =>
+          "The Slate page now has a search box, so you can find a task without scrolling. About 20 seconds.",
+      },
+      {
+        id: "ann-search",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tk-search"],
+        wait: true,
+        title: "Type to narrow the list",
+        body: () =>
+          "Type part of a title (recon finds Reconcile), a client's name or a word from the notes. Every word you type has to match. Groups, counts and the board show only the matches. Esc or the × clears it; nothing is saved.",
+      },
+      {
+        id: "ann-done",
+        title: "Two kinds of search",
+        body: () =>
+          "This box searches the Slate list in front of you. In the Slate app, the Search tasks box at the top still looks through every task you can see, by whole words. To read more, open How do I use my Slate? in Help.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

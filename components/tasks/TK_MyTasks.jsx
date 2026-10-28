@@ -15,6 +15,8 @@
 //   Client, 4/14/24th or Status; Sort chips; quick chips Mine today and
 //   Waiting on client; Reset view), saved per person in mgb_tk_slate_view_v1
 //   (TK_vUseSlateView). The Desk's Slate tab uses the same bar.
+//   Search box (2026-10-27, live): TK_SlateListSearch in the toolbar on the full
+//   list only (not embedded); TK_applySearch narrows the tasks before grouping.
 // ----------------------------------------------------------------------------
 
 var TK_vGROUPS_KEY = "mgb_tk_groups_v1";
@@ -637,6 +639,11 @@ function TK_vMyTasksBody(props) {
   var fPair = React.useState("");
   var clientFilter = fPair[0];
   var setClientFilter = fPair[1];
+  // Slate search box (live for all staff; TK_FilterBar.jsx): every word must
+  // appear in the title, client name or notes. Empty = the old list exactly.
+  var qPair = React.useState("");
+  var searchText = qPair[0];
+  var setSearchText = qPair[1];
   var focusPair = React.useState(null);
   var focusedId = focusPair[0];
   var setFocusedId = focusPair[1];
@@ -707,6 +714,14 @@ function TK_vMyTasksBody(props) {
         return t && String(t.client_id) === clientFilter;
       })
     : all;
+  var searchOn = !embedded && typeof TK_applySearch === "function" && !!searchText.trim();
+  if (searchOn) {
+    tasks = TK_applySearch(tasks, searchText, {
+      clientNameOf: function (id) {
+        return clientNames[String(id)] || "";
+      },
+    });
+  }
   var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(tasks, today, groupOpts) : {};
   // Rhythm slice 0: Group by (Due date, Client, 4/14/24th, Status), Sort
   // chips and quick chips, saved per person. Nothing chosen builds the groups
@@ -762,6 +777,12 @@ function TK_vMyTasksBody(props) {
   var boardReorder = boardOn && manualCan && !(sv.sort && sv.sort.col);
   var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder("my", manualOn || boardReorder) : {};
   if (manualOn && typeof TK_manualSortGroups === "function") view = TK_manualSortGroups(view, manualKeys);
+  var searchCount = 0;
+  if (searchOn) {
+    view.forEach(function (g) {
+      searchCount += g && Array.isArray(g.tasks) ? g.tasks.length : 0;
+    });
+  }
   // Only a quick chip can empty a list that has tasks (the client filter has
   // its own empty copy), so "No tasks match this view" shows only then.
   var chipEmptied = !!(sv && sv.chip) && TK_myGroupsView(groups, { showDone: prefs.showDone }).length > 0;
@@ -955,7 +976,22 @@ function TK_vMyTasksBody(props) {
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (err) body = <TK_vErrorState onRetry={list.reload} />;
   else if (boardOn) body = board.el;
-  else if (!view.length && chipEmptied) {
+  else if (!view.length && searchOn) {
+    body = (
+      <div className="tk-empty">
+        <p>{"No tasks match \u201c" + searchText.trim() + "\u201d."}</p>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={function () {
+            setSearchText("");
+          }}
+        >
+          Clear search
+        </button>
+      </div>
+    );
+  } else if (!view.length && chipEmptied) {
     body = (
       <div className="tk-empty">
         <p>No tasks match this view.</p>
@@ -1082,6 +1118,15 @@ function TK_vMyTasksBody(props) {
             <TK_vIcon name="plus" size={15} />
             <span>Add task</span>
           </button>
+          {!embedded && typeof TK_SlateListSearch === "function" ? (
+            <TK_SlateListSearch
+              value={searchText}
+              count={searchCount}
+              onChange={function (v) {
+                setSearchText(v);
+              }}
+            />
+          ) : null}
           {myClients.length ? (
             <label className="tk-select-wrap">
               <span className="tk-sr">Client</span>

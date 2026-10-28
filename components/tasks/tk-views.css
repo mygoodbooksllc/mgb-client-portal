@@ -3749,3 +3749,61 @@ a.tk-card-title:hover {
     display: none;
   }
 }
+
+/* ---- Slate search box (TK_FilterBar.jsx, 2026-10-27) ----------------------- */
+.tk-list-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--surface);
+  color: var(--text-muted);
+  min-width: 0;
+  flex: 0 1 260px;
+}
+.tk-list-search:focus-within {
+  border-color: var(--text-muted);
+}
+.tk-list-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  min-height: 32px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+.tk-list-search-input::placeholder {
+  color: var(--text-muted);
+}
+.tk-list-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tk-list-search-clear:hover,
+.tk-list-search-clear:focus-visible {
+  background-color: var(--surface-2);
+  color: var(--text);
+}
+@media (max-width: 760px) {
+  .tk-list-search {
+    flex: 1 1 100%;
+  }
+}

@@ -614,6 +614,17 @@ const TIPS_CATALOG = [
     ready: () => !TIPS_touch(),
   },
   {
+    // Slate page search box (2026-10-27, live for all staff): only on the full Slate list.
+    id: "tk-search",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-search",
+    snug: true,
+    text: "Type here to narrow this list: part of a title, a client's name or a word from the notes. Esc clears it.",
+    slug: "my-tasks",
+    ready: () => !!document.querySelector('[data-tour="tk-search"]'),
+  },
+  {
     // "Slate, start to finish" (2026-10-26): the presenter tour, in the ? menu.
     id: "tk-slate-tour",
     roles: "all",
