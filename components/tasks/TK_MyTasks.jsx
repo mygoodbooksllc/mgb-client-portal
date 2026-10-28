@@ -644,6 +644,13 @@ function TK_vMyTasksBody(props) {
   var qPair = React.useState("");
   var searchText = qPair[0];
   var setSearchText = qPair[1];
+  // Slate plus (hidden preview, TKP_on): the filter bar and saved filters
+  // (TK_FilterBar.jsx). Off (the default, and always in View as or embedded)
+  // nothing below reads plusF, so the list is built exactly as before.
+  var plusGate = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  var plusOn = !!plusGate && !embedded && typeof TK_SlateFilterBar === "function" && typeof TK_applySlateFilters === "function";
+  var pfPair = React.useState(null);
+  var plusF = plusOn ? pfPair[0] : null;
   var focusPair = React.useState(null);
   var focusedId = focusPair[0];
   var setFocusedId = focusPair[1];
@@ -714,6 +721,7 @@ function TK_vMyTasksBody(props) {
         return t && String(t.client_id) === clientFilter;
       })
     : all;
+  if (plusF) tasks = TK_applySlateFilters(tasks, Object.assign({}, plusF, { client: "" }), { email: email, today: today });
   var searchOn = !embedded && typeof TK_applySearch === "function" && !!searchText.trim();
   if (searchOn) {
     tasks = TK_applySearch(tasks, searchText, {
@@ -976,7 +984,24 @@ function TK_vMyTasksBody(props) {
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (err) body = <TK_vErrorState onRetry={list.reload} />;
   else if (boardOn) body = board.el;
-  else if (!view.length && searchOn) {
+  else if (!view.length && plusOn && TK_slateFiltersActive(Object.assign({}, plusF, { client: clientFilter }))) {
+    body = (
+      <div className="tk-empty">
+        <p>No tasks match these filters.</p>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={function () {
+            setSearchText("");
+            setClientFilter("");
+            pfPair[1](null);
+          }}
+        >
+          Clear filters
+        </button>
+      </div>
+    );
+  } else if (!view.length && searchOn) {
     body = (
       <div className="tk-empty">
         <p>{"No tasks match \u201c" + searchText.trim() + "\u201d."}</p>
@@ -1129,7 +1154,7 @@ function TK_vMyTasksBody(props) {
               }}
             />
           ) : null}
-          {myClients.length ? (
+          {!plusOn && myClients.length ? (
             <label className="tk-select-wrap">
               <span className="tk-sr">Client</span>
               <select
@@ -1224,6 +1249,23 @@ function TK_vMyTasksBody(props) {
       />
       {/* Slate plus (hidden preview): Team load strip. Renders nothing when off. */}
       {!embedded && typeof TK_WorkloadStrip === "function" ? <TK_WorkloadStrip isAdmin={isAdmin} bump={loading ? null : all.length} email={email} /> : null}
+      {plusOn ? (
+        <TK_SlateFilterBar
+          value={Object.assign({}, plusF || {}, { q: searchText, client: clientFilter })}
+          onChange={function (n) {
+            var f = n || {};
+            setSearchText(typeof f.q === "string" ? f.q : "");
+            setClientFilter(f.client ? String(f.client) : "");
+            setFocusedId(null);
+            pfPair[1]({ assignee: f.assignee, project: f.project, due: f.due, from: f.from, to: f.to, status: f.status });
+          }}
+          clients={myClients}
+          clientNames={clientNames}
+          tasks={all}
+          projectNames={projectNames}
+          email={email}
+        />
+      ) : null}
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
       {manualOn && manualSay ? manualSay.el : null}

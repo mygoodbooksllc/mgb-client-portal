@@ -2485,6 +2485,56 @@ var TK_api = (function () {
     }, { where: "savedViewDelete" }).then(function () { return true; });
   };
 
+  // Slate plus (hidden preview): my saved filter sets for the Slate page filter
+  // bar (supabase/tasks-slateplus-filter-views.sql; RLS own rows, staff only;
+  // the trigger stamps the owner). Called only by TK_FilterBar.jsx when TKP_on().
+  var FILTER_VIEW_COLS = "id, name, filters, is_default, position, created_at, updated_at";
+  api.filterViewsList = function () {
+    return run(function (c) {
+      return c.from("tk_slate_filter_views").select(FILTER_VIEW_COLS).order("position", { ascending: true }).order("created_at", { ascending: true });
+    }, { where: "filterViewsList" }).then(function (rows) { return arr(rows); });
+  };
+
+  api.filterViewCreate = function (name, filters, position) {
+    var off = requireOnline();
+    if (off) return off;
+    var row = { name: name, filters: filters || {}, position: position || 0 };
+    return run(function (c) {
+      return c.from("tk_slate_filter_views").insert(row).select(FILTER_VIEW_COLS).single();
+    }, { where: "filterViewCreate" });
+  };
+
+  // patch: any of { name, filters, position }. is_default goes through filterViewSetDefault.
+  api.filterViewUpdate = function (id, patch) {
+    var off = requireOnline();
+    if (off) return off;
+    var src = patch || {};
+    var p = {};
+    ["name", "filters", "position"].forEach(function (k) {
+      if (Object.prototype.hasOwnProperty.call(src, k)) p[k] = src[k];
+    });
+    return run(function (c) {
+      return c.from("tk_slate_filter_views").update(p).eq("id", id).select(FILTER_VIEW_COLS).single();
+    }, { where: "filterViewUpdate" });
+  };
+
+  api.filterViewDelete = function (id) {
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.from("tk_slate_filter_views").delete().eq("id", id);
+    }, { where: "filterViewDelete" }).then(function () { return true; });
+  };
+
+  // id = my set to make the default; null clears my default.
+  api.filterViewSetDefault = function (id) {
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.rpc("tk_filter_view_set_default", { p_id: id || null });
+    }, { where: "filterViewSetDefault" }).then(function () { return true; });
+  };
+
   // Grace period for late tasks (supabase/tasks-grace-period.sql). The date
   // late tasks count from, or null while the switch is off (the default).
   api.lateCountFrom = function () {
