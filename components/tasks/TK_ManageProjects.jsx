@@ -258,7 +258,20 @@ function TK_vManageBody(props) {
   var tick = tickPair[0];
   var setTick = tickPair[1];
   var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
-  var storeProjects = TK_vUseProjects();
+  // Store rows only while the gate is on: with it off this reads nothing and
+  // never loads projects, so Manage projects behaves exactly as before.
+  var storeProjects = TK_vUseStore(function (s) {
+    return plusOn && s ? s.projects : null;
+  });
+  React.useEffect(
+    function () {
+      if (plusOn && storeProjects == null && typeof TK_api !== "undefined" && TK_api && typeof TK_api.listProjects === "function") {
+        TK_api.listProjects().catch(function () {});
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plusOn, storeProjects == null],
+  );
 
   React.useEffect(
     function () {

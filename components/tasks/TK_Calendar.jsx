@@ -8,7 +8,8 @@
 // already loaded and filtered (the Slate page's search, client and Slate plus
 // filters; a client / project / person list's own filters), so it never reads
 // anything new. Rules (month grid, buckets, arrow keys) are in
-// TK_calendarLogic.js (node test). A drag, or the keyboard, changes the due date
+// TK_calendarLogic.js (node test). A drag changes the due date (arrow keys only
+// move between days; by keyboard, open the task to change it). It saves
 // through TK_vRowSave (the same path as the due chip on a row, so the same
 // checks and the same optimistic save), with an Undo on the toast.
 //
@@ -197,6 +198,13 @@ function TK_CalendarView(props) {
   React.useEffect(
     function () {
       if (!popDate) return undefined;
+      // The day list sits at the top of the calendar: bring it into view when
+      // it was opened from a lower row the page had scrolled past.
+      if (popRef.current && popRef.current.scrollIntoView) {
+        try {
+          popRef.current.scrollIntoView({ block: "nearest" });
+        } catch (e) {}
+      }
       var first = popRef.current ? popRef.current.querySelector("button") : null;
       if (first) {
         try {

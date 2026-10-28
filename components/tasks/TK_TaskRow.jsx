@@ -287,7 +287,7 @@ function TK_vAssignMenu(props) {
       </button>
       {menu.open ? (
         <div className="tk-menu" role="menu" aria-label="Assign to" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
-          {task.client_id && typeof TK_HoursChip === "function" ? (
+          {task.client_id && typeof TK_HoursChip === "function" && typeof TKP_on === "function" && TKP_on() ? (
             <span className="tk-menu-note tkh-menu-note">
               <TK_HoursChip clientId={task.client_id} />
             </span>
@@ -1394,7 +1394,7 @@ function TK_vRowAssignee(props) {
       </button>}
       {menu.open ? (
         <div className="tk-menu" role="menu" aria-label="Assign to" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
-          {task.client_id && typeof TK_HoursChip === "function" ? (
+          {task.client_id && typeof TK_HoursChip === "function" && typeof TKP_on === "function" && TKP_on() ? (
             <span className="tk-menu-note tkh-menu-note">
               <TK_HoursChip clientId={task.client_id} />
             </span>
