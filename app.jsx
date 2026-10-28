@@ -1167,6 +1167,8 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Slate plus Rules)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "Slate plus Rules (preview): supabase/slateplus-rules.sql (applied 2026-10-28 as slateplus_rules; + slateplus-rules-tests.sql, rolls back) adds tk_rules (When/then rules per project or client; enabled defaults false, switching on is owner only) and tk_rule_runs (what each rule did; unique per rule, task and change), AFTER triggers tk_staff_reminders_zrules / _zrules_ins on staff_reminders and the daily cron tk-rules-overdue-daily (11:50 UTC). Nothing runs while tk_settings.slateplus_enabled is off. RPCs tk_rule_save, tk_rule_set_enabled, tk_rule_archive, tk_rule_dry_run (writes nothing), tk_rule_recent_runs; full admins only. Page TK_Rules.jsx, rules TK_rulesLogic.js. Spec: docs/slateplus-rules-spec.md.",
+  },
+  {
     name: "Supabase SQL (Slate plus custom fields)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "Slate plus custom fields (preview): supabase/slateplus-customfields.sql (+ slateplus-customfields-tests.sql, rolls back) adds tk_custom_fields (up to 15 active per project or client; text, number, dropdown, date, checkbox, person) and tk_custom_field_values (one per field and task, checked by a trigger), with RPCs tk_cf_field_save, tk_cf_field_archive, tk_cf_field_order, tk_cf_value_set and tk_cf_values. Read follows the task and project rules; project owners and admins manage project fields, admins client fields; anyone who can edit a task sets its values. Nothing is ever deleted (archive, retired options). Staff only, nothing for anon. Spec: docs/slateplus-customfields-spec.md.",
