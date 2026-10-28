@@ -717,6 +717,13 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
   const lateOn = TK_useLateCounts();
   const showMoney = !!profit;
   const pv = (id) => TP_PF_rowView(profit, qboOn, id);
+  // Actual fee minus the confirmed pricing milestone's fee (null when either is missing).
+  const msGap = (id) => {
+    const m = pv(id);
+    const tier = profit && profit.tierFees ? profit.tierFees[id] : null;
+    if (m.fee == null || tier == null) return null;
+    return { gap: m.fee - tier, tier, same: m.feeSource === "tier_default" };
+  };
   // Hours budget (HoursBudget.jsx): admins only, always this calendar month.
   const budgets = HB_useBudgets(showMoney);
   const budgetRatio = (id) => {
@@ -746,6 +753,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
       name: (r) => r.name.toLowerCase(),
       // Rows with no figure sort last whichever way.
       fee: (r) => TP_PF_orLast(showMoney ? pv(r.id).fee : null, sort.dir),
+      milestone: (r) => TP_PF_orLast(showMoney && msGap(r.id) ? msGap(r.id).gap : null, sort.dir),
       cost: (r) => TP_PF_orLast(showMoney ? pv(r.id).cost : null, sort.dir),
       profit: (r) => TP_PF_orLast(showMoney ? pv(r.id).profit : null, sort.dir),
       margin: (r) => TP_PF_orLast(showMoney ? pv(r.id).margin : null, sort.dir),
@@ -761,7 +769,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
   }, [built, sort, showIdle, profit, qboOn, budgets]);
   const toggle = (key) =>
     setSort(() =>
-      sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" || key === "rate" || key === "margin" ? "asc" : "desc" },
+      sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" || key === "rate" || key === "margin" || key === "milestone" ? "asc" : "desc" },
     );
   const mark = (key) => (sort.key === key ? (sort.dir === "asc" ? " ↑" : " ↓") : "");
   const keyed = (fn) => (e) => {
@@ -776,7 +784,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
   const clientMin = built.rows.reduce((n, r) => n + r.qMinutes, 0);
   const otherMin = built.total - clientMin - unmappedMin;
   const appTotal = built.rows.reduce((n, r) => n + TP_qNum(r.appMinutes), 0);
-  const cols = (showMoney ? 15 : 9) - (lateOn ? 0 : 1);
+  const cols = (showMoney ? 16 : 9) - (lateOn ? 0 : 1);
   const dash = <span className="tp-muted">–</span>;
   const leastFirst = sort.key === "margin" && sort.dir === "asc";
 
@@ -832,6 +840,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
           ["avg", "Avg / mo"],
           ...(showMoney
             ? [
+                ["milestone", "Milestone"],
                 ["rate", "Rate"],
                 ["profit", "Profit"],
                 ["margin", "Margin"],
@@ -876,6 +885,9 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                 <>
                   <th className="num" title="Actual monthly fee, or the pricing tier's fee when none is set">
                     <button type="button" className="tp-sort" onClick={() => toggle("fee")}>Fee / mo{mark("fee")}</button>
+                  </th>
+                  <th className="num" title="Actual monthly fee minus the fee for the client's confirmed pricing milestone. Plus means they pay more than their milestone; minus means less.">
+                    <button type="button" className="tp-sort" onClick={() => toggle("milestone")}>vs milestone{mark("milestone")}</button>
                   </th>
                   <th className="num">
                     <button type="button" className="tp-sort" onClick={() => toggle("rate")}>Eff. rate{mark("rate")}</button>
@@ -944,6 +956,17 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                             "–"
                           )}
                         </td>
+                        <td
+                          className={"num" + (msGap(r.id) && msGap(r.id).gap < 0 ? " tp-bad" : "")}
+                          data-label="vs milestone"
+                          title={msGap(r.id) ? `Milestone fee ${fmtMoney(msGap(r.id).tier)}` : "No confirmed milestone or no fee"}
+                        >
+                          {msGap(r.id) ? (
+                            msGap(r.id).gap === 0 ? "on milestone" : `${msGap(r.id).gap > 0 ? "+" : "−"}${fmtMoney(Math.abs(msGap(r.id).gap))}`
+                          ) : (
+                            "–"
+                          )}
+                        </td>
                         <td className="num" data-label="Effective rate">
                           {TP_PF_effRate(m.fee, r) != null ? `${fmtMoney(TP_PF_effRate(m.fee, r))}/h` : "–"}
                         </td>
@@ -995,6 +1018,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                     {showMoney && (
                       <>
                         <td className="num tp-muted" data-label="Fee / mo">–</td>
+                        <td className="num tp-muted" data-label="vs milestone">–</td>
                         <td className="num tp-muted" data-label="Effective rate">–</td>
                         <td className="num tp-muted" data-label="Cost">–</td>
                         <td className="num tp-muted" data-label="Profit">–</td>
