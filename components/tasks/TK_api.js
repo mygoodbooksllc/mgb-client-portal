@@ -1986,6 +1986,20 @@ var TK_api = (function () {
     }, { where: "search" }).then(function (rows) { return rows || []; });
   };
 
+  // Slate plus (hidden preview, TKP_on): who will actually see an @mention on
+  // this task (supabase/slateplus-mentions.sql). Lowercase emails, never the
+  // caller. Only TK_Comments calls it, and only while TKP_on() is true.
+  api.mentionCandidates = function (taskId) {
+    if (!taskId) return Promise.resolve([]);
+    return run(function (c) {
+      return c.rpc("tk_mention_candidates", { p_task: taskId });
+    }, { where: "mentionCandidates" }).then(function (rows) {
+      return (rows || [])
+        .map(function (r) { return lower(r && typeof r === "object" ? r.email : r); })
+        .filter(Boolean);
+    });
+  };
+
   api.listMentions = function (email, opts) {
     var who = lower(email || me());
     if (!who) return Promise.resolve([]);

@@ -8,6 +8,12 @@
 // opens a list of active staff; the server reads the handles from the body.
 // Shared hooks and helpers (TK_dwUseRows, TK_dwApi, ...) live in TK_Drawer.jsx
 // and are used at render time only.
+//
+// Slate plus (hidden preview, TKP_on() in TK_slatePlus.js): the "@" list shows
+// only people who will see the mention (tk_mention_candidates) plus a muted
+// "can't see this task" line, a note after posting says who was notified, and
+// a mention of you stands out (is-me). Off: everything below behaves exactly
+// as before (no extra call, no extra markup or class).
 // ----------------------------------------------------------------------------
 
 var TK_CM_MAX = 5000;
@@ -30,12 +36,13 @@ function TK_cmHandleMap(staff) {
 
 function TK_cmBody(props) {
   var parts = TK_dlSplitMentions(props.body, props.handles);
+  var meOn = !!props.plusOn && !!props.me && typeof TKM_isMe === "function";
   return (
     <div className="tk-cm-body">
       {parts.map(function (part, i) {
         if (part.type === "mention") {
           return (
-            <span key={i} className="tk-cm-mention" title={"@" + part.handle}>
+            <span key={i} className={meOn && TKM_isMe(part.handle, props.me) ? "tk-cm-mention is-me" : "tk-cm-mention"} title={"@" + part.handle}>
               @{part.name}
             </span>
           );
@@ -71,8 +78,14 @@ function TK_cmEditor(props) {
   var setActive = activePair[1];
   var listId = React.useRef("tk-cm-list-" + Math.random().toString(36).slice(2, 8)).current;
 
-  var matches = mq ? TK_mentionMatches(mq.query, p.staff, 6) : [];
-  var listOpen = !!mq && matches.length > 0;
+  // Slate plus: split into who can be picked and who can't see the task.
+  var plusLists = mq && p.plusOn && Array.isArray(p.candidates) && typeof TKM_pickerLists === "function"
+    ? TKM_pickerLists(mq.query, p.staff, p.candidates, TK_mentionMatches, p.me)
+    : null;
+  var matches = plusLists ? plusLists.pick : mq ? TK_mentionMatches(mq.query, p.staff, 6) : [];
+  var offList = plusLists ? plusLists.off : [];
+  var navOpen = !!mq && matches.length > 0;
+  var listOpen = navOpen || (!!mq && offList.length > 0);
 
   React.useEffect(function () {
     if (p.autoFocus && ref.current) {
@@ -120,7 +133,7 @@ function TK_cmEditor(props) {
         aria-autocomplete="list"
         aria-expanded={listOpen ? "true" : "false"}
         aria-controls={listOpen ? listId : undefined}
-        aria-activedescendant={listOpen ? listId + "-" + active : undefined}
+        aria-activedescendant={navOpen ? listId + "-" + active : undefined}
         onChange={function (e) {
           p.onChange(e.target.value);
           syncQuery(e.target);
@@ -130,7 +143,7 @@ function TK_cmEditor(props) {
           setTimeout(function () { setMq(null); }, 150);
         }}
         onKeyDown={function (e) {
-          if (listOpen) {
+          if (navOpen) {
             if (e.key === "ArrowDown") {
               e.preventDefault();
               setActive((active + 1) % matches.length);
@@ -152,6 +165,13 @@ function TK_cmEditor(props) {
               setMq(null);
               return;
             }
+          }
+          if (listOpen && !navOpen && e.key === "Escape") {
+            // Slate plus: only "can't see this task" lines are showing
+            e.preventDefault();
+            e.stopPropagation();
+            setMq(null);
+            return;
           }
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
@@ -190,6 +210,24 @@ function TK_cmEditor(props) {
                 </span>
                 <span className="tk-cm-option-name">{s.name || TK_dlHandle(s.email)}</span>
                 <span className="tk-cm-option-handle">@{TK_dlHandle(s.email)}</span>
+              </li>
+            );
+          })}
+          {offList.map(function (s) {
+            return (
+              <li
+                key={"off-" + s.email}
+                role="option"
+                aria-disabled="true"
+                aria-selected="false"
+                className="tk-cm-option tk-cm-option-off"
+                onMouseDown={function (e) { e.preventDefault(); }}
+              >
+                <span className="tk-dw-avatar tk-dw-avatar-sm" aria-hidden="true">
+                  {TK_dlInitials(s.name, s.email)}
+                </span>
+                <span className="tk-cm-option-name">{s.name || TK_dlHandle(s.email)}</span>
+                <span className="tk-cm-option-handle">can't see this task</span>
               </li>
             );
           })}
@@ -276,6 +314,9 @@ function TK_cmComment(props) {
               onSubmit={saveEdit}
               onCancel={function () { setEditing(null); }}
               staff={p.staff}
+              plusOn={p.plusOn}
+              candidates={p.candidates}
+              me={p.plusOn ? p.me : undefined}
               label="Edit comment"
               autoFocus
               disabled={busy}
@@ -293,7 +334,7 @@ function TK_cmComment(props) {
         ) : deleted ? (
           <p className="tk-cm-body tk-dw-muted">Comment deleted</p>
         ) : (
-          <TK_cmBody body={c.body} handles={p.handles} />
+          <TK_cmBody body={c.body} handles={p.handles} plusOn={p.plusOn} me={p.me} />
         )}
         {mine && !deleted && editing === null && p.canComment && (
           <div className="tk-cm-own">
@@ -344,6 +385,25 @@ function TK_Comments(props) {
   var staff = p.staff || [];
   var api = TK_dwApi();
   var handles = React.useMemo(function () { return TK_cmHandleMap(staff); }, [staff]);
+  // Slate plus gate (one shared check). typeof is stable for the page's life.
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : typeof TKP_on === "function" ? TKP_on() : false;
+  var candPair = React.useState(null); // array of emails once loaded; null = old list
+  var cands = candPair[0];
+  var setCands = candPair[1];
+  var notePair = React.useState("");
+  var note = notePair[0];
+  var setNote = notePair[1];
+  React.useEffect(function () {
+    setCands(null);
+    setNote("");
+    if (!plusOn || !task.id || !api || typeof api.mentionCandidates !== "function") return undefined;
+    var live = true;
+    Promise.resolve(api.mentionCandidates(task.id)).then(
+      function (list) { if (live) setCands(Array.isArray(list) ? list : null); },
+      function () { if (live) setCands(null); },
+    );
+    return function () { live = false; };
+  }, [plusOn, task.id]);
 
   var cm = TK_dwUseRows(
     "c",
@@ -389,9 +449,12 @@ function TK_Comments(props) {
     setBusy(true);
     setErr("");
     api.addComment(task.id, text).then(
-      function () {
+      function (row) {
         setBusy(false);
         setDraft("");
+        if (plusOn && typeof TKM_postNote === "function") {
+          setNote(TKM_postNote({ body: text, staff: staff, mentions: row && row.mentions, candidates: cands, me: me }).text);
+        }
         TK_dwTrack("tasks-comment", { mentions: (text.match(/(^|\s)@[A-Za-z0-9._-]{2,}/g) || []).length });
         reloadAll();
         setTimeout(function () {
@@ -449,6 +512,8 @@ function TK_Comments(props) {
                 handles={handles}
                 canComment={p.canComment}
                 onChanged={reloadAll}
+                plusOn={plusOn}
+                candidates={plusOn ? cands : null}
               />
             );
           })}
@@ -461,9 +526,13 @@ function TK_Comments(props) {
           onChange={function (v) {
             setDraft(v);
             if (err) setErr("");
+            if (note) setNote("");
           }}
           onSubmit={post}
           staff={staff}
+          plusOn={plusOn}
+          candidates={plusOn ? cands : null}
+          me={plusOn ? me : undefined}
           label="Add a comment"
           placeholder={
             p.canComment
@@ -477,6 +546,11 @@ function TK_Comments(props) {
         {err && (
           <p className="tk-dw-warn" role="alert">
             {err}
+          </p>
+        )}
+        {plusOn && note && (
+          <p className="tk-cm-note" role="status">
+            {note}
           </p>
         )}
         {/* A deleted task takes no comments: no Post button, only the
