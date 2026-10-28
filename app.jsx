@@ -1035,11 +1035,11 @@ const FEATURE_FLAGS = [
   },
   {
     // Read by TKP_previewOn / TKP_isOn (components/tasks/TK_slatePlus.js), the one
-    // gate for the Slate plus batch.
+    // gate for the Slate plus batch (@mentions, Team load strip and siblings).
     key: "mgb_slateplus_preview",
     label: "Slate plus preview",
     description:
-      "Turns on for you only, in this browser, while the firm-wide slateplus_enabled switch is off, the Slate plus additions. @mentions in task comments: the @ list shows only people who will see the mention (others are grayed out with can't see this task), a note after posting says who was notified, and a mention of you is highlighted. Staff only; clients never see it; it sends nothing new. Off in View as. The page reloads when you toggle it.",
+      "Turns on for you only, in this browser, while the firm-wide slateplus_enabled switch is off, the Slate plus additions. @mentions in task comments: the @ list shows only people who will see the mention (others are grayed out with can't see this task), a note after posting says who was notified, and a mention of you is highlighted. Team load on the Slate page: open, due this week and (once late tasks count) late tasks per person, plus QuickBooks Time hours for admins, and the same load as one line in the Unassigned group; admins and account managers see everyone, everyone else only their own load. Staff only; clients never see it; it sends nothing new. Off in View as. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -1248,6 +1248,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Desk additions switch)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "Desk additions (preview): supabase/owner-only-deskplus-switch.sql (+ -tests.sql, rolls back) makes tk_settings.deskplus_enabled owner-only (tk__owner_only_key). No row: missing = off. Read by components/workbench/WB_plus.js, never written by the app.",
+  },
+  {
+    name: "Supabase SQL (Slate plus workload)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Slate plus (preview): supabase/slateplus-workload.sql (+ slateplus-workload-tests.sql, rolls back) adds the read-only RPC tk_slateplus_workload() (task counts per active staff member: open, due this week, late once late tasks count; admins and account managers see everyone, others only themselves; no task or client fields) and makes tk_settings.slateplus_enabled owner-only (tk__owner_only_key). No row: missing = off. Read by components/tasks/TK_slatePlus.js, never written by the app. Spec: docs/slateplus-workload-spec.md.",
   },
   {
     name: "Supabase SQL (Thread menu)",
@@ -14177,6 +14182,9 @@ function resettableLocalStorageKeys() {
     // and sessionStorage mgb_op_later:<email> (the client's "Later" for this sign-in; not touched by Reset).
     // Desk additions (hidden preview): mgb_deskplus_preview (a flag, kept),
     // mgb_deskplus_cache (the firm switch deskplus_enabled as last read by WB_plus.js, cleared by Reset).
+    // Slate plus (hidden preview): mgb_slateplus_preview (a flag, kept),
+    // mgb_slateplus_cache (the firm switch slateplus_enabled as last read by TK_slatePlus.js, cleared by Reset),
+    // mgb_slateplus_workload_v1 (Team load strip collapsed, cleared by Reset).
     // Thread menu (hidden preview): mgb_threadmenu_preview (a flag, kept),
     // mgb_threadmenu_cache (the firm switch threadmenu_enabled as last read by TM_gate.js, cleared by Reset).
     // Slate plus (hidden preview): mgb_slateplus_preview (a flag, kept),
@@ -15711,7 +15719,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply. The one-time import ran 2026-10-16. From 2026-10-25 to 2026-11-24 the daily Asana import (scripts/asana-import/dailyImport.js, runbook docs/asana-daily-import.md) turns it on only inside its own apply transaction and off again in the same transaction, so it reads Off here between runs; if a run finds it already on, the run stops without touching it. Never turn it on by hand while the daily runs continue. Undo works with it off."],
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more)."],
             ["threadmenu_enabled", "Message thread menu for all staff (owner only)", "Off = only people with the Thread menu preview flag see it. Off (or missing, the default) keeps Messages and the Desk Inbox exactly as they are: no right-click menu or ⋯ on threads, no Done, Snoozed or Hidden chips, no thread tags. Owner turns it on (true) from the SQL editor (override first; see the README Thread menu launch checklist), never from here. Never shown to clients; off in View as."],
-            ["slateplus_enabled", "Slate plus for all staff (owner only)", "Off = only people with the Slate plus preview flag see it. Off (or missing, the default) keeps Slate exactly as it is for everyone: task comment @mentions work as before (full @ list, no note after posting, no highlight of your own name). Owner turns it on (true) from the SQL editor (override first; see the README Slate plus launch checklist), never from here. Never shown to clients; off in View as."],
+            ["slateplus_enabled", "Slate plus for all staff (owner only)", "Off = only people with the Slate plus preview flag see it. Off (or missing, the default) keeps Slate exactly as it is for everyone: task comment @mentions work as before (full @ list, no note after posting, no highlight of your own name), and the Slate page has no Team load strip and no load line in the Unassigned group. Owner turns it on (true) from the SQL editor (override first; see the README Slate plus launch checklist), never from here. Never shown to clients; off in View as; Team load is read only (admins and account managers see everyone's load, others only their own)."],
             ["deskplus_enabled", "Desk additions for staff", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk exactly as it is for everyone: no Ledger chip in the Inbox, no Waiting on client, recent messages or recent files on the Client tab, no Ask client or Message buttons there, and no Ask client…, Message… or Time off in the + menu. Owner turns it on (true) from the SQL editor (override first; see the README Desk additions launch checklist), never from here, to give those to every staff member who has the Desk. Each person can try it early with Desk additions preview in Feature flags. Needs the Desk on (wb_enabled, unless the person picked Classic Today)."],
             ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Each person can try it early with Client org profile + gifts (preview) in Feature flags. Nothing emails clients and nothing orders gifts either way."],
             ["org_gift_basis", "Client gifts: anniversary to follow", "Which anniversary Team › Client gifts and the weekly digest follow, for the whole firm: established (the founding date, the default; not set means this; Client since is used for clients whose founding date is Not sure or blank) or client_since (Client since, when an admin picks it). Admins change it on Team › Client gifts › Anniversary to follow (every change audited; the database refuses any other value)."],

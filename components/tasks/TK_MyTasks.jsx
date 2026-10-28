@@ -1034,6 +1034,8 @@ function TK_vMyTasksBody(props) {
                 </button>
                 {!g.collapsed && typeof TK_BulkGroupBox === "function" ? <TK_BulkGroupBox select={bulk} tasks={g.tasks} label={g.label} /> : null}
               </h3>
+              {/* Slate plus (hidden preview): team load before you claim. Renders nothing when off. */}
+              {g.key === "unassigned" && !embedded && !g.collapsed && typeof TK_WorkloadLine === "function" ? <TK_WorkloadLine bump={loading ? null : all.length} email={email} /> : null}
               {g.collapsed ? null : (
                 <ul className="tk-rows" role="grid" aria-label={g.label} data-tk-group={manualOn ? String(gi) : undefined}>
                   {g.tasks.map(function (t) {
@@ -1220,6 +1222,8 @@ function TK_vMyTasksBody(props) {
             : undefined
         }
       />
+      {/* Slate plus (hidden preview): Team load strip. Renders nothing when off. */}
+      {!embedded && typeof TK_WorkloadStrip === "function" ? <TK_WorkloadStrip isAdmin={isAdmin} bump={loading ? null : all.length} email={email} /> : null}
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
       {manualOn && manualSay ? manualSay.el : null}
