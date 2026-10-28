@@ -47,6 +47,15 @@ function TKS__bindK() {
   });
 }
 
+// Opens the box mounted last, like Ctrl/Cmd+K (the Slate plus icon rail's
+// Search button). False when no box is mounted or it is not on screen (the
+// caller then falls back to the Search view).
+function TKS_openBox() {
+  var top = TKS__kOwners[TKS__kOwners.length - 1];
+  if (!top) return false;
+  return top() === true;
+}
+
 // ---- Projects (tk_projects RLS read, cached 60 s) ------------------------------
 var TKS__proj = { at: 0, promise: null };
 function TKS__loadProjects() {
@@ -502,22 +511,25 @@ function TKS_SearchBox(props) {
 
   // Ctrl/Cmd+K focuses this box (the last one mounted owns it).
   var focusRef = React.useRef(null);
+  // True when something visible opened (TKS_openBox; Ctrl/Cmd+K ignores it).
   focusRef.current = function () {
     if (compact) {
       setSheet(true);
       setOpen(true);
-      return;
+      return true;
     }
     setOpen(true);
     if (inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
+      return !!inputRef.current.getClientRects().length;
     }
+    return false;
   };
   React.useEffect(function () {
     TKS__bindK();
     var fn = function () {
-      if (focusRef.current) focusRef.current();
+      return focusRef.current ? focusRef.current() : false;
     };
     TKS__kOwners.push(fn);
     return function () {

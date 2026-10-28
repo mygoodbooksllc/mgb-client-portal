@@ -227,6 +227,12 @@ function TKP2_useCard(email, self) {
         rawRef.current = next;
         set({ loading: false, failed: false, raw: next });
         if (Object.prototype.hasOwnProperty.call(patch, "time_zone")) TKP2_setMyZone(email, next.time_zone);
+        // The Slate plus icon rail reloads my pins (TK_SlateRail.jsx).
+        if (Object.prototype.hasOwnProperty.call(patch, "pinned_client_ids") || Object.prototype.hasOwnProperty.call(patch, "pinned_project_ids")) {
+          try {
+            window.dispatchEvent(new Event("tkp2:pins"));
+          } catch (e) {}
+        }
         if (okText) TKP2__toast(okText);
         return true;
       },

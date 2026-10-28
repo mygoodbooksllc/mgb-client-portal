@@ -511,7 +511,11 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "tasks",
     target: "tk-manage-nav",
     snug: true,
-    text: "Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there.",
+    // Slate plus icon rail (hidden preview): the Projects icon while its panel is closed.
+    text: () =>
+      document.querySelector('.tkr-item[data-tour="tk-manage-nav"]')
+        ? "Projects › Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there."
+        : "Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there.",
     slug: "manage-projects",
     ready: () => !!document.querySelector('[data-tour="tk-manage-nav"]'),
   },
@@ -583,9 +587,14 @@ const TIPS_CATALOG = [
     roles: "admin",
     match: (r) => r.page === "tasks",
     target: "tk-no-team",
-    part: ".tk-nav-head",
+    // Slate plus icon rail (hidden preview): while the Clients panel is closed
+    // the target is the Clients icon (.tkr-ico) and the text says where to look.
+    part: [".tk-nav-head", ".tkr-ico"],
     snug: true,
-    text: "No team yet lists clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent.",
+    text: () =>
+      document.querySelector('.tkr-item[data-tour="tk-no-team"]')
+        ? "Clients opens No team yet: clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent."
+        : "No team yet lists clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent.",
     slug: "task-lists-and-projects",
     ready: () => !!document.querySelector('[data-tour="tk-no-team"]'),
   },
@@ -594,9 +603,14 @@ const TIPS_CATALOG = [
     roles: "all",
     match: (r) => r.page === "tasks",
     target: "tk-sidebar",
-    part: ".tk-nav-section .tk-nav-head",
+    // .tkr-item-projects: the Slate plus icon rail's Projects button (hidden
+    // preview); never in the old sidebar, so it still lands on its heading.
+    part: [".tkr-item-projects", ".tk-nav-section .tk-nav-head"],
     snug: true,
-    text: "Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too.",
+    text: () =>
+      document.querySelector(".tkr-item-projects")
+        ? "Projects opens the shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Clients, below it, has a list for each client you can see."
+        : "Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too.",
     slug: "task-lists-and-projects",
   },
   {

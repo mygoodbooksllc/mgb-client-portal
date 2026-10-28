@@ -298,6 +298,27 @@ function TK_Sidebar(props) {
   var people = (Array.isArray(staff) ? staff : []).filter(function (s) {
     return s && s.active !== false && s.id && (typeof TK_isUuid !== "function" || TK_isUuid(s.id));
   });
+  // Slate plus (hidden): the icon rail (TK_SlateRail.jsx). Only when TK_App
+  // asks for it (rail layout) and the gate is on; otherwise the list below.
+  if (props.variant === "icons" && plusOn && typeof TKR_Rail === "function") {
+    return (
+      <TKR_Rail
+        route={route}
+        onNavigate={nav}
+        isAdmin={isAdmin}
+        staffUser={props.staffUser}
+        projects={projects}
+        visibleProjects={visibleProjects}
+        clients={pickedClients}
+        clientCount={clients.length}
+        people={people}
+        staffLoading={staff == null}
+        reviewCount={reviewCount}
+        waitCount={waitCount}
+        noTeam={noTeam}
+      />
+    );
+  }
 
   return (
     <nav className="tk-sidebar" aria-label="Task lists" data-tour="tk-sidebar">

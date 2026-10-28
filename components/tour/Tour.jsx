@@ -107,20 +107,28 @@
 //   tk-dw-fields     the Assignee/Due/Client/Project/Priority/Status block at
 //                    the top of a task's details, only while one is open (TK_DrawerContent.jsx)
 //   tk-no-team       the sidebar's No team yet group, admins, only when a
-//                    client is in it (TK_Sidebar.jsx)
+//                    client is in it (TK_Sidebar.jsx); with the Slate plus
+//                    icon rail, the group in the Clients panel or, while that
+//                    panel is closed, the Clients icon (TK_SlateRail.jsx)
 //   tk-assign-team   Assign team in a client list's header, admins, only on a
 //                    client with no bookkeeper (TK_ClientHeader.jsx)
 //   tk-tpl-assign    the template editor's Assign to field (TK_Templates.jsx)
 //   tk-status        the first row's status pill (TK_TaskRow.jsx)
 //   tk-sidebar       the lists rail, 900px and up (TK_Sidebar.jsx); below
-//                    that it sits behind the Lists button
-//   tk-review-nav    the sidebar's Review item (TK_Sidebar.jsx), same widths
+//                    that it sits behind the Lists button. Slate plus (hidden
+//                    preview): the icon rail's nav (TK_SlateRail.jsx), same
+//                    widths plus the Slate app's Regular and Full sizes
+//   tk-review-nav    the sidebar's Review item (TK_Sidebar.jsx, or the icon
+//                    rail's Review icon in TK_SlateRail.jsx), same widths
 //   tk-review-groups the review queue's groups (TK_ReviewQueue.jsx), only
 //                    when something is waiting
 //   tk-review-stats  the queue's Last 30 days card (admins)
 //   tk-review-strip  the review strip in a task's details (TK_Drawer.jsx)
-//   tk-recurring-nav the sidebar's Recurring item (TK_Sidebar.jsx), same widths
-//   tk-manage-nav    the sidebar's Manage projects item (admins; TK_Sidebar.jsx)
+//   tk-recurring-nav the sidebar's Recurring item (TK_Sidebar.jsx, or the icon
+//                    rail's Recurring icon), same widths
+//   tk-manage-nav    the sidebar's Manage projects item (admins; TK_Sidebar.jsx);
+//                    with the icon rail, Manage projects in the Projects panel
+//                    or, while that panel is closed, the Projects icon
 //   tk-manage-head   Tasks › Manage projects' heading (TK_ManageProjects.jsx)
 //   tk-groupby       the Group by select in My Tasks' view bar (TK_SlateViewBar,
 //                    TK_MyTasks.jsx; also a person's list switch). The Desk
@@ -136,7 +144,8 @@
 //                    tasks are selected or a skipped report is showing
 //   tk-project-dot   the color dot beside a project's name on its own page
 //                    (TK_List.jsx); the sidebar's project dots sit in tk-sidebar
-//   tk-waiting-nav   the sidebar's Waiting on client item (TK_Sidebar.jsx), same widths
+//   tk-waiting-nav   the sidebar's Waiting on client item (TK_Sidebar.jsx, or the
+//                    icon rail's Waiting icon), same widths
 //   tk-waiting-head  Tasks › Waiting on client's heading (TK_WaitingList.jsx)
 //   tk-waiting-groups its client groups, only when something is waiting
 //   tk-ask-client    a client task's Client requests section (TK_AskClientModal.jsx)
@@ -1533,7 +1542,10 @@ function TOUR_tasksSteps() {
       spot: "top",
       title: "Lists and projects",
       body: () =>
-        (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
+        // Slate plus icon rail (hidden preview, TK_SlateRail.jsx).
+        document.querySelector(".tk-sidebar.tkr")
+          ? "Icons for every place in Slate; hover one for its full name, and the numbers are what's waiting. Slate, Review (work waiting for an admin's approval), Waiting (everything you've asked a client for), Recurring (templates that make tasks on a schedule) and Search. People, Projects and Clients open a panel with the lists, your pinned ones first; Pin keeps it open. SOPs and 90 Day are projects open to all staff. Admins also find Manage projects under Projects."
+          : (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
         "Slate (group it by due date or by client), Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Recurring (templates that make tasks on a schedule), Search, the firm's projects (each with its own color dot) and each of your clients' lists. SOPs and 90 Day are projects open to all staff. Admins also get Manage projects.",
     },
     {

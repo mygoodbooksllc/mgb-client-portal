@@ -86,6 +86,12 @@ function TK_App(props) {
     TK_navigate(r);
   };
 
+  // Slate plus (hidden): the icon rail replaces the text sidebar in the rail
+  // layout only (TK_SlateRail.jsx). Off: railPlus false, markup unchanged.
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  var railPlus = !!(rail && plusOn && typeof TKR_Rail === "function");
+  var rp = typeof TKR_usePrefs === "function" ? TKR_usePrefs(staffUser.email, railPlus) : null;
+
   if (schema === "missing") {
     return (
       <div className={"tk-app" + (shell ? " is-shell" : "") + (slm ? " " + TK_slateModeClasses(slm) : "") + (slm && prefs && TK_prefsDensityClass(prefs) ? " " + TK_prefsDensityClass(prefs) : "")} ref={obsRef || undefined}>
@@ -144,12 +150,12 @@ function TK_App(props) {
   return (
     <div
       className={
-        "tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (compactNow ? " is-compact" : "") + (slm ? " " + TK_slateModeClasses(slm) : "") + (slm && prefs && TK_prefsDensityClass(prefs) ? " " + TK_prefsDensityClass(prefs) : "")
+        "tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (compactNow ? " is-compact" : "") + (slm ? " " + TK_slateModeClasses(slm) : "") + (slm && prefs && TK_prefsDensityClass(prefs) ? " " + TK_prefsDensityClass(prefs) : "") + (railPlus ? " has-tkr" + (rp && rp.pinned && rp.section ? " tkr-pinned" : "") : "")
       }
       ref={obsRef || undefined}
     >
       <h1 className="tk-sr">Slate</h1>
-      {rail ? <aside className="tk-app-rail">{sidebar}</aside> : null}
+      {rail ? <aside className={"tk-app-rail" + (railPlus ? " tkr-host" : "")}>{railPlus ? <TK_Sidebar route={route} clients={clients} isAdmin={isAdmin} staffUser={staffUser} onNavigate={navigate} variant="icons" /> : sidebar}</aside> : null}
       <div className="tk-app-main" tabIndex={slm ? -1 : undefined}>
         {needBar || showPopOut ? (
           <div className="tk-app-bar">
