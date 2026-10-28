@@ -4326,3 +4326,33 @@ a.tk-card-title:hover {
   color: var(--bad);
   font-weight: 600;
 }
+
+/* Slate plus hours-vs-budget chip (TK_HoursChip.jsx, docs/slateplus-hours-chip-spec.md).
+   Same colors as the hours budget bar (.hb-near / .hb-over in team-ops.css). */
+.tkh-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tkh-near {
+  background: var(--warm-bg);
+  border-color: var(--warm-border);
+  color: var(--warm-text);
+  font-weight: 600;
+}
+.tkh-over {
+  background: var(--bad-soft);
+  border-color: var(--bad);
+  color: var(--bad);
+  font-weight: 700;
+}
+.tkh-menu-note:empty {
+  display: none;
+}

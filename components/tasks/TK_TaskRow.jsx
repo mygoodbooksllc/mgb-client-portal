@@ -287,6 +287,11 @@ function TK_vAssignMenu(props) {
       </button>
       {menu.open ? (
         <div className="tk-menu" role="menu" aria-label="Assign to" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
+          {task.client_id && typeof TK_HoursChip === "function" ? (
+            <span className="tk-menu-note tkh-menu-note">
+              <TK_HoursChip clientId={task.client_id} />
+            </span>
+          ) : null}
           {people === null ? <span className="tk-menu-note">Loading…</span> : null}
           {list.map(function (p) {
             var em = String(p.email).toLowerCase();
@@ -1389,6 +1394,11 @@ function TK_vRowAssignee(props) {
       </button>}
       {menu.open ? (
         <div className="tk-menu" role="menu" aria-label="Assign to" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
+          {task.client_id && typeof TK_HoursChip === "function" ? (
+            <span className="tk-menu-note tkh-menu-note">
+              <TK_HoursChip clientId={task.client_id} />
+            </span>
+          ) : null}
           {people === null ? <span className="tk-menu-note">Loading…</span> : null}
           {list.map(function (p) {
             var em = String(p.email).toLowerCase();
