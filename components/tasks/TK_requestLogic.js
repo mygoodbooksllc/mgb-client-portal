@@ -137,6 +137,16 @@ function TK_sendResultText(res, action) {
   return "Dry run: nothing sent. " + what + " would go to " + who + " once the owner turns on client requests.";
 }
 
+// Toast after Ask client. kind: "noemail" (unticked), "sent" (res from the
+// send), "sendfailed" (err from the send; the request itself exists, so the
+// text must not say "try again", which would ask twice).
+function TK_askedToastText(kind, payload) {
+  if (kind === "noemail") return "Asked. The task is waiting on the client. Nothing was emailed.";
+  if (kind === "sent") return "Asked. " + TK_sendResultText(payload, "send");
+  var why = TK_requestErrorText(payload).replace(/\s*Try again( later)?\.$/, "").trim();
+  return "Asked. The task is waiting on the client, but the email didn't go out. " + why + " Use Email again on the request when ready.";
+}
+
 // Who wrote a client_reply comment: 'client:<email>' (portal) or
 // 'contact:<contact id or email>' (answer link). names: { email or id -> name }.
 function TK_requestAuthorLabel(author, names) {
@@ -220,6 +230,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_requestActions: TK_requestActions,
     TK_waitingLabel: TK_waitingLabel,
     TK_sendResultText: TK_sendResultText,
+    TK_askedToastText: TK_askedToastText,
     TK_requestAuthorLabel: TK_requestAuthorLabel,
     TK_waitingGroups: TK_waitingGroups,
     TK_requestErrorText: TK_requestErrorText,

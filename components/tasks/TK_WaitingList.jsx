@@ -4,7 +4,7 @@
 // Every open Ask client request, grouped by client with the longest wait
 // first (rpc tk_waiting_on_client; the server only returns clients you
 // cover). Each row opens its task and offers Send reminder and Email again
-// (both dry runs until S6) and Cancel. "Just mine" keeps the tasks you own.
+// (dry runs for clients not switched on) and Cancel. "Just mine" keeps the tasks you own.
 // ----------------------------------------------------------------------------
 
 function TK_WaitingList(props) {
@@ -132,7 +132,7 @@ function TK_WaitingList(props) {
       <div className="tk-view-head" data-tour="tk-waiting-head">
         <h2 className="tk-view-title">Waiting on client</h2>
         <p className="tk-muted tk-view-sub">
-          Everything you've asked a client for and they haven't answered yet, longest wait first. Reminders and emails are a dry run for now: nothing is sent.
+          Everything you've asked a client for and they haven't answered yet, longest wait first. Reminders and emails only go to clients the owner has switched on; for any other client nothing is sent.
         </p>
         <label className="tk-wt-mine">
           <input type="checkbox" checked={minePair[0]} onChange={function (e) { minePair[1](e.target.checked); }} />
