@@ -1050,6 +1050,7 @@ function TK_parseRoute(hash) {
   if (n === 2 && kind === "waiting") return { view: "waiting" }; // tasks p2 s5
   if (n === 2 && kind === "settings") return { view: "settings" }; // Slate app Settings page
   if (n === 2 && kind === "manage") return { view: "manage" }; // tasks p3: admin Manage projects
+  if (n === 2 && kind === "rules" && TK__profileRoutesOn()) return { view: "rules" }; // Slate plus rules (hidden)
   var hasListSuffix = n === 4 && parts[3].toLowerCase() === "list";
   if (kind === "c" && (n === 3 || hasListSuffix)) {
     var id;
@@ -1099,6 +1100,7 @@ function TK_formatRoute(route) {
   if (r.view === "search") return "#/tasks/search";
   if (r.view === "review") return "#/tasks/review";
   if (r.view === "templates") return "#/tasks/templates";
+  if (r.view === "rules") return "#/tasks/rules"; // Slate plus rules (hidden)
   if (r.view === "waiting") return "#/tasks/waiting";
   if (r.view === "manage") return "#/tasks/manage";
   if (r.view === "portfolio") return "#/tasks/portfolio";

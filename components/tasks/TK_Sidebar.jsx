@@ -403,6 +403,9 @@ function TK_Sidebar(props) {
         {isAdmin && props.staffUser && props.staffUser.role === "admin" ? (
           <ul className="tk-nav">
             <TK_vNavItem route={{ view: "manage" }} label="Manage projects" icon="folder" tour="tk-manage-nav" active={route.view === "manage"} onNavigate={nav} />
+            {plusOn && typeof TK_Rules === "function" ? (
+              <TK_vNavItem route={{ view: "rules" }} label="Rules" icon="gear" tour="tk-rules-nav" active={route.view === "rules"} onNavigate={nav} />
+            ) : null}
           </ul>
         ) : null}
         {plusOn && typeof TKPU_Portfolio === "function" ? (

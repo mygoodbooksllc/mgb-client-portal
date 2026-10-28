@@ -15,7 +15,7 @@ var TKR_W_PANEL = 248;
 function TKR_sectionOf(route) {
   var v = route && route.view;
   if (v === "profile" || v === "person") return "people";
-  if (v === "project" || v === "manage" || v === "portfolio") return "projects";
+  if (v === "project" || v === "manage" || v === "portfolio" || v === "rules") return "projects";
   if (v === "client") return "clients";
   return null;
 }

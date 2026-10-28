@@ -772,6 +772,7 @@ function TKR_Rail(props) {
           <ul className="tk-nav">
             {isRoleAdmin ? <TK_vNavItem route={{ view: "manage" }} label="Manage projects" icon="folder" tour="tk-manage-nav" active={route.view === "manage"} onNavigate={go} /> : null}
             {typeof TKPU_Portfolio === "function" ? <TK_vNavItem route={{ view: "portfolio" }} label="Portfolio" icon="list" tour="tk-portfolio-nav" active={route.view === "portfolio"} onNavigate={go} /> : null}
+            {isRoleAdmin && typeof TK_Rules === "function" ? <TK_vNavItem route={{ view: "rules" }} label="Rules" icon="gear" tour="tk-rules-nav" active={route.view === "rules"} onNavigate={go} /> : null}
           </ul>
         </div>
       </React.Fragment>

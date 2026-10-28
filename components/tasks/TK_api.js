@@ -3391,6 +3391,37 @@ var TK_api = (function () {
     }, { where: "listRhythmNotices" }).then(function (rows) { return rows || []; });
   };
 
+  // ---- Slate plus rules (hidden preview, TKP_on) ----------------------------
+  // supabase/slateplus-rules.sql. Only TK_Rules.jsx calls these, and only while
+  // TKP_on() is true. Full admins only on the server; switching a rule on is
+  // owner only. Dry run writes nothing.
+  var RULE_COLS = "id, name, scope_kind, project_id, client_id, trigger_kind, trigger_config, action_kind, action_config, " +
+    "enabled, enabled_at, enabled_by, created_by, created_at, updated_by, updated_at, archived_at, archived_by";
+  api.rulesList = function () {
+    return run(function (c) {
+      return c.from("tk_rules").select(RULE_COLS).order("created_at", { ascending: true }).limit(500);
+    }, { where: "rulesList" }).then(function (rows) { return rows || []; });
+  };
+  api.ruleSave = function (payload) {
+    return rpcWrite("tk_rule_save", { p: payload || {} }, "ruleSave");
+  };
+  api.ruleSetEnabled = function (id, on) {
+    return rpcWrite("tk_rule_set_enabled", { p_id: id, p_on: !!on }, "ruleSetEnabled");
+  };
+  api.ruleArchive = function (id, archived) {
+    return rpcWrite("tk_rule_archive", { p_id: id, p_archived: archived !== false }, "ruleArchive");
+  };
+  api.ruleDryRun = function (payload) {
+    return run(function (c) {
+      return c.rpc("tk_rule_dry_run", { p: payload || {} });
+    }, { where: "ruleDryRun" });
+  };
+  api.ruleRecentRuns = function (ruleId, limit) {
+    return run(function (c) {
+      return c.rpc("tk_rule_recent_runs", { p_rule: ruleId || null, p_limit: limit || 50 });
+    }, { where: "ruleRecentRuns" }).then(function (rows) { return rows || []; });
+  };
+
   // ---- Exposed for TK_sync and tests ----------------------------------------
   api.normalize = normalize;
   api._client = null; // tests inject a stub client here

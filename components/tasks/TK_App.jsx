@@ -118,6 +118,10 @@ function TK_App(props) {
     );
   }
   else if (route.view === "manage") main = <TK_ManageProjects staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  else if (route.view === "rules" && typeof TK_Rules === "function" && typeof TKP_on === "function" && TKP_on()) {
+    // Slate plus rules (hidden; TK_parseRoute only returns it while the gate is on).
+    main = <TK_Rules staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  }
   else if (route.view === "client" || route.view === "project" || route.view === "person") {
     main = <TK_List route={route} staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   } else if (route.view === "profile" && typeof TK_Profile === "function" && typeof TKP_on === "function" && TKP_on()) {
@@ -145,7 +149,7 @@ function TK_App(props) {
     );
   }
   // Compact in the app: Templates and Manage are read-only with a note.
-  if (slm && (route.view === "templates" || route.view === "manage") && typeof TK_SlateReadOnly === "function") {
+  if (slm && (route.view === "templates" || route.view === "manage" || route.view === "rules") && typeof TK_SlateReadOnly === "function") {
     main = <TK_SlateReadOnly>{main}</TK_SlateReadOnly>;
   }
 
