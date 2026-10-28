@@ -111,6 +111,142 @@ t("filterClients: filter, name order, then the caller's sort", () => {
   assert.deepStrictEqual(L.TKR_filterClients(null, "x"), []);
 });
 
+// ---- Hover menus ----
+t("hover timing copies HoverNav (open at once, 200ms close grace)", () => {
+  assert.strictEqual(L.TKR_HOVER_OPEN_MS, 0);
+  assert.strictEqual(L.TKR_HOVER_CLOSE_MS, 200);
+  assert.strictEqual(L.TKR_FLY_GAP, 6);
+  const hn = fs.readFileSync(path.join(__dirname, "..", "staff", "HoverNav.jsx"), "utf8");
+  assert.ok(/setTimeout\(\(\) => setSpec\(null\), 200\)/.test(hn), "HoverNav still closes after 200ms");
+  assert.ok(/rect\.right \+ 6/.test(hn), "HoverNav still sits 6px from the icon");
+});
+
+t("hoverOK: needs the switch, a mouse, pen or keyboard, and no panel already there", () => {
+  const base = { enabled: true, source: "mouse", section: "people", pinned: false, pinnedSection: null, floatSec: null };
+  assert.strictEqual(L.TKR_hoverOK(base), true);
+  assert.strictEqual(L.TKR_hoverOK({ ...base, source: "key" }), true);
+  assert.strictEqual(L.TKR_hoverOK({ ...base, source: "pen" }), true);
+  assert.strictEqual(L.TKR_hoverOK({ ...base, source: "touch" }), false);
+  assert.strictEqual(L.TKR_hoverOK({ ...base, source: "" }), false);
+  assert.strictEqual(L.TKR_hoverOK({ ...base, enabled: false }), false);
+  assert.strictEqual(L.TKR_hoverOK({ ...base, enabled: undefined }), false);
+  assert.strictEqual(L.TKR_hoverOK({ ...base, section: "my" }), false);
+  assert.strictEqual(L.TKR_hoverOK({ ...base, pinned: true, pinnedSection: "people" }), false, "pinned for this section");
+  assert.strictEqual(L.TKR_hoverOK({ ...base, pinned: true, pinnedSection: "clients" }), true, "pinned for another section");
+  assert.strictEqual(L.TKR_hoverOK({ ...base, floatSec: "clients" }), false, "a floating panel is open");
+  assert.strictEqual(L.TKR_hoverOK(null), false);
+});
+
+t("pointerSource", () => {
+  assert.strictEqual(L.TKR_pointerSource("mouse"), "mouse");
+  assert.strictEqual(L.TKR_pointerSource("pen"), "pen");
+  assert.strictEqual(L.TKR_pointerSource("touch"), "touch");
+  assert.strictEqual(L.TKR_pointerSource(undefined), "");
+});
+
+const link = (r) => "#" + JSON.stringify(r);
+const baseD = {
+  isAdmin: true,
+  isRoleAdmin: true,
+  myRoute: { view: "profile", key: "me" },
+  people: [{ id: "s1", name: "Ann", email: "a@x.org" }, { id: "s2", name: "Bo", email: "b@x.org" }],
+  personRoute: (s) => ({ view: "person", staffId: s.id }),
+  pinnedProjects: [{ id: "p2", name: "Two", color: "#111" }],
+  projects: [{ id: "p1", name: "One", color: "#222", kind: "onboarding" }, { id: "p2", name: "Two", color: "#111" }],
+  projectRoute: (p) => ({ view: "project", projectId: p.id }),
+  pinnedClients: [{ id: 5, name: "Five" }],
+  clients: [{ id: 5, name: "Five", tag: "Late" }, { id: 6, name: "Six" }],
+  clientRoute: (c) => ({ view: "client", clientId: String(c.id) }),
+  noTeam: [{ client_id: 9, client_name: "Nine", open_tasks: 1 }, { client_id: 8, client_name: "Eight", open_tasks: 3 }],
+  clientTotal: 2,
+  current: (r) => r.view === "client" && r.clientId === "6",
+};
+
+t("flyModel people: my profile first, admins also get Everyone; others only their own", () => {
+  const m = L.TKR_flyModel("people", baseD);
+  assert.strictEqual(m.title, "People");
+  assert.deepStrictEqual(m.groups.map((g) => g.title), ["", "Everyone"]);
+  assert.strictEqual(m.groups[0].items[0].label, "My profile");
+  assert.deepStrictEqual(m.groups[1].items.map((i) => i.label), ["Ann", "Bo"]);
+  assert.ok(L.TKR_flyItems(m).every((i) => i.route), "all real links");
+  const m2 = L.TKR_flyModel("people", { ...baseD, isAdmin: false });
+  assert.strictEqual(L.TKR_flyItems(m2).length, 1);
+  assert.strictEqual(L.TKR_flyOpens(m2), false, "one item is only a label, like HoverNav");
+  assert.strictEqual(L.TKR_flyOpens(m), true);
+});
+
+t("flyModel projects: pinned, all, New project action, Manage for role admins only", () => {
+  const m = L.TKR_flyModel("projects", baseD);
+  assert.deepStrictEqual(m.groups.map((g) => g.title), ["Pinned", "All projects", ""]);
+  const all = m.groups[1].items;
+  assert.strictEqual(all[0].tag, "Onboarding");
+  assert.strictEqual(all[0].dot, "#222");
+  const acts = m.groups[2].items;
+  assert.deepStrictEqual(acts.map((i) => i.label), ["New project", "Manage projects"]);
+  assert.strictEqual(acts[0].action, "newProject");
+  assert.ok(!acts[0].route && acts[1].route.view === "manage");
+  const m2 = L.TKR_flyModel("projects", { ...baseD, isRoleAdmin: false, pinnedProjects: [] });
+  assert.deepStrictEqual(m2.groups.map((g) => g.title), ["", ""], "a lone All heading only repeats the flyout title");
+  assert.deepStrictEqual(m2.groups[1].items.map((i) => i.label), ["New project"]);
+});
+
+t("flyModel clients: No team yet (admin), pinned, all, current flag, Find a client only past 8", () => {
+  const m = L.TKR_flyModel("clients", baseD);
+  assert.deepStrictEqual(m.groups.map((g) => g.title), ["No team yet", "Pinned", "All clients"]);
+  assert.deepStrictEqual(m.groups[0].items.map((i) => i.tag), ["1 task", "3 tasks"]);
+  assert.strictEqual(m.groups[2].items.find((i) => i.label === "Six").current, true);
+  assert.strictEqual(m.groups[2].items.find((i) => i.label === "Five").current, false);
+  assert.ok(!m.groups[2].items.some((i) => i.action));
+  const plain = L.TKR_flyModel("clients", { ...baseD, isAdmin: false, pinnedClients: [] });
+  assert.deepStrictEqual(plain.groups.map((g) => g.title), [""]);
+  const nonAdmin = L.TKR_flyModel("clients", { ...baseD, isAdmin: false });
+  assert.ok(!nonAdmin.groups.some((g) => g.title === "No team yet"));
+  const many = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, name: "C" + i }));
+  const big = L.TKR_flyModel("clients", { ...baseD, clients: many, clientTotal: 30, pinnedClients: [], noTeam: [] });
+  const items = big.groups[0].items;
+  assert.strictEqual(items.length, L.TKR_FLY_CAP + 1);
+  const last = items[items.length - 1];
+  assert.deepStrictEqual([last.label, last.action, last.tag], ["Find a client...", "panel", "30"]);
+  assert.ok(!last.route);
+});
+
+t("flyModel: unique keys, junk input, unknown section", () => {
+  ["people", "projects", "clients"].forEach((sec) => {
+    const keys = [];
+    L.TKR_flyModel(sec, baseD).groups.forEach((g) => g.items.forEach((i) => keys.push(g.key + "/" + i.key)));
+    assert.strictEqual(new Set(keys).size, keys.length, sec);
+  });
+  assert.deepStrictEqual(L.TKR_flyModel("people", null).groups, []);
+  assert.deepStrictEqual(L.TKR_flyModel("people", { people: "x", pinnedProjects: 3 }).groups, []);
+  assert.deepStrictEqual(L.TKR_flyModel("nope", baseD).groups, []);
+  assert.strictEqual(L.TKR_flyOpens(null), false);
+  const capped = L.TKR_flyModel("people", { ...baseD, people: Array.from({ length: 20 }, (_, i) => ({ id: i, name: "P" + i })) }, 5);
+  assert.strictEqual(capped.groups[1].items.length, 6);
+  assert.strictEqual(capped.groups[1].items[5].action, "panel");
+});
+
+t("flyPos: right of the rail, level with the icon, kept inside the window", () => {
+  const m = L.TKR_flyModel("projects", baseD);
+  assert.deepStrictEqual(L.TKR_flyPos(68, 300, m, 1000), { left: 74, top: 300 });
+  assert.strictEqual(L.TKR_flyPos(68, 990, m, 1000).top < 990, true);
+  assert.strictEqual(L.TKR_flyPos(68, -50, m, 1000).top, 8);
+  assert.strictEqual(L.TKR_flyPos(68, 500, m, 100).top, 8, "taller than the window sits at the top");
+  assert.deepStrictEqual(L.TKR_flyPos("x", "y", null, 0), { left: 6, top: 8 });
+});
+
+t("keyboard: ArrowRight enters, Escape closes, arrows wrap inside the menu", () => {
+  assert.strictEqual(L.TKR_triggerKey("ArrowRight", true), "enter");
+  assert.strictEqual(L.TKR_triggerKey("Escape", true), "close");
+  assert.strictEqual(L.TKR_triggerKey("ArrowRight", false), "");
+  assert.strictEqual(L.TKR_triggerKey("ArrowDown", true), "");
+  assert.deepStrictEqual(L.TKR_flyKey("Escape", 1, 4), { move: -1, close: true });
+  assert.deepStrictEqual(L.TKR_flyKey("ArrowLeft", 1, 4), { move: -1, close: true });
+  assert.deepStrictEqual(L.TKR_flyKey("ArrowDown", 3, 4), { move: 0, close: false });
+  assert.deepStrictEqual(L.TKR_flyKey("ArrowUp", 0, 4), { move: 3, close: false });
+  assert.deepStrictEqual(L.TKR_flyKey("End", 0, 4), { move: 3, close: false });
+  assert.deepStrictEqual(L.TKR_flyKey("a", 0, 4), { move: -1, close: false });
+});
+
 // Wiring: the CSS widths match the logic, the scripts load, and the gate-off path is untouched.
 const root = path.join(__dirname, "..", "..");
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");

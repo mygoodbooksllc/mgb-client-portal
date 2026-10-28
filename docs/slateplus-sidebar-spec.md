@@ -84,11 +84,23 @@ Same `data-tour` names on the rail, so `tk-review-nav`, `tk-waiting-nav`, `tk-re
 - **Full mode width:** the grid's 240px first column becomes `--tkr-w`; the list's min-width calc uses the same var so the three columns never overflow.
 - **Rollback:** untick the preview (or never flip the switch). Code rollback: revert the commit; no data to undo.
 
+## 7b. Hover menus (added 2026-10-28f)
+
+Owner request: "the same hover over icon to reveal a clickable menu like in the portal." Studied `components/staff/HoverNav.jsx` and reused its behavior: the flyout opens the moment the pointer enters an icon (no intent delay), stays 200ms after the pointer leaves the icon or the flyout (the grace that lets it cross the 6px gap; an invisible 8px bridge on the flyout backs it up), Escape closes, and it uses `.hn-fly` / `.hn-fly-head` / `.hn-fly-item` with `role="menu"` + `aria-label` and `role="menuitem"` rows. HoverNav has no focus-open, arrow keys or touch rules (it is mouse only, and needs at least 2 items); those are added here.
+
+- **Gate:** the Slate plus gate (the rail only renders then) AND `HN_on()` (`hovernav_enabled`, on for everyone). Either off: no flyout, the three buttons keep their `title` tip exactly as before.
+- **Which icons:** People, Projects, Clients (at least 2 items, like HoverNav). Slate, Review, Waiting, Recurring, Search and Pin are single items; HoverNav only gives those its themed name tip, and they already get it from their `title`, so nothing new there.
+- **Rows:** the same as the click panel (`TKR_flyModel`): People (My profile; admins Everyone), Projects (Pinned, All projects, New project, Manage projects for role admins), Clients (No team yet for admins, Pinned, All clients). Rows are real links (`<a href>` from `TK_formatRoute`, so Cmd/Ctrl click opens a new tab and a plain click navigates in place); New project is a button that opens the same window. Long lists stop at 12 rows and end with "All people...", "All projects..." or "Find a client..." that opens the full panel (the filter box gets focus for Find a client).
+- **When it does not open:** touch (a tap just opens the panel, as today; only mouse and pen hover), the panel pinned for that section, any floating panel open, the gate or the switch off, View as, the Lists sheet, phones, the sliver. A click on the icon still opens or pins the panel and closes the flyout.
+- **Keyboard:** keyboard focus on one of the three icons (`:focus-visible`) opens its flyout without moving focus; ArrowUp/Down still move between icons; ArrowRight moves into the flyout; Up/Down/Home/End move inside it; Escape or ArrowLeft closes and returns focus to the icon (it does not reopen); Tab leaves; Enter on the icon still opens the panel. Escape also closes a mouse-opened flyout, as does an outside press, a scroll or a resize.
+- **Look:** HoverNav's dark flyout, positioned just right of the rail and level with the icon (clamped to the window), scrolls when tall; a short fade only under `prefers-reduced-motion: no-preference`.
+- **Rollback:** switch `hovernav_enabled` off, or revert the commit. No data.
+
 ## 8. Drafts (not published)
 
-Guide (task-lists-and-projects, "Finding your lists"): "Slate's sidebar is a slim row of icons: Slate, Review, Waiting, Recurring, Search, People, Projects and Clients. Hover an icon for its full name. People, Projects and Clients open a panel beside the icons with the lists, your pinned clients and projects first. Click Pin at the bottom to keep the panel open; Slate remembers your choice. In a narrow window or on a phone, the Lists button still opens every list."
+Guide (task-lists-and-projects, "Finding your lists"): "Slate's sidebar is a slim row of icons: Slate, Review, Waiting, Recurring, Search, People, Projects and Clients. Hover an icon for its full name. Point at People, Projects or Clients for a quick menu of links (or click to open the full panel beside the icons) with your pinned clients and projects first. Click Pin at the bottom to keep the panel open; Slate remembers your choice. In a narrow window or on a phone, the Lists button still opens every list."
 
-What's new: "Slate's sidebar is now a slim icon rail. People, Projects and Clients open a panel with your lists and pins; Pin keeps it open."
+What's new: "Slate's sidebar is now a slim icon rail. Point at People, Projects or Clients for a quick menu, or click for the full panel with your pins; Pin keeps it open."
 
 Notice (`slateplus-sidebar`, at launch): title "Slate's new sidebar", body "Icons down the left, lists in a panel beside them. Your pinned clients and projects come first.", button "Show me" (tour below).
 

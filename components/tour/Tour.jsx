@@ -1544,7 +1544,7 @@ function TOUR_tasksSteps() {
       body: () =>
         // Slate plus icon rail (hidden preview, TK_SlateRail.jsx).
         document.querySelector(".tk-sidebar.tkr")
-          ? "Icons for every place in Slate; hover one for its full name, and the numbers are what's waiting. Slate, Review (work waiting for an admin's approval), Waiting (everything you've asked a client for), Recurring (templates that make tasks on a schedule) and Search. People, Projects and Clients open a panel with the lists, your pinned ones first; Pin keeps it open. SOPs and 90 Day are projects open to all staff. Admins also find Manage projects under Projects."
+          ? "Icons for every place in Slate; hover one for its full name, and the numbers are what's waiting. Slate, Review (work waiting for an admin's approval), Waiting (everything you've asked a client for), Recurring (templates that make tasks on a schedule) and Search. People, Projects and Clients open a panel with the lists, your pinned ones first (point at one for a quick menu of links); Pin keeps it open. SOPs and 90 Day are projects open to all staff. Admins also find Manage projects under Projects."
           : (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
         "Slate (group it by due date or by client), Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Recurring (templates that make tasks on a schedule), Search, the firm's projects (each with its own color dot) and each of your clients' lists. SOPs and 90 Day are projects open to all staff. Admins also get Manage projects.",
     },

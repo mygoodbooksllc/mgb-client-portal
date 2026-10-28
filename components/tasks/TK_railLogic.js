@@ -133,6 +133,166 @@ function TKR_filterClients(clients, filter, sortFn) {
   return typeof sortFn === "function" ? sortFn(out) : out;
 }
 
+// ---- Hover menus (the portal's HoverNav pattern, components/staff/HoverNav.jsx) ----
+// HoverNav opens its flyout the moment the pointer enters an icon (no intent
+// delay), keeps it open 200ms after the pointer leaves the icon or the flyout
+// (the grace that lets the pointer cross the 6px gap), and closes on Escape.
+// Same numbers here.
+var TKR_HOVER_OPEN_MS = 0;
+var TKR_HOVER_CLOSE_MS = 200;
+var TKR_FLY_GAP = 6;
+var TKR_FLY_CAP = 12;
+var TKR_FLY_ROW_H = 34;
+
+// May a hover or focus flyout open for this section right now?
+//   o.enabled      HN_on(): the portal's hover-menu switch
+//   o.source       "mouse" | "pen" | "key" (touch and anything else: no, a tap keeps today's click behavior)
+//   o.section      the rail section
+//   o.pinned / o.pinnedSection   the panel is pinned open for that section: the panel is already there
+//   o.floatSec     a floating panel is open (click mode): no flyouts until it closes
+function TKR_hoverOK(o) {
+  if (!o || o.enabled !== true) return false;
+  if (o.source !== "mouse" && o.source !== "pen" && o.source !== "key") return false;
+  if (!TKR_isSection(o.section)) return false;
+  if (o.pinned === true && o.pinnedSection === o.section) return false;
+  if (o.floatSec) return false;
+  return true;
+}
+
+// The pointer type from a pointer event: "mouse" | "pen" | "touch" | "" (unknown).
+function TKR_pointerSource(type) {
+  return type === "mouse" || type === "pen" ? type : type === "touch" ? "touch" : "";
+}
+
+// What the flyout shows for one section, from the same rows the click panel
+// shows. d: { isAdmin, isRoleAdmin, myRoute, myName, people, personRoute(s),
+// pinnedProjects, projects, projectRoute(p), pinnedClients, clients,
+// clientRoute(c), noTeam, clientTotal, current(route) }. Returns
+// { title, groups: [{ key, title, items: [{ key, label, tag, dot, route,
+// action, current }] }] }. An item has a route (a real link) or an action
+// ("newProject" | "panel"). Long lists stop at cap rows and end with an
+// "All ...". / "Find a client..." action that opens the full panel.
+function TKR_flyModel(section, d, cap) {
+  var n = typeof cap === "number" && cap > 0 ? cap : TKR_FLY_CAP;
+  d = d || {};
+  var cur = typeof d.current === "function" ? d.current : function () { return false; };
+  var arr = function (v) { return Array.isArray(v) ? v : []; };
+  var groups = [];
+  var add = function (key, title, items) {
+    if (items.length) groups.push({ key: key, title: title || "", items: items });
+  };
+  var link = function (key, label, route, extra) {
+    var it = { key: key, label: label, route: route, current: !!cur(route) };
+    if (extra) for (var k in extra) it[k] = extra[k];
+    return it;
+  };
+  var title = "";
+  if (section === "people") {
+    title = "People";
+    var me = [];
+    if (d.myRoute) me.push(link("me", "My profile", d.myRoute));
+    add("me", "", me);
+    if (d.isAdmin) {
+      var people = arr(d.people);
+      var pi = [];
+      people.slice(0, n).forEach(function (s, i) {
+        var r = typeof d.personRoute === "function" ? d.personRoute(s) : null;
+        if (r) pi.push(link("p" + (s.id != null ? s.id : i), s.name || "Staff member", r));
+      });
+      if (people.length > n) pi.push({ key: "more", label: "All people...", action: "panel", tag: String(people.length) });
+      add("everyone", "Everyone", pi);
+    }
+  } else if (section === "projects") {
+    title = "Projects";
+    var pr = function (prefix, p) {
+      var r = typeof d.projectRoute === "function" ? d.projectRoute(p) : null;
+      return r ? link(prefix + p.id, p.name || "Project", r, { dot: p.color || null, tag: p.kind === "onboarding" ? "Onboarding" : null }) : null;
+    };
+    add("pinned", "Pinned", arr(d.pinnedProjects).map(function (p) { return pr("pin-", p); }).filter(Boolean));
+    var projects = arr(d.projects);
+    var ai = projects.slice(0, n).map(function (p) { return pr("", p); }).filter(Boolean);
+    if (projects.length > n) ai.push({ key: "more", label: "All projects...", action: "panel", tag: String(projects.length) });
+    add("all", "All projects", ai);
+    var ex = [{ key: "new", label: "New project", action: "newProject" }];
+    if (d.isRoleAdmin) ex.push(link("manage", "Manage projects", { view: "manage" }));
+    add("actions", "", ex);
+  } else if (section === "clients") {
+    title = "Clients";
+    var cl = function (prefix, c) {
+      var r = typeof d.clientRoute === "function" ? d.clientRoute(c) : null;
+      return r ? link(prefix + c.id, c.name || String(c.id), r, { tag: c.tag || null }) : null;
+    };
+    if (d.isAdmin) {
+      add(
+        "noteam",
+        "No team yet",
+        arr(d.noTeam)
+          .map(function (c) {
+            var r = { view: "client", clientId: String(c.client_id) };
+            var k = Number(c.open_tasks) || 0;
+            return link("nt-" + c.client_id, c.client_name || String(c.client_id), r, { tag: k + (k === 1 ? " task" : " tasks") });
+          })
+          .filter(Boolean),
+      );
+    }
+    add("pinned", "Pinned", arr(d.pinnedClients).map(function (c) { return cl("pin-", c); }).filter(Boolean));
+    var clients = arr(d.clients);
+    var ci = clients.slice(0, n).map(function (c) { return cl("", c); }).filter(Boolean);
+    var total = typeof d.clientTotal === "number" ? d.clientTotal : clients.length;
+    if (total > 8) ci.push({ key: "find", label: "Find a client...", action: "panel", tag: String(total) });
+    add("all", "All clients", ci);
+  }
+  // A lone "All projects" / "All clients" heading only repeats the flyout's own title.
+  var titled = groups.filter(function (g) { return g.title; });
+  if (titled.length === 1 && titled[0].key === "all") titled[0].title = "";
+  return { title: title, groups: groups };
+}
+
+// All items of a model, in display order (the arrow-key order).
+function TKR_flyItems(model) {
+  var out = [];
+  ((model && model.groups) || []).forEach(function (g) {
+    g.items.forEach(function (it) {
+      out.push(it);
+    });
+  });
+  return out;
+}
+
+// Like HoverNav, a flyout needs at least two items (one item is only a label).
+function TKR_flyOpens(model) {
+  return TKR_flyItems(model).length >= 2;
+}
+
+// Where the flyout sits (position: fixed): just right of the rail, top level
+// with the icon, pulled up so it fits the window (HoverNav's clamp, with
+// groups counted). rowH/headH estimate the height before it is measured.
+function TKR_flyPos(railRight, triggerTop, model, viewH) {
+  var items = TKR_flyItems(model).length;
+  var groups = ((model && model.groups) || []).filter(function (g) { return g.title; }).length;
+  var est = 44 + items * TKR_FLY_ROW_H + groups * 26;
+  var vh = Number(viewH) || 0;
+  var h = Math.min(est, Math.max(0, vh - 16));
+  var top = Math.max(8, Math.min(Number(triggerTop) || 0, vh - h - 8));
+  return { left: Math.round((Number(railRight) || 0) + TKR_FLY_GAP), top: Math.round(top) };
+}
+
+// Keys on a rail section button while its flyout is open: "enter" (ArrowRight
+// moves into the menu), "close" (Escape), or "" (the rail handles the rest).
+function TKR_triggerKey(key, isOpen) {
+  if (!isOpen) return "";
+  if (key === "ArrowRight") return "enter";
+  if (key === "Escape") return "close";
+  return "";
+}
+
+// Keys inside the flyout: { move: next index or -1, close: bool }. Left arrow and
+// Escape close and hand focus back to the icon.
+function TKR_flyKey(key, i, n) {
+  if (key === "Escape" || key === "ArrowLeft") return { move: -1, close: true };
+  return { move: TKR_nextIndex(i, n, key), close: false };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TKR_SECTIONS: TKR_SECTIONS,
@@ -152,5 +312,17 @@ if (typeof module !== "undefined" && module.exports) {
     TKR_nextIndex: TKR_nextIndex,
     TKR_width: TKR_width,
     TKR_filterClients: TKR_filterClients,
+    TKR_HOVER_OPEN_MS: TKR_HOVER_OPEN_MS,
+    TKR_HOVER_CLOSE_MS: TKR_HOVER_CLOSE_MS,
+    TKR_FLY_GAP: TKR_FLY_GAP,
+    TKR_FLY_CAP: TKR_FLY_CAP,
+    TKR_hoverOK: TKR_hoverOK,
+    TKR_pointerSource: TKR_pointerSource,
+    TKR_flyModel: TKR_flyModel,
+    TKR_flyItems: TKR_flyItems,
+    TKR_flyOpens: TKR_flyOpens,
+    TKR_flyPos: TKR_flyPos,
+    TKR_triggerKey: TKR_triggerKey,
+    TKR_flyKey: TKR_flyKey,
   };
 }

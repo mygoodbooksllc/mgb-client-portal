@@ -1828,6 +1828,80 @@ li.tk-empty-inline {
   }
 }
 
+/* Hover menu beside a rail icon (TK_SlateRail.jsx). The look is the portal's
+   .hn-fly / .hn-fly-head / .hn-fly-item (styles.css, HoverNav); these add the
+   scrolling list, group headings, link rows with a tag, and an invisible
+   bridge over the 6px gap so the pointer can cross from the icon. */
+.hn-fly.tkr-fly {
+  min-width: 200px;
+  max-width: 280px;
+  max-height: calc(100vh - 16px);
+}
+
+.tkr-fly::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -8px;
+  width: 8px;
+}
+
+.tkr-fly-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tkr-fly-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tkr-fly-group + .tkr-fly-group {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(199, 174, 134, 0.22);
+}
+
+.hn-fly .tkr-fly-sub {
+  padding: 4px 10px 2px;
+  font-size: 10.5px;
+}
+
+.hn-fly .tkr-fly-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
+.tkr-fly-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tkr-fly-tag {
+  flex: none;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tkr-fly {
+    animation: tkr-panel-in 120ms ease-out;
+  }
+}
+
 /* ---- Shell standalone bar ------------------------------------------------------------------ */
 
 .tk-sbar {
