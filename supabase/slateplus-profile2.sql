@@ -1,4 +1,6 @@
 -- Slate plus: profile 2, unified search, Team load 4 weeks (hidden preview).
+-- Applied to production 2026-10-28 (migration slateplus_profile2; verified
+-- RLS, policies, definer + search_path, no anon grants; slateplus_enabled unset).
 -- Spec: docs/slateplus-profile2-spec.md (sections 2.5, 4.1, 4.2, 12.1-12.4).
 -- Self-test: supabase/slateplus-profile2-tests.sql (one transaction, rolled back).
 --
