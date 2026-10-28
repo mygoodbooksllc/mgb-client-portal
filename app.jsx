@@ -1043,67 +1043,11 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
-    // Read by OP_previewOn / OP_isOn (components/client/OP_store.js).
-    key: "mgb_orgprofile_preview",
-    label: "Client org profile + gifts (preview)",
-    description:
-      "Only matters while the firm-wide org_profile_enabled switch is off; it has been on for everyone since 2026-10-25, so this changes nothing today. Turns the client org profile build on for you only, in this browser, while the switch is off: the Organization profile card on a client's Overview, Team › Client gifts (real admins), the onboarding step, and the client prompt if you sign in as a test client here. Nothing emails anyone or orders gifts. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
-    // Read by TK_slateAppIsOn (components/tasks/TK_viewLogic.js) through TK_slateFlag (TK_store.js).
-    key: "mgb_slate_app_preview",
-    label: "Slate app preview",
-    description:
-      "Slate opens as its own app: full page with a detail pane, shrinks to a sliver with the current task, Open Slate app replaces Open in own window. For you only. Only matters while the firm-wide slate_app_enabled switch is off; it has been on for everyone since 2026-10-25, so this box changes nothing now.",
-    reloads: true,
-  },
-  {
     // Read by TK_rhythmEnabled (components/tasks/TK_rhythmLogic.js).
     key: "mgb_rhythm_preview",
     label: "Month rhythm preview",
     description:
-      "Only matters while the firm-wide month_rhythm_enabled switch is off; it has been on for everyone since 2026-10-25, so today this changes nothing. With the switch off it turns on the Slate month rhythm work for you only, in this browser. Today it shows the MGB Month Rhythm templates and the A month rhythm date due rule on Slate › Recurring (admins can edit them there), the Full or Preliminary question when you mark a Send reports task done in the task details, the Second month in a row notices in the bell, and the Month rhythm row on a client's Settings tab (Access and details), where admins can give that client its own three days. It never makes tasks for real clients: that waits for the firm switch. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
-    key: "mgb_lato_classic",
-    label: "Classic fonts",
-    description:
-      "Keeps the old fonts (Bitter headings, IBM Plex Sans body) for you only, in this browser, even after the owner switches Lato on for everyone. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
-    // Read by the inline script in index.html (wins over the firm switch).
-    key: "mgb_brand_classic",
-    label: "Classic colors",
-    description:
-      "Keeps the old colors and headings for you only, in this browser, even after the owner switches the brand colors on for everyone. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
-    // Read by HN_on (components/staff/HoverNav.jsx).
-    key: "mgb_hovernav_classic",
-    label: "Classic menus",
-    description:
-      "Turns the hover menus off for you only, in this browser, even after the owner switches them on for everyone: pointing at a sidebar icon opens nothing and the gray browser tooltips come back. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
-    // Read by SS_store (components/staff/StaffSidebar.jsx) and SS_navIsOn; wins over the firm switch.
-    key: "mgb_nav_classic",
-    label: "Classic sidebar",
-    description:
-      "Turns the new left sidebar off for you only, in this browser, even though the owner switched it on for everyone: you get the plain staff rail back, without Pinned and Recent clients or the Customize button. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
-    // Read by TK_slateAppIsOn (components/tasks/TK_viewLogic.js) through TK_slateFlag (TK_store.js);
-    // wins over Slate app preview and the firm switch. Also hides the Slate app launch notice and tour.
-    key: "mgb_slate_classic",
-    label: "Classic tasks page",
-    description:
-      "Keeps Slate the way it was for you only, in this browser, even after the owner switches the Slate app on for everyone: Open in own window opens the old slim window and nothing about the Slate app shows. Wins over Slate app preview. The page reloads when you toggle it.",
+      "For testing while the firm-wide month_rhythm_enabled switch is off, which it is as of 2026-10-28 (it was switched on at the 2026-10-26 launch and off again about three hours later). With the switch off it turns on the Slate month rhythm work for you only, in this browser. Today it shows the MGB Month Rhythm templates and the A month rhythm date due rule on Slate › Recurring (admins can edit them there), the Full or Preliminary question when you mark a Send reports task done in the task details, the Second month in a row notices in the bell, and the Month rhythm row on a client's Settings tab (Access and details), where admins can give that client its own three days. It never makes tasks for real clients: that waits for the firm switch. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -8665,7 +8609,7 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
           </OV_Card>
 
           {/* Client org profile (components/client/OP_StaffCard.jsx). Renders
-              nothing unless OP_isOn() (firm switch or preview). */}
+              nothing unless OP_isOn() (the firm switch). */}
           {typeof OP_StaffCard === "function" && <OP_StaffCard client={client} />}
 
           <OV_Card
@@ -14176,19 +14120,18 @@ function resettableLocalStorageKeys() {
     // sidebar choice mgb_rail_expanded:<email>, and the L1 left sidebar's
     // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
     // mgb_tk_slate_view_v1:<email> / :desk:<email>, and Slate Settings mgb_tk_prefs_v1:<email>: quick keys, density, open in, show older). Feature flags are kept on purpose, including
-    // the ones without the mygoodbooks_ff_ prefix (mgb_wb_classic,
-    // mgb_lato_classic, mgb_brand_classic, mgb_hovernav_classic, mgb_rhythm_preview,
-    // mgb_slate_app_preview, mgb_slate_classic, mgb_nav_classic). The retired personal previews
+    // the ones without the mygoodbooks_ff_ prefix (mgb_wb_classic, mgb_rhythm_preview,
+    // mgb_deskplus_preview, mgb_threadmenu_preview, mgb_slateplus_preview). The retired personal previews
     // (mgb_wb_preview, mgb_nav_preview, mgb_lato_preview, mgb_brand_preview, mgb_hovernav_preview,
-    // retired 2026-10-25 once their firm switches were on for everyone) are no longer flags and nothing
+    // retired 2026-10-25, and mgb_slate_app_preview, mgb_orgprofile_preview plus the Classic opt-outs
+    // mgb_lato_classic, mgb_brand_classic, mgb_hovernav_classic, mgb_nav_classic, mgb_slate_classic,
+    // retired 2026-10-28, all once their firm switches were on for everyone) are no longer flags and nothing
     // reads them; a stale copy in a browser is cleared by Reset local state like any other mgb_ key. The Slate app's own keys (all start with mgb_ so Reset local state
-    // clears them; none holds anything but a per-browser convenience): mgb_slate_app_preview (a flag, kept),
-    // mgb_slate_classic (opt-out, a flag, kept), mgb_slate_cache (the firm switch as last read, set by index.html, cleared by Reset), mgb_rhythm_cache (month_rhythm_enabled as last read, set by index.html in the same read; TK_rhythmEnabled and the month-rhythm-launch notice use it until TK_rhythmLoad reads the switch; cleared by Reset), mgb_slate_installed_v1 (set when the app is installed),
+    // clears them; none holds anything but a per-browser convenience): mgb_slate_cache (the firm switch as last read, set by index.html, cleared by Reset), mgb_rhythm_cache (month_rhythm_enabled as last read, set by index.html in the same read; TK_rhythmEnabled and the month-rhythm-launch notice use it until TK_rhythmLoad reads the switch; cleared by Reset), mgb_slate_installed_v1 (set when the app is installed),
     // mgb_tk_slate_base_v1 (the Default saved-view baseline), mgb_tk_manual_v1 (Manual order on or off per list),
     // mgb_tk_layout_v1 (List or Board per list, P1), and sessionStorage mgb_slate_size_miss_v1 (size presets hidden
     // this session after a resize miss; sessionStorage is not touched by Reset).
-    // Client org profile (hidden preview): mgb_orgprofile_preview (a flag, kept),
-    // mgb_orgprofile_cache (the firm switch as last read by OP_store, cleared by Reset),
+    // Client org profile (live): mgb_orgprofile_cache (the firm switch as last read by OP_store, cleared by Reset),
     // mgb_orgprofile_client_cache (a client's last-known gate, holds the client tour; cleared by Reset),
     // and sessionStorage mgb_op_later:<email> (the client's "Later" for this sign-in; not touched by Reset).
     // Desk additions (hidden preview): mgb_deskplus_preview (a flag, kept),
@@ -15730,16 +15673,16 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["threadmenu_enabled", "Message thread menu for all staff (owner only)", "Off = only people with the Thread menu preview flag see it. Off (or missing, the default) keeps Messages and the Desk Inbox exactly as they are: no right-click menu or ⋯ on threads, no Done, Snoozed or Hidden chips, no thread tags. Owner turns it on (true) from the SQL editor (override first; see the README Thread menu launch checklist), never from here. Never shown to clients; off in View as."],
             ["slateplus_enabled", "Slate plus for all staff (owner only)", "Off = only people with the Slate plus preview flag see it. Off (or missing, the default) keeps Slate exactly as it is for everyone: task comment @mentions work as before (full @ list, no note after posting, no highlight of your own name), the Slate page keeps its own search box and client filter (no filter bar, no Saved filters, no top-bar search across clients, tasks, projects and people), and there is no Team load or 4-week bars anywhere (Slate, Team › People or profiles). No person profiles (#/tasks/person/<key>), no profile links on assignees, Team or shout-outs, no separate reassign button, no profile customization, manager or direct reports view, and no Teams card on Team › People (saved profile settings and teams stay stored, unseen). No Blocked by section, chip, Blocked group, Close order step or Ready to start notice (dependencies someone added with the preview still hold their task until done or removed). Owner turns it on (true) from the SQL editor (override first; see the README Slate plus launch checklist), never from here. Never shown to clients; off in View as; Team load is read only (admins and account managers see everyone's load, others only their own)."],
             ["deskplus_enabled", "Desk additions for staff", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk exactly as it is for everyone: no Ledger chip in the Inbox, no Waiting on client, recent messages or recent files on the Client tab, no Ask client or Message buttons there, and no Ask client…, Message… or Time off in the + menu. Owner turns it on (true) from the SQL editor (override first; see the README Desk additions launch checklist), never from here, to give those to every staff member who has the Desk. Each person can try it early with Desk additions preview in Feature flags. Needs the Desk on (wb_enabled, unless the person picked Classic Today)."],
-            ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Each person can try it early with Client org profile + gifts (preview) in Feature flags. Nothing emails clients and nothing orders gifts either way."],
+            ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Nothing emails clients and nothing orders gifts either way."],
             ["org_gift_basis", "Client gifts: anniversary to follow", "Which anniversary Team › Client gifts and the weekly digest follow, for the whole firm: established (the founding date, the default; not set means this; Client since is used for clients whose founding date is Not sure or blank) or client_since (Client since, when an admin picks it). Admins change it on Team › Client gifts › Anniversary to follow (every change audited; the database refuses any other value)."],
-            ["slate_app_enabled", "Slate app on for staff", "On since 2026-10-25 (launched for Monday 2026-10-26): every staff member gets the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app), plus the launch notice and tour. Owner-only, set with one SQL line, never from here; read-only here. Each person can opt out with Classic tasks page in Feature flags. Off (or missing) would put Slate back the way it was for everyone (Open in own window opens the old small window) right away."],
+            ["slate_app_enabled", "Slate app on for staff", "On since 2026-10-25 (launched for Monday 2026-10-26): every staff member gets the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app), plus the launch notice and tour. Owner-only, set with one SQL line, never from here; read-only here. Off (or missing) would put Slate back the way it was for everyone (Open in own window opens the old small window) right away."],
             ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize button (sliders icon) in the left sidebar, plus the Alerts section for real admins. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
-            ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can opt out with Classic fonts in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the look for every staff member right away, so do it only at launch."],
-            ["brand_enabled", "Brand colors for everyone", "Off (or missing, the default) keeps the current colors and headings for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to the brand guide's navy and dark teal with Montserrat headings. Each person can opt out with Classic colors in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the look for every staff member right away, so do it only at launch."],
-            ["hovernav_enabled", "Hover menus for everyone", "Off (or missing, the default) keeps the sidebars as they are for everyone. Owner turns it on (true) with one SQL line, never from here, to open a small menu of tabs when you point at a sidebar icon (Work, Team, HR, Finances) and to replace the gray browser tooltips with themed ones. Each person can opt out with Classic menus in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the sidebars for every staff member right away, so do it only at launch."],
+            ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the look for every staff member right away, so do it only at launch."],
+            ["brand_enabled", "Brand colors for everyone", "Off (or missing, the default) keeps the current colors and headings for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to the brand guide's navy and dark teal with Montserrat headings. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the look for every staff member right away, so do it only at launch."],
+            ["hovernav_enabled", "Hover menus for everyone", "Off (or missing, the default) keeps the sidebars as they are for everyone. Owner turns it on (true) with one SQL line, never from here, to open a small menu of tabs when you point at a sidebar icon (Work, Team, HR, Finances) and to replace the gray browser tooltips with themed ones. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the sidebars for every staff member right away, so do it only at launch."],
             ["layout_defaults", "Sidebar defaults by role", "What each role (admin, account manager, bookkeeper, temp admin) sees in the left sidebar until they customize it. Admins edit it in Settings › Firm settings › Sidebar defaults (shown once the sidebar is on). Not set means the built-in layout."],
             ["month_rhythm", "Month rhythm (Slate)", "The three days each month when Slate's monthly tasks come due: Check in, Send reports, Follow up, and what happens on a weekend or firm holiday. Admins edit it on Settings › Firm settings › Month rhythm (every change audited; the database refuses an invalid value). Not set means 4th, 14th, 24th, next business day. A client can have its own three days (client Settings tab, admins only); labels and the weekend rule stay firm-wide."],
-            ["month_rhythm_enabled", "Month rhythm tasks on for everyone", "On since 2026-10-25 (the owner turned it on for the Monday 2026-10-26 launch; index.html caches it as mgb_rhythm_cache). Off (or missing): the daily task run makes nothing from the eight MGB Month Rhythm templates for real clients (test and internal clients still get them from Make due tasks now), the month-rhythm-daily job sends no emails, and Slate › Recurring hides them unless you have Month rhythm preview on. Turning it on stamps the set's live_since, so only dates from that day on are made. Owner-only; set with one SQL line, never from here. Each person can try the work early with Month rhythm preview in Feature flags."],
+            ["month_rhythm_enabled", "Month rhythm tasks on for everyone", "Off as of 2026-10-28: the owner switched it on at the Monday 2026-10-26 launch and off again about three hours later (see tk_settings_audit); index.html caches it as mgb_rhythm_cache. Off (or missing): the daily task run makes nothing from the eight MGB Month Rhythm templates for real clients (test and internal clients still get them from Make due tasks now), the month-rhythm-daily job sends no emails, and Slate › Recurring hides them unless you have Month rhythm preview on. Turning it on stamps the set's live_since, so only dates from that day on are made. Owner-only; set with one SQL line, never from here. Each person can try the work early with Month rhythm preview in Feature flags."],
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
             ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Slate › Recurring › One client; off by default. Works while the standard close set is off."],
@@ -30916,7 +30859,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {/* Client org profile form (components/client/OP_ClientPrompt.jsx):
               real client sessions only; it renders nothing unless the gate
-              (OP_isOn: firm switch or preview) is on and the RPC says eligible. */}
+              (OP_isOn: the firm switch) is on and the RPC says eligible. */}
           {typeof OP_ClientPrompt === "function" && opRealClient && <OP_ClientPrompt email={clientPortalUser.email} />}
           {/* The full-page profile photo gate (components/staff/StaffPhotoGate.jsx,
               PG_Gate) is no longer mounted: it was too intrusive. Staff get a

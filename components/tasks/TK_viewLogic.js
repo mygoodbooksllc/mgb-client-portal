@@ -1836,8 +1836,9 @@ function TK_slateBuildView(groups, view, ctx) {
 // ---- Slate app (preview; spec-desk-fullpage.md sections 3.3 to 3.5, 4) --------------
 // Nothing here runs unless TK_slateAppIsOn is true; S1 only adds the pure rules.
 
-var TK_SLATE_APP_PREVIEW = "mgb_slate_app_preview"; // localStorage "1": this browser only
-var TK_SLATE_APP_CLASSIC = "mgb_slate_classic"; // localStorage "1": opt out, wins over everything (added at launch)
+// (The personal Slate app preview box mgb_slate_app_preview and the Classic tasks
+// page opt-out mgb_slate_classic were retired 2026-10-28: the firm switch has been
+// on for everyone since 2026-10-25.)
 var TK_SLATE_APP_SETTING = "slate_app_enabled"; // tk_settings key: the firm switch, owner-only, code never writes it
 
 // Same reading rule as WB_flagValueOn: true, "true", 1 or {on:true}. The
@@ -1847,13 +1848,8 @@ function TK_slateFlagValueOn(v) {
   return v === true || v === "true" || v === 1 || (!!v && typeof v === "object" && v.on === true);
 }
 
-// Three layers, one helper. setting: the tk_settings.slate_app_enabled value;
-// preview: the localStorage mgb_slate_app_preview value ("1" or true counts);
-// classic: the mgb_slate_classic opt-out; counts only when "1" or true.
-// Classic wins, then the person's preview or the firm switch turns it on.
-function TK_slateAppIsOn(setting, preview, classic) {
-  if (classic === "1" || classic === true) return false;
-  if (preview === "1" || preview === true) return true;
+// One helper. setting: the tk_settings.slate_app_enabled value (the firm switch).
+function TK_slateAppIsOn(setting) {
   return TK_slateFlagValueOn(setting);
 }
 
@@ -2413,8 +2409,6 @@ if (typeof module !== "undefined" && module.exports) {
     TK_slateSortWithin: TK_slateSortWithin,
     TK_slateBuildView: TK_slateBuildView,
     TK_POPOUT_MIN_APP: TK_POPOUT_MIN_APP,
-    TK_SLATE_APP_PREVIEW: TK_SLATE_APP_PREVIEW,
-    TK_SLATE_APP_CLASSIC: TK_SLATE_APP_CLASSIC,
     TK_SLATE_APP_SETTING: TK_SLATE_APP_SETTING,
     TK_slateFlagValueOn: TK_slateFlagValueOn,
     TK_slateAppIsOn: TK_slateAppIsOn,

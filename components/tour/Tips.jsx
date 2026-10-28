@@ -175,7 +175,7 @@ function TIPS_tab(id) {
 // Slate single home (2026-10-27): with the Slate app on, Work > Slate is a short
 // summary (TK_vSummaryBody), so the tips about the full list (Add task, group
 // headings, status, select, claim, draft email) wait for the Slate page. With the
-// app off or Classic the tab is the full list and they show there as before.
+// app off the tab is the full list and they show there as before.
 function TIPS_workSummary() {
   return typeof TK_slateAppOn === "function" && TK_slateAppOn() && !!document.querySelector('[data-tour="tk-summary"]');
 }

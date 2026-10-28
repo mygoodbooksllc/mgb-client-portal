@@ -18,7 +18,7 @@
 //
 // Slate single home (2026-10-27): with the Slate app on, the Tasks tab (labelled
 // Slate) is a short summary (late, due today, next few, Open Slate) because the
-// Slate page is the one full Slate; with it off or Classic it is the full
+// Slate page is the one full Slate; with it off it is the full
 // embedded list, as before.
 //
 // Tasks (2026-10-11): the Tasks tab shows the Tasks module's My Tasks
@@ -88,9 +88,9 @@ function WK_WorkPage({ clients, taskClients, staffUser, statusOverrides, canMana
   // hook call is stable across renders.
   const tkSchema = typeof TK_useSchema === "function" ? TK_useSchema() : "missing";
   const useTk = typeof TK_MyTasks === "function" && tkSchema !== "missing";
-  // Slate single home (2026-10-27): with the Slate app on (firm switch or this
-  // person's preview, and not Classic: TK_useSlateAppOn) the Slate page is the one
-  // full Slate and this tab is a short summary with Open Slate. Off or Classic:
+  // Slate single home (2026-10-27): with the Slate app on (the firm switch:
+  // TK_useSlateAppOn) the Slate page is the one
+  // full Slate and this tab is a short summary with Open Slate. Off:
   // the tab is the full embedded list, exactly as before. View as keeps its
   // read-only snapshot either way (TK_MyTasks checks snapshotFor first).
   const slateOn = typeof TK_useSlateAppOn === "function" ? TK_useSlateAppOn() : false;

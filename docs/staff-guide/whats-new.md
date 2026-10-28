@@ -19,7 +19,7 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 
 ### 2026-10-27: Work › Slate is now a short summary
 - **One full Slate.** The Slate page is now the only full Slate. **Work › Slate** shows a short summary instead: what's **Late**, what's **Due today**, and your **Next** five tasks, with an **Open Slate** button. Click a row to open the task, just as you would on the Slate page; if there are more, a line says so and links to Slate.
-- **Nothing else moved.** Notes & SOPs, Close, Deadlines and Ledger review are unchanged. The Desk keeps its compact **Slate** tab, now with an **Open in Slate** link. On the Classic tasks page, **Work › Slate** is unchanged. See [What's on the Work page?](#/help/work-page).
+- **Nothing else moved.** Notes & SOPs, Close, Deadlines and Ledger review are unchanged. The Desk keeps its compact **Slate** tab, now with an **Open in Slate** link. With the Slate app switch off, **Work › Slate** is unchanged. See [What's on the Work page?](#/help/work-page).
 
 ### 2026-10-27: celebrations are for admins only (for now)
 - **Birthdays and work anniversaries are admin only.** Only admins see them now, 30 days ahead on **Today**, in **Team › People › Celebrations** and in the weekly digest. Bookkeepers, temporary admins and account managers no longer see celebration lines, the Celebrations card or a celebration shout-out button, and the short-lived 7-day heads-up for them is withdrawn. Shout-outs themselves are unchanged: anyone can still thank a teammate from **Team › People › Shout-outs** or a profile. See [Birthdays, work anniversaries and gift reminders](#/help/celebrations).

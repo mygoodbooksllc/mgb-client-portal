@@ -1153,30 +1153,15 @@ t("bulkDuePatch", () => {
 
 // ---- Slate app (S1): flag helper ----------------------------------------------------
 t("slateAppIsOn: firm switch values", () => {
-  [true, "true", 1, { on: true }].forEach((v) => assert.strictEqual(L.TK_slateAppIsOn(v, null, false), true, JSON.stringify(v)));
+  [true, "true", 1, { on: true }].forEach((v) => assert.strictEqual(L.TK_slateAppIsOn(v), true, JSON.stringify(v)));
   [undefined, null, false, "false", 0, "", "on", "1", "yes", { on: false }, {}].forEach((v) =>
-    assert.strictEqual(L.TK_slateAppIsOn(v, null, false), false, JSON.stringify(v)),
+    assert.strictEqual(L.TK_slateAppIsOn(v), false, JSON.stringify(v)),
   );
 });
 t("slateAppIsOn: the string on is not on", () => {
-  assert.strictEqual(L.TK_slateAppIsOn("on", undefined, undefined), false);
-  assert.strictEqual(L.TK_slateAppIsOn("on", "on", false), false);
-});
-t("slateAppIsOn: preview turns it on when the firm switch is off", () => {
-  assert.strictEqual(L.TK_slateAppIsOn(undefined, "1", false), true);
-  assert.strictEqual(L.TK_slateAppIsOn(false, true, false), true);
-  assert.strictEqual(L.TK_slateAppIsOn(undefined, "0", false), false);
-  assert.strictEqual(L.TK_slateAppIsOn(undefined, null, false), false);
-});
-t("slateAppIsOn: classic wins over the switch and the preview", () => {
-  assert.strictEqual(L.TK_slateAppIsOn(true, "1", "1"), false);
-  assert.strictEqual(L.TK_slateAppIsOn(true, "1", true), false);
-  // classic counts only as "1" or true
-  [1, "true", "0", "yes", "on", {}, 0, "", null, undefined, false].forEach((c) => assert.strictEqual(L.TK_slateAppIsOn(true, null, c), true, JSON.stringify(c)));
+  assert.strictEqual(L.TK_slateAppIsOn("on"), false);
 });
 t("slate flag names", () => {
-  assert.strictEqual(L.TK_SLATE_APP_PREVIEW, "mgb_slate_app_preview");
-  assert.strictEqual(L.TK_SLATE_APP_CLASSIC, "mgb_slate_classic");
   assert.strictEqual(L.TK_SLATE_APP_SETTING, "slate_app_enabled");
 });
 

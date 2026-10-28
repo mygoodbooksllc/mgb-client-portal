@@ -3,8 +3,7 @@
 // between the Slate app window and the portal (spec-desk-fullpage 3, S2).
 //
 // Everything here is hidden behind TK_slateAppIsOn (through TK_slateFlag in
-// TK_store.js): the person ticked the Slate app preview or the firm switch
-// tk_settings.slate_app_enabled is on, and "Classic Slate" is not ticked.
+// TK_store.js): the firm switch tk_settings.slate_app_enabled is on.
 // With the app off nothing here renders, listens or opens anything.
 //
 //   TK_slateAppOn() / TK_useSlateAppOn()    is the Slate app on (live)

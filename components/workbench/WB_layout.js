@@ -243,10 +243,10 @@ function SS__flagValueOn(v) {
   if (typeof WB_flagValueOn === "function") return WB_flagValueOn(v);
   return v === true || v === "true" || v === 1 || (!!v && typeof v === "object" && v.on === true);
 }
-// Classic wins, then the firm switch tk_settings.nav_enabled. (The per-person
-// preview checkbox was retired 2026-10-25, once the switch was on for everyone.)
-function SS_navIsOn(settingValue, classicOn) {
-  if (classicOn) return false;
+// The firm switch tk_settings.nav_enabled. (The per-person preview checkbox was
+// retired 2026-10-25 and the Classic sidebar opt-out 2026-10-28, once the switch
+// was on for everyone.)
+function SS_navIsOn(settingValue) {
   return SS__flagValueOn(settingValue);
 }
 

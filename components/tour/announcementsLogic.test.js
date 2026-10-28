@@ -520,19 +520,17 @@ t("registry: new-look-and-layout is one combined staff notice for the five launc
   assert.deepStrictEqual(steps[4].targets, ["staff-nav"]);
   const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body()), a.steps({}).map((x) => x.body())));
   assert.ok(!/colour|grey|slate app|month rhythm/i.test(text), "US spelling; nothing about the held Slate app or Month rhythm");
-  assert.ok(/Classic Today/.test(text) && /Classic fonts/.test(text) && /Customize/.test(text) && /press D/i.test(text));
+  assert.ok(/Classic Today/.test(text) && !/Classic fonts/.test(text) && /Customize/.test(text) && /press D/i.test(text));
 });
 
-t("registry: new-look-and-layout ready check (caches, Classic opt-outs, no Lato)", () => {
+t("registry: new-look-and-layout ready check (caches, no Lato)", () => {
   const a = ANN_REGISTRY.find((x) => x.id === "new-look-and-layout");
   const setWin = (m) => {
     global.window = { localStorage: { getItem: (k) => (k in m ? m[k] : null) } };
   };
   try {
     setWin({ mgb_brand_classic: "1", mgb_hovernav_classic: "1" });
-    assert.strictEqual(a.ready(), true, "Classic on both is ready");
-    setWin({ mgb_brand_classic: "1", mgb_hovernav_cache: "1" });
-    assert.strictEqual(a.ready(), true, "Classic brand plus hover cache is ready");
+    assert.strictEqual(a.ready(), false, "the retired Classic keys no longer count");
     setWin({ mgb_brand_cache: "1" });
     assert.strictEqual(a.ready(), false, "hover cache missing is not ready");
     setWin({ mgb_hovernav_cache: "1" });
@@ -576,9 +574,8 @@ t("registry: slate-app-launch shape, roles, steps and wording", () => {
   assert.ok(/sliver/i.test(sizes) && /compact/i.test(sizes) && /detail pane/i.test(sizes) && /Full page/.test(sizes), "window-size step");
   const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body()), a.steps({}).map((x) => x.body())));
   assert.ok(!/colour|grey|month rhythm|interaction|template editor|touch drag/i.test(text), "US spelling; nothing held back is promised");
-  assert.ok(/Classic tasks page/.test(JSON.stringify(a.steps({ isAdmin: true }).map((x) => x.body()))));
+  assert.ok(!/Classic tasks page/.test(JSON.stringify(a.steps({ isAdmin: true }).map((x) => x.body()))), "the opt-out is retired");
   assert.strictEqual(a.date, "2026-10-26", "launched for Monday 2026-10-26");
-  assert.ok(!/Classic tasks page/.test(JSON.stringify(a.steps({ isBookkeeper: true }).map((x) => x.body()))), "non-admins are not sent to Developer tools");
 });
 
 t("slate-app-launch gate: off means nothing shows anywhere", () => {
@@ -590,11 +587,6 @@ t("slate-app-launch gate: off means nothing shows anywhere", () => {
       assert.strictEqual(L.ANN_listed(a, ctx), false);
       assert.deepStrictEqual(L.ANN_audience(reg, ctx), [], "no Launches row, no ? menu tour");
       assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null, "no notice");
-    });
-    // A person's preview alone is not the launch.
-    withWin({ mgb_slate_app_preview: "1" }, false, () => {
-      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
-      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
     });
     // The cache cleared again (switch turned back off).
     withWin({ mgb_slate_cache: "0" }, false, () => assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null));
@@ -632,19 +624,8 @@ t("slate-app-launch gate: on shows the notice once, for staff only", () => {
   });
 });
 
-t("slate-app-launch gate: Classic tasks page suppresses it, even with the switch on", () => {
+t("slate-app-launch gate: blocked storage reads as off", () => {
   const a = slateEntry();
-  const reg = [a];
-  [admin, bk, tempAdmin, am].forEach((ctx) => {
-    withWin({ mgb_slate_cache: "1", mgb_slate_classic: "1" }, false, () => {
-      assert.strictEqual(L.ANN_listed(a, ctx), false);
-      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
-      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
-    });
-    // Classic wins over the person's preview as well.
-    withWin({ mgb_slate_cache: "1", mgb_slate_classic: "1", mgb_slate_app_preview: "1" }, false, () =>
-      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null));
-  });
   // Blocked storage reads as off.
   global.window = { localStorage: { getItem: () => { throw new Error("blocked"); } } };
   try {
@@ -674,10 +655,9 @@ t("registry: slate-single-home is gated like the Slate app launch and tours the 
   assert.deepStrictEqual(steps[2].targets, ["tk-summary-open"]);
   const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
   assert.ok(!/colour/i.test(text), text);
-  // Off with the firm switch off, and for anyone on Classic.
+  // Off with the firm switch off.
   withWin({}, false, () => assert.strictEqual(a.visible(), false));
   withWin({ mgb_slate_cache: "1" }, false, () => assert.strictEqual(a.visible(), true));
-  withWin({ mgb_slate_cache: "1", mgb_slate_classic: "1" }, false, () => assert.strictEqual(a.visible(), false));
 });
 
 t("registry: slate-search tours the Slate page search box, staff only, gated like Slate", () => {
@@ -693,7 +673,6 @@ t("registry: slate-search tours the Slate page search box, staff only, gated lik
   assert.ok(!/colour|!/i.test(text), text);
   withWin({}, false, () => assert.strictEqual(a.visible(), false));
   withWin({ mgb_slate_cache: "1" }, false, () => assert.strictEqual(a.visible(), true));
-  withWin({ mgb_slate_cache: "1", mgb_slate_classic: "1" }, false, () => assert.strictEqual(a.visible(), false));
   withWin({ mgb_slate_cache: "1" }, false, () => {
     assert.strictEqual(L.ANN_pickNext([a], state(), Object.assign({ impersonating: true }, admin), SLATE_NOW), null, "View as");
     assert.strictEqual(L.ANN_pickNext([a], state(), { role: "client" }, SLATE_NOW), null, "clients never");
@@ -720,11 +699,6 @@ t("client-org-profile-launch gate: off means nothing shows anywhere", () => {
   [admin, bk, tempAdmin, am].forEach((ctx) => {
     withWin({}, false, () => {
       assert.strictEqual(L.ANN_listed(a, ctx), false);
-      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
-      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
-    });
-    // The person's preview flag is not the launch.
-    withWin({ mgb_orgprofile_preview: "1" }, false, () => {
       assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
       assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
     });

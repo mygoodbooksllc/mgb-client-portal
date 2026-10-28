@@ -83,7 +83,7 @@ Click **Dock in portal**. Your portal window opens Slate on the same list and th
 ### Troubleshooting
 
 - **"Your browser blocked the new window. Allow pop-ups for this site and try again."** Allow pop-ups for the portal's address in your browser's settings, then click **Open Slate app** again.
-- **I don't see Open Slate app.** Use a computer; on a phone or tablet, use Slate inside the portal. If you still see **Open in own window**, an admin has put your browser on **Classic tasks page**.
-- **I'd rather use the old window.** Ask an admin to tick **Classic tasks page** on your computer, in Settings › Firm settings › Developer tools › Feature flags. It is per browser, and the Slate page in the portal is the same either way.
+- **I don't see Open Slate app.** Use a computer; on a phone or tablet, use Slate inside the portal. If you still see **Open in own window** on a computer, tell an admin: the Slate app switch may have been turned off.
+- **I'd rather use the old window.** The old slim window is gone (the Classic tasks page choice was removed on October 28, 2026). Use **Compact** or **Sliver** in the Slate app for a smaller window; the Slate page in the portal is the same either way.
 - **Templates, projects or bulk edits are grayed out.** Make the window wider (Regular or Full) or click **Full page**.
 - **The size buttons are missing.** They only work in the app window. In a normal browser tab, drag the window's edge instead.

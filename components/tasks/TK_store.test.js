@@ -1571,12 +1571,11 @@ t("bulk: offline bulk calls reject tk_offline without a request", async () => {
 });
 
 // ===========================================================================
-// Slate app flag (S1): localStorage preview and classic plus tk_settings
+// Slate app flag (S1): the tk_settings firm switch
 // ===========================================================================
 
 function slateEnv(opts) {
   const o = opts || {};
-  const lsData = Object.assign({}, o.ls || {});
   const calls = { queries: [] };
   const client = o.noClient
     ? null
@@ -1602,32 +1601,14 @@ function slateEnv(opts) {
         },
       };
   const flag = S.TK_createSlateFlag({
-    ls: (k) => {
-      if (o.lsThrows) throw new Error("storage blocked");
-      return Object.prototype.hasOwnProperty.call(lsData, k) ? lsData[k] : null;
-    },
     sb: () => client,
   });
-  return { flag, lsData, calls };
+  return { flag, calls };
 }
 
 t("slate flag: starts off and unknown", () => {
   const { flag } = slateEnv();
   assert.deepStrictEqual(flag.getState(), { setting: undefined, appFlagKnown: false, appOn: false });
-  done();
-});
-
-t("slate flag: the preview shows at once, still unknown until the read", () => {
-  const { flag } = slateEnv({ ls: { mgb_slate_app_preview: "1" } });
-  assert.deepStrictEqual(flag.getState(), { setting: undefined, appFlagKnown: false, appOn: true });
-  done();
-});
-
-t("slate flag: classic is known off at once", () => {
-  const { flag } = slateEnv({ ls: { mgb_slate_app_preview: "1", mgb_slate_classic: "1" } });
-  assert.deepStrictEqual(flag.getState(), { setting: undefined, appFlagKnown: true, appOn: false });
-  const other = slateEnv({ ls: { mgb_slate_classic: "true" } }); // only "1" counts
-  assert.strictEqual(other.flag.getState().appFlagKnown, false);
   done();
 });
 
@@ -1679,35 +1660,7 @@ t("slate flag: a read error gives off and known (error, reject, throw, no client
   done();
 });
 
-t("slate flag: the preview key turns it on without the firm switch", async () => {
-  const e = slateEnv({ ls: { mgb_slate_app_preview: "1" }, row: null });
-  assert.strictEqual(e.flag.getState().appOn, true); // computed from localStorage at once
-  const r = await e.flag.readSlateAppFlag();
-  assert.deepStrictEqual(r, { appOn: true, appFlagKnown: true });
-  // a read error still leaves the person's own preview on
-  const r2 = await slateEnv({ ls: { mgb_slate_app_preview: "1" }, reject: true }).flag.readSlateAppFlag();
-  assert.deepStrictEqual(r2, { appOn: true, appFlagKnown: true });
-  // only "1" counts
-  const r3 = await slateEnv({ ls: { mgb_slate_app_preview: "true" }, row: null }).flag.readSlateAppFlag();
-  assert.strictEqual(r3.appOn, false);
-  done();
-});
-
-t("slate flag: the classic key wins over the preview and the firm switch", async () => {
-  const r = await slateEnv({ ls: { mgb_slate_app_preview: "1", mgb_slate_classic: "1" }, row: { value: true } }).flag.readSlateAppFlag();
-  assert.deepStrictEqual(r, { appOn: false, appFlagKnown: true });
-  done();
-});
-
-t("slate flag: blocked localStorage reads as unset", async () => {
-  const r = await slateEnv({ lsThrows: true, row: { value: true } }).flag.readSlateAppFlag();
-  assert.deepStrictEqual(r, { appOn: true, appFlagKnown: true }); // the firm switch still applies
-  const r2 = await slateEnv({ lsThrows: true, row: null }).flag.readSlateAppFlag();
-  assert.deepStrictEqual(r2, { appOn: false, appFlagKnown: true });
-  done();
-});
-
-t("slate flag: subscribers hear changes once; refresh re-reads localStorage", async () => {
+t("slate flag: subscribers hear changes once", async () => {
   const e = slateEnv({ row: { value: false } });
   const seen = [];
   const off = e.flag.subscribe((st) => seen.push(Object.assign({}, st)));
@@ -1716,18 +1669,7 @@ t("slate flag: subscribers hear changes once; refresh re-reads localStorage", as
   assert.deepStrictEqual(seen[0], { setting: false, appFlagKnown: true, appOn: false });
   await e.flag.readSlateAppFlag(); // nothing changed: no new emit
   assert.strictEqual(seen.length, 1);
-  e.lsData.mgb_slate_app_preview = "1";
-  e.flag.refresh();
-  assert.strictEqual(seen.length, 2);
-  assert.strictEqual(e.flag.getState().appOn, true);
-  const same = e.flag.getState();
-  e.flag.refresh();
-  assert.strictEqual(e.flag.getState(), same); // stable object for useSyncExternalStore
   off();
-  e.lsData.mgb_slate_classic = "1";
-  e.flag.refresh();
-  assert.strictEqual(seen.length, 2);
-  assert.strictEqual(e.flag.getState().appOn, false);
   done();
 });
 

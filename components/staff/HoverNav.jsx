@@ -1,11 +1,11 @@
 // components/staff/HoverNav.jsx — hover navigation preview (owner request 2026-10-21).
 //
-// Gate (HN_on, the one place that decides): Classic menus (mgb_hovernav_classic,
-// Developer tools › Feature flags) wins, then the firm switch
+// Gate (HN_on, the one place that decides): the firm switch
 // tk_settings.hovernav_enabled (the inline script in index.html caches it in
 // mgb_hovernav_cache and fires the window event "mgb:hovernav" when it changes;
-// code never writes the switch). The per-person checkbox mgb_hovernav_preview
-// was retired 2026-10-25, once the switch was on for everyone.
+// code never writes the switch). The per-person checkboxes mgb_hovernav_preview
+// (retired 2026-10-25) and the Classic menus opt-out mgb_hovernav_classic
+// (retired 2026-10-28) are gone: the switch is on for everyone.
 // Off: nothing here shows and the sidebars behave as before.
 //   1. A themed tip replaces the browser's gray native title="" tooltip.
 //   2. Pointing at a sidebar icon whose place has tabs opens a small flyout of
@@ -16,7 +16,6 @@
 function HN_on() {
   try {
     const ls = window.localStorage;
-    if (ls.getItem("mgb_hovernav_classic") === "1") return false;
     return ls.getItem("mgb_hovernav_cache") === "1";
   } catch (e) {
     return false;

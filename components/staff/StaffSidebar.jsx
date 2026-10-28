@@ -6,10 +6,10 @@
 //
 // The gate (SS_store, a copy of the Desk's WB_store pattern):
 //   Layer 1  tk_settings.nav_enabled (code never writes it; missing means off)
-//   Layer 2  localStorage mgb_nav_classic = "1" (opt-out)
-//   Classic wins, then the firm switch (SS_navIsOn, WB_layout.js). The per-person
-//   "Sidebar preview" checkbox (mgb_nav_preview) was retired 2026-10-25, once the
-//   switch was on for everyone; if the switch is turned off, it is off for all.
+//   The firm switch decides (SS_navIsOn, WB_layout.js). The per-person
+//   "Sidebar preview" checkbox (mgb_nav_preview, retired 2026-10-25) and the
+//   Classic sidebar opt-out (mgb_nav_classic, retired 2026-10-28) are gone; if
+//   the switch is turned off, it is off for all.
 // Until the switch is read, the last answer is remembered (mgb_nav_on_cache).
 // Every gated branch calls SS_isOn() (SS_useOn() in a component re-renders on a
 // change). No raw flag reads anywhere else.
@@ -25,7 +25,6 @@
 // app.jsx globals at call time only.
 // ----------------------------------------------------------------------------
 
-const SS_CLASSIC_KEY = "mgb_nav_classic";
 const SS_CACHE_KEY = "mgb_nav_on_cache";
 const SS_PREFS_PREFIX = "mgb_nav_prefs:";
 const SS_SECTION_LABELS = { pinned: "Pinned clients", recent: "Recent clients", alerts: "Alerts" };
@@ -59,8 +58,7 @@ function SS_prefsKey(email) {
 // ---- The gate and the shared role defaults ----
 const SS_store = (function () {
   let listeners = [];
-  const classicOn = () => SS__ls(SS_CLASSIC_KEY) === "1";
-  const fromCache = () => (classicOn() ? false : SS__ls(SS_CACHE_KEY) === "1");
+  const fromCache = () => SS__ls(SS_CACHE_KEY) === "1";
   let state = { on: fromCache(), flagKnown: false, defaults: null, defaultsLoaded: false, alertsShown: false };
   let flagInflight = false;
   let defaultsInflight = false;
@@ -89,7 +87,7 @@ const SS_store = (function () {
     flagInflight = true;
     const done = (v) => {
       flagInflight = false;
-      const on = SS_navIsOn(v, classicOn());
+      const on = SS_navIsOn(v);
       SS__lsSet(SS_CACHE_KEY, on ? "1" : null);
       set({ on: on, flagKnown: true });
       if (on) loadDefaults();

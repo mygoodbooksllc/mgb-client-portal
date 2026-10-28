@@ -70,30 +70,27 @@ function ANN_deskDocked() {
 // True once the owner has switched the look and layout launch on for everyone:
 // the Brand colors and Hover menus firm switches (the last ones to go live) are
 // cached by index.html's inline script after its first read. Lato is already
-// live, so it is not checked. Someone on a Classic option never refreshes that
-// option's cache, so their Classic opt-out key (mgb_brand_classic or
-// mgb_hovernav_classic) counts as satisfying its own part; they hear about it too.
+// live, so it is not checked. (The Classic colors and Classic menus opt-outs were
+// retired 2026-10-28, so only the two caches count.)
 function ANN_launchOn() {
   try {
     var ls = window.localStorage;
-    var brand = ls.getItem("mgb_brand_classic") === "1" || ls.getItem("mgb_brand_cache") === "1";
-    var hover = ls.getItem("mgb_hovernav_classic") === "1" || ls.getItem("mgb_hovernav_cache") === "1";
+    var brand = ls.getItem("mgb_brand_cache") === "1";
+    var hover = ls.getItem("mgb_hovernav_cache") === "1";
     return brand && hover;
   } catch (e) {
     return false;
   }
 }
 
-// True once the owner has switched the Slate app on for everyone AND this
-// person has not chosen Classic tasks page. index.html's inline script caches
-// tk_settings.slate_app_enabled in mgb_slate_cache after its first read (the
-// same single read as Brand colors and Hover menus). Deliberately not the
-// per-person Slate app preview: a preview person sees no launch text. Classic
-// (mgb_slate_classic) wins, as it does in TK_slateAppIsOn.
+// True once the owner has switched the Slate app on for everyone.
+// index.html's inline script caches tk_settings.slate_app_enabled in
+// mgb_slate_cache after its first read (the same single read as Brand colors and
+// Hover menus). (The Slate app preview and Classic tasks page boxes were retired
+// 2026-10-28.)
 function ANN_slateLaunchOn() {
   try {
     var ls = window.localStorage;
-    if (ls.getItem("mgb_slate_classic") === "1") return false;
     return ls.getItem("mgb_slate_cache") === "1";
   } catch (e) {
     return false;
@@ -102,9 +99,8 @@ function ANN_slateLaunchOn() {
 
 // True once the owner has switched the client org profile on for the firm
 // (tk_settings.org_profile_enabled, cached as mgb_orgprofile_cache by
-// OP_readSwitch in components/client/OP_store.js). Deliberately not the
-// per-person preview flag mgb_orgprofile_preview: a preview person sees no
-// launch text.
+// OP_readSwitch in components/client/OP_store.js). (The per-person preview flag
+// mgb_orgprofile_preview was retired 2026-10-28.)
 function ANN_orgProfileLaunchOn() {
   try {
     return window.localStorage.getItem("mgb_orgprofile_cache") === "1";
@@ -1483,7 +1479,7 @@ var ANN_REGISTRY = [
   {
     // Slate app launch, LIVE: the owner turned tk_settings.slate_app_enabled on 2026-10-25 for the
     // Monday 2026-10-26 launch. Still gated (visible: ANN_slateLaunchOn), so it stays hidden for
-    // anyone on Classic tasks page, and the first load after the switch flips may miss it (the
+    // anyone with the firm switch off, and the first load after the switch flips may miss it (the
     // cache fills on that load; the notice shows on the next one). The notice also waits for a
     // computer-width window (ready).
     // It supersedes only slate-view-bar (the launch tour covers the view bar); the other earlier
@@ -1500,7 +1496,6 @@ var ANN_REGISTRY = [
     visible: () => ANN_slateLaunchOn(),
     ready: () => ANN_deskDocked(),
     steps: (ctx) => {
-      const canDev = !!(ctx && (ctx.isAdmin || ctx.tempAdmin));
       return [
         {
           id: "ann-welcome",
@@ -1542,10 +1537,7 @@ var ANN_REGISTRY = [
           title: "That's the Slate app",
           body: () =>
             "Slate in the portal works as before. " +
-            (canDev
-              ? "Classic tasks page, in Settings › Firm settings › Developer tools › Feature flags, keeps the old Slate window for you only, in this browser."
-              : "If you would rather keep the old Slate window, tell us through Send feedback.") +
-            " To see this again, press ? and pick New: Slate is now its own app, or read How do I use the Slate app? in Help.",
+            "To see this again, press ? and pick New: Slate is now its own app, or read How do I use the Slate app? in Help.",
         },
       ];
     },
@@ -1878,13 +1870,12 @@ var ANN_REGISTRY = [
     date: "2026-10-21",
     title: "The Desk, a left sidebar and a new look",
     summary:
-      "The Desk (press D) and the new Today, Pinned and Recent clients in the left sidebar, the Lato font, the brand colors, and menus that open when you point at an icon are now on for the whole team. You can customize the sidebar, and most of it has a Classic option.",
+      "The Desk (press D) and the new Today, Pinned and Recent clients in the left sidebar, the Lato font, the brand colors, and menus that open when you point at an icon are now on for the whole team. You can customize the sidebar.",
     roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
     hash: "#/today",
     supersedes: ["desk-launch", "desk-right-now", "desk-task-view", "desk-right-launch", "workbench-launch"],
     ready: () => ANN_launchOn(),
     steps: (ctx) => {
-      const canDev = !!(ctx && (ctx.isAdmin || ctx.tempAdmin));
       return [
         {
           id: "ann-welcome",
@@ -1931,11 +1922,8 @@ var ANN_REGISTRY = [
           id: "ann-done",
           title: "Prefer the old way?",
           body: () =>
-            "Classic Today is on the ? of Today's Do next card. " +
-            (canDev
-              ? "Classic fonts, Classic colors and Classic menus are in Settings › Firm settings › Developer tools › Feature flags, for this browser only."
-              : "Classic fonts, colors and menus are in Feature flags, a page only admins open, so tell us through Send feedback if one bothers you.") +
-            " To see this again, press ? and pick New: The Desk, a left sidebar and a new look, or read the staff guide.",
+            "Classic Today is on the ? of Today's Do next card. If the fonts, colors, menus or sidebar bother you, tell us through Send feedback. " +
+            "To see this again, press ? and pick New: The Desk, a left sidebar and a new look, or read the staff guide.",
         },
       ];
     },
@@ -2020,9 +2008,8 @@ var ANN_REGISTRY = [
   {
     // Slate single home (2026-10-27): with the Slate app on, Work > Slate is a short
     // summary (late, due today, next few, Open Slate) and the Slate page is the one
-    // full Slate. Gated like the Slate app launch (ANN_slateLaunchOn): anyone on
-    // Classic tasks page, or with the firm switch off, still has the full list on
-    // the Work tab, so there is nothing to announce to them.
+    // full Slate. Gated like the Slate app launch (ANN_slateLaunchOn): anyone with
+    // the firm switch off still has the full list on the Work tab, so there is nothing to announce to them.
     id: "slate-single-home",
     date: "2026-10-27",
     title: "Work › Slate is now a summary",
@@ -2060,7 +2047,7 @@ var ANN_REGISTRY = [
   {
     // Slate page search box (docs/slateplus-filters-spec.md part A), LIVE for all staff from
     // 2026-10-27: no switch of its own. Gated like the other Slate notices (visible:
-    // ANN_slateLaunchOn), so anyone on Classic tasks page is not toured to it.
+    // ANN_slateLaunchOn), so nobody is toured to it while the firm switch is off.
     id: "slate-search",
     date: "2026-10-27",
     title: "Search your Slate list",
