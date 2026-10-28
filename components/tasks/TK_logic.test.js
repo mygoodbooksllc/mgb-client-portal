@@ -70,7 +70,8 @@ t("copy strings are final", () => {
   assert.strictEqual(L.TK_COPY.taskAdded, "Task added.");
   assert.ok(/Work › Slate\.$/.test(L.TK_COPY.setupBody));
   Object.keys(L.TK_COPY).forEach((k) => assert.ok(!/!/.test(L.TK_COPY[k]), k + " has no exclamation mark"));
-  assert.strictEqual(Object.keys(L.TK_COPY).length, 39);
+  assert.strictEqual(Object.keys(L.TK_COPY).length, 40);
+  assert.strictEqual(L.TK_COPY.blockedByTask, "This task is waiting on another task to finish.");
   assert.strictEqual(L.TK_COPY.selfReview, "You can't approve your own work. Another admin will review it.");
 });
 

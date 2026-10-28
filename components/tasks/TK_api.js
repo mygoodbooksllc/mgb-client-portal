@@ -1308,6 +1308,7 @@ var TK_api = (function () {
     if (why === "tk_undo_expired") return "Too late to undo that one.";
     if (why === "tk_undo_used") return "That was already undone.";
     if (why === "tk_offline") return "You're offline. Undo when you're back.";
+    if (why === "tk_blocked" || /tk_blocked/.test(String((e && e.message) || ""))) return "This task is waiting on another task to finish.";
     return "Couldn't undo that. Try again.";
   }
 

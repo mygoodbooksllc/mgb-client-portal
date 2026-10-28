@@ -1,6 +1,14 @@
 -- Applied to production 2026-10-27, re-applied the same day with the review fixes (resume is
 -- not a start, open-only full list, final-row ready trigger + lock, admin-only template unlink,
 -- masked overridden_by). Self-tests pass live, rolled back; no advisor errors.
+-- Second review pass, applied 2026-10-27: guard resume rule uses status_before_wait (no
+-- todo -> waiting -> in progress hole); guard skips cascades (pg_trigger_depth() > 1, rhythm,
+-- generator and close-sync flags); cycle walk recurses on id only (UNION, no depth cap); Ready
+-- notice also fires when an open blocker is trashed and is re-sent (new id) after a re-block;
+-- tk_dep_list masks the unreadable side's id and flags (new is_open column, so the function is
+-- dropped and recreated); deps / events read policies need read rights on both sides;
+-- tk_dep_my_notices masks an unreadable blocker id. tk_close_tick (tasks-p4-2-close-checklist.sql)
+-- maps tk_blocked to plain words.
 -- Slate plus: task dependencies ("Blocked by"). Spec: docs/slateplus-dependencies-spec.md
 -- Additive only: three new tables, one nullable template column, new RPCs and three
 -- triggers on staff_reminders that return at the first EXISTS probe while no
@@ -25,7 +33,7 @@ alter table public.tk_task_deps enable row level security;
 drop policy if exists "tk deps staff read" on public.tk_task_deps;
 create policy "tk deps staff read" on public.tk_task_deps
   for select to authenticated
-  using (public.is_active_staff() and public.tk_can_read_task(task_id));
+  using (public.is_active_staff() and public.tk_can_read_task(task_id) and public.tk_can_read_task(blocker_id));
 revoke all on public.tk_task_deps from anon, authenticated;
 grant select on public.tk_task_deps to authenticated;
 
@@ -42,7 +50,9 @@ create index if not exists tk_dep_events_task_idx on public.tk_dep_events (task_
 alter table public.tk_dep_events enable row level security;
 drop policy if exists "tk dep events admin read" on public.tk_dep_events;
 create policy "tk dep events admin read" on public.tk_dep_events
-  for select to authenticated using (public.is_active_staff_admin());
+  for select to authenticated
+  using (public.is_active_staff_admin() and public.tk_can_read_task(task_id)
+         and (blocker_id is null or public.tk_can_read_task(blocker_id)));
 revoke all on public.tk_dep_events from anon, authenticated;
 grant select on public.tk_dep_events to authenticated;
 
@@ -82,14 +92,15 @@ returns integer language sql stable security definer set search_path to 'public'
 $$;
 
 -- true when linking p_task <- p_blocker would close a loop (p_blocker already
--- waits, directly or not, on p_task).
+-- waits, directly or not, on p_task). Recurses on id only: UNION drops ids
+-- already seen, so the walk ends on any graph (no depth cap needed) and each
+-- task is visited once (PK index on task_id).
 create or replace function public.tk__dep_would_cycle(p_task uuid, p_blocker uuid)
 returns boolean language sql stable security definer set search_path to 'public' as $$
-  with recursive up(id, depth) as (
-    select p_blocker, 0
+  with recursive up(id) as (
+    select p_blocker
     union
-    select d.blocker_id, up.depth + 1 from tk_task_deps d join up on d.task_id = up.id
-     where up.depth < 50
+    select d.blocker_id from tk_task_deps d join up on d.task_id = up.id
   )
   select p_task = p_blocker or exists (select 1 from up where id = p_task);
 $$;
@@ -202,14 +213,19 @@ begin
 end $$;
 
 -- Every dep the caller can see from at least one side. The side they cannot
--- read comes back with null text (never leak titles across books).
-create or replace function public.tk_dep_list(p_task_ids uuid[] default null)
+-- read comes back fully masked: null id, text, client and flags (never leak a
+-- task across books). is_open (blocker unfinished and not overridden) is the
+-- only fact given about a hidden blocker, so the readable task still shows as
+-- blocked. Return type changed in the second review pass: drop, then create.
+drop function if exists public.tk_dep_list(uuid[]);
+create function public.tk_dep_list(p_task_ids uuid[] default null)
 returns table (
   task_id uuid, blocker_id uuid, source text, created_at timestamptz,
   overridden_at timestamptz, overridden_by text,
   task_text text, task_client_id text, task_done boolean, task_deleted boolean, task_readable boolean,
   blocker_text text, blocker_client_id text, blocker_done boolean, blocker_deleted boolean,
-  blocker_status text, blocker_assignee text, blocker_due_date date, blocker_readable boolean
+  blocker_status text, blocker_assignee text, blocker_due_date date, blocker_readable boolean,
+  is_open boolean
 )
 language plpgsql stable security definer set search_path to 'public' as $$
 begin
@@ -217,13 +233,15 @@ begin
     return;
   end if;
   return query
-  select d.task_id, d.blocker_id, d.source, d.created_at, d.overridden_at, case when x.tr then d.overridden_by end,
+  select case when x.tr then d.task_id end, case when x.br then d.blocker_id end,
+         d.source, d.created_at, d.overridden_at, case when x.tr then d.overridden_by end,
          case when x.tr then t.text end, case when x.tr then t.client_id end,
-         t.done, t.deleted_at is not null, x.tr,
+         case when x.tr then t.done end, case when x.tr then t.deleted_at is not null end, x.tr,
          case when x.br then b.text end, case when x.br then b.client_id end,
-         b.done, b.deleted_at is not null,
+         case when x.br then b.done end, case when x.br then b.deleted_at is not null end,
          case when x.br then b.status end, case when x.br then b.assignee_email end,
-         case when x.br then b.due_date end, x.br
+         case when x.br then b.due_date end, x.br,
+         (d.overridden_at is null and b.done = false and b.deleted_at is null)
     from tk_task_deps d
     join staff_reminders t on t.id = d.task_id
     join staff_reminders b on b.id = d.blocker_id
@@ -238,7 +256,9 @@ end $$;
 create or replace function public.tk_dep_my_notices(p_days integer default 14)
 returns table (id uuid, task_id uuid, blocker_id uuid, created_at timestamptz, task_text text, client_id text)
 language sql stable security definer set search_path to 'public' as $$
-  select n.id, n.task_id, n.blocker_id, n.created_at, left(r.text, 200), r.client_id
+  select n.id, n.task_id,
+         case when n.blocker_id is not null and public.tk_can_read_task(n.blocker_id) then n.blocker_id end,
+         n.created_at, left(r.text, 200), r.client_id
     from tk_dep_notices n join staff_reminders r on r.id = n.task_id
    where public.is_active_staff()
      and n.recipient_email = public.tk__me()
@@ -277,9 +297,21 @@ begin
           or (new.status is distinct from old.status and new.status in ('in_progress', 'ready_for_review', 'done'))) then
     return new;
   end if;
-  -- Back from review (send back, withdraw) or from waiting on the client is a
-  -- resume, not a start: never refused.
-  if new.status = 'in_progress' and not new.done and old.status in ('ready_for_review', 'waiting_client') then
+  -- Back from review (send back, withdraw) is a resume, not a start. Back from
+  -- waiting on the client is a resume only when it was in progress before the
+  -- wait (status_before_wait); todo -> waiting -> in progress is a start.
+  if new.status = 'in_progress' and not new.done
+     and (old.status = 'ready_for_review'
+          or (old.status = 'waiting_client' and old.status_before_wait = 'in_progress')) then
+    return new;
+  end if;
+  -- Only direct writes are guarded. A cascade (an update made inside another
+  -- trigger, the rhythm run, the generator, close sync / adopt) never aborts
+  -- the caller's whole transaction.
+  if pg_trigger_depth() > 1
+     or coalesce(current_setting('mgb.tk_rhythm', true), '') = 'on'
+     or coalesce(current_setting('mgb.tk_generate', true), '') = 'on'
+     or coalesce(current_setting('mgb.tk_close', true), '') = 'on' then
     return new;
   end if;
   if not exists (select 1 from tk_task_deps where task_id = new.id) then
@@ -301,7 +333,9 @@ create trigger tk_staff_reminders_zdeps_guard
   before update of done, status on public.staff_reminders
   for each row execute function public.tk_staff_reminders_zdeps_guard();
 
--- Ready notice: one bell row when the last open blocker of a task is done.
+-- Ready notice: one bell row when the last open blocker of a task is done or
+-- trashed. A task blocked again and then freed again gets a fresh notice (the
+-- row is upserted with a new id, so the bell shows it as unseen).
 create or replace function public.tk_staff_reminders_zdeps_ready()
 returns trigger language plpgsql security definer set search_path to 'public' as $$
 declare
@@ -309,7 +343,8 @@ declare
   v_d record;
   v_to text;
 begin
-  if not (new.done and not coalesce(old.done, false)) then
+  if not ((new.done and not coalesce(old.done, false))
+          or (new.deleted_at is not null and old.deleted_at is null and not coalesce(old.done, false))) then
     return null;
   end if;
   if not exists (select 1 from tk_task_deps where blocker_id = new.id) then
@@ -320,7 +355,8 @@ begin
   for v_d in
     select r.id, r.assignee_email, r.staff_email, r.is_unassigned, r.client_id
       from tk_task_deps d join staff_reminders r on r.id = d.task_id
-     where d.blocker_id = new.id and r.done = false and r.deleted_at is null
+     where d.blocker_id = new.id and d.overridden_at is null
+       and r.done = false and r.deleted_at is null
   loop
     if public.tk__dep_open_count(v_d.id) > 0 then continue; end if;
     if coalesce(v_d.is_unassigned, false) then continue; end if;
@@ -330,14 +366,16 @@ begin
     if v_d.client_id is not null and not public.tk_staff_has_client(v_to, v_d.client_id) then continue; end if;
     insert into tk_dep_notices (recipient_email, task_id, blocker_id)
     values (v_to, v_d.id, new.id)
-    on conflict (task_id, recipient_email) do nothing;
+    on conflict (task_id, recipient_email) do update
+      set id = gen_random_uuid(), blocker_id = excluded.blocker_id, created_at = now();
   end loop;
   return null;
 end $$;
 drop trigger if exists tk_staff_reminders_zdeps_ready on public.staff_reminders;
 create trigger tk_staff_reminders_zdeps_ready
   after update on public.staff_reminders
-  for each row when (new.done and not coalesce(old.done, false))
+  for each row when ((new.done and not coalesce(old.done, false))
+                     or (new.deleted_at is not null and old.deleted_at is null and not coalesce(old.done, false)))
   execute function public.tk_staff_reminders_zdeps_ready();
 
 -- Template wiring: a task made from a template with a close order step waits on

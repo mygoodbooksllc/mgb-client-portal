@@ -1160,7 +1160,7 @@ var TK_BULK_REASONS = {
   // Slate app P3 (tk_bulk_set)
   done_use_reopen: "It's done. Reopen it first.",
   // Slate plus dependencies (only for tasks with a blocker)
-  blocked: "It's blocked by unfinished tasks.",
+  blocked: "It's waiting on another task to finish.",
   no_project: "It isn't in a project.",
   section_missing: "Its project has no section by that name.",
   error: "Something went wrong with this one.",

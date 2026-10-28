@@ -375,7 +375,9 @@ function TD_tkErr(e, fallback) {
   try {
     console.warn("[Today]", code || (e && e.message) || e);
   } catch (x) {}
-  if (/^tk_/.test(code) && typeof TK_vErrText === "function") return TK_vErrText(e);
+  const why = e && e.reason ? String(e.reason) : "";
+  // Slate plus: a dependency block reads in plain words (other errors as before).
+  if ((/^tk_/.test(code) || why === "tk_blocked" || /tk_blocked/.test(String((e && e.message) || ""))) && typeof TK_vErrText === "function") return TK_vErrText(e);
   return fallback;
 }
 function TD_toast(text) {

@@ -74,14 +74,21 @@ function TKP_readSwitch(force) {
   if (!c || (!force && TKP__switch.state !== "idle")) return;
   if (!force && Date.now() < TKP__switch.nextAt) return;
   TKP__switch.state = "reading";
+  // While a TKP_useOn() caller is mounted, a wait or an error schedules the
+  // next try (TKP__kick); the 3-error cap still ends it.
+  var again = function () {
+    if (typeof TKP__store !== "undefined" && TKP__store.subs.length) TKP__kick();
+  };
   var wait = function () {
     TKP__switch.state = "idle";
     TKP__switch.nextAt = Date.now() + 3000;
+    again();
   };
   var fail = function () {
     TKP__switch.fails += 1;
     TKP__switch.state = TKP__switch.fails >= 3 ? "done" : "idle";
     TKP__switch.nextAt = Date.now() + 30000;
+    again();
   };
   try {
     var go = function () {
@@ -125,32 +132,101 @@ function TKP_on() {
   return TKP__now();
 }
 
+// ---- One shared subscription for every TKP_useOn() caller ----------------
+// Review fix (2026-10-27): every task row calls the hook, so the window
+// listeners live here once (added with the first subscriber, removed with the
+// last), not two per row. The answer is read from localStorage at most once
+// per synchronous render pass (cached until the next microtask, dropped at
+// once on a change), so a list of 300 rows costs one read, and a storage
+// event that does not change the answer re-renders nothing.
+var TKP__store = { subs: [], snap: false, fresh: false, retry: null, onEvent: null, onStorage: null };
+
+function TKP__drop() {
+  TKP__store.fresh = false;
+}
+function TKP__snapshot() {
+  var st = TKP__store;
+  if (st.fresh) return st.snap;
+  st.snap = TKP__now();
+  st.fresh = true;
+  try {
+    Promise.resolve().then(TKP__drop);
+  } catch (e) {
+    st.fresh = false;
+  }
+  return st.snap;
+}
+function TKP__notify() {
+  TKP__drop();
+  TKP__store.subs.slice().forEach(function (fn) {
+    try {
+      fn();
+    } catch (e) {}
+  });
+}
+// The switch read, started after commit (never during render). A wait (no
+// session yet) or an error retries once at its time, only while something
+// is subscribed; TKP_readSwitch still caps errors at 3 per page load.
+function TKP__kick() {
+  var st = TKP__store;
+  if (TKP__switch.state !== "idle" || TKP__viewAsRO() || TKP_previewOn()) return;
+  var wait = TKP__switch.nextAt - Date.now();
+  if (wait <= 0) {
+    TKP_readSwitch();
+    return;
+  }
+  if (st.retry || typeof setTimeout !== "function") return;
+  st.retry = setTimeout(function () {
+    st.retry = null;
+    if (st.subs.length) TKP__kick();
+  }, wait + 50);
+}
+function TKP__subscribe(fn) {
+  var st = TKP__store;
+  if (!st.subs.length && typeof window !== "undefined" && window.addEventListener) {
+    st.onEvent = TKP__notify;
+    st.onStorage = function (e) {
+      if (!e || !e.key || /^mgb_slateplus_/.test(e.key)) TKP__notify();
+    };
+    window.addEventListener(TKP_EVENT, st.onEvent);
+    window.addEventListener("storage", st.onStorage);
+  }
+  st.subs.push(fn);
+  TKP__kick();
+  return function () {
+    var i = st.subs.indexOf(fn);
+    if (i >= 0) st.subs.splice(i, 1);
+    if (!st.subs.length && st.onEvent && typeof window !== "undefined" && window.removeEventListener) {
+      window.removeEventListener(TKP_EVENT, st.onEvent);
+      window.removeEventListener("storage", st.onStorage);
+      st.onEvent = st.onStorage = null;
+    }
+  };
+}
+
 // The hook: `const plusOn = TKP_useOn();` Re-renders on mgb:slateplus (the
 // switch answer changed) and on a storage change to an mgb_slateplus_* key
-// from another tab. The read runs after render, never during it.
+// from another tab, only when the answer actually changes. React 18's
+// useSyncExternalStore when present; otherwise one state + effect per caller
+// subscribed to the same shared store (still no per-row window listeners).
 function TKP_useOn() {
+  if (typeof React.useSyncExternalStore === "function") {
+    return React.useSyncExternalStore(TKP__subscribe, TKP__snapshot, TKP__snapshot);
+  }
   var s = React.useState(0);
   var bump = s[1];
   React.useEffect(function () {
-    var hit = function () {
+    var last = TKP__snapshot();
+    return TKP__subscribe(function () {
+      var now = TKP__snapshot();
+      if (now === last) return;
+      last = now;
       bump(function (n) {
         return n + 1;
       });
-    };
-    var onStorage = function (e) {
-      if (!e || !e.key || /^mgb_slateplus_/.test(e.key)) hit();
-    };
-    window.addEventListener(TKP_EVENT, hit);
-    window.addEventListener("storage", onStorage);
-    return function () {
-      window.removeEventListener(TKP_EVENT, hit);
-      window.removeEventListener("storage", onStorage);
-    };
+    });
   }, []);
-  React.useEffect(function () {
-    if (!TKP__viewAsRO() && !TKP_previewOn() && TKP__switch.state === "idle") TKP_readSwitch();
-  });
-  return TKP__now();
+  return TKP__snapshot();
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -161,6 +237,8 @@ if (typeof module !== "undefined" && module.exports) {
     TKP_switchValue: TKP_switchValue,
     TKP_previewOn: TKP_previewOn,
     TKP_readSwitch: TKP_readSwitch,
+    TKP__subscribe: TKP__subscribe,
+    TKP__snapshot: TKP__snapshot,
     TKP_PREVIEW_KEY: TKP_PREVIEW_KEY,
     TKP_CACHE_KEY: TKP_CACHE_KEY,
     TKP_EVENT: TKP_EVENT,

@@ -50,6 +50,7 @@ var TK_COPY = {
   badReviewer: "Pick an active admin who isn't doing the work.",
   serverOwned: "That part is set by the app and can't be edited.",
   ownerOnly: "Only the owner can change that setting.",
+  blockedByTask: "This task is waiting on another task to finish.",
   reviewEmpty: "Nothing is waiting for review.",
   deleted: "Task deleted.",
   restored: "Task restored.",

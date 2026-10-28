@@ -26,7 +26,7 @@ const row = (task, blocker, extra) =>
   Object.assign({ task_id: task, blocker_id: blocker, source: "manual", blocker_text: "B " + blocker, task_text: "T " + task }, extra || {});
 
 t("index groups rows both ways and skips junk", () => {
-  const idx = D.TKD_index([row("a", "b"), row("a", "c"), row("d", "b"), null, { task_id: "x" }]);
+  const idx = D.TKD_index([row("a", "b"), row("a", "c"), row("d", "b"), null, {}, { task_id: null, blocker_id: null }]);
   assert.deepStrictEqual(Object.keys(idx.byTask).sort(), ["a", "d"]);
   assert.strictEqual(idx.byTask.a.length, 2);
   assert.strictEqual(idx.byBlocker.b.length, 2);
@@ -69,6 +69,58 @@ t("unreadable blockers are masked (no title, client or assignee)", () => {
   assert.strictEqual(all[0].text, "");
 });
 
+t("masked rows from the server (hidden side has no id) stay hidden", () => {
+  // The caller can read task a but not its blocker: the server sends no
+  // blocker id, text or flags, only is_open.
+  const idx = D.TKD_index([
+    { task_id: "a", blocker_id: null, blocker_text: null, is_open: true, blocker_readable: false, source: "manual" },
+    { task_id: "a", blocker_id: null, is_open: false, blocker_readable: false },
+    { task_id: null, blocker_id: "b", task_text: null, task_readable: false },
+  ]);
+  const open = D.TKD_openBlockers("a", idx, {});
+  assert.strictEqual(open.length, 1);
+  assert.strictEqual(open[0].hidden, true);
+  assert.strictEqual(open[0].readable, false);
+  assert.ok(/^hidden:/.test(open[0].id));
+  assert.strictEqual(open[0].text, "");
+  assert.strictEqual(D.TKD_isBlockedTask({ id: "a", status: "todo" }, idx, {}), true);
+  const all = D.TKD_allBlockers("a", idx, {});
+  assert.strictEqual(all.length, 2);
+  assert.ok(all[0].id !== all[1].id, "each hidden row gets its own key");
+  assert.deepStrictEqual(all.map((x) => x.open), [true, false]);
+  // A store task keyed "hidden:1" never stands in for a masked blocker.
+  assert.strictEqual(D.TKD_openBlockers("a", idx, { "hidden:1": { id: "hidden:1", done: true } }).length, 1);
+  const bl = D.TKD_blocking("b", idx);
+  assert.strictEqual(bl.length, 1);
+  assert.strictEqual(bl[0].text, "");
+  assert.strictEqual(bl[0].readable, false);
+});
+
+t("is_open wins over missing flags when the store has no copy", () => {
+  const idx = D.TKD_index([row("a", "b", { is_open: false }), row("a", "c", { is_open: true })]);
+  assert.deepStrictEqual(D.TKD_openBlockers("a", idx, {}).map((b) => b.id), ["c"]);
+  // The store copy still wins.
+  assert.deepStrictEqual(D.TKD_openBlockers("a", idx, { c: { id: "c", done: true } }).length, 0);
+});
+
+t("tk_blocked is plain words in every error map", () => {
+  const plain = "This task is waiting on another task to finish.";
+  const R = require("./TK_requestLogic.js");
+  assert.strictEqual(R.TK_requestErrorText({ reason: "tk_blocked" }), plain);
+  const RV = require("./TK_reviewLogic.js");
+  const C = require("./TK_logic.js");
+  assert.strictEqual(C.TK_COPY[RV.TK_reviewErrorKey({ message: "tk_blocked: Blocked by 2 unfinished task(s)" })], plain);
+  assert.strictEqual(C.TK_COPY[RV.TK_reviewErrorKey({ reason: "tk_blocked" })], plain);
+  const V = require("./TK_viewLogic.js");
+  assert.strictEqual(V.TK_bulkReasonText("blocked"), "It's waiting on another task to finish.");
+  const src = (f) => fs.readFileSync(path.join(__dirname, f), "utf8");
+  assert.ok(src("TK_TaskRow.jsx").indexOf('return "' + plain + '"') > 0, "TK_vErrText");
+  assert.ok(src("TK_api.js").indexOf(plain) > 0, "undo toast");
+  assert.ok(src("../../app.jsx").indexOf(plain) > 0, "Close tab tick");
+  assert.ok(src("../../supabase/tasks-p4-2-close-checklist.sql").indexOf(plain) > 0, "tk_close_tick");
+  assert.ok(src("TK_TaskRow.jsx").indexOf("Blocked by unfinished tasks") < 0);
+});
+
 t("allBlockers lists every row with its state", () => {
   const idx = D.TKD_index([row("a", "b"), row("a", "c", { blocker_done: true }), row("a", "d", { overridden_at: "x" })]);
   const all = D.TKD_allBlockers("a", idx, {});
@@ -104,10 +156,13 @@ t("wouldCycle: self, direct and indirect loops", () => {
   assert.strictEqual(D.TKD_wouldCycle("a", "b", idx), true);
   assert.strictEqual(D.TKD_wouldCycle("a", "x", idx), false);
   assert.strictEqual(D.TKD_wouldCycle("x", "a", idx), false);
-  // A long chain stops at depth 50 without hanging.
+  // A long chain is walked to the end (no depth cap): n_i waits on n_(i+1).
   const rows = [];
   for (let i = 0; i < 200; i++) rows.push(row("n" + i, "n" + (i + 1)));
   assert.strictEqual(D.TKD_wouldCycle("n0", "n1", D.TKD_index(rows)), false);
+  assert.strictEqual(D.TKD_wouldCycle("n200", "n0", D.TKD_index(rows)), true);
+  // Masked rows (null blocker id) are skipped, not followed.
+  assert.strictEqual(D.TKD_wouldCycle("a", "b", D.TKD_index([{ task_id: "b", blocker_id: null, is_open: true }])), false);
   // A loop already in the data doesn't hang.
   assert.strictEqual(D.TKD_wouldCycle("q", "p", D.TKD_index([row("p", "r"), row("r", "p")])), false);
 });

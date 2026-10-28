@@ -101,8 +101,13 @@ begin
   if n <> 0 then raise exception 'SELF-TEST FAILED: bulk completed a blocked task'; end if;
   -- waiting on client is not guarded
   perform public.tk_set_status(current_setting('t.b')::uuid, 'waiting_client', null, current_date);
+  -- but todo -> waiting -> in progress is a start, not a resume
+  ok := false;
+  begin update staff_reminders set status = 'in_progress' where id = current_setting('t.b')::uuid;
+  exception when others then ok := sqlerrm like 'tk_blocked%'; end;
+  if not ok then raise exception 'SELF-TEST FAILED: todo -> waiting -> in progress not guarded'; end if;
   perform public.tk_set_status(current_setting('t.b')::uuid, 'todo', null, current_date);
-  raise notice 'ok: guard on done, start, bulk; waiting allowed';
+  raise notice 'ok: guard on done, start, bulk; waiting allowed; waiting hole closed';
 end $$;
 
 -- Complete blockers: one notice for the admin (assignee), once.
@@ -113,9 +118,16 @@ begin
   select count(*) into n from tk_dep_notices where task_id = current_setting('t.b')::uuid;
   if n <> 0 then raise exception 'SELF-TEST FAILED: notice before the last blocker'; end if;
   perform public.tk_set_status(current_setting('t.a2')::uuid, 'done', null, current_date);
-  if (select count(*)::int from public.tk_dep_list(array[current_setting('t.b')::uuid]) l where l.task_id = current_setting('t.b')::uuid and l.overridden_at is null and not l.blocker_done and not l.blocker_deleted) <> 0 then raise exception 'SELF-TEST FAILED: still blocked'; end if;
+  if (select count(*)::int from public.tk_dep_list(array[current_setting('t.b')::uuid]) l where l.task_id = current_setting('t.b')::uuid and l.is_open) <> 0 then raise exception 'SELF-TEST FAILED: still blocked'; end if;
+end $$;
+reset role;
+select set_config('t.n1', (select id::text from tk_dep_notices where task_id = current_setting('t.b')::uuid and recipient_email = current_setting('t.adm')), true);
+set local role authenticated;
+do $$
+begin
+  if coalesce(current_setting('t.n1', true), '') = '' then raise exception 'SELF-TEST FAILED: no notice on unblock'; end if;
   perform public.tk_set_status(current_setting('t.a2')::uuid, 'todo', null, current_date);
-  if (select count(*)::int from public.tk_dep_list(array[current_setting('t.b')::uuid]) l where l.task_id = current_setting('t.b')::uuid and l.overridden_at is null and not l.blocker_done and not l.blocker_deleted) <> 1 then raise exception 'SELF-TEST FAILED: reopen does not re-block'; end if;
+  if (select count(*)::int from public.tk_dep_list(array[current_setting('t.b')::uuid]) l where l.task_id = current_setting('t.b')::uuid and l.is_open) <> 1 then raise exception 'SELF-TEST FAILED: reopen does not re-block'; end if;
   perform public.tk_set_status(current_setting('t.a2')::uuid, 'done', null, current_date);
   raise notice 'ok: unblock, reopen re-blocks';
 end $$;
@@ -125,7 +137,10 @@ do $$
 declare n int;
 begin
   select count(*) into n from tk_dep_notices where task_id = current_setting('t.b')::uuid and recipient_email = current_setting('t.adm');
-  if n <> 1 then raise exception 'SELF-TEST FAILED: expected exactly one notice, got %', n; end if;
+  if n <> 1 then raise exception 'SELF-TEST FAILED: expected exactly one notice row, got %', n; end if;
+  if exists (select 1 from tk_dep_notices where task_id = current_setting('t.b')::uuid and id::text = current_setting('t.n1')) then
+    raise exception 'SELF-TEST FAILED: freed again after a re-block but the notice was not re-sent';
+  end if;
   select count(*) into n from notification_outbox where ref_id = current_setting('t.b') and created_at = now() and kind ilike '%ready%';
   if n <> 0 then raise exception 'SELF-TEST FAILED: an email was queued'; end if;
   raise notice 'ok: exactly one in-app notice, no email';
@@ -156,14 +171,26 @@ begin
   perform public.tk_dep_add(current_setting('t.b')::uuid, current_setting('t.p')::uuid);
   r := public.tk_dep_override(current_setting('t.b')::uuid, 'month already reviewed');
   if (r ->> 'overridden')::int <> 2 then raise exception 'SELF-TEST FAILED: override count %', r; end if;
-  if (select count(*)::int from public.tk_dep_list(array[current_setting('t.b')::uuid]) l where l.task_id = current_setting('t.b')::uuid and l.overridden_at is null and not l.blocker_done and not l.blocker_deleted) <> 0 then raise exception 'SELF-TEST FAILED: override did not clear'; end if;
+  if (select count(*)::int from public.tk_dep_list(array[current_setting('t.b')::uuid]) l where l.task_id = current_setting('t.b')::uuid and l.is_open) <> 0 then raise exception 'SELF-TEST FAILED: override did not clear'; end if;
 end $$;
 select set_config('request.jwt.claims', json_build_object('email', current_setting('t.bk'), 'role', 'authenticated', 'app_metadata', json_build_object('provider', 'google'))::text, true);
 do $$
-declare v text; rd boolean;
+declare v text; rd boolean; n int;
 begin
-  select blocker_text, blocker_readable into v, rd from public.tk_dep_list(array[current_setting('t.b')::uuid]) where blocker_id = current_setting('t.p')::uuid;
-  if v is not null or rd then raise exception 'SELF-TEST FAILED: private blocker title leaked'; end if;
+  -- the hidden side comes back fully masked: no id, title, client or flags
+  select count(*) into n from public.tk_dep_list(array[current_setting('t.b')::uuid]) l
+   where not l.blocker_readable and l.blocker_id is null and l.blocker_text is null and l.blocker_client_id is null
+     and l.blocker_done is null and l.blocker_deleted is null and l.blocker_status is null and l.is_open is not null;
+  if n <> 1 then raise exception 'SELF-TEST FAILED: private blocker not masked (% rows)', n; end if;
+  if exists (select 1 from public.tk_dep_list(array[current_setting('t.b')::uuid]) where blocker_id = current_setting('t.p')::uuid) then
+    raise exception 'SELF-TEST FAILED: private blocker id leaked';
+  end if;
+  -- direct read of the table hides the link too; events are admin only
+  if exists (select 1 from tk_task_deps where blocker_id = current_setting('t.p')::uuid)
+     or (select count(*) from tk_task_deps where task_id = current_setting('t.b')::uuid) <> 2 then
+    raise exception 'SELF-TEST FAILED: tk_task_deps policy';
+  end if;
+  if exists (select 1 from tk_dep_events) then raise exception 'SELF-TEST FAILED: bookkeeper reads dep events'; end if;
   update staff_reminders set done = true, status = 'done' where id = current_setting('t.b')::uuid;
   raise notice 'ok: override admin only, masked title, done after override';
 end $$;
@@ -280,6 +307,99 @@ begin
       (select done from staff_reminders where id = current_setting('t.q')::uuid);
   end if;
   raise notice 'ok: status-only completion notifies';
+end $$;
+
+-- Second review pass: cascades never abort; close tick answers in plain words;
+-- a trashed last blocker sends the Ready notice; the cycle walk survives a loop.
+do $$
+declare c uuid; k uuid; d uuid; s uuid; w uuid; tc uuid;
+begin
+  insert into staff_reminders (staff_email, assignee_email, text, client_id, kind, visibility, status, done)
+  values (current_setting('t.bk'), current_setting('t.bk'), 'DEP self-test K', current_setting('t.c_in'), 'task', 'shared', 'todo', false) returning id into k;
+  -- a linked close step (far-future period, so no real checklist row is touched). close_key is
+  -- stamped only by the generator, so this insert runs under its flag from a draft template.
+  insert into task_templates (title, cadence, status, active, close_key)
+  values ('DEP close step template', 'monthly', 'draft', false, 'bank_rec') returning id into tc;
+  perform set_config('mgb.tk_generate', 'on', true);
+  insert into staff_reminders (staff_email, assignee_email, text, client_id, kind, visibility, status, done, period_kind, period_start, template_id)
+  values (current_setting('t.bk'), current_setting('t.bk'), 'DEP self-test close step', current_setting('t.c_in'), 'task', 'shared', 'todo', false, 'month', '2099-01-01', tc) returning id into c;
+  perform set_config('mgb.tk_generate', '', true);
+  if public.tk__close_task(current_setting('t.c_in'), '2099-01', 'bank_rec') is distinct from c then
+    raise exception 'SELF-TEST FAILED: close step setup';
+  end if;
+  perform public.tk__dep_link(c, k, 'manual', null);
+  -- soft-delete case: S (assigned to the admin) waits only on D
+  insert into staff_reminders (staff_email, assignee_email, text, client_id, kind, visibility, status, done)
+  values (current_setting('t.bk'), current_setting('t.bk'), 'DEP self-test D', current_setting('t.c_in'), 'task', 'shared', 'todo', false) returning id into d;
+  insert into staff_reminders (staff_email, assignee_email, text, client_id, kind, visibility, status, done)
+  values (current_setting('t.bk'), current_setting('t.adm'), 'DEP self-test S', current_setting('t.c_in'), 'task', 'shared', 'todo', false) returning id into s;
+  perform public.tk__dep_link(s, d, 'manual', null);
+  -- W waits on K; used for the cascade check
+  insert into staff_reminders (staff_email, assignee_email, text, client_id, kind, visibility, status, done)
+  values (current_setting('t.bk'), current_setting('t.bk'), 'DEP self-test W', current_setting('t.c_in'), 'task', 'shared', 'todo', false) returning id into w;
+  perform public.tk__dep_link(w, k, 'manual', null);
+  perform set_config('t.c', c::text, true);
+  perform set_config('t.k', k::text, true);
+  perform set_config('t.d', d::text, true);
+  perform set_config('t.s', s::text, true);
+  perform set_config('t.w', w::text, true);
+  -- cycle walk on a loop that already exists (inserted raw, K <-> W): ends, no depth cap
+  insert into tk_task_deps (task_id, blocker_id) values (k, w);
+  if not public.tk__dep_would_cycle(k, w) or public.tk__dep_would_cycle(d, k) then
+    raise exception 'SELF-TEST FAILED: cycle walk';
+  end if;
+  -- a cascade: an update made from inside another trigger
+  create temp table tk_selftest_cascade (id uuid) on commit drop;
+  create function pg_temp.tk_selftest_cascade_fn() returns trigger language plpgsql as $f$
+  begin update public.staff_reminders set done = true, status = 'done' where id = new.id; return null; end $f$;
+  create trigger tk_selftest_cascade_trg after insert on tk_selftest_cascade
+    for each row execute function pg_temp.tk_selftest_cascade_fn();
+end $$;
+select set_config('request.jwt.claims', json_build_object('email', current_setting('t.bk'), 'role', 'authenticated', 'app_metadata', json_build_object('provider', 'google'))::text, true);
+do $$
+declare ok boolean := false;
+begin
+  -- signed in as the bookkeeper (claims only; role stays owner for the temp table)
+  begin update staff_reminders set done = true, status = 'done' where id = current_setting('t.w')::uuid;
+  exception when others then ok := sqlerrm like 'tk_blocked%'; end;
+  if not ok then raise exception 'SELF-TEST FAILED: direct write as staff not guarded'; end if;
+  insert into tk_selftest_cascade values (current_setting('t.w')::uuid);
+  if not (select done from staff_reminders where id = current_setting('t.w')::uuid) then
+    raise exception 'SELF-TEST FAILED: cascade did not complete the row';
+  end if;
+  -- rhythm flag: skipped too
+  perform set_config('mgb.tk_rhythm', 'on', true);
+  update staff_reminders set status = 'in_progress' where id = current_setting('t.c')::uuid;
+  update staff_reminders set status = 'todo' where id = current_setting('t.c')::uuid;
+  perform set_config('mgb.tk_rhythm', '', true);
+  -- trashing the only open blocker frees S: Ready notice for the admin
+  update staff_reminders set deleted_at = now() where id = current_setting('t.d')::uuid;
+  raise notice 'ok: cascades and rhythm skip the guard, direct writes do not';
+exception when others then
+  if sqlerrm like 'SELF-TEST FAILED%' then raise; end if;
+  raise exception 'SELF-TEST FAILED: cascade aborted: %', sqlerrm;
+end $$;
+set local role authenticated;
+do $$
+declare r jsonb;
+begin
+  r := public.tk_close_tick(current_setting('t.c_in'), '2099-01', 'bank_rec', true);
+  if r ->> 'status' <> 'blocked' or r ->> 'message' <> 'This task is waiting on another task to finish.'
+     or (r ->> 'done')::boolean then
+    raise exception 'SELF-TEST FAILED: close tick on a blocked step %', r;
+  end if;
+  raise notice 'ok: close tick plain words';
+end $$;
+reset role;
+do $$
+begin
+  if (select deleted_at from staff_reminders where id = current_setting('t.d')::uuid) is null then
+    raise exception 'SELF-TEST FAILED: trash did not happen';
+  end if;
+  if (select count(*) from tk_dep_notices where task_id = current_setting('t.s')::uuid and recipient_email = current_setting('t.adm')) <> 1 then
+    raise exception 'SELF-TEST FAILED: trashed last blocker sent no notice';
+  end if;
+  raise notice 'ok: trashed blocker notifies';
 end $$;
 
 select 'slateplus deps self-test passed' as result;

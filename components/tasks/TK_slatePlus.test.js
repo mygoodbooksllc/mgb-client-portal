@@ -75,11 +75,15 @@ t("Keys and event names", () => {
 function load(opts) {
   const o = opts || {};
   const store = Object.assign({}, o.ls || {});
-  const calls = { from: [], session: 0, writes: 0 };
+  const calls = { from: [], session: 0, writes: 0, reads: 0, add: [], remove: [] };
   const events = [];
+  const listeners = {};
   const window = {
     localStorage: {
-      getItem: (k) => (Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null),
+      getItem: (k) => {
+        calls.reads++;
+        return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null;
+      },
       setItem: (k, v) => {
         store[k] = String(v);
       },
@@ -88,8 +92,14 @@ function load(opts) {
       },
     },
     dispatchEvent: (e) => events.push(e.type),
-    addEventListener: () => {},
-    removeEventListener: () => {},
+    addEventListener: (type, fn) => {
+      calls.add.push(type);
+      (listeners[type] = listeners[type] || []).push(fn);
+    },
+    removeEventListener: (type, fn) => {
+      calls.remove.push(type);
+      listeners[type] = (listeners[type] || []).filter((x) => x !== fn);
+    },
   };
   const answer = o.answer === undefined ? { data: null, error: null } : o.answer;
   const builder = {
@@ -131,9 +141,19 @@ function load(opts) {
   const clock = { t: 1000000 };
   const sandbox = { window, Event: function (type) { this.type = type; }, console, Date: { now: () => clock.t } };
   if (o.viewAs) sandbox.MGB_viewAsReadOnly = () => true;
+  sandbox.Promise = Promise;
+  if (o.timers) {
+    sandbox.timers = [];
+    sandbox.setTimeout = (fn, ms) => {
+      sandbox.timers.push({ fn, ms });
+      return sandbox.timers.length;
+    };
+  }
+  if (o.react) sandbox.React = o.react;
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "TK_slatePlus.js"), "utf8"), sandbox);
-  return { sb: sandbox, store, calls, events, clock };
+  const fire = (type, e) => (listeners[type] || []).slice().forEach((fn) => fn(e || { type }));
+  return { sb: sandbox, store, calls, events, clock, fire, listeners };
 }
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -231,6 +251,111 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
     await tick();
     assert.strictEqual(L.calls.from.length, 3, "gives up after 3 errors this page load");
     assert.strictEqual(L.store.mgb_slateplus_cache, "1");
+  });
+
+  // ---- The shared hook store (review fix 2026-10-27) ----
+  // A fake React 18: useSyncExternalStore subscribes once per caller and
+  // returns the snapshot, like the real one.
+  const fakeReact = (subs) => ({
+    useSyncExternalStore: (subscribe, getSnapshot) => {
+      subs.push(subscribe(() => {}));
+      return getSnapshot();
+    },
+  });
+
+  await ta("hook: 300 rows add the window listeners once, and remove them with the last", async () => {
+    const unsubs = [];
+    const L = load({ react: fakeReact(unsubs), ls: { mgb_slateplus_preview: "1" } });
+    for (let i = 0; i < 300; i++) assert.strictEqual(L.sb.TKP_useOn(), true);
+    assert.deepStrictEqual(L.calls.add.sort(), ["mgb:slateplus", "storage"]);
+    unsubs.slice(0, 299).forEach((u) => u());
+    assert.strictEqual(L.calls.remove.length, 0);
+    unsubs[299]();
+    assert.deepStrictEqual(L.calls.remove.sort(), ["mgb:slateplus", "storage"]);
+  });
+
+  await ta("hook: one synchronous pass of 300 rows reads localStorage once (gate off)", async () => {
+    const unsubs = [];
+    const L = load({ react: fakeReact(unsubs), noSession: true });
+    await tick();
+    L.calls.reads = 0;
+    for (let i = 0; i < 300; i++) assert.strictEqual(L.sb.TKP__snapshot(), false);
+    assert.ok(L.calls.reads <= 2, "reads: " + L.calls.reads);
+    await tick();
+    // Next pass reads fresh (a Dev Tools flag change shows on the next render).
+    L.store.mgb_slateplus_preview = "1";
+    assert.strictEqual(L.sb.TKP__snapshot(), true);
+  });
+
+  await ta("hook: same answers as before (off, preview, cached switch, View as)", async () => {
+    const cases = [
+      [{}, false],
+      [{ ls: { mgb_slateplus_preview: "1" } }, true],
+      [{ ls: { mgb_slateplus_cache: "1" } }, true],
+      [{ ls: { mgb_slateplus_preview: "1", mgb_slateplus_cache: "1" }, viewAs: true }, false],
+    ];
+    for (const [o, want] of cases) {
+      const L = load(Object.assign({ react: fakeReact([]), noSession: true }, o));
+      assert.strictEqual(L.sb.TKP_useOn(), want, JSON.stringify(o));
+      await tick();
+    }
+  });
+
+  await ta("hook: a change notifies subscribers; the snapshot is re-read", async () => {
+    const L = load({ noSession: true });
+    let hits = 0;
+    const un = L.sb.TKP__subscribe(() => hits++);
+    assert.strictEqual(L.sb.TKP__snapshot(), false);
+    L.store.mgb_slateplus_cache = "1";
+    L.fire("mgb:slateplus");
+    assert.strictEqual(hits, 1);
+    assert.strictEqual(L.sb.TKP__snapshot(), true);
+    L.fire("storage", { key: "other_key" });
+    assert.strictEqual(hits, 1, "unrelated keys are ignored");
+    L.fire("storage", { key: null });
+    assert.strictEqual(hits, 2);
+    un();
+    L.fire("mgb:slateplus");
+    assert.strictEqual(hits, 2);
+  });
+
+  await ta("hook: View as subscribes without any network call", async () => {
+    const L = load({ viewAs: true, react: fakeReact([]) });
+    L.sb.TKP_useOn();
+    await tick();
+    assert.strictEqual(L.calls.session, 0);
+    assert.strictEqual(L.calls.from.length, 0);
+  });
+
+  await ta("hook: no session yet retries once at its time while subscribed, never writes", async () => {
+    const L = load({ noSession: true, timers: true });
+    const un = L.sb.TKP__subscribe(() => {});
+    await tick();
+    assert.strictEqual(L.calls.session, 1);
+    assert.strictEqual(L.calls.from.length, 0);
+    L.sb.TKP__subscribe(() => {});
+    assert.strictEqual(L.sb.timers.length, 1, "one shared retry timer");
+    L.clock.t += 3001;
+    L.sb.timers[0].fn();
+    await tick();
+    assert.strictEqual(L.calls.session, 2);
+    assert.strictEqual(L.sb.timers.length, 2, "still no session: the next try is scheduled by itself");
+    assert.strictEqual(L.calls.writes, 0);
+    un();
+  });
+
+  t("fallback without useSyncExternalStore still shares the store", () => {
+    const effects = [];
+    const react = {
+      useState: (v) => [v, () => {}],
+      useEffect: (fn) => effects.push(fn),
+    };
+    const L = load({ react, ls: { mgb_slateplus_preview: "1" } });
+    for (let i = 0; i < 50; i++) assert.strictEqual(L.sb.TKP_useOn(), true);
+    const cleanups = effects.map((fn) => fn());
+    assert.deepStrictEqual(L.calls.add.sort(), ["mgb:slateplus", "storage"]);
+    cleanups.forEach((c) => c());
+    assert.strictEqual(L.calls.remove.length, 2);
   });
 
   console.log("TK_slatePlus: " + n + " tests passed");

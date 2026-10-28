@@ -91,7 +91,7 @@ function TK_vErrText(err, fallbackKey) {
   // Slate plus dependencies: the server refused a start or finish (only ever
   // raised for a task that has a blocker, supabase/slateplus-deps.sql).
   if ((err && err.reason === "tk_blocked") || /tk_blocked/.test(String((err && err.message) || ""))) {
-    return "Blocked by unfinished tasks. Finish those first.";
+    return "This task is waiting on another task to finish.";
   }
   var rk = typeof TK_reviewErrorKey === "function" ? TK_reviewErrorKey(err) : null; // tasks p2 s3
   if (rk && TK_vCopy(rk)) return TK_vCopy(rk);

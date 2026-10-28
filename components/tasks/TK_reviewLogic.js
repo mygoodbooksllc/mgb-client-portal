@@ -72,6 +72,7 @@ var TK_REVIEW_REASON_COPY = {
   tk_bad_reviewer: "badReviewer",
   tk_server_owned: "serverOwned",
   tk_owner_only: "ownerOnly",
+  tk_blocked: "blockedByTask", // Slate plus dependencies guard
 };
 
 function TK_reviewErrorKey(err) {

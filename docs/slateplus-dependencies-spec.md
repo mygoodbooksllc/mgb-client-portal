@@ -1,6 +1,6 @@
 # Slate plus: task dependencies ("Blocked by")
 
-Status: built hidden 2026-10-27. Part of the "Slate plus" batch (with @mentions, saved filters, workload strip).
+Status: built hidden 2026-10-27; review pass 2 applied 2026-10-27 (rules marked "pass 2" below). Part of the "Slate plus" batch (with @mentions, saved filters, workload strip).
 Gate: per-person flag `mgb_slateplus_preview` (Developer tools > Feature flags) or firm switch
 `tk_settings.slateplus_enabled` (NOT SET = off; code never sets it). Shared check: `TKP_on()` in
 `components/tasks/TK_slatePlus.js`.
@@ -19,10 +19,13 @@ Aim: the month-end close checklist. "Reports" cannot start before "Bank recs" is
 - "Do next" surfaces skip blocked tasks: Slate summary Today/Next, Today page Needs you (non-late
   bands), Desk bar "Next up".
 - Trying to tick done, start (In progress) or send for review on a blocked task shows:
-  "Blocked by 2 unfinished tasks: Bank recs, Credit cards. Finish those first." Admins get an
+  "Blocked by 2 unfinished tasks: Bank recs, Credit cards. Finish those first." (the browser's
+  quick check). When the server refuses (stale browser, Close tab, undo, Today, review), every path
+  says "This task is waiting on another task to finish." (pass 2). Admins get an
   **Override** action (asks for a reason). Overrides are logged.
-- When the last blocker is completed, the blocked task's assignee gets ONE bell notice
-  "Ready to start: <task>" (in-app only, no email). The task leaves Blocked on its own.
+- When the last blocker is completed or trashed, the blocked task's assignee gets ONE bell notice
+  "Ready to start: <task>" (in-app only, no email). The task leaves Blocked on its own. If it is
+  blocked again and freed again, the notice is sent again (pass 2).
 - Templates (admins): a **Close order step** number on a recurring template. Each month's generated
   tasks are wired "blocked by the previous step in this set" for the same client and period.
   Empty for every existing template, so nothing changes until an admin sets it.
@@ -36,11 +39,12 @@ non-preview person is the completion guard on a task that a previewer has wired 
 |---|---|
 | `tk_task_deps(task_id, blocker_id, created_by, created_at, source, overridden_at, overridden_by)` | PK (task_id, blocker_id); both FK `staff_reminders(id) on delete cascade`; check task_id <> blocker_id; source in manual/template |
 | `tk_dep_events(id, task_id, blocker_id, actor_email, kind, reason, created_at)` | log: add, remove, override, template_link. Admin read only |
-| `tk_dep_notices(id, recipient_email, task_id, blocker_id, created_at)` | bell rows; unique (task_id, recipient_email) = ONE notice per person per task, ever |
+| `tk_dep_notices(id, recipient_email, task_id, blocker_id, created_at)` | bell rows; unique (task_id, recipient_email) = one live notice per person per task; a later unblock re-sends it (upsert with a new id) |
 | `task_templates.dep_step smallint null check 1..99` | close order step; null = not chained |
 
-RLS on all three tables: enabled, no anon. Deps: staff read where they can read the task
-(`tk_can_read_task`). Writes only through RPCs (no insert/update/delete grants). Events: active admins.
+RLS on all three tables: enabled, no anon. Deps: staff read only where they can read BOTH the task
+and the blocker (`tk_can_read_task`, pass 2). Writes only through RPCs (no insert/update/delete
+grants). Events: active admins who can read the task (and the blocker, when set; pass 2).
 Notices: own rows, active staff. Clients (authenticated but not staff) get nothing anywhere.
 
 "Open blocker" = blocker row exists, `done = false`, `deleted_at is null`, and the dep is not overridden.
@@ -52,12 +56,15 @@ Notices: own rows, active staff. Clients (authenticated but not staff) get nothi
   build a cycle. Idempotent (already linked = ok). Logs `add`.
 - `tk_dep_remove(p_task, p_blocker)` -> jsonb. Edit right on the task. Logs `remove`.
 - `tk_dep_list(p_task_ids uuid[] default null)` -> setof rows (task side and blocker side), only
-  where the caller can read at least one side; the side the caller cannot read has its title masked
-  (null) so names never leak across books. Null argument = every dep the caller can see (max 2000).
+  where the caller can read at least one side. The side the caller cannot read comes back fully
+  masked (pass 2): null id, title, client, status, assignee, due date and done / deleted flags; only
+  the new `is_open` column (not overridden, blocker not done, not trashed) says whether it still
+  blocks. The browser files such rows under the known side with a local key and never offers
+  Remove for them (non-admins ask for an override). Null argument = every dep the caller can see (max 2000).
 - `tk_dep_override(p_task, p_reason)` -> jsonb. Active admin only, reason 3..500 chars. Stamps
   `overridden_at/by` on the open deps and logs `override`. No notice.
 - `tk_dep_my_notices(p_days int default 14)` -> own notices joined to task title/client (skips
-  deleted or unreadable tasks).
+  deleted or unreadable tasks; the blocker id is null when the reader can't read the blocker).
 - `tk_set_template_dep_step(p_id, p_step)` -> jsonb. Active admin only (same rule as
   `tk_save_template`). Null clears.
 - Internal: `tk__dep_open_count(task)`, `tk__dep_would_cycle(task, blocker)`, `tk__dep_link(...)`.
@@ -66,14 +73,19 @@ Notices: own rows, active staff. Clients (authenticated but not staff) get nothi
 1. `tk_staff_reminders_zdeps_guard` BEFORE UPDATE OF done, status. Fires last among BEFORE triggers
    (name order), so it sees final values. Acts only when the row moves into done, in_progress or
    ready_for_review, AND a `tk_task_deps` row exists for it, AND the actor is active staff
-   (cron, service role, token answer pages and client users pass untouched). Open blockers > 0
+   (cron, service role, token answer pages and client users pass untouched). Pass 2: also skipped
+   inside a nested trigger (`pg_trigger_depth() > 1`) and while the rhythm, generator or close-sync
+   session flags (`mgb.tk_rhythm`, `mgb.tk_generate`, `mgb.tk_close`) are on, so a cascade never
+   aborts its transaction; only direct staff writes (RPCs, bulk, undo, which catch per row) are
+   guarded. Open blockers > 0
    raises `tk_blocked: Blocked by N unfinished task(s)` (errcode P0001). Message carries a count only,
    never titles. `tk__bulk_reason` gains `tk_blocked -> 'blocked'` so bulk actions skip the row
    with a clear reason instead of failing the batch (bulk already catches per row).
-2. `tk_staff_reminders_zdeps_ready` AFTER UPDATE OF done. When a row flips to done and it blocks
-   something: for each dependent that is open, not deleted, and now has zero open blockers, insert
+2. `tk_staff_reminders_zdeps_ready` AFTER UPDATE OF done, deleted_at. When a row flips to done, or
+   is trashed while open (pass 2), and it blocks something: for each dependent that is open, not deleted, and now has zero open blockers, insert
    one notice for its assignee (skip unassigned, skip the person who completed the blocker, skip
-   inactive staff and people without access to the client). `on conflict do nothing`.
+   inactive staff and people without access to the client). Overridden deps are ignored. On
+   conflict the existing row gets a new id and time, so a re-block then unblock notifies again.
 3. `tk_staff_reminders_zdeps_wire` AFTER INSERT, `when (new.template_id is not null)`. Reads the
    template's `dep_step`; null returns at once. Otherwise links the new task to the tasks made from
    the same set's previous step (largest step below), same client and same period
@@ -83,12 +95,14 @@ Notices: own rows, active staff. Clients (authenticated but not staff) get nothi
 
 ## 3. Rules and edge cases
 
-1. **Self-block / cycles**: check constraint + `tk__dep_would_cycle` (walks the blocker's blockers,
-   depth cap 50) under an advisory lock. The browser runs the same check first for a quick message.
-2. **Blocker deleted (trash)**: stops blocking; no notice. Restored: blocks again. Hard delete
+1. **Self-block / cycles**: check constraint + `tk__dep_would_cycle` (walks every blocker of the
+   blocker by id with `UNION`, so loops end and there is no depth cap; pass 2) under an advisory lock. The browser runs the same check first for a quick message.
+2. **Blocker deleted (trash)**: stops blocking; if it was the last open blocker, the Ready to start
+   notice is sent (pass 2). Restored: blocks again. Hard delete
    cascades the dep row away.
 3. **Blocker completed then reopened** (undo, reopen): blocks again if the dependent is still open.
-   The dependent's notice is not sent twice (unique row).
+   When it is finished again the dependent's notice is sent again (pass 2; one row per person,
+   re-stamped).
 4. **Reassigned blocker**: no effect. **Reassigned blocked task**: the notice goes to whoever is the
    assignee when it unblocks.
 5. **Completed blocked task** (via override, or done before the dep was added): deps stay as history;
@@ -115,12 +129,15 @@ Notices: own rows, active staff. Clients (authenticated but not staff) get nothi
     `exists` check. `TK_groupMyTasks` only adds a `blocked` key when the caller passes `isBlocked`,
     which only happens when `TKP_on()`.
 
-14. **Resume is not a start** (review fix): back from review (send back, withdraw) or from Waiting
-    on client to In progress is never refused, in the browser, bulk or the server guard.
+14. **Resume is not a start** (review fix): back from review (send back, withdraw) to In progress
+    is never refused. From Waiting on client it is a resume only when the task was In progress
+    before it waited (`status_before_wait = 'in_progress'`); To do → Waiting → In progress is a
+    start and is refused (pass 2). The browser stays lenient there and lets the server decide.
 15. **Close order links** (source `template`) are removed by admins only; others ask for an override.
 16. **Full load** (`tk_dep_list(null)`): only deps whose task is still open, newest first, max 2000,
     so finished history never crowds out live blocks. The drawer of a done task shows no list.
-17. **Ready notice** fires on the final row (`after update ... when new.done and not old.done`), so
+17. **Ready notice** fires on the final row (`after update ... when new.done and not old.done`, or
+    a soft delete of an open blocker), so
     status-only completions (rhythm auto-complete, close adopt, undo) notify too, and an advisory
     lock stops two last blockers finished at once from both missing it.
 
@@ -133,11 +150,14 @@ Notices: own rows, active staff. Clients (authenticated but not staff) get nothi
 - *Cron jobs failing.* A raise inside `tk_rhythm_daily` or the generator would abort a whole run.
   Fixed by skipping the guard when there is no signed-in active staff member.
 - *Close tab ticks.* Ticking a Close step syncs its task to done; if that task is blocked the tick
-  is refused with the same message. Accepted (same rule in both places).
+  answers status `blocked` with "This task is waiting on another task to finish." (pass 2: plain
+  words, not an error). Accepted (same rule in both places).
 - *Bulk failing as a batch.* Checked: `tk_bulk_complete`/`tk_bulk_set` catch per row; added the
   `blocked` reason text.
-- *Leaking titles.* `tk_dep_list` masks the side the caller cannot read; errors carry counts only.
-- *Notice spam.* One per person per task, ever; none for your own completions.
+- *Leaking titles.* `tk_dep_list` masks the side the caller cannot read (pass 2: ids and flags
+  too); direct table reads need both sides readable; errors carry counts only.
+- *Notice spam.* One per person per unblock (re-sent only after a real re-block); none for your own
+  completions.
 - *Cycle race.* Advisory transaction lock on all dep writes.
 - *Template step ambiguity.* "Previous step" = largest `dep_step` below this one in the same set
   (or the firm templates group when the set is null); equal steps run in parallel.

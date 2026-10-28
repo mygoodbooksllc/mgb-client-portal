@@ -287,7 +287,7 @@ function TK_DwDepsRow(props) {
                     <span className="tk-dep-name tk-muted">{TK_depName(b)}</span>
                   )}
                   {(cn || tag) && <span className="tk-muted tk-dep-meta">{[cn, tag].filter(Boolean).join(" · ")}</span>}
-                  {!ro && (b.source !== "template" || props.isAdmin) && (
+                  {!ro && !b.hidden && (b.source !== "template" || props.isAdmin) && (
                     <button
                       type="button"
                       className="tk-icon-btn tk-dep-remove"

@@ -100,7 +100,7 @@ t("wiring: Slate mounts the strip and the Unassigned line only when not embedded
 });
 t("wiring: Feature flags row reloads, Dev Tools switch row present", () => {
   const app = read("app.jsx");
-  assert.ok(/key: "mgb_slateplus_preview",[\s\S]{0,1600}?reloads: true/.test(app));
+  assert.ok(/key: "mgb_slateplus_preview",[\s\S]{0,900}?reloads: true/.test(app));
   assert.ok(app.includes('["slateplus_enabled", "Slate plus for all staff (owner only)"'));
 });
 console.log("TK_workloadLogic: " + n + " passed");

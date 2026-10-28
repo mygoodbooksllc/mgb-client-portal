@@ -28,17 +28,37 @@ function TKD__lc(v) {
   return v == null ? "" : String(v).trim().toLowerCase();
 }
 
+// The server masks the side the caller cannot read (null id, text and flags;
+// only is_open is given for a hidden blocker). Such a row is filed under the
+// side that is known, with a local key ("hidden:N") standing in for the
+// hidden id. Rows with neither id are dropped.
 function TKD_index(rows) {
   var byTask = {};
   var byBlocker = {};
+  var n = 0;
   (Array.isArray(rows) ? rows : []).forEach(function (r) {
-    if (!r || !r.task_id || !r.blocker_id) return;
-    var t = String(r.task_id);
-    var b = String(r.blocker_id);
-    (byTask[t] = byTask[t] || []).push(r);
-    (byBlocker[b] = byBlocker[b] || []).push(r);
+    if (!r || (!r.task_id && !r.blocker_id)) return;
+    if (!r.task_id || !r.blocker_id) {
+      n += 1;
+      r = Object.assign({}, r, { _hidden: "hidden:" + n });
+    }
+    if (r.task_id) {
+      var t = String(r.task_id);
+      (byTask[t] = byTask[t] || []).push(r);
+    }
+    if (r.blocker_id) {
+      var b = String(r.blocker_id);
+      (byBlocker[b] = byBlocker[b] || []).push(r);
+    }
   });
   return { byTask: byTask, byBlocker: byBlocker };
+}
+
+function TKD__bid(r) {
+  return r.blocker_id ? String(r.blocker_id) : r._hidden || "hidden";
+}
+function TKD__tid(r) {
+  return r.task_id ? String(r.task_id) : r._hidden || "hidden";
 }
 
 function TKD__taskDone(t) {
@@ -51,8 +71,9 @@ function TKD__taskDone(t) {
 // the store (tasks[id]) wins over the row's snapshot.
 function TKD__rowOpen(row, tasks) {
   if (!row || row.overridden_at) return false;
-  var b = tasks && row.blocker_id != null ? tasks[String(row.blocker_id)] : null;
+  var b = tasks && row.blocker_id ? tasks[String(row.blocker_id)] : null;
   if (b) return !b.deleted_at && !TKD__taskDone(b);
+  if (typeof row.is_open === "boolean") return row.is_open;
   return !row.blocker_done && !row.blocker_deleted;
 }
 
@@ -62,10 +83,11 @@ function TKD_openBlockers(taskId, idx, tasks) {
   var out = [];
   rows.forEach(function (r) {
     if (!TKD__rowOpen(r, tasks)) return;
-    var b = tasks ? tasks[String(r.blocker_id)] : null;
-    var readable = r.blocker_readable !== false;
+    var b = tasks && r.blocker_id ? tasks[String(r.blocker_id)] : null;
+    var readable = r.blocker_readable !== false && !!r.blocker_id;
     out.push({
-      id: String(r.blocker_id),
+      id: TKD__bid(r),
+      hidden: !r.blocker_id,
       text: readable ? (b && b.text) || r.blocker_text || "" : "",
       readable: readable,
       client_id: readable ? (b ? b.client_id : r.blocker_client_id) || null : null,
@@ -82,10 +104,11 @@ function TKD_openBlockers(taskId, idx, tasks) {
 function TKD_allBlockers(taskId, idx, tasks) {
   if (taskId == null || !idx || !idx.byTask) return [];
   return (idx.byTask[String(taskId)] || []).map(function (r) {
-    var b = tasks ? tasks[String(r.blocker_id)] : null;
-    var readable = r.blocker_readable !== false;
+    var b = tasks && r.blocker_id ? tasks[String(r.blocker_id)] : null;
+    var readable = r.blocker_readable !== false && !!r.blocker_id;
     return {
-      id: String(r.blocker_id),
+      id: TKD__bid(r),
+      hidden: !r.blocker_id,
       text: readable ? (b && b.text) || r.blocker_text || "" : "",
       readable: readable,
       client_id: readable ? (b ? b.client_id : r.blocker_client_id) || null : null,
@@ -102,9 +125,10 @@ function TKD_allBlockers(taskId, idx, tasks) {
 function TKD_blocking(taskId, idx) {
   if (taskId == null || !idx || !idx.byBlocker) return [];
   return (idx.byBlocker[String(taskId)] || []).map(function (r) {
-    var readable = r.task_readable !== false;
+    var readable = r.task_readable !== false && !!r.task_id;
     return {
-      id: String(r.task_id),
+      id: TKD__tid(r),
+      hidden: !r.task_id,
       text: readable ? r.task_text || "" : "",
       readable: readable,
       client_id: readable ? r.task_client_id || null : null,
@@ -120,24 +144,26 @@ function TKD_isBlockedTask(task, idx, tasks) {
 }
 
 // Would "taskId is blocked by blockerId" make a loop? True for a self-block or
-// when blockerId already waits (directly or not) on taskId. The server checks
-// again under a lock; this only gives a quick message.
+// when blockerId already waits (directly or not) on taskId. Each id is walked
+// once (seen set), so any graph ends; no depth cap. The server checks again
+// under a lock; this only gives a quick message. Hidden blockers are skipped.
 function TKD_wouldCycle(taskId, blockerId, idx) {
   if (taskId == null || blockerId == null) return false;
   var target = String(taskId);
   if (String(blockerId) === target) return true;
   var byTask = (idx && idx.byTask) || {};
   var seen = {};
-  var stack = [{ id: String(blockerId), depth: 0 }];
+  var stack = [String(blockerId)];
   while (stack.length) {
     var cur = stack.pop();
-    if (cur.depth > 50 || seen[cur.id]) continue;
-    seen[cur.id] = true;
-    var rows = byTask[cur.id] || [];
+    if (seen[cur]) continue;
+    seen[cur] = true;
+    var rows = byTask[cur] || [];
     for (var i = 0; i < rows.length; i++) {
+      if (!rows[i].blocker_id) continue;
       var next = String(rows[i].blocker_id);
       if (next === target) return true;
-      stack.push({ id: next, depth: cur.depth + 1 });
+      if (!seen[next]) stack.push(next);
     }
   }
   return false;
@@ -365,8 +391,10 @@ function TKD_overridePrompt(task) {
 // (and toasted why). Off, not loaded, or not blocked: false, nothing shown.
 function TKD_precheck(task, toStatus, isAdmin) {
   if (!task || !TKD_movesBlocked(toStatus)) return false;
-  // Back from review or from waiting on the client is a resume (the server
-  // allows it too).
+  // Back from review is a resume (the server allows it too). Back from waiting
+  // on the client is a resume only when it was in progress before the wait;
+  // the browser does not load status_before_wait, so it lets the server decide
+  // (a refusal comes back as "This task is waiting on another task to finish.").
   if (toStatus === "in_progress" && (task.status === "ready_for_review" || task.status === "waiting_client")) return false;
   var list = TKD_blockersOf(task);
   if (!list || !list.length) return false;

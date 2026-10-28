@@ -208,6 +208,8 @@ var TK_REQUEST_ERROR_COPY = {
   tk_not_configured: "Email isn't set up yet, so nothing was sent.",
   tk_send_failed: "The email didn't go out. Try again.",
   tk_mode_changed: "The client email setting just changed. Try again.",
+  // Slate plus dependencies (supabase/slateplus-deps.sql zdeps guard).
+  tk_blocked: "This task is waiting on another task to finish.",
 };
 
 function TK_requestErrorText(err) {

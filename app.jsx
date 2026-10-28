@@ -1039,7 +1039,7 @@ const FEATURE_FLAGS = [
     key: "mgb_slateplus_preview",
     label: "Slate plus preview",
     description:
-      "Turns on for you only, in this browser, while the firm-wide slateplus_enabled switch is off, the Slate plus additions. @mentions in task comments: the @ list shows only people who will see the mention (others are grayed out with can't see this task), a note after posting says who was notified, and a mention of you is highlighted. Team load on the Slate page: open, due this week and (once late tasks count) late tasks per person, plus QuickBooks Time hours for admins, and the same load as one line in the Unassigned group; admins and account managers see everyone, everyone else only their own load. Slate filter bar: Assignee, Client, Project, Due and Status filters plus Saved filters (yours only). Person profiles: click a name in Slate, on Team or in a shout-out to see their week and the tasks you can already see. Blocked by (task dependencies): a task can wait on other tasks (any client); it shows a Blocked by N chip, sits in a Blocked group, can't be started or finished until they are done (admins can override, logged), and the assignee gets one in-app Ready to start notice when the last one is done; recurring templates can wait on the step before them (Close order step). Staff only; clients never see it; it sends nothing new (no email). Off in View as. The page reloads when you toggle it.",
+      "Turns on for you only, in this browser, while the firm-wide slateplus_enabled switch is off, the Slate plus additions: @mentions in task comments (only people who can see the task; a note says who was notified); Team load on the Slate page (open, due this week and late per person, plus Time hours for admins); Slate filters and Saved filters; person profiles (click a name); and Blocked by (a task waits on other tasks: a Blocked by N chip, a Blocked group, no start or finish until they are done, admin override, one Ready to start notice; templates can set a Close order step). Staff only; clients never see it; no new emails. Off in View as. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -7073,7 +7073,8 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact, ch
     } catch (e) {
       const code = e && e.code;
       if (code === "tk_schema_missing" || code === "PGRST202" || code === "42883") return null;
-      showToast(code === "tk_offline" ? "You're offline. Try again when you're back." : code === "tk_forbidden" ? "You can't change this client's checklist." : "Couldn't save that.");
+      const blocked = (e && e.reason === "tk_blocked") || /tk_blocked/.test(String((e && e.message) || ""));
+      showToast(code === "tk_offline" ? "You're offline. Try again when you're back." : code === "tk_forbidden" ? "You can't change this client's checklist." : blocked ? "This task is waiting on another task to finish." : "Couldn't save that.");
       return { done: null };
     }
   }
@@ -14197,8 +14198,6 @@ function resettableLocalStorageKeys() {
     // mgb_slateplus_workload_v1 (Team load strip collapsed, cleared by Reset).
     // Thread menu (hidden preview): mgb_threadmenu_preview (a flag, kept),
     // mgb_threadmenu_cache (the firm switch threadmenu_enabled as last read by TM_gate.js, cleared by Reset).
-    // Slate plus (hidden preview): mgb_slateplus_preview (a flag, kept),
-    // mgb_slateplus_cache (the firm switch slateplus_enabled as last read by TK_slatePlus.js, cleared by Reset).
     return Object.keys(localStorage).filter(
       (k) =>
         (k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_")) &&
@@ -30716,9 +30715,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                       // requests as Home's Needs you (ClientNeeds: questions and
                       // documents); the old document list is the fallback.
                       // Legacy requests keep their ids, so "seen" carries over.
-                      ...(cnRequests && cnRequests.loaded && !cnRequests.error
-                        ? access.tabs.has("messages") || access.tabs.has("documents")
-                          ? CN_openOf(cnRequests.rows).map((r) => ({
+                      // While the new client's requests load, show none (not
+                      // the fallback list, which may still be the last org's).
+                      ...(cnRequests && !cnRequests.error
+                        ? cnRequests.loaded && (access.tabs.has("messages") || access.tabs.has("documents"))
+                          ? CN_openOf(cnRequests.rows)
+                              // Review fix 2026-10-27: only this client's rows (a
+                              // late answer after an org switch is ignored), and
+                              // questions only when there is a Messages tab to
+                              // answer them in (Documents can't answer a question).
+                              .filter(() => cnRequests.clientId == null || String(cnRequests.clientId) === String(client.id))
+                              .filter((r) => access.tabs.has("messages") || r.needs_upload || r.kind === "document")
+                              .map((r) => ({
                               id: "req:" + r.id,
                               title: `${r.needs_upload || r.kind === "document" ? "Please upload" : "Please answer"}: ${r.title}`,
                               sub: r.due_date ? `Due ${fmtDate(r.due_date)}` : "Requested " + (relTime(r.asked_at || r.created_at) || ""),
