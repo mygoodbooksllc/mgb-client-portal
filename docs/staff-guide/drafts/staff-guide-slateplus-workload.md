@@ -1,4 +1,4 @@
-# DRAFT (not published): Slate plus Team load strip
+# DRAFT (published 2026-10-28w into slate-profiles.md and team-page.md): Slate plus Team load strip
 
 Publish only at launch (README "Slate plus (hidden), launch checklist"). Nothing here is in the live `staff_guide` table yet.
 

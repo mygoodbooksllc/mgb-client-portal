@@ -1359,6 +1359,7 @@ function TK_vRowAssignee(props) {
         type="button"
         ref={menu.btnRef}
         className={"tkp-reassign" + (email ? "" : " is-empty")}
+        data-tour="tkp-reassign"
         aria-haspopup="menu"
         aria-expanded={menu.open ? "true" : "false"}
         aria-label={email ? "Reassign. Assigned to " + name : "Assign someone"}

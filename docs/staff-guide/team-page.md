@@ -2,7 +2,7 @@
 title: What's on the Team page?
 section: Getting started
 audience: staff
-keywords: [team, handbook, staff handbook, policies, sign policy, countersign, publish policy, inventory, tech, equipment, performance, people, who's out, backups, my time off, shout-outs, reviews, onboarding, hours, reply times, feedback, members, staff access, employee records, hr, emergency contact, hire date, job title, new policy, reference policy, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable, hours budget, quickbooks api usage, coverage, client health]
+keywords: [team, handbook, staff handbook, policies, sign policy, countersign, publish policy, inventory, tech, equipment, performance, people, who's out, backups, my time off, shout-outs, reviews, onboarding, hours, reply times, feedback, members, staff access, employee records, hr, emergency contact, hire date, job title, new policy, reference policy, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable, hours budget, quickbooks api usage, coverage, client health, team load, unassigned, next 4 weeks, teams, new team, manager]
 sort: 48
 ---
 **Team** (in the left rail, or `#/team`) is about the people you work with and the firm's numbers. Everyone gets People, Performance and Inventory. Admins also get Hours, Reply times, Feedback and Ledger review. The tab is part of the address (`#/team/people`, `#/team/hours` and so on).
@@ -11,7 +11,7 @@ The staff paperwork has its own place: **HR**, right below Team in the left rail
 
 ### For everyone
 
-- **People** (opens first): **Who's out** today and in the next 30 days, **My clients' backups** (who covers each of your clients, and whether they can open it), **My time off** with **+ Add time off** and **Hand my tasks to backups**, and **Shout-outs**. See [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage), [What happens to my tasks while I'm out?](#/help/out-of-office-handoff) and [How do I give a teammate a shout-out?](#/help/shoutouts).
+- **People** (opens first): **Team load** at the top (open, due this week and late for each person, the **Unassigned** count and the next 4 weeks; admins and account managers see everyone, others their own row; see [Profiles, one search and Team load](#/help/slate-profiles)), then **Who's out** today and in the next 30 days, **My clients' backups** (who covers each of your clients, and whether they can open it), **My time off** with **+ Add time off** and **Hand my tasks to backups**, and **Shout-outs**. See [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage), [What happens to my tasks while I'm out?](#/help/out-of-office-handoff) and [How do I give a teammate a shout-out?](#/help/shoutouts).
 - **Performance**: your score and the inputs behind it. Admins see everyone, ranked. See [How does Team › Performance score bookkeepers?](#/help/performance).
 - **Inventory** (`#/team/inventory`): the equipment you have, requests for new equipment, and the standard home-office setup. Admins also get the whole team's inventory, a roster of who's missing what, the staff directory and **Export to Google Sheet**. See [How do I request equipment or log what I have?](#/help/tech-inventory).
 
@@ -21,6 +21,7 @@ The staff paperwork has its own place: **HR**, right below Team in the left rail
 - **Reply times** (`#/team/reply-times`): how fast we answer client messages, by person and by client, and who's waiting over 24 hours. See [How do I read reply times?](#/help/reply-times).
 - **Ledger review** (`#/team/ledger`): Ledger review settings: warn or block when a month is marked done without approval, how much ledger to pull, Smart or Strict duplicate checks, and the vendor watch list. Only admins see this tab. See [How does Ledger review work?](#/help/ledger-review).
 - **Feedback** (`#/team/feedback`): every bug report and idea staff have sent, with status and replies. The number on the tab counts reports still marked **New**. See [How do I review bug reports and feedback?](#/help/feedback-page).
+- **Teams** (on **People**, under Team load): make teams, add people, rename or archive them. Teams show on each person's profile. Managers come from **HR › Employee records**. See [Profiles, one search and Team load](#/help/slate-profiles).
 
 ### HR: Handbook, Reviews, Onboarding and people records
 

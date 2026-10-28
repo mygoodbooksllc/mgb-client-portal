@@ -1,4 +1,4 @@
-# Slate plus person profile: launch drafts (NOT PUBLISHED)
+# Slate plus person profile: launch drafts (PUBLISHED 2026-10-28w into slate-profiles.md and the slate-plus notice)
 
 These drafts are for launch day only. Do not add them to `docs/staff-guide/`, the `staff_guide` table, `components/tour/announcements.js` or `Tour.jsx` until the owner sets `tk_settings.slateplus_enabled`. Spec: `docs/slateplus-profile-spec.md`.
 
@@ -52,7 +52,7 @@ At launch, add `data-tour` attributes on those three elements rather than relyin
 
 ---
 
-# Slate plus profile 2 and one search: launch drafts (NOT PUBLISHED, 2026-10-28)
+# Slate plus profile 2 and one search: launch drafts (PUBLISHED 2026-10-28w)
 
 Drafts only. Nothing here is in the `staff_guide` table, `announcements.js`, `Tour.jsx` or `Tips.jsx` yet. Publish at launch, with the `slateplus_enabled` switch, per the README launch checklist.
 

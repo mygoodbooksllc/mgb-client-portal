@@ -150,6 +150,20 @@ function ANN_threadMenuLaunchOn() {
   }
 }
 
+// True once the owner has switched Slate plus on for the firm
+// (tk_settings.slateplus_enabled, cached as mgb_slateplus_cache by TKP_readSwitch
+// in components/tasks/TK_slatePlus.js), and never during View as. Deliberately
+// not the per-person preview mgb_slateplus_preview: a preview person sees no
+// launch text.
+function ANN_slatePlusLaunchOn() {
+  try {
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
+    return window.localStorage.getItem("mgb_slateplus_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 // True when the left sidebar's Pinned and Recent clients are on for this person.
 function ANN_sidebarOn() {
   try {
@@ -2122,6 +2136,60 @@ var ANN_REGISTRY = [
         title: "Who can change them",
         body: () =>
           "Admins and the client's account manager add, edit, mark signed and move agreements to the trash; Paste several links adds a batch of old signed documents at once. New ones start Staff only, and clients see nothing until the owner turns client agreements on. Only an admin can restore from the trash. Read more in Help: Client agreements.",
+      },
+    ],
+  },
+  {
+    // Slate plus launch (2026-10-28w): one combined notice for the whole batch (one search and
+    // profiles, the icon rail and hover menus, filters and saved filters, Calendar, hours vs
+    // budget, Blocked by, custom fields, @mentions, New project form, project status and
+    // Portfolio, Rules for admins, Team load on Team › People). Gated on the firm switch only
+    // (visible: ANN_slatePlusLaunchOn), so nothing shows until the owner sets
+    // tk_settings.slateplus_enabled; the first load after the flip may miss it (the cache fills
+    // on that load). Take the tour runs the staff tour "slateplus" (tourKey); `steps` is only the
+    // short pointer tour the registry needs ("ann:slate-plus"). RE-DATE `date` to the flip day if
+    // the owner sets slateplus_enabled after 2026-10-28 (README Slate plus launch checklist, step 0).
+    id: "slate-plus",
+    date: "2026-10-28",
+    title: "Slate plus is here",
+    summary:
+      "One search for clients, tasks, projects and people (Ctrl or Cmd+K), an icon sidebar, filters you can save, a Calendar, people's profiles, Blocked by, custom fields, project status updates and Portfolio. Team load moved to Team › People.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    tourKey: "slateplus",
+    tourLabel: "Take the 2-minute tour",
+    visible: () => ANN_slatePlusLaunchOn(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Slate plus is here",
+        body: () =>
+          "Slate has new pieces for finding, planning and sharing work. This short tour points at where they live. It never changes a task.",
+      },
+      {
+        id: "ann-search",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tb-search", "tks-search"],
+        wait: true,
+        title: "One search",
+        body: () =>
+          "Search clients, tasks, projects, people, SOPs and help from here. Press Ctrl+K (Cmd+K on a Mac) from any page.",
+      },
+      {
+        id: "ann-filters",
+        targets: ["tk-filter-bar"],
+        wait: true,
+        title: "Filters and Calendar",
+        body: () =>
+          "Narrow your Slate by assignee, client, project, due date or status, and save the mixes you use. Calendar shows the same tasks on a month grid.",
+      },
+      {
+        id: "ann-done",
+        title: "The rest",
+        body: () =>
+          "Click a name to open a profile, and use the small button beside it to reassign. To see everything, pick Slate plus tour in the ? menu, or read What's in Slate plus? in Help.",
       },
     ],
   },

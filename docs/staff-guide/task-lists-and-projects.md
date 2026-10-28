@@ -2,7 +2,7 @@
 title: How do client task lists and projects work?
 section: Daily work
 audience: staff
-keywords: [month view, the thirds, close order, next pill, change bookkeeper, reassign bookkeeper, new bookkeeper, bookkeeper chip, task in the desk, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients, slate]
+keywords: [month view, the thirds, close order, next pill, change bookkeeper, reassign bookkeeper, new bookkeeper, bookkeeper chip, task in the desk, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients, slate, icon sidebar, icon rail, hover menu, pin panel, calendar, calendar view, drag to reschedule, hours budget, hours chip, hours against budget, new project form, project description, project due date, start from, starter sections, copy sections, project people, who can see it, client tag, project status, status update, post update, on track, at risk, off track, portfolio, stale, custom fields, fields button, rules]
 sort: 114
 ---
 The **Slate** page (the **Slate** button in the top bar, or `#/tasks/my`) has a sidebar of lists down the left. Below about 900 pixels wide, the sidebar sits behind the **Lists** button at the top of the page.
@@ -16,6 +16,10 @@ The **Slate** page (the **Slate** button in the top bar, or `#/tasks/my`) has a 
 - **People** (admins only): any staff member's tasks.
 - **Manage projects** (admins only, under **Projects**): rename, archive or trash any project. See [How do I rename, archive or trash a project?](#/help/manage-projects).
 - **No team yet** (admins only, above Clients): clients brought over from Asana that have no bookkeeper, with how many tasks each has. It hides when there are none. See *Clients with no team yet* below.
+- **Portfolio** (under **Projects**): every project's latest status and due date in one table. See *Project status and Portfolio* below.
+- **Rules** (admins only, under **Manage projects**): small repeat steps Slate does for you. See [How do Slate rules work?](#/help/slate-rules).
+
+**The icon sidebar.** In a wide window, Slate's sidebar is a slim row of icons: Slate, Review, Waiting, Recurring, Search, People, Projects and Clients. Hover an icon for its full name; the numbers are what's waiting. Point at **People**, **Projects** or **Clients** for a quick menu of links, or click to open the full panel beside the icons, with your pinned clients and projects first (pin them on [your profile](#/help/slate-profiles)). Click **Pin** at the bottom to keep the panel open; Slate remembers your choice. In a narrow window or on a phone, the **Lists** button still opens every list.
 
 ### A list
 
@@ -25,6 +29,12 @@ Each list shows its tasks with **Task**, **Assignee**, **Due**, **Status** and *
 
 Filter by **Assignee** (**Anyone**, **Unassigned** or one person) and **Status**, and turn on **Show done** and **Show older** to see finished tasks. On a phone the filters sit behind a **Filters** button.
 
+**Calendar.** Press **Calendar** above the list to see its tasks on a month calendar by due date. Late tasks are red and finished ones are gray; **+N more** shows a full day. Click a task to open it, or drag it to another day to change its due date (**Undo** is on the message). The note under the calendar says how many tasks have no due date. The calendar follows the list's filters. Press **Calendar** again to go back. See [How do I use my Slate?](#/help/my-tasks).
+
+**Fields.** A project or client list can have its own extra fields, such as Fund or Grant. Click **Fields** in the list's header. See [How do custom fields work?](#/help/custom-fields).
+
+**Names.** Click a person's name or badge on a list to open their profile. See [Profiles, one search and Team load](#/help/slate-profiles).
+
 ### Client lists
 
 A client's list starts with the things you reach for most:
@@ -32,6 +42,7 @@ A client's list starts with the things you reach for most:
 - **Open client**, the **SOP**, whether QuickBooks is connected, and **Open Drive folder**.
 - **Contacts (N)**: the client's people, with tags such as **Unsubscribed** and **Gets summaries**.
 - The client's **Bookkeeper**, **Backup** and **Account Manager**. Admins can click the **Bookkeeper** to change it (see below).
+- **Hours against budget**: next to the client's name, how many hours this month have gone into the client against its monthly budget, for example **12.5 / 20 h**. It turns amber at 80% of the budget and red at 100%. The same chip is at the top of the **Assign** menu on a task row, so you can check before giving a client more work. No chip means the client has no hours budget yet (or you don't cover the client). Hours come from QuickBooks Time and can be a day behind.
 - **New onboarding project** for a new client.
 
 A task nobody is on shows **Unassigned** in the Assignee column with a **Claim** button. See [How do I use my Slate?](#/help/my-tasks).
@@ -85,9 +96,17 @@ Projects hold internal work that isn't for one client. Four are set up for you:
 
 **Project colors.** Every project has a color, shown as a dot next to its name in the sidebar, at the top of the project and on its tasks in Slate. New projects get the color fewest other projects use, and the existing ones were colored once, oldest first. A project's owner or an admin can change it: **Project options › Change color** on the project's page, or **Color** on its row in **Manage projects**. Everyone sees the same color. The name is always beside the dot, so the color is a help, not the only clue.
 
-**Start a project**: click **New project** in the sidebar, type a **Name**, add **Sections (optional, one per line)**, and click **Create project**. You become its owner.
+**Start a project**: click **New project** in the sidebar and give it a name. You can also add a short description, tie it to a client, set a due date and pick a color. **Start from** fills in the sections for you: pick a starter list or copy another project's sections, then change them as you like. Under **People**, add anyone who should work on it as an **Owner** (can change the project) or a **Member**. **Who can see it** tells you, in one line, who will see the project. If it says only you will, add people (admins can also turn on **Open to all staff**). If someone can't be added, the project is still made and you're told who to add later from **Members**. You become its owner.
+
+The due date shows at the top of the project and turns red once it's late. A project tied to a client shows a **Client** tag next to its name.
 
 **Manage a project** (its owners and admins): use **Add member** to add someone as a **Member** or as an **Owner (can manage the project)**, and the **Project options** menu to **Rename** it, edit its **Sections**, **Change color**, switch **Open to all staff** (admins), **Archive project** or **Move to trash**. Archiving takes it out of the sidebar and makes its tasks read-only. **Move to trash** hides the project and its tasks from every list until an admin restores it from **Manage projects**; it's refused while a task in the project is waiting on a client request. Nothing is deleted either way. See [How do I rename, archive or trash a project?](#/help/manage-projects).
+
+### Project status and Portfolio
+
+Project owners can post a status update on a project: open the project, press **Post update**, pick **On track**, **At risk**, **Off track** or **Done**, write a line or two about where things stand, and press **Post**. The newest update shows under the project name with its status; press **Show N earlier updates** to see the history. Everyone who can see the project can read the updates. If something was posted by mistake, a project owner or an admin can press **Hide** on it (it's kept, just not shown). Posting an update doesn't email or notify anyone, so mention it in a task comment if someone needs to know.
+
+**Portfolio** (Slate sidebar, under **Projects**) lists every project you can see with its owner, latest status, when it was last updated and its due date. A **Stale** tag means no update in 14 days. Click a column title to sort, and click a project to open it. **Show archived** adds archived projects.
 
 ### Another person's tasks (admins)
 

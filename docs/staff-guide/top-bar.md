@@ -2,7 +2,7 @@
 title: What's on the bar at the top of the page?
 section: Getting started
 audience: staff
-keywords: [slate start to finish, slate settings, tasks tour, mentions, mentioned you, q, quick add task, tips, tips while you learn, turn off tips, back, back button, forward, forward button, refresh, reload, installed app, app, top bar, toolbar, header, search, jump to, pages, actions, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, tasks, plus, quick add, message, help, help for this page, staff guide, send feedback, what's new, take the tour, bookkeeper tour, admin tour, temporary admin tour, account manager tour, report a bug, feedback, account, avatar, sign out, dark mode, sync, every hour, settings, preview plan, photo, client task panel, slate, desk on, plain slate link, plus moved to the rail]
+keywords: [slate start to finish, slate settings, tasks tour, mentions, mentioned you, q, quick add task, tips, tips while you learn, turn off tips, back, back button, forward, forward button, refresh, reload, installed app, app, top bar, toolbar, header, search, jump to, pages, actions, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, tasks, plus, quick add, message, help, help for this page, staff guide, send feedback, what's new, take the tour, bookkeeper tour, admin tour, temporary admin tour, account manager tour, report a bug, feedback, account, avatar, sign out, dark mode, sync, every hour, settings, preview plan, photo, client task panel, slate, desk on, plain slate link, plus moved to the rail, one search, unified search, search people, search projects, see all task matches, filter this slate list, profile]
 sort: 25
 ---
 Across the top of every staff page there's a dark bar, joined to the rail, with your most-used tools. Clients never see it, and it goes away while you use **Preview as** or **View as client**. The rail on the left has the five places (Today, Inbox, Work, Clients, Team); the bar has no page links of its own.
@@ -15,15 +15,19 @@ Across the top of every staff page there's a dark bar, joined to the rail, with 
 
 ### Search (middle)
 
-Click the search box, or press **Ctrl+K** (**⌘K** on a Mac) from anywhere. With nothing typed it lists every **page** and **action** you can jump to (Work › Close, HR › Reviews, **Send feedback**, **Settings** and so on). Type a few letters and the results are grouped:
+Click the search box (**Search people, clients, tasks, help**), or press **Ctrl+K** (**⌘K** on a Mac) from anywhere. With nothing typed it lists every **page** and **action** you can jump to (Work › Close, HR › Reviews, **Send feedback**, **Settings** and so on). Type a few letters and the results are grouped:
 
-- **Pages** and **Actions**: anywhere in the portal, by name.
+- **Filter this Slate list** (only on the Slate page): narrows your Slate to your words instead of opening anything. See [How do I use my Slate?](#/help/my-tasks).
+- **People**: teammates by name. Picking one opens their profile. See [Profiles, one search and Team load](#/help/slate-profiles).
 - **Clients**: opens the client on the tab you last used for them, or on the Client overview if you haven't been there yet this session.
-- **In {client name}** (only when a client is open): that client's transactions, budget categories, documents and messages that match. Picking one opens the right tab and highlights the row. It only looks in pages you can open for that client.
-- **Tasks**: open tasks you can see whose name, description or comments match. A match inside a comment says *In a comment:*. Picking one opens the task's details.
+- **Projects**: projects you can see.
+- **Tasks**: tasks you can see whose name, description or comments match. A match inside a comment says *In a comment:*. Picking one opens the task's details. **See all task matches** opens the full list.
 - **Notes**: your notes that match.
 - **SOPs**: client SOPs that mention your words. Opens that client's **SOP** tab.
 - **Help**: articles from this guide.
+- **Pages** and **Actions**: anywhere in the portal, by name.
+
+The open client's transactions, budget categories, documents and messages aren't in this search. Open that client's tab to find them.
 
 Use the **↑** and **↓** keys to move through the results and **Enter** to open one. **Esc** clears the box, and a second **Esc** closes it.
 
@@ -67,5 +71,5 @@ Widen the window and everything comes back.
 
 - **The bell or Slate button is missing.** They're hidden while an admin is using **View as**, because they'd show the admin's own items.
 - **The + button is missing.** It's hidden in the tightest narrow window, and while you use **Preview as**. Press **q** to add a task instead.
-- **Search says "Nothing matches".** Search looks at page names, client names, your own open tasks and notes, SOP text and help articles, plus the open client's transactions, budget categories, documents and messages. On a staff page no client is open, so open the client first to search their data.
+- **Search says "No matches".** Search looks at page and action names, people, your clients, projects, tasks you can see, your notes, SOP text and help articles. Try fewer letters, or part of a word (*recon* finds *Reconcile*).
 - **The bell number came back after I cleared it.** Something new arrived, or you're on a different browser or computer (what you've seen is remembered per browser).

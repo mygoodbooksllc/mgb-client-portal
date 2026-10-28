@@ -521,7 +521,7 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "tasks",
     target: "tk-manage-nav",
     snug: true,
-    // Slate plus icon rail (hidden preview): the Projects icon while its panel is closed.
+    // Slate plus icon rail (launched 2026-10-28): the Projects icon while its panel is closed.
     text: () =>
       document.querySelector('.tkr-item[data-tour="tk-manage-nav"]')
         ? "Projects › Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there."
@@ -597,7 +597,7 @@ const TIPS_CATALOG = [
     roles: "admin",
     match: (r) => r.page === "tasks",
     target: "tk-no-team",
-    // Slate plus icon rail (hidden preview): while the Clients panel is closed
+    // Slate plus icon rail (launched 2026-10-28): while the Clients panel is closed
     // the target is the Clients icon (.tkr-ico) and the text says where to look.
     part: [".tk-nav-head", ".tkr-ico"],
     snug: true,
@@ -613,8 +613,8 @@ const TIPS_CATALOG = [
     roles: "all",
     match: (r) => r.page === "tasks",
     target: "tk-sidebar",
-    // .tkr-item-projects: the Slate plus icon rail's Projects button (hidden
-    // preview); never in the old sidebar, so it still lands on its heading.
+    // .tkr-item-projects: the Slate plus icon rail's Projects button
+    // (launched 2026-10-28); never in the old sidebar, so it still lands on its heading.
     part: [".tkr-item-projects", ".tk-nav-section .tk-nav-head"],
     snug: true,
     text: () =>
@@ -648,6 +648,83 @@ const TIPS_CATALOG = [
     slug: "my-tasks",
     // Slate plus Profile 2 replaces this box with the unified search; skip it then.
     ready: () => !!document.querySelector('[data-tour="tk-search"]') && !(typeof TKP_on === "function" && TKP_on()),
+  },
+  // Slate plus (launch 2026-10-28w, firm switch slateplus_enabled). Each one
+  // waits for its own target, which only renders while the Slate plus gate is
+  // on (TKP_on), so none can show before the switch (or the preview flag).
+  {
+    id: "tk-filter-bar",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-filter-bar",
+    snug: true,
+    text: "Narrow your list by assignee, client, project, due date or status. Save a mix you use often under Saved filters, and set one as your default.",
+    slug: "my-tasks",
+    ready: () => !!document.querySelector('[data-tour="tk-filter-bar"]'),
+  },
+  {
+    id: "tb-search-slate",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tb-search",
+    text: (env) =>
+      (env.touch ? "Search" : `Search (or ${env.kbd})`) +
+      " finds clients, tasks, projects, people, SOPs and help in one place. On the Slate page, Filter this Slate list narrows your list instead.",
+    slug: "slate-profiles",
+    ready: () => typeof TKP_on === "function" && !!TKP_on() && !!document.querySelector('[data-tour="tb-search"]'),
+  },
+  {
+    id: "tkp-reassign",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tkp-reassign",
+    snug: true,
+    text: "Click a name to see that person's profile. The small button next to it reassigns the task, or assigns someone if nobody has it.",
+    slug: "slate-profiles",
+    ready: () => !!document.querySelector('[data-tour="tkp-reassign"]'),
+  },
+  {
+    id: "tk-calendar-switch",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-calendar-switch",
+    snug: true,
+    text: (env) =>
+      env.touch
+        ? "Calendar shows this list on a month grid by due date. Open a task to change its date."
+        : "Calendar shows this list on a month grid by due date. Drag a task to another day to change its due date; Undo is on the message.",
+    slug: "my-tasks",
+    ready: () => !!document.querySelector('[data-tour="tk-calendar-switch"]'),
+  },
+  {
+    id: "tkcf-chips",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tkcf-chips",
+    snug: true,
+    text: "Filled custom fields show as chips on the row. Fields in the list's header shows them all; fill them in on the task.",
+    slug: "custom-fields",
+    ready: () => !!document.querySelector('[data-tour="tkcf-chips"]'),
+  },
+  {
+    id: "tk-projstatus",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-projstatus",
+    snug: true,
+    text: "The project's latest status. Its owners post updates here; nobody is emailed. Portfolio, under Projects, shows every project's status.",
+    slug: "task-lists-and-projects",
+    ready: () => !!document.querySelector('[data-tour="tk-projstatus"]'),
+  },
+  {
+    id: "tk-rules-dry",
+    roles: "admin",
+    match: (r) => r.page === "tasks",
+    target: "tk-rules-dry",
+    snug: true,
+    text: "Dry run shows which tasks a rule would change, and how. It changes nothing. New rules start off; only the owner switches one on.",
+    slug: "slate-rules",
+    ready: () => !!document.querySelector('[data-tour="tk-rules-dry"]'),
   },
   {
     // "Slate, start to finish" (2026-10-26): the presenter tour, in the ? menu.
@@ -697,6 +774,17 @@ const TIPS_CATALOG = [
     snug: true, // the words "My time off", not the card-wide heading
     text: "Adding time off doesn't give your backup access. Check each client has a backup on its Overview; admins can give access for your dates.",
     slug: "time-off-coverage",
+  },
+  {
+    // Slate plus (2026-10-28w): Team load moved here from the Slate page.
+    id: "tp-team-load",
+    roles: "all",
+    match: (r) => r.page === "team" && TIPS_tab("tp-tab-people"),
+    target: "tp-team-load",
+    snug: true,
+    text: "Team load: open tasks, due this week and late for each person, plus the next 4 weeks. Click a name to open that person's profile.",
+    slug: "slate-profiles",
+    ready: () => !!document.querySelector('[data-tour="tp-team-load"]'),
   },
   {
     id: "am-reviews-giving",
@@ -782,6 +870,9 @@ const TIPS_CATALOG = [
       (env.touch ? "Search" : `Search (or ${env.kbd})`) +
       " also looks inside the open client: transactions, budget lines, documents and messages, as well as clients, SOPs and help.",
     slug: "top-bar",
+    // Slate plus (launched 2026-10-28) swaps in the one search, which has no
+    // "In <client>" results, so this tip would be wrong while it is on.
+    ready: () => !(typeof TKP_on === "function" && TKP_on()) && !!document.querySelector('[data-tour="tb-search"]'),
   },
 ];
 

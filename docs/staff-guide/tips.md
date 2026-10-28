@@ -71,15 +71,22 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | HR › Reviews | Your self-review saves as a draft as you go. Once both forms are in, set up a time with your reviewer; you see the comparison together in that meeting. Other admins can follow along. | [How do quarterly reviews work?](#/help/quarterly-reviews) |
 | Today | On a computer you can install MyGoodBooks as an app. In Chrome or Edge, click the install icon at the right end of the address bar. | [How do I install MyGoodBooks as an app?](#/help/get-the-app) |
 | Settings | Choose where you land after signing in: Today, Work › Slate or the last client you opened. It's under Appearance & start page. | [How do I change my settings (profile, notifications, theme, signature)?](#/help/staff-settings) |
-| Any client page | Search (or Ctrl+K, ⌘K on a Mac) also looks inside the open client: transactions, budget lines, documents and messages, as well as clients, SOPs and help. | [What's on the bar at the top of the page?](#/help/top-bar) |
+| Team › People (Slate plus, new) | Team load: open tasks, due this week and late for each person, plus the next 4 weeks. Click a name to open that person's profile. | [Profiles, one search and Team load](#/help/slate-profiles) |
+| Any client page (not while Slate plus is on) | Search (or Ctrl+K, ⌘K on a Mac) also looks inside the open client: transactions, budget lines, documents and messages, as well as clients, SOPs and help. | [What's on the bar at the top of the page?](#/help/top-bar) |
 
 #### Everyone: Slate
 
-These show on the Slate pages, after the tips above. **Work › Slate** is a short summary with its own tip. The newest are **Search the list**, **Select many tasks**, **Month-end tasks from the Close checklist**, **Quick add in plain words**, **Subtasks**, **project colors**, **Group by** and **Manage projects**.
+These show on the Slate pages, after the tips above. **Work › Slate** is a short summary with its own tip. The newest are the **Slate plus** tips (**Filter and save**, **One search**, **Profiles and Reassign**, **Calendar**, **Custom field chips**, **Project status** and, for admins, **Rules Dry run**), **Search the list**, **Select many tasks**, **Month-end tasks from the Close checklist**, **Quick add in plain words**, **Subtasks**, **project colors**, **Group by** and **Manage projects**.
 
 | Page | Tip | Learn more |
 |---|---|---|
 | Work › Slate | This tab shows what's late, due today and coming up next. Open Slate has the full list. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate (Slate plus, new) | Narrow your list by assignee, client, project, due date or status. Save a mix you use often under Saved filters, and set one as your default. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate (Slate plus, new) | Search (or Ctrl+K, ⌘K on a Mac) finds clients, tasks, projects, people, SOPs and help in one place. On the Slate page, Filter this Slate list narrows your list instead. | [Profiles, one search and Team load](#/help/slate-profiles) |
+| Slate (Slate plus, new) | Click a name to see that person's profile. The small button next to it reassigns the task, or assigns someone if nobody has it. | [Profiles, one search and Team load](#/help/slate-profiles) |
+| Slate (Slate plus, new) | Calendar shows this list on a month grid by due date. Drag a task to another day to change its due date; Undo is on the message. On a touch screen it says to open a task to change its date. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate (Slate plus, new) | Filled custom fields show as chips on the row. Fields in the list's header shows them all; fill them in on the task. | [How do custom fields work?](#/help/custom-fields) |
+| Slate, a project (Slate plus, new) | The project's latest status. Its owners post updates here; nobody is emailed. Portfolio, under Projects, shows every project's status. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
 | Slate | Press q on any staff page to add a task (on a touch screen, tap Add task). Type it in one line: @name assigns it, #client files it, fri or 10/31 sets the date, and !high marks it urgent. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate | Click a group's heading to fold it; it stays that way next time. Done starts folded, and View can turn the Today group off. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate | Click a status to change it. On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note. | [What's in a task's details?](#/help/task-details) |
@@ -105,6 +112,7 @@ These show on the Slate pages, after the tips above. **Work › Slate** is a sho
 
 | Page | Tip | Learn more |
 |---|---|---|
+| Slate › Rules (Slate plus, new) | Dry run shows which tasks a rule would change, and how. It changes nothing. New rules start off; only the owner switches one on. | [How do Slate rules work?](#/help/slate-rules) |
 | Slate | Review lists the work waiting for an admin's approval, oldest first. The number is what you can approve now. | [How does task review work?](#/help/task-review) |
 | Slate (new) | Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there. | [How do I rename, archive or trash a project?](#/help/manage-projects) |
 | Slate | No team yet lists clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
