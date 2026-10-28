@@ -30,6 +30,8 @@ window.MGB_VIEW_AS_READ_RPCS = new Set([
   "client_org_settings",
   "client_org_team",
   "staff_client_org_profile", // STABLE; get-to-know answers hidden in View as (OP_StaffCard)
+  "client_agreements_mine", // STABLE; client-safe columns only (Agreements.jsx)
+  "agreements_staff_perms", // STABLE; answers for the admin JWT, the card is read-only in View as
   "client_sop_status",
   "client_requests_for_client",
   "tk_client_report_state",

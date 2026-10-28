@@ -2083,6 +2083,48 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    // Staff side of Client agreements (docs/agreements-spec.md). The client
+    // side is behind tk_settings.agreements_client_enabled and has no notice
+    // yet (drafts in the spec, §10). The notice waits until the person has met
+    // the card on a client's Documents tab (Agreements.jsx sets the key).
+    id: "client-agreements",
+    date: "2026-10-28",
+    title: "Agreements on Documents",
+    summary:
+      "Each client's Documents tab has an Agreements card: service agreements, engagement letters and changes, with signed and renewal dates and an Expires in N days pill. Admins and the client's account manager add and edit them; bookkeepers can read them. Clients don't see them yet.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/clients",
+    ready: () => {
+      try {
+        return window.localStorage.getItem("mgb_ag_seen_card_v1") === "1";
+      } catch (e) {
+        return false;
+      }
+    },
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Agreements, one place per client",
+        body: () =>
+          "Every client now has an Agreements card on their Documents tab, for the signed service agreement, engagement letter and any changes. About 30 seconds.",
+      },
+      {
+        id: "ann-card",
+        targets: ["staff-agreements"],
+        wait: true,
+        title: "The Agreements card",
+        body: () =>
+          "Each agreement shows its type, status, signed and renewal dates, and whether the client can see it. An Expires in N days pill shows when the renewal date is within 60 days. Open goes to the Drive link or file.",
+      },
+      {
+        id: "ann-done",
+        title: "Who can change them",
+        body: () =>
+          "Admins and the client's account manager add, edit, mark signed and move agreements to the trash; Paste several links adds a batch of old signed documents at once. New ones start Staff only, and clients see nothing until the owner turns client agreements on. Only an admin can restore from the trash. Read more in Help: Client agreements.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

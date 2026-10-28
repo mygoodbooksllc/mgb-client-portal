@@ -63,3 +63,4 @@ Dropping onto the **Documents** upload box, a message thread or the **Feedback**
 ### Good to know
 
 - To make a staff-only file visible later, download it and upload it again with **Visible to client** on.
+- Signed agreements (service agreement, engagement letter, changes) go on the **Agreements** card on the Documents tab, with their signed and renewal dates. See [Client agreements](#/help/client-agreements).

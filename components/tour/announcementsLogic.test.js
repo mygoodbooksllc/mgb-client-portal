@@ -471,8 +471,20 @@ t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view
   // client-org-profile-launch, do not compete while their switch is off. The
   // admins-only view-as-whole-app notice is newer but no bookkeeper gets it. custom-repeat, 2026-10-25, is a
   // newer ungated notice and is excluded here: it is its own check above.)
-  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.id !== "celebration-heads-up" && x.id !== "slate-single-home" && x.id !== "custom-repeat" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
+  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.id !== "celebration-heads-up" && x.id !== "slate-single-home" && x.id !== "custom-repeat" && x.id !== "client-agreements" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
   assert.strictEqual(a.date, newest);
+});
+
+t("registry: client-agreements waits for the card and tours it", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "client-agreements");
+  assert.ok(a);
+  assert.strictEqual(a.visible, undefined);
+  assert.strictEqual(typeof a.ready, "function");
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-card", "ann-done"]);
+  assert.deepStrictEqual(steps[1].targets, ["staff-agreements"]);
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
+  assert.ok(!/colour|!/i.test(text));
 });
 
 t("registry: celebration-heads-up is withdrawn (admin-only celebrations); for non-admins, 3 steps, no admin-only wording when re-enabled", () => {

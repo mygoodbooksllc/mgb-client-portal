@@ -300,6 +300,16 @@ const TIPS_CATALOG = [
     slug: "document-requests",
   },
   {
+    id: "docs-agreements",
+    roles: "all",
+    match: (r) => r.client && r.page === "documents",
+    target: "staff-agreements",
+    part: "h3",
+    text: "Signed agreements live here, with their renewal dates. New ones start Staff only; clients see nothing until the owner turns client agreements on.",
+    slug: "client-agreements",
+    ready: () => !!document.querySelector('[data-tour="staff-agreements"]'),
+  },
+  {
     id: "ov-coverage",
     roles: "all",
     match: (r) => r.client && r.page === "client-overview",

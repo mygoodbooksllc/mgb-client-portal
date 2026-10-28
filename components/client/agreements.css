@@ -1,0 +1,84 @@
+/* Client agreements card (components/client/Agreements.jsx). */
+.ag-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.ag-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.ag-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.ag-actions {
+  flex-wrap: wrap;
+}
+.ag-note {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  background: var(--surface-2, var(--surface));
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 10px 0 0;
+}
+.ag-staff-note {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ag-warn {
+  font-size: 12.5px;
+  color: var(--bad);
+  margin: 4px 0 0;
+}
+.ag-wide {
+  flex: 2 1 240px;
+}
+.ag-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  resize: vertical;
+}
+.ag-textarea:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+.ag-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 10px;
+}
+.ag-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+.ag-check.ag-disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+.ag-card .doc-req-meta code,
+.ag-card .card-subtitle code {
+  font-size: 12px;
+}
