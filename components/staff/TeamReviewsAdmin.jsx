@@ -2,7 +2,7 @@
 // Loaded after TeamReviews.jsx; uses its TR_* helpers. The database checks
 // every action again (tr_require_admin / tr_history's own-history rule).
 
-const TR_DRIVE_ROOT = "~ MGB: Staff Reviews";
+const TR_DRIVE_ROOT = "~ MGB Personelle";
 
 function TR_useRpc(fn, args, deps) {
   const [state, setState] = React.useState({ data: null, error: "", loading: true });

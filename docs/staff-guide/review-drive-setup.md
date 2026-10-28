@@ -9,7 +9,7 @@ Signed review PDFs and confirmed year-end summaries save to a separate Shared Dr
 
 ### One-time setup
 
-1. In Google Drive, create a Shared Drive named **~ MGB: Staff Reviews**.
+1. In Google Drive, create a Shared Drive named **~ MGB Personelle**.
 2. Add the 4 admins as **Content manager**.
 3. Add **mgb-portal-drive@mygoodbooks-auth.iam.gserviceaccount.com** as **Content manager** too. This is the portal's own account; it's the same one that saves client files.
 4. Copy the Shared Drive's ID: open the drive and copy the last part of the address after `/folders/`.
