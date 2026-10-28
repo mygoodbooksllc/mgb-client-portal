@@ -141,7 +141,7 @@ function TKR_filterClients(clients, filter, sortFn) {
 var TKR_HOVER_OPEN_MS = 0;
 var TKR_HOVER_CLOSE_MS = 200;
 var TKR_FLY_GAP = 6;
-var TKR_FLY_CAP = 12;
+var TKR_FLY_CAP = 500; // every row; the menu scrolls (owner liked scrolling the hover menu)
 var TKR_FLY_ROW_H = 34;
 
 // May a hover or focus flyout open for this section right now?

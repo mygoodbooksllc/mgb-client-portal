@@ -204,7 +204,7 @@ t("flyModel clients: No team yet (admin), pinned, all, current flag, Find a clie
   const many = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, name: "C" + i }));
   const big = L.TKR_flyModel("clients", { ...baseD, clients: many, clientTotal: 30, pinnedClients: [], noTeam: [] });
   const items = big.groups[0].items;
-  assert.strictEqual(items.length, L.TKR_FLY_CAP + 1);
+  assert.strictEqual(items.length, 31); // all 30 rows scroll in the menu, then Find a client
   const last = items[items.length - 1];
   assert.deepStrictEqual([last.label, last.action, last.tag], ["Find a client...", "panel", "30"]);
   assert.ok(!last.route);
