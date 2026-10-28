@@ -107,7 +107,10 @@ niche (churches and nonprofits).
 ## Guardrails
 
 - No feature parity with ClickUp (Gantt, whiteboards, docs).
-- No open-ended custom fields. A fixed shape for nonprofit bookkeeping is the advantage.
+- Custom fields only within bounds. Owner decision 2026-10-28: build custom fields on tasks,
+  bounded (at most 15 active per project or client list, six types, 20 options per dropdown,
+  archive instead of delete). Still no open-ended database: the fixed shape for nonprofit
+  bookkeeping stays the base. Spec `docs/slateplus-customfields-spec.md` (hidden preview).
 - AI drafts and suggests; a person approves.
 - Don't go general-purpose.
 

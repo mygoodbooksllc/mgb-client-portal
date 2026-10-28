@@ -84,6 +84,9 @@ window.MGB_VIEW_AS_SILENT_RPCS = new Set([
   "tk_search_prefix",
   "tk_profile_card",
   "tk_slateplus_workload_weeks",
+  // Slate plus custom fields (STABLE, answers for the admin's own JWT); the
+  // preview is off in View as, so this normally never runs there.
+  "tk_cf_values",
 ]);
 // The admin's own telemetry (JWT-bound server-side).
 window.MGB_VIEW_AS_WRITE_OK = new Set(["usage_events", "client_errors"]);

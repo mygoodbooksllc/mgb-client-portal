@@ -820,6 +820,7 @@ function TK_vProjectHeader(props) {
           {project.open_to_staff ? <span className="pill good tk-open-chip">{TK_vCopy("openToStaff", "Open to all staff")}</span> : null}
         </div>
         <div className="tk-head-actions">
+          {typeof TK_CFHeaderButton === "function" && project.id ? <TK_CFHeaderButton scope="project" target={project.id} canManage={canManage} listName={project.name} /> : null}
           {shown.length ? (
             <button
               type="button"

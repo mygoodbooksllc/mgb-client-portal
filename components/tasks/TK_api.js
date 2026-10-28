@@ -82,6 +82,9 @@ var TK_api = (function () {
     "tk_too_many", "tk_bad_patch", "tk_project_missing", "tk_project_archived", "tk_undo_used", "tk_undo_expired",
     // Slate plus dependencies (supabase/slateplus-deps.sql); only raised for tasks that have one.
     "tk_blocked", "tk_dep_self", "tk_dep_cycle", "tk_dep_limit", "tk_dep_reason", "tk_dep_step",
+    // Slate plus custom fields (supabase/slateplus-customfields.sql).
+    "tk_cf_limit", "tk_cf_name_taken", "tk_cf_bad_name", "tk_cf_bad_type", "tk_cf_type_locked", "tk_cf_bad_options",
+    "tk_cf_bad_order", "tk_cf_archived", "tk_cf_wrong_scope", "tk_cf_not_found", "tk_cf_bad_value",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -2090,6 +2093,39 @@ var TK_api = (function () {
   };
   api.depOverride = function (taskId, reason) {
     return rpcWrite("tk_dep_override", { p_task: taskId, p_reason: String(reason || "") }, "depOverride");
+  };
+  // ---- Slate plus custom fields (hidden preview, TKP_on) ---------------------
+  // supabase/slateplus-customfields.sql. Only TK_customFields.js calls these,
+  // and only while TKP_on() is true. Tables are read-only; writes go via RPCs.
+  api.cfFields = function () {
+    return run(function (c) {
+      return c
+        .from("tk_custom_fields")
+        .select("id, scope, project_id, client_id, name, type, options, position, archived_at, archived_by, created_by, created_at, updated_by, updated_at")
+        .order("position", { ascending: true })
+        .limit(3000);
+    }, { where: "cfFields" }).then(function (rows) { return rows || []; });
+  };
+  api.cfValues = function (taskIds) {
+    var ids = Array.isArray(taskIds) ? idList(taskIds) : null;
+    return run(function (c) {
+      return c.rpc("tk_cf_values", { p_task_ids: ids && ids.length ? ids : null });
+    }, { where: "cfValues" }).then(function (rows) { return rows || []; });
+  };
+  api.cfFieldSave = function (id, scope, target, name, type, options) {
+    return rpcWrite("tk_cf_field_save", {
+      p_id: id || null, p_scope: scope || null, p_target: target == null ? null : String(target),
+      p_name: String(name || ""), p_type: type || null, p_options: options || null,
+    }, "cfFieldSave");
+  };
+  api.cfFieldArchive = function (id, archive) {
+    return rpcWrite("tk_cf_field_archive", { p_id: id, p_archive: archive !== false }, "cfFieldArchive");
+  };
+  api.cfFieldOrder = function (ids) {
+    return rpcWrite("tk_cf_field_order", { p_ids: idList(ids || []) }, "cfFieldOrder");
+  };
+  api.cfValueSet = function (fieldId, taskId, value) {
+    return rpcWrite("tk_cf_value_set", { p_field: fieldId, p_task: taskId, p_value: value === undefined ? null : value }, "cfValueSet");
   };
   api.depMyNotices = function () {
     return run(function (c) {

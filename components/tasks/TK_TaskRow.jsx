@@ -1737,6 +1737,8 @@ function TK_TaskRow(props) {
   // Slate plus dependencies (TKP_on): re-render when the deps load. No
   // network and returns 0 while off.
   if (typeof TKD_useDeps === "function") TKD_useDeps();
+  // Slate plus custom fields: re-render when field definitions or values change.
+  if (typeof TKCF_useFields === "function") TKCF_useFields();
   if (!task) return null;
   var id = task.id;
   // R2: the task showing in the Desk's task view (TK_store.deskTaskId) is marked
@@ -1850,6 +1852,9 @@ function TK_TaskRow(props) {
         {TKD_chipText(depOpen.length)}
       </span>,
     );
+  // Slate plus custom fields: up to 3 filled fields, then +N (nothing while off).
+  var cfChips = typeof TK_CFRowChips === "function" ? TK_CFRowChips(task) : null;
+  if (cfChips) cfChips.forEach(function (c) { meta.push(c); });
   if (props.snippet) meta.push(<span key="sn" className="tk-meta-snippet">{"In a comment: " + props.snippet}</span>);
   if (props.note) meta.push(<span key="nt" className="tk-meta-note">{props.note}</span>);
   // Month rhythm S6 (Close order): the first open step, or one waiting on the client

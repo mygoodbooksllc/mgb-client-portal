@@ -380,6 +380,7 @@ function TK_ClientHeader(props) {
           <a className="tk-link-btn" href={"#/client/" + enc + "/sop"}>
             SOP
           </a>
+          {typeof TK_CFHeaderButton === "function" && id ? <TK_CFHeaderButton scope="client" target={id} canManage={isAdmin} listName={name} /> : null}
           {driveReady ? (
             <a
               className="tk-link-btn"

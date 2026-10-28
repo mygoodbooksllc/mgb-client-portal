@@ -1814,6 +1814,7 @@ function TK_DrawerContent(props) {
           </div>
 
           {typeof TK_DwDepsRow === "function" ? <TK_DwDepsRow task={task} readOnly={readOnly} isAdmin={isAdmin} /> : null}
+          {typeof TK_DwFieldRows === "function" ? <TK_DwFieldRows task={task} readOnly={readOnly} /> : null}
 
           {task.client_id && (
             <React.Fragment>
