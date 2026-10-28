@@ -814,7 +814,7 @@ var TK_DW_RECURRENCES = [
 function TK_DwRepeatRow(props) {
   var task = props.task;
   var open = React.useState(false);
-  var holidaysState = React.useState([]);
+  var holidaysState = React.useState(null); // null until the fetch finishes (any array means exact holiday mode)
   var isCustom = task.recurrence === "custom" && task.recurrence_rule;
   React.useEffect(function () {
     if (!open[0] || typeof TK_api === "undefined" || !TK_api.holidays) return;
@@ -828,7 +828,7 @@ function TK_DwRepeatRow(props) {
     // Keep the series' own first date when the schedule is unchanged: a due
     // date pushed by skip weekends / holidays must not move the schedule.
     rule = Object.assign({}, rule, {
-      start: TK_repeatSaveStart(isCustom ? task.recurrence_rule : null, rule, task.due_date),
+      start: TK_repeatSaveStart(isCustom ? task.recurrence_rule : null, rule, task.due_date, holidaysState[0] || undefined),
     });
     var patch = { recurrence: "custom", recurrence_rule: rule };
     if (rule.time && task.due_date) {
@@ -880,7 +880,8 @@ function TK_DwRepeatRow(props) {
           value={isCustom ? task.recurrence_rule : null}
           start={task.due_date}
           today={props.today}
-          holidays={holidaysState[0]}
+          holidays={holidaysState[0] || []}
+          holidaysLoaded={!!holidaysState[0]}
           onSave={saveRule}
           onCancel={function () { open[1](false); }}
         />

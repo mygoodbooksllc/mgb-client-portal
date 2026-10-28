@@ -128,3 +128,30 @@ console.log("TK_repeatLogic: " + n + " checks passed");
   assert.strictEqual(L.TK_repeatSaveStart(w, Object.assign({}, w), "2026-11-16", hol), "2026-11-16");
   console.log("TK_repeatLogic: keep-start checks passed");
 }
+
+// Re-save with the holiday list supplied (exact mode) vs the 5-day heuristic
+{
+  const closure = [];
+  for (let d = new Date(Date.UTC(2025, 11, 24)); d <= new Date(Date.UTC(2026, 0, 1)); d.setUTCDate(d.getUTCDate() + 1)) closure.push(d.toISOString().slice(0, 10));
+  // yearly on the 24th, skip weekends and holidays, firm closed Dec 24 - Jan 1: the task rolls to Mon 2026-01-05
+  const y = { v: 1, freq: "yearly", interval: 1, by: "dom", day: 24, skip: true, start: "2025-12-24", end: { type: "never" } };
+  const rolled = L.TK_repeatSeries(y, "2025-12-24", "2026-02-01", closure, 5)[0];
+  assert.ok(rolled > "2026-01-01" && diffDaysYmd(rolled, "2025-12-24") > 5, "closure is longer than 5 days: " + rolled);
+  // exact mode keeps the first date; the heuristic alone would re-anchor
+  assert.strictEqual(L.TK_repeatSaveStart(y, Object.assign({}, y), rolled, closure), "2025-12-24");
+  assert.strictEqual(L.TK_repeatSaveStart(y, Object.assign({}, y), rolled), rolled);
+  // daily (every 2 days) skip rule
+  const d = { v: 1, freq: "daily", interval: 2, skip: true, start: "2026-11-02", end: { type: "never" } };
+  assert.strictEqual(L.TK_repeatSaveStart(d, Object.assign({}, d), "2026-11-04", []), "2026-11-02"); // on the every-2-days cycle
+  assert.strictEqual(L.TK_repeatSaveStart(d, Object.assign({}, d), "2026-11-05", []), "2026-11-05"); // off cycle re-anchors
+  assert.strictEqual(L.TK_repeatSaveStart(d, Object.assign({}, d), "2026-11-09", []), "2026-11-02"); // Sat Nov 7 shifted to Mon Nov 9
+  // monthly every 3 months (interval > 1): off-cycle month re-anchors, on-cycle keeps
+  const m = { v: 1, freq: "monthly", interval: 3, by: "dom", day: 10, skip: true, start: "2026-10-10", end: { type: "never" } };
+  assert.strictEqual(L.TK_repeatSaveStart(m, Object.assign({}, m), "2027-01-11", ["2027-01-10"]), "2026-10-10"); // Jan 10 2027 is a Sunday
+  assert.strictEqual(L.TK_repeatSaveStart(m, Object.assign({}, m), "2026-12-10", []), "2026-12-10");
+  // due date before the start: not on the series, re-anchors
+  assert.strictEqual(L.TK_repeatSaveStart(m, Object.assign({}, m), "2026-09-10", []), "2026-09-10");
+  assert.strictEqual(L.TK_repeatSaveStart(y, Object.assign({}, y), "2025-12-01", closure), "2025-12-01");
+  console.log("TK_repeatLogic: closure and holiday-list checks passed");
+}
+function diffDaysYmd(a, b) { return Math.round((Date.parse(a) - Date.parse(b)) / 864e5); }

@@ -27,7 +27,7 @@
     const [notice, setNotice] = useState("");
 
     const supabase = window.mgbSupabase;
-    // "<user id>:<client id>" of the last roster reload this gate attempted, so a
+    // { key: "<user id>:<client id>", promise } of the last roster reload this gate attempted, so a
     // client missing from window.CLIENTS gets the splash and the reload once,
     // not on every TOKEN_REFRESHED or repeat SIGNED_IN event. Cleared when the
     // signed-in person changes or signs out (noteUser).
@@ -109,18 +109,30 @@
       // the roster is still empty and the portal would say the account isn't
       // linked. Reload it now (and the QuickBooks numbers with it) before
       // rendering. A link sign-in boots with the session and skips this.
+      const rosterKey = session.user.id + ":" + data.client_id;
+      const tried = rosterTried.current;
       if (
         window.mgbReloadRoster &&
         !(window.CLIENTS || []).some((c) => c.id === data.client_id) &&
-        rosterTried.current !== session.user.id + ":" + data.client_id
+        (!tried || tried.key !== rosterKey)
       ) {
-        rosterTried.current = session.user.id + ":" + data.client_id;
         setStatus("checking-row");
-        try {
-          await window.mgbReloadRoster();
-        } catch (e) {
-          // The guard in app.jsx still explains an unlinked account.
-        }
+        const reload = Promise.resolve()
+          .then(() => window.mgbReloadRoster())
+          .catch(() => {
+            // The guard in app.jsx still explains an unlinked account.
+          });
+        rosterTried.current = { key: rosterKey, promise: reload };
+        await reload;
+        // Signed out (or a different person) while the roster reloaded: the
+        // newer event owns the state now.
+        if (window.__mgbClientUid !== session.user.id) return;
+      } else if (tried && tried.key === rosterKey && tried.promise) {
+        // A reload for this person is already in flight (a second SIGNED_IN
+        // on tab refocus): wait for it so the roster is filled before we
+        // render, then check the person is unchanged.
+        await tried.promise;
+        if (window.__mgbClientUid !== session.user.id) return;
       }
       setClientUser({ ...data, premiumThrottled: data.premium_throttled });
       setStatus("authorized");
