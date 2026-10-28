@@ -357,6 +357,11 @@ function TK_StandaloneBar(props) {
           </a>
         ) : null}
         {slWide && typeof TK_SlateSizeButtons === "function" ? <TK_SlateSizeButtons /> : null}
+        {slm && slm.mode === "compact" && presets.ok ? (
+          <button type="button" className="tk-sbar-btn tk-slate-size" title="Back to the full page" onClick={function () { presets.apply("full"); }}>
+            Full page
+          </button>
+        ) : null}
         {followInMenu ? null : (
           <span className="tk-sbar-follow-wrap" title="Show the tasks for the client open in your portal window">
             <TK_vSwitch className="tk-sbar-follow" label="Follow my client" checked={followOn} onChange={setFollow} />

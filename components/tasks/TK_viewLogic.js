@@ -2166,6 +2166,18 @@ function TK_slateSizeHit(want, got, tol) {
   return Math.abs(got.w - want.innerW) <= t && Math.abs(got.h - want.innerH) <= t;
 }
 
+// A failed preset hides the size buttons only for a short while. missAt: the
+// time (ms) stored when a resize missed (a number or numeric string; the old
+// stored "1" and junk count as expired so a stale session value heals at once).
+// Returns true while the miss is under 2 minutes old.
+var TK_SLATE_MISS_MS = 120000;
+function TK_slateMissActive(missAt, now) {
+  var m = typeof missAt === "number" ? missAt : parseInt(missAt, 10);
+  var n = typeof now === "number" ? now : NaN;
+  if (!isFinite(m) || !isFinite(n) || m < 1000000000000) return false;
+  return n >= m && n - m < TK_SLATE_MISS_MS;
+}
+
 // The size preset buttons in the bar: in regular and full (the menu holds
 // them in compact). Never in a sliver.
 function TK_slatePresetPlace(mode) {
@@ -2278,6 +2290,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_slatePresetsAllowed: TK_slatePresetsAllowed,
     TK_slateSizeHit: TK_slateSizeHit,
     TK_slatePresetPlace: TK_slatePresetPlace,
+    TK_slateMissActive: TK_slateMissActive,
     TK_slateSliverFit: TK_slateSliverFit,
     TK_slateSliverPick: TK_slateSliverPick,
     TK_slateSliverRest: TK_slateSliverRest,

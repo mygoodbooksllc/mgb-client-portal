@@ -1549,6 +1549,16 @@ t("slateSizeHit: within 4px both ways", () => {
   assert.strictEqual(L.TK_slateSizeHit(want, { w: NaN, h: 800 }), false);
   assert.strictEqual(L.TK_slateSizeHit(want, null), false);
 });
+t("slateMissActive", () => {
+  const now = 1800000000000;
+  assert.strictEqual(L.TK_slateMissActive(String(now - 1000), now), true);
+  assert.strictEqual(L.TK_slateMissActive(now - 119000, now), true);
+  assert.strictEqual(L.TK_slateMissActive(now - 121000, now), false);
+  assert.strictEqual(L.TK_slateMissActive("1", now), false); // old session value heals
+  assert.strictEqual(L.TK_slateMissActive(null, now), false);
+  assert.strictEqual(L.TK_slateMissActive("x", now), false);
+  assert.strictEqual(L.TK_slateMissActive(now, NaN), false);
+});
 t("slatePresetPlace", () => {
   assert.strictEqual(L.TK_slatePresetPlace("full"), "bar");
   assert.strictEqual(L.TK_slatePresetPlace("regular"), "bar");

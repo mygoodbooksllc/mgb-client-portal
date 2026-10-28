@@ -56,7 +56,7 @@
 // Pure rules: TK_viewLogic.js. Loads after TK_SlateBridge.jsx.
 // ----------------------------------------------------------------------------
 
-var TK_SLATE_SIZE_MISS_KEY = "mgb_slate_size_miss_v1"; // sessionStorage "1": presets hidden this session
+var TK_SLATE_SIZE_MISS_KEY = "mgb_slate_size_miss_v1"; // sessionStorage ms timestamp: presets hidden for 2 minutes after a missed resize
 var TK_SLATE_MODE_TRACK_MS = 1500; // a mode must hold this long before slate-app-mode is tracked
 
 var TK__sm = {
@@ -509,7 +509,9 @@ function TK__smStandalone() {
 
 function TK_slatePresetsOk() {
   if (!TK__smInApp()) return false;
-  if (TK__smSsGet(TK_SLATE_SIZE_MISS_KEY) === "1") return false;
+  // A missed resize hides the buttons for 2 minutes only (never the whole
+  // session), so the way back to the normal view always returns.
+  if (typeof TK_slateMissActive === "function" && TK_slateMissActive(TK__smSsGet(TK_SLATE_SIZE_MISS_KEY), Date.now())) return false;
   var opener = false;
   try {
     opener = !!window.opener;
@@ -524,8 +526,11 @@ function TK_slatePresetsOk() {
 }
 
 function TK__smMiss(id) {
-  TK__smSsSet(TK_SLATE_SIZE_MISS_KEY, "1");
+  TK__smSsSet(TK_SLATE_SIZE_MISS_KEY, String(Date.now()));
   TK__smNotify(TK__sm.presetSubs);
+  setTimeout(function () {
+    TK__smNotify(TK__sm.presetSubs);
+  }, 121000);
   if (typeof TK_vToast === "function") TK_vToast(id === "sliver" ? "Drag the window smaller" : "Drag the window bigger");
 }
 
