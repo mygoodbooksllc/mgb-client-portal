@@ -94,6 +94,11 @@ Each run does these steps:
   select id from tk_import_runs where report->>'batch' = 'asana-daily-2026-10-25';
   select public.tk_import_asana_undo('<run id>'::uuid, 'UNDO <first 8 chars of run id>');
   ```
+- **Undo the one-time 2026-10-16 import** (run `49b3186a`: 1132 tasks, 16 projects, 749 draft templates; roster clients came from `supabase/asana-import-roster-clients.sql`, which this does not undo). Moved here from the Developer tools Infra links on 2026-10-28.
+  ```sql
+  select tk_import_asana_undo('<full run id starting 49b3186a>'::uuid, 'UNDO 49b3186a');
+  ```
+  Find the full id with `select id from tk_import_runs where id::text like '49b3186a%';`.
 
 ## Extend past 30 days
 

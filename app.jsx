@@ -1124,69 +1124,14 @@ const INFRA_LINKS = [
     note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs, signed Staff Handbook PDFs under Handbook, and Inventory exports) · service account in Supabase secrets",
   },
   {
-    name: "Supabase SQL (Tasks bulk actions + undo)",
+    name: "Supabase SQL files: see supabase/*.sql and the README",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p4-3-bulk-undo.sql (self-test: tasks-p4-3-bulk-undo-tests.sql, rolls back): table tk_undo_ops (one row per undoable action, 10 minutes, the caller's own rows older than a day are cleared on the next bulk call; RLS on, no grants) · RPCs tk_bulk_complete, tk_bulk_reopen, tk_bulk_delete, tk_bulk_update (assignee, project, due date or a due shift), up to 100 tasks, per-task skips with a reason (in review and waiting on the client are never completed) · tk_undo (same person, once, within 10 minutes; tasks changed since are left alone; unsent assignment emails are cancelled) · single ticks, deletes and reassigns use the same calls so they get an Undo too · notify_enqueue_task_assigned stays quiet for bulk, roll-forward and undo · tk_schema_version 12 · no edge function",
+    note: "Finished migrations (Tasks bulk actions + undo, close checklist, late-task grace period, Workbench, manage projects, project colors, unassigned + Asana import, client org profile + gifts) are all applied; each file in supabase/ has its own -tests.sql and the README describes them. Asana import undo recipe: docs/asana-daily-import.md. Hidden or unlaunched features keep their own rows below.",
   },
   {
-    name: "Supabase SQL (Tasks close checklist)",
+    name: "Slate month rhythm SQL (slate-rhythm-1..5)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p4-2-close-checklist.sql (self-test: tasks-p4-2-close-checklist-tests.sql, rolls back): table tk_client_close_optin (per-client Create month-end tasks from the Close checklist; off by default; soft off) · staff_reminders.close_key (stamped from the template; uq_close_task, one live task per client, month and step) · tk__generate makes the five linked standard-set members (bank_feed, bank_rec, card_rec, entries, review) for opted-in clients while standard_set_live stays off, from the first close month after opt-in (or this month with Also this month) · tk_close_tick (checklist tick moves the task), sync trigger (task status ticks the item), guard client_close_items_guard_linked (raises tk_use_close_tick on a direct write to a linked item) · tk_close_optin_status, tk_set_close_optin (admin or that client's account manager) · tk_schema_version 11 · no email, no edge function",
-  },
-  {
-    name: "Supabase SQL (Late-task grace period)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-grace-period.sql (self-test: tasks-grace-period-tests.sql, rolls back): owner-only switches late_tasks_count_against_staff (default false) and late_tasks_effective_from in tk_settings · RPCs tk_late_count_from, tk_set_late_tasks_count · patches staff_performance, client_health, digest_weekly_data and tk_on_time_stats to leave late tasks out while the switch is off · weekly-admin-digest edge function redeployed to hide the overdue figure",
-  },
-  {
-    name: "Supabase SQL (Slate month rhythm setting)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/slate-rhythm-1-settings.sql (self-test: slate-rhythm-1-settings-tests.sql, rolls back): tk_settings key month_rhythm (the 4th, 14th, 24th rhythm; admin write, audited in tk_settings_audit; no row = the default) · functions tk_month_rhythm_default, tk_month_rhythm_problem (same rules as TK_rhythmLogic.js; shared vectors in TK_rhythm.fixtures.js), tk_month_rhythm (stored, default when missing, null when invalid) · trigger tk_settings_check_month_rhythm refuses an invalid value · month_rhythm_enabled added to the owner-only keys (tk__owner_only_key) · slate-rhythm-1b-label-parity.sql: label blank set and code-point length matched to JS (re-run after the first file) · no email, no edge function",
-  },
-  {
-    name: "Supabase SQL (Slate month rhythm due rule)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/slate-rhythm-2-firm-part.sql (self-test: slate-rhythm-2-firm-part-tests.sql, rolls back): new due rule type firm_part ({type, part: check_in | reports | follow_up, month_offset}) resolved as day_of_month with that part's day and the rhythm's roll · tk_due_rule_valid accepts it (every other rule gets the same answer as before; it backs the task_templates CHECK) · new tk_resolve_due(rule, start, end, rhythm) and tk__rhythm_for_client(client) (the firm rhythm today; the client override comes later) · tk__generate and tk__issue_period patched: firm_part templates make nothing until month_rhythm_enabled is on, and with no usable rhythm they are skipped with one warning · slate-rhythm-2b-issue-gate.sql (self-test slate-rhythm-2b-issue-gate-tests.sql): tk__issue_period applies the same gate for every caller, including tk_issue_missed (skip reasons rhythm_off, no_rhythm) · JS twin TK_resolveDue(rule, start, end, holidays, rhythm); shared vectors in TK_recurrence.fixtures.js · no table, no email, no edge function",
-  },
-  {
-    name: "Supabase SQL (Slate month rhythm templates)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/slate-rhythm-3-templates.sql (self-test: slate-rhythm-3-templates-tests.sql, rolls back): new columns task_templates.email_kind (request | reports | maintenance, for the email drafts that come later) and task_templates.description (copied onto each task), tk_template_sets.gate_key (standard_set_live by default; the new MGB Month Rhythm set uses month_rhythm_enabled) · seeds the eight monthly firm_part templates (source_ref month_rhythm:1_check_in to month_rhythm:8_follow_up, unique per set, so a re-run adds nothing) · tk__generate gates each set by its own gate_key (named test and internal clients pass) · tk__issue_period writes the part label to tasks.section and the template description · tk_save_template saves description · tk_settings_set_live_since stamps only the sets with that key · tk_close_optin_status leaves rhythm templates out of the close overlap count while the switch is off · nothing visible and no tasks for real clients until month_rhythm_enabled is on",
-  },
-  {
-    name: "Supabase SQL (Slate month rhythm reports + late rule)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/slate-rhythm-4-report-state.sql: table tk_report_state (client, month, none | preliminary | full, missing labels; audit tk_report_state_audit; staff write via tk_set_report_state, clients read only tk_client_report_state) · supabase/slate-rhythm-4b-daily.sql: tk_rhythm_daily() run by the pg_cron job month-rhythm-daily (10:40 UTC) closes Follow up rows with Nothing outstanding and writes tk_rhythm_notices (Second month in a row; bell plus task_batch email only with month_rhythm_enabled on) · supabase/slate-rhythm-4c-late-exclusion.sql (live for everyone): tk_late_excused keeps waiting-on-client tasks and preliminary months out of staff_performance, client_health, digest_weekly_data and tk_on_time_stats · each file has a -tests.sql self-test that rolls back",
-  },
-  {
-    name: "Supabase SQL (Slate month rhythm per-client days)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/slate-rhythm-5-client-override.sql (self-test: slate-rhythm-5-client-override-tests.sql, rolls back): column client_profile.rhythm (null = the firm rhythm; else three {key, day}) checked by tk_client_rhythm_problem · tk_month_rhythm_merge and tk__rhythm_for_client resolve client, then firm, then nothing (fail closed) for the task run and tk__issue_period · admin-only write: trigger client_profile_rhythm_guard refuses anyone else, RPC tk_set_client_rhythm · every change in client_rhythm_audit (admins read) · clients never read client_profile · no email, no edge function",
-  },
-  {
-    name: "Supabase SQL (Workbench)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/workbench-1-core.sql (self-test: workbench-1-core-tests.sql, rolls back): tables wb_item_state (snooze, per person), wb_thread_noreply (No reply needed on a client thread) and client_file_checks (Mark checked on a client upload) · RPCs wb_inbox (one ordered list: tasks, reviews, Ask client answers, client messages, Ledger flags, new client files; Mine or Everyone for admins), wb_snooze, wb_unsnooze, wb_mark_no_reply, wb_undo_no_reply, wb_mark_file_checked, wb_undo_file_checked, wb_schema_version · switches wb_enabled, wb_gl_due_bday, wb_doc_check_from in tk_settings (Tasks switches below) · client_messages and staff_reminders are in the realtime publication · no email, no edge function",
-  },
-  {
-    name: "Supabase SQL (Tasks manage projects)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p3-manage-projects.sql + tasks-p3-manage-projects-fixes.sql (task-in-trash guard, tk_project_task_counts, tk_restore_name_taken, import skips trashed projects) (self-test: tasks-p3-manage-projects-tests.sql, rolls back): tk_projects trashed_at / trashed_by / trash_expired_at and staff_reminders.trashed_with_project; RPCs tk_project_rename, tk_project_archive, tk_project_trash, tk_project_restore and admin-only tk_admin_list_projects (the Manage projects screen) · trash reuses staff_reminders.deleted_at so every list, digest and score already hides it; restore revives only the tasks the trash hid · 30 days only marks a project expired (an admin can still restore); nothing is purged · trash is refused while a task has an open Ask client request (tk_has_open_requests) · audit actions tk_project.renamed / archived / unarchived / trashed / restored / trash_expired",
-  },
-  {
-    name: "Supabase SQL (Tasks project colors)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p3-project-colors.sql (self-test: tasks-p3-project-colors-tests.sql, rolls back): tk_projects.color (ten palette keys, NOT NULL + check, backfilled round robin), guard trigger tk_projects_color_guard (assigns the least-used live color on insert, ignores a direct UPDATE), RPC tk_project_set_color (admin or project manager, refused on a trashed project, audit action tk_project.color_set), tk_admin_list_projects now returns color. The palette also lives in components/tasks/TK_viewLogic.js (TK_PROJECT_COLORS); a node test fails if the two drift. Subtasks opening in place is client-side only (store list key subtasks, localStorage mgb_tk_subs_open_v1)",
-  },
-  {
-    name: "Supabase SQL (Tasks unassigned + Asana import)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p2-10-asana-import-v2.sql: tasks can have no assignee (is_unassigned); tk_claim_task (Claim; only way a non-admin sets the assignee on an unassigned task) · tk_save_template takes assignee_email and leave_unassigned · tk_import_no_team_clients and tk_import_assign_team (admins: No team yet, Assign team; no email sent) · the import apply stays behind asana_import_apply_enabled (Tasks switches below) · ran once 2026-10-16: run 49b3186a (1132 tasks, 16 projects, 749 draft templates; roster clients from supabase/asana-import-roster-clients.sql); undo: select tk_import_asana_undo('<run id>', 'UNDO 49b3186a') · no edge function",
-  },
-  {
-    name: "Supabase SQL (Client org profile + gifts)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "Client org profile (live 2026-10-25): supabase/client-org-profile.sql and client-org-gift-basis.sql (+ -tests.sql each). RPCs client_org_profile_mine/save, staff_client_org_profile, staff_set_client_since, admin_upcoming_anniversaries, admin_gift_basis/admin_set_gift_basis (default flipped to the founding date 2026-10-27 by client-org-gift-basis-default.sql, which also adds admin_gift_dates), org_anniversaries_digest_count (service_role, weekly digest). Firm switch tk_settings.org_profile_enabled (owner-only, on). No email, no gift orders.",
+    note: "All applied; the feature is still switched off (tk_settings.month_rhythm_enabled is false, owner-only). Files in supabase/, each with a -tests.sql self-test that rolls back: slate-rhythm-1-settings (+ 1b label parity): tk_settings key month_rhythm, the 4th, 14th and 24th days, validated by trigger, audited · slate-rhythm-2-firm-part (+ 2b issue gate): due rule type firm_part, tk_resolve_due, tk__rhythm_for_client; firm_part templates make nothing while the switch is off · slate-rhythm-3-templates: task_templates.email_kind and description, tk_template_sets.gate_key, eight monthly templates (source_ref month_rhythm:1_check_in to 8_follow_up) · slate-rhythm-4-report-state (+ 4b daily, 4c late exclusion): tk_report_state, pg_cron job month-rhythm-daily (10:40 UTC), tk_rhythm_notices (bell plus task_batch email only with the switch on); 4c is live for everyone and keeps waiting-on-client tasks and preliminary months out of staff_performance, client_health, digest_weekly_data and tk_on_time_stats · slate-rhythm-5-client-override: client_profile.rhythm (null = firm rhythm), admin-only write, audited in client_rhythm_audit · no edge function",
   },
   {
     name: "Supabase SQL (Desk additions switch)",
@@ -16063,20 +16008,6 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
                   {staffReadOk === false
                     ? `Failing — ${staffReadError}`
                     : staffReadOk
-                      ? "OK"
-                      : "Checking…"}
-                </dd>
-              </div>
-              <div>
-                <dt>Audit log read</dt>
-                <dd
-                  className={
-                    auditError ? "negative" : auditRows ? "positive" : ""
-                  }
-                >
-                  {auditError
-                    ? "Failing — run staff-audit-log.sql"
-                    : auditRows
                       ? "OK"
                       : "Checking…"}
                 </dd>

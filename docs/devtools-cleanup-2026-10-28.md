@@ -62,3 +62,11 @@ All rows are kept (they show real firm switches). Text fixes only: rows that sai
 ## Behaviour check ("no flags set")
 
 For anyone with no flags set nothing changes: every removed branch only ran when the key was `"1"`, and every removed preview was already a no-op while its firm switch is on. Anyone who still has an old `mgb_*_classic` key in their browser now sees the standard version (the owner confirmed no flags are set).
+
+## Part 2 (label 2026-10-28u): INFRA_LINKS and System info trims
+
+Owner approved three changes from the audit. No database change, no switch touched.
+
+1. **Eight finished SQL rows removed, one pointer row added** ("Supabase SQL files: see supabase/*.sql and the README"): Tasks bulk actions + undo, Tasks close checklist, Late-task grace period, Workbench, Tasks manage projects, Tasks project colors, Tasks unassigned + Asana import, Client org profile + gifts. Why: all migrations are applied, all linked to the generic SQL editor, and each file and its self-test stays in `supabase/`. Anything operational was moved first: the Asana import undo recipe (run 49b3186a, `tk_import_asana_undo`) is now in `docs/asana-daily-import.md` (the daily import runs until 2026-11-24); the Client org profile 2026-10-25 launch note and the functions list are already in the README (Client org profile section and the 2026-10-25 history line) and `docs/client-org-profile-spec.md`. The Slate plus, Rules, custom fields, agreements and other rows for hidden or unlaunched features were not touched. This replaces the "INFRA_LINKS keep" decision above for these eight rows.
+2. **Slate month rhythm SQL rows merged** (slate-rhythm-1 to -5 into "Slate month rhythm SQL (slate-rhythm-1..5)"): they overlapped; the merged row keeps each file's purpose, the daily job, the late exclusion that is live for everyone, and that `month_rhythm_enabled` is still false.
+3. **System info "Audit log read" row removed.** It only repeated what the Recent activity card already shows; that card keeps its own error display.
