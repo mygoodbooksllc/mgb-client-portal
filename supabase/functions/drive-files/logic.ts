@@ -49,6 +49,81 @@ export function typeOf(name: string, mime: string | null | undefined): string | 
   return (MIME_ALIASES[ext] || []).includes(declared) ? canonical : null;
 }
 
+// Programs, scripts and installers. typeOf's allow-list already refuses them;
+// this block list runs first so the person gets a plain "we don't take
+// programs" message instead of the generic file-type one, and stays in force
+// even if the allow-list ever grows.
+export const BLOCKED_EXTS = new Set([
+  "exe", "msi", "msp", "msix", "appx", "bat", "cmd", "com", "scr", "pif", "cpl", "gadget",
+  "js", "jse", "mjs", "vbs", "vbe", "wsf", "wsh", "hta", "ps1", "psm1", "psd1",
+  "sh", "bash", "zsh", "csh", "ksh", "command", "py", "pl", "rb", "php",
+  "jar", "class", "dll", "sys", "drv", "ocx", "reg", "lnk", "inf", "scf", "url",
+  "dmg", "pkg", "mpkg", "app", "apk", "aab", "ipa", "deb", "rpm", "run", "bin",
+  "iso", "img", "vhd", "vhdx", "docm", "xlsm", "pptm", "dotm", "xltm",
+]);
+export const BLOCKED_TYPE_MESSAGE =
+  "Programs, scripts and installers can't be uploaded. Please send a PDF, picture, spreadsheet or Word document instead.";
+
+/** True when the file name ends in a program, script or installer extension.
+ *  Trailing dots and spaces are ignored ("setup.exe. " counts as .exe). */
+export function blockedExt(name: string | null | undefined): boolean {
+  const base = String(name || "").replace(/[.\s]+$/, "");
+  const dot = base.lastIndexOf(".");
+  if (dot < 0 || dot === base.length - 1) return false;
+  return BLOCKED_EXTS.has(base.slice(dot + 1).toLowerCase());
+}
+
+// ---------------------------------------------------------------------------
+// Per-login access on shared portal files (client page drop).
+// ---------------------------------------------------------------------------
+export const ACCESS_MODES = ["everyone", "only", "except"] as const;
+export const MAX_ACCESS_EMAILS = 50;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** "everyone" | "only" | "except", or null for anything else. Blank = everyone. */
+export function parseAccessMode(input: unknown): string | null {
+  const m = String(input ?? "").trim().toLowerCase();
+  if (!m) return "everyone";
+  return (ACCESS_MODES as readonly string[]).includes(m) ? m : null;
+}
+
+/** The access list from a form field (a JSON array of emails, or a single
+ *  comma list): trimmed, lower case, de-duplicated. Returns null when it isn't
+ *  readable, has a value that isn't an email, or names more than 50 people. */
+export function normalizeAccessEmails(input: unknown): string[] | null {
+  let raw: unknown[] = [];
+  if (input === null || input === undefined || input === "") raw = [];
+  else if (Array.isArray(input)) raw = input;
+  else {
+    const s = String(input).trim();
+    if (s.startsWith("[")) {
+      try {
+        const v = JSON.parse(s);
+        if (!Array.isArray(v)) return null;
+        raw = v;
+      } catch (_e) {
+        return null;
+      }
+    } else raw = s.split(",");
+  }
+  const out: string[] = [];
+  for (const v of raw) {
+    if (typeof v !== "string") return null;
+    const e = v.trim().toLowerCase();
+    if (!e) continue;
+    if (e.length > 320 || !EMAIL_RE.test(e)) return null;
+    if (!out.includes(e)) out.push(e);
+  }
+  return out.length > MAX_ACCESS_EMAILS ? null : out;
+}
+
+/** A display name for a file: control characters become spaces, trimmed,
+ *  at most 200 characters; blank means "use the file name" (null). */
+export function cleanDisplayName(input: unknown): string | null {
+  const s = String(input ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 200).trim();
+  return s || null;
+}
+
 // Types a browser can show safely inline from the functions domain. Anything
 // else downloads as an attachment.
 const INLINE_TYPES = new Set(["application/pdf", "image/png", "image/jpeg", "text/plain", "text/csv"]);

@@ -1,13 +1,18 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import {
+  BLOCKED_TYPE_MESSAGE,
+  blockedExt,
+  cleanDisplayName,
   cleanYear,
   contentDisposition,
   currentYear,
   docTypeFor,
   makeLinkToken,
   MAX_BYTES,
+  normalizeAccessEmails,
   normalizeDocType,
+  parseAccessMode,
   typeOf,
   UUID_RE,
   verifyLinkToken,
@@ -42,7 +47,19 @@ import {
 //   status                         -> { connected }
 //   upload  (multipart form)       file, client_id, visibility (shared |
 //                                  internal | request | message), doc_type,
-//                                  year, request_id, participant, internal
+//                                  year, request_id, participant, internal,
+//                                  and for shared files (client page drop,
+//                                  supabase/client-page-drop-1-core.sql):
+//                                  display_name, access_mode (everyone |
+//                                  only | except), access_emails (JSON array
+//                                  of the client's own active logins, max 50).
+//                                  A rule other than everyone is refused
+//                                  (403 feature_off) while the firm switch is
+//                                  off for that client. Shared rows go in
+//                                  with their list in one transaction
+//                                  (cfa_insert_file_with_access). Programs,
+//                                  scripts and installers are refused (415
+//                                  blocked_type).
 //   list    client_id, scope (documents | trash | request), request_id
 //   link    ids[] (client_files ids) -> { links: { id: url } }   10 min each
 //   trash / restore   id           staff only. Drive trash, never delete.
@@ -125,6 +142,7 @@ async function doUpload(req: Request, admin: SupabaseClient) {
   if (!clientId) throw new HttpError(400, "client_id is required.");
   if (!["shared", "internal", "request", "message"].includes(visibility)) throw new HttpError(400, "Unknown visibility.");
   if (file.size > MAX_BYTES) throw new HttpError(413, "Files are capped at 25 MB.", "too_big");
+  if (blockedExt(file.name)) throw new HttpError(415, BLOCKED_TYPE_MESSAGE, "blocked_type");
   const mime = typeOf(file.name, file.type);
   if (!mime) throw new HttpError(415, "PDF, PNG, JPEG, HEIC, CSV, Excel, Word and text files only.", "bad_type");
 
@@ -173,6 +191,41 @@ async function doUpload(req: Request, admin: SupabaseClient) {
     if (staff && String(form.get("internal") || "") === "true") visibility = "internal";
   }
 
+  // Client page drop: a display name and a per-login rule on shared files.
+  const displayName = cleanDisplayName(form.get("display_name"));
+  const accessMode = parseAccessMode(form.get("access_mode"));
+  if (!accessMode) throw new HttpError(400, "Unknown access setting.", "bad_access_mode");
+  const accessEmails = normalizeAccessEmails(form.get("access_emails"));
+  if (!accessEmails) throw new HttpError(400, "The list of people isn't valid (50 people at most).", "bad_access_list");
+  if (accessMode !== "everyone") {
+    if (visibility !== "shared") throw new HttpError(400, "Only shared documents can be limited to certain people.", "bad_access_mode");
+    const { data: on, error: onErr } = await admin.rpc("cpd__on", { p_client_id: clientId });
+    if (onErr || on !== true) throw new HttpError(403, "Choosing who can see a file isn't turned on yet.", "feature_off");
+    if (member && accessMode === "except" && accessEmails.includes(c.email)) {
+      throw new HttpError(400, "You can't hide a file from yourself.", "bad_access_list");
+    }
+    if (accessEmails.length === 0 && (staff || accessMode === "except")) {
+      throw new HttpError(400, "Pick at least one person.", "bad_access_list");
+    }
+    if (accessEmails.length) {
+      const { data: logins, error: lErr } = await admin
+        .from("client_users")
+        .select("email")
+        .eq("client_id", clientId)
+        .eq("active", true);
+      if (lErr) throw new HttpError(500, lErr.message);
+      const known = new Set((logins || []).map((u: any) => String(u.email || "").trim().toLowerCase()));
+      if (accessEmails.some((e) => !known.has(e))) {
+        throw new HttpError(400, "Everyone on the list must be an active login for this organization.", "bad_access_list");
+      }
+    }
+  }
+  // Documents tab (resolveAccess semantics). client_docs_tab_ok is true while
+  // the page-drop switch is off for the client, so nothing changes until then.
+  if (visibility === "shared" && !staff && !(await rpcTrue(c, "client_docs_tab_ok", { p_client_id: clientId }))) {
+    throw new HttpError(403, "Your login doesn't include the Documents tab.", "forbidden");
+  }
+
   if (!secretsPresent()) return NOT_CONNECTED();
 
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -192,31 +245,62 @@ async function doUpload(req: Request, admin: SupabaseClient) {
     throw e;
   }
 
-  const { data: row, error } = await admin
-    .from("client_files")
-    .insert({
-      client_id: clientId,
-      drive_file_id: uploaded.file.id,
-      drive_folder_id: uploaded.parent,
-      name: file.name.slice(0, 255),
-      mime,
-      size: bytes.byteLength,
-      year,
-      doc_type: docType,
-      visibility,
-      participant_email: participant,
-      request_id: legacyRequest ? requestId : null,
-      uploaded_by: c.email,
-    })
-    .select("*")
-    .single();
-  if (error || !row) {
+  let row: any = null;
+  let error: { message: string } | null = null;
+  if (visibility === "shared") {
+    // The row and its access list in one transaction: a bad list leaves no row.
+    const res = await admin.rpc("cfa_insert_file_with_access", {
+      p_file: {
+        client_id: clientId,
+        drive_file_id: uploaded.file.id,
+        drive_folder_id: uploaded.parent,
+        name: file.name.slice(0, 255),
+        display_name: displayName,
+        mime,
+        size: bytes.byteLength,
+        year,
+        doc_type: docType,
+        visibility,
+        uploaded_by: c.email,
+      },
+      p_mode: accessMode,
+      p_emails: accessEmails,
+    });
+    row = res.data;
+    error = res.error;
+  } else {
+    const res = await admin
+      .from("client_files")
+      .insert({
+        client_id: clientId,
+        drive_file_id: uploaded.file.id,
+        drive_folder_id: uploaded.parent,
+        name: file.name.slice(0, 255),
+        display_name: displayName,
+        mime,
+        size: bytes.byteLength,
+        year,
+        doc_type: docType,
+        visibility,
+        participant_email: participant,
+        request_id: legacyRequest ? requestId : null,
+        uploaded_by: c.email,
+      })
+      .select("*")
+      .single();
+    row = res.data;
+    error = res.error;
+  }
+  if (error || !row || !row.id) {
     // Don't leave an orphan the portal can't see: move it to Drive trash.
     await trashDriveFile(admin, uploaded.file.id, true).catch(() => {});
     await logEvent(admin, "upload", false, clientId, c.email, `saved to Drive but not recorded: ${error?.message}`);
+    if (error && /bad_access_(list|mode)/.test(error.message)) {
+      throw new HttpError(400, "Everyone on the list must be an active login for this organization.", "bad_access_list");
+    }
     throw new HttpError(500, "The file reached Drive but couldn't be recorded. Try again.");
   }
-  await logEvent(admin, "upload", true, clientId, c.email);
+  await logEvent(admin, "upload", true, clientId, c.email, JSON.stringify({ file_id: row.id, access_mode: row.access_mode || "everyone" }));
 
   let path: string | null = null;
   if (requestId && legacyRequest) {
@@ -237,14 +321,17 @@ async function doUpload(req: Request, admin: SupabaseClient) {
   } else if (row.visibility === "message" || participant) {
     path = `${clientId}/messages/${participant}/drive:${row.id}`;
   }
-  return json({ file: shape(row, staff), path });
+  return json({ file: shape(row, staff, c.email), path });
 }
 
-function shape(r: any, staff: boolean) {
+// access_mode is shown only to staff and to the person who uploaded the file:
+// other logins never learn a file has a rule.
+function shape(r: any, staff: boolean, viewer: string) {
   const out: any = {
     id: r.id,
     client_id: r.client_id,
     name: r.name,
+    display_name: r.display_name ?? null,
     mime: r.mime,
     size: r.size,
     year: r.year,
@@ -260,6 +347,9 @@ function shape(r: any, staff: boolean) {
     out.web_view_link = webViewLink(r.drive_file_id);
     out.legacy_path = r.legacy_path;
     out.trashed_by = r.trashed_by;
+  }
+  if (staff || (viewer && String(r.uploaded_by || "").toLowerCase() === viewer)) {
+    out.access_mode = r.access_mode || "everyone";
   }
   return out;
 }
@@ -291,7 +381,7 @@ async function doList(req: Request, body: any) {
     const { data: lp } = await c.asUser.from("client_files").select("legacy_path").eq("client_id", clientId).not("legacy_path", "is", null).limit(1000);
     copied = (lp || []).map((r: any) => r.legacy_path);
   }
-  return json({ files: (data || []).map((r: any) => shape(r, staff)), copied_legacy_paths: copied, connected: secretsPresent(), staff });
+  return json({ files: (data || []).map((r: any) => shape(r, staff, c.email)), copied_legacy_paths: copied, connected: secretsPresent(), staff });
 }
 
 async function doLink(req: Request, body: any) {
@@ -345,7 +435,7 @@ async function doTrash(req: Request, body: any, admin: SupabaseClient, trashed: 
   try {
     await trashDriveFile(admin, row.drive_file_id, trashed);
   } catch (e) {
-    await logEvent(admin, trashed ? "trash" : "restore", false, row.client_id, c.email, (e as Error).message);
+    await logEvent(admin, trashed ? "trash" : "restore", false, row.client_id, c.email, JSON.stringify({ file_id: row.id, error: (e as Error).message }));
     if (!trashed && e instanceof HttpError && e.code === "drive_not_found") {
       throw new HttpError(410, "Google Drive has already emptied this file from its trash (after 30 days), so it can't be restored.", "gone");
     }
@@ -356,7 +446,7 @@ async function doTrash(req: Request, body: any, admin: SupabaseClient, trashed: 
     .update(trashed ? { trashed_at: new Date().toISOString(), trashed_by: c.email } : { trashed_at: null, trashed_by: null })
     .eq("id", id);
   if (error) throw new HttpError(500, error.message);
-  await logEvent(admin, trashed ? "trash" : "restore", true, row.client_id, c.email);
+  await logEvent(admin, trashed ? "trash" : "restore", true, row.client_id, c.email, JSON.stringify({ file_id: row.id }));
   return json({ ok: true });
 }
 
