@@ -2,6 +2,11 @@
 -- funds-only scoping enforced on the server for the qbo_* client reads.
 -- Portal blind-spot audit 2026-10-30, items 1.1 to 1.4.
 -- Applied to production 2026-10-30 (migration client_tab_rls).
+-- Follow-ups in client-tab-rls-2.sql (same day): search_path now
+-- public, pg_temp on the helpers below (re-applied from this file); the
+-- qbo_accounts client policy uses my_hidden_fund_account_ids() and
+-- authenticated can no longer call my_hidden_fund_account_keys(). Run -2
+-- after this file if this file is ever re-run.
 --
 -- Before this, every client SELECT policy on the qbo_* tables used
 -- my_unscoped_client_ids(), which returns every org a login belongs to unless
@@ -93,7 +98,7 @@ returns table (
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   with m as (
     select cu.client_id,
@@ -159,7 +164,7 @@ returns text[]
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select coalesce(array_agg(a.client_id), '{}'::text[])
     from public.my_client_access() a
@@ -173,7 +178,7 @@ returns text[]
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select coalesce(array_agg(a.client_id), '{}'::text[])
     from public.my_client_access() a
@@ -207,7 +212,7 @@ returns text[]
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
   select coalesce(array_agg(qa.client_id || chr(31) || qa.name), '{}'::text[])
     from public.my_client_access() a
