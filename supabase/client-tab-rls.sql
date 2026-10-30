@@ -69,6 +69,8 @@
 -- client's own browser never saw it. clients.hidden_tabs is its server home;
 -- it defaults to none hidden, so nothing changes until the UI writes to it
 -- (deferred). Only admins can update clients (existing policy).
+-- Done 2026-10-30 in client-tab-rls-3.sql (S3): the UI reads and writes
+-- clients.hidden_tabs; the old browser setting is copied up once.
 
 alter table public.clients
   add column if not exists hidden_tabs text[] not null default '{}'::text[];

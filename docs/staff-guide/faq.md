@@ -64,7 +64,7 @@ No. Add the person on HR → Members and tell them they're set up; they sign in 
 
 ### Is "Manage access" / Client details access enforced?
 
-Real portal logins (the client's people in Client details) are enforced at sign-in. On a test client the people listed may be samples for preview only, and the window says so.
+Real portal logins (the client's people in Client details) are enforced at sign-in. On a test client the people listed may be samples for preview only, and the window says so. Tabs turned off under **Organization tabs** are saved for the client, so they're hidden in every login's browser and the database won't hand over that tab's QuickBooks data either.
 
 ### What's the difference between Work › Close and a client's Close tab?
 

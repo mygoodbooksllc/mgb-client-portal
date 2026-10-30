@@ -18538,6 +18538,8 @@ function ClientAccessPage({ readOnly }) {
         plan: data.plan,
         testOnly: data.test_only,
         payrollAddOn: data.payroll_add_on,
+        // clients.hidden_tabs defaults to none hidden for a new org.
+        hiddenTabs: [],
         assignedBookkeeper: rosterBookkeeper(data),
         accountManager: AM_fromRow(data),
       }),
@@ -25738,6 +25740,8 @@ function TabSettingsModal({
   tabOrder,
   userAccess,
   onToggle,
+  canEditOrgTabs = false,
+  onOpenOrgTabs,
   onReorder,
   onToggleUserTab,
   onToggleUserCategory,
@@ -25775,6 +25779,14 @@ function TabSettingsModal({
   const [addingNote, setAddingNote] = useState(false);
   const [activityLog, setActivityLog] = useState(undefined); // undefined = loading
   const showToast = useToast();
+
+  // Opening Organization tabs is the one moment an admin's old per-browser
+  // setting for this client is copied to the server (App
+  // migrateLegacyHiddenTabs; once per client, never over a saved value).
+  useEffect(() => {
+    if (scope === "access" && tab === "org" && onOpenOrgTabs) onOpenOrgTabs();
+    // eslint-disable-next-line
+  }, [scope, tab, client && client.id]);
 
   const supabase = window.mgbSupabase;
 
@@ -26276,6 +26288,15 @@ function TabSettingsModal({
             Turn a tab off here and nobody at {client.name} sees it, whatever
             their individual access. Drag ⠿ to reorder the Finances tabs.
           </p>
+          {!canEditOrgTabs && (
+            <p
+              className="card-subtitle"
+              style={{ marginTop: 0 }}
+              data-testid="org-tabs-admin-only"
+            >
+              Only admins can turn tabs on or off.
+            </p>
+          )}
           {NAV_SECTIONS.map((section) => {
             const items = orderedSectionItems(section, tabOrder, client.id);
             return (
@@ -26328,7 +26349,7 @@ function TabSettingsModal({
                         <input
                           type="checkbox"
                           checked={checked}
-                          disabled={locked}
+                          disabled={locked || !canEditOrgTabs}
                           onChange={() => onToggle(item.key)}
                         />
                         <span>{item.label}</span>
@@ -26983,7 +27004,16 @@ function recordClientVisit(clientId) {
   } catch (e) {}
 }
 
+// Legacy: Manage access › Organization tabs used to save each client's hidden
+// tab keys here, in the staff browser only, so a client's own browser never
+// saw them. Since 2026-10-30 (S3) the setting lives on the client row
+// (clients.hidden_tabs, client.hiddenTabs) and this key is only READ, once
+// per client, to copy an old setting up (see migrateLegacyHiddenTabs in App).
+// It is never written or cleared.
 const TAB_CONFIG_STORAGE_KEY = "mygoodbooks_tab_config_v2";
+// { [clientId]: true } once this browser's old setting for that client has
+// been dealt with (copied up, or skipped because the server already had one).
+const TAB_CONFIG_MIGRATED_STORAGE_KEY = "mygoodbooks_tab_config_migrated_v1";
 
 function loadTabConfig() {
   try {
@@ -26992,6 +27022,13 @@ function loadTabConfig() {
   } catch (e) {
     return {};
   }
+}
+
+// Org-hidden tab keys in the server's shape: known client tab keys only, in
+// sidebar order, never ALWAYS_VISIBLE_KEY (clients_hidden_tabs_known check).
+function normalizeHiddenTabs(keys) {
+  const set = new Set(Array.isArray(keys) ? keys : []);
+  return ALL_TAB_KEYS.filter((k) => k !== ALWAYS_VISIBLE_KEY && set.has(k));
 }
 
 const TAB_ORDER_STORAGE_KEY = "mygoodbooks_tab_order_v1";
@@ -28447,7 +28484,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // open. `nonce` forces the effect on the receiving page to re-fire even
   // when the same result is clicked twice in a row (same key, same page).
   const [searchTarget, setSearchTarget] = useState(null);
-  const [tabConfig, setTabConfig] = useState(loadTabConfig);
+  // Read-only copy of the old per-browser org-hidden tabs (see
+  // TAB_CONFIG_STORAGE_KEY); only migrateLegacyHiddenTabs uses it.
+  const [legacyTabConfig] = useState(loadTabConfig);
+  // Org-hidden tabs saved in this session, by client id, on top of
+  // client.hiddenTabs from the roster (so the change shows at once).
+  const [orgHiddenOverride, setOrgHiddenOverride] = useState({});
   const [tabOrder, setTabOrder] = useState(loadTabOrder);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -29123,12 +29165,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(TAB_CONFIG_STORAGE_KEY, JSON.stringify(tabConfig));
-    } catch (e) {}
-  }, [tabConfig]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem(TAB_ORDER_STORAGE_KEY, JSON.stringify(tabOrder));
     } catch (e) {}
   }, [tabOrder]);
@@ -29324,24 +29360,147 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     recordClientVisit(selectedClientId);
   }, [selectedClientId, page]);
 
-  // tabConfig stores HIDDEN keys per client (not visible ones) so that any
-  // tab added later in the app defaults to visible for every client, rather
-  // than silently staying hidden because it's missing from an old snapshot.
-  const visibleKeys = useMemo(() => {
-    const hidden = new Set(tabConfig[selectedClientId] || []);
-    return new Set(
-      ALL_TAB_KEYS.filter((k) => k === ALWAYS_VISIBLE_KEY || !hidden.has(k)),
+  // Org-hidden tabs (Manage access › Organization tabs): HIDDEN keys per
+  // client (not visible ones), so a tab added later defaults to visible.
+  // Stored on the client row (clients.hidden_tabs, loaded into
+  // client.hiddenTabs by index.html loadClientsRoster), so every login's
+  // resolveAccess and the qbo_* RLS (my_client_access) use the same set.
+  const orgHiddenFor = (c) =>
+    normalizeHiddenTabs(
+      c && Object.prototype.hasOwnProperty.call(orgHiddenOverride, c.id)
+        ? orgHiddenOverride[c.id]
+        : c && c.hiddenTabs,
     );
-  }, [tabConfig, selectedClientId]);
+  const orgHiddenList = orgHiddenFor(client);
+  const orgHiddenSig = orgHiddenList.join(",");
+  const orgHiddenKeys = useMemo(
+    () => new Set(orgHiddenList),
+    [orgHiddenSig],
+  );
+  const visibleKeys = useMemo(
+    () =>
+      new Set(
+        ALL_TAB_KEYS.filter(
+          (k) => k === ALWAYS_VISIBLE_KEY || !orgHiddenKeys.has(k),
+        ),
+      ),
+    [orgHiddenKeys],
+  );
 
-  const toggleTab = (key) => {
-    if (key === ALWAYS_VISIBLE_KEY) return;
-    setTabConfig((prev) => {
-      const hidden = new Set(prev[selectedClientId] || []);
-      if (hidden.has(key)) hidden.delete(key);
-      else hidden.add(key);
-      return { ...prev, [selectedClientId]: Array.from(hidden) };
-    });
+  // Only admins can update clients (policy "admins can update clients",
+  // is_active_staff_admin: a real admin, not temporary admin access), and
+  // View as is read-only.
+  const canEditOrgTabs = !!(
+    staffUser &&
+    staffUser.role === "admin" &&
+    !impersonating &&
+    !clientPortalUser
+  );
+  // The latest saved list per client, for back-to-back clicks before the
+  // first save returns.
+  const orgHiddenLatestRef = useRef({});
+  const applyOrgHidden = (clientId, list) => {
+    const next = normalizeHiddenTabs(list);
+    orgHiddenLatestRef.current[clientId] = next;
+    // Same "mutate the shared roster entry" pattern as the Client Roster
+    // edit, so a later client switch or remount reads the saved value.
+    const entry = CLIENTS.find((c) => c.id === clientId);
+    if (entry) entry.hiddenTabs = next;
+    setOrgHiddenOverride((prev) => ({ ...prev, [clientId]: next }));
+  };
+  const orgTabsToast = (text) => {
+    try {
+      window.dispatchEvent(new CustomEvent("mgb:toast", { detail: { text } }));
+    } catch (e) {}
+  };
+
+  const toggleTab = async (key) => {
+    if (key === ALWAYS_VISIBLE_KEY || !canEditOrgTabs) return;
+    const sb = window.mgbSupabase;
+    if (!sb) return;
+    const clientId = client.id;
+    const prev =
+      orgHiddenLatestRef.current[clientId] || orgHiddenFor(client);
+    const set = new Set(prev);
+    if (set.has(key)) set.delete(key);
+    else set.add(key);
+    const next = normalizeHiddenTabs(Array.from(set));
+    applyOrgHidden(clientId, next);
+    const { data, error } = await sb
+      .from("clients")
+      .update({ hidden_tabs: next })
+      .eq("id", clientId)
+      .select("hidden_tabs");
+    if (error || !data || !data.length) {
+      // Nothing saved (no permission, offline): put the switch back.
+      applyOrgHidden(clientId, prev);
+      orgTabsToast(
+        "Couldn't save the tab change" +
+          (error && error.message ? `: ${error.message}` : ". Only admins can change Organization tabs."),
+      );
+      return;
+    }
+    applyOrgHidden(clientId, data[0].hidden_tabs);
+  };
+
+  // One-time copy of this browser's old Organization tabs setting for the
+  // open client up to the server, when an admin opens Organization tabs.
+  // Additive and safe: it only ever sets hidden keys, and the update itself
+  // only applies while the server has never held a value for this client
+  // (hidden_tabs = '{}' and hidden_tabs_updated_at is null; the column is
+  // stamped by trigger on every change, supabase/client-tab-rls-3.sql), so it
+  // never replaces a saved value, even one saved back to "none hidden".
+  const migrateLegacyHiddenTabs = async () => {
+    if (!canEditOrgTabs) return;
+    const sb = window.mgbSupabase;
+    if (!sb) return;
+    const clientId = client.id;
+    let done = {};
+    try {
+      done =
+        JSON.parse(localStorage.getItem(TAB_CONFIG_MIGRATED_STORAGE_KEY) || "{}") ||
+        {};
+    } catch (e) {
+      done = {};
+    }
+    if (done[clientId]) return;
+    const markDone = () => {
+      try {
+        const cur =
+          JSON.parse(localStorage.getItem(TAB_CONFIG_MIGRATED_STORAGE_KEY) || "{}") ||
+          {};
+        cur[clientId] = true;
+        localStorage.setItem(TAB_CONFIG_MIGRATED_STORAGE_KEY, JSON.stringify(cur));
+      } catch (e) {}
+    };
+    const local = normalizeHiddenTabs(legacyTabConfig[clientId]);
+    if (!local.length || orgHiddenFor(client).length) {
+      markDone();
+      return;
+    }
+    const { data, error } = await sb
+      .from("clients")
+      .update({ hidden_tabs: local })
+      .eq("id", clientId)
+      .eq("hidden_tabs", "{}")
+      .is("hidden_tabs_updated_at", null)
+      .select("hidden_tabs");
+    if (error) return; // try again next time Organization tabs opens
+    markDone();
+    if (!data || !data.length) {
+      // The server already had a setting this page hadn't loaded: show it.
+      const fresh = await sb
+        .from("clients")
+        .select("hidden_tabs")
+        .eq("id", clientId)
+        .maybeSingle();
+      if (!fresh.error && fresh.data) applyOrgHidden(clientId, fresh.data.hidden_tabs);
+      return;
+    }
+    applyOrgHidden(clientId, data[0].hidden_tabs);
+    orgTabsToast(
+      `Saved the tabs this browser had hidden for ${client.name}, so they're now hidden for everyone there.`,
+    );
   };
 
   const reorderTab = (sectionLabel, fromKey, toKey) => {
@@ -29469,11 +29628,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       resolveAccess(
         client,
         viewAsUserId,
-        new Set(tabConfig[selectedClientId] || []),
+        orgHiddenKeys,
         portalOverrideUser,
       ),
     // previewPlanRev: staff "Preview plan" is read inside resolveAccess.
-    [client, viewAsUserId, tabConfig, selectedClientId, portalOverrideUser, previewPlanRev],
+    [client, viewAsUserId, orgHiddenKeys, portalOverrideUser, previewPlanRev],
   );
 
   const scopedClient = useMemo(
@@ -31999,6 +32158,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           tabOrder={tabOrder}
           userAccess={userAccess}
           onToggle={toggleTab}
+          canEditOrgTabs={canEditOrgTabs}
+          onOpenOrgTabs={migrateLegacyHiddenTabs}
           onReorder={reorderTab}
           onToggleUserTab={toggleUserTab}
           onToggleUserCategory={toggleUserCategory}
@@ -32023,6 +32184,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           tabOrder={tabOrder}
           userAccess={userAccess}
           onToggle={toggleTab}
+          canEditOrgTabs={canEditOrgTabs}
+          onOpenOrgTabs={migrateLegacyHiddenTabs}
           onReorder={reorderTab}
           onToggleUserTab={toggleUserTab}
           onToggleUserCategory={toggleUserCategory}

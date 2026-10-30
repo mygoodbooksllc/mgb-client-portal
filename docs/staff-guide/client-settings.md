@@ -2,7 +2,7 @@
 title: Where are a client's Client setup (staff) and Settings (client)?
 section: Working with a client
 audience: staff
-keywords: [month rhythm, own rhythm, client rhythm, uses the firm rhythm, use the firm rhythm, client settings, client setup, settings, gear, milestone, help menu, question mark menu, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, pro tour, request access, theme, dark mode]
+keywords: [organization tabs, hide a tab, hidden tabs, month rhythm, own rhythm, client rhythm, uses the firm rhythm, use the firm rhythm, client settings, client setup, settings, gear, milestone, help menu, question mark menu, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, pro tour, request access, theme, dark mode]
 sort: 262
 ---
 Staff and clients open different things from the gear. Staff have **Client setup**. Clients have **Settings**.
@@ -16,6 +16,7 @@ Click **Client setup**. The page is called **Client setup**, and the browser tab
 
 - **Access and details** (staff only). Clients never see it.
   - **Manage access**: who at the client can sign in, what each person sees, and portal access requests. When there's a new request, the tab has a gold dot and the row says **New request**.
+    - **Organization tabs** (admins): turn a tab off and nobody at the client sees it, on any device, whatever their own access. **Home** always stays. Other staff see the switches grayed out.
   - **Client details**: contacts, QuickBooks connection, notes, SOP, activity and the client's other details.
   - **Month rhythm**: the client's three monthly days (see **A client's own month rhythm** below).
 

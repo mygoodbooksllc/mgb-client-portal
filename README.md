@@ -202,8 +202,14 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - This scoping currently only hides things in the app. The database does not yet filter
     QuickBooks rows by category (see [Known gaps](#known-gaps-and-roadmap)).
 - **Per org.** **Client setup** (staff) → **Manage access** has People / Organization tabs / Requests.
-  - The People and Organization tabs still work on **sample** users and per-browser settings
-    (see [Known gaps](#known-gaps-and-roadmap)).
+  - The People tab still works on **sample** users (see [Known gaps](#known-gaps-and-roadmap)).
+  - **Organization tabs** is saved on the client row (`clients.hidden_tabs`, since 2026-10-30), so
+    a tab turned off there is hidden in every login's browser and closed in the `qbo_*` RLS
+    (`supabase/client-tab-rls.sql`). Only admins can change it (policy "admins can update
+    clients"); everyone else sees the switches grayed out. The old per-browser setting
+    (`mygoodbooks_tab_config_v2`) is copied up once per client when an admin opens Organization
+    tabs, only while the server has never held a value (`hidden_tabs_updated_at` is null,
+    `supabase/client-tab-rls-3.sql`); it is never written or cleared. Home can't be hidden.
   - The Requests tab is real (`access_requests`).
 - **Preview.** Staff can "Preview as" a client user to see what that person sees.
 - **Plans: Basic and Pro.** Set per client in `clients.plan`, whose stored values are
@@ -2650,9 +2656,10 @@ Team Reviews files.
 - Per-person category scoping isn't enforced in the database for `qbo_*` rows. The helper
   `client_can_see_category()` exists (`client-scope-view.sql`) but the QuickBooks policies
   don't use it yet.
-- Manage access → Organization tabs and dashboard layouts are saved in each browser's
-  `localStorage`, not in Supabase, so they don't carry across devices or people. The People
-  tab edits sample users.
+- The Finances tab order (Manage access → Organization tabs, drag ⠿) and dashboard layouts are
+  saved in each browser's `localStorage`, not in Supabase, so they don't carry across devices or
+  people. Which tabs are hidden is on the server (`clients.hidden_tabs`). The People tab edits
+  sample users.
 - QuickBooks gaps: no account numbers (masks), bill memos not synced. Reconciliation is only a
   proxy (cleared flags on the last 13 months of bank and card transactions), and CDC only gates
   the full re-read; it doesn't merge deltas.
@@ -2711,6 +2718,7 @@ Team Reviews files.
 
 ## History
 
+- **2026-10-30:** **Organization tabs on the server** (label 2026-10-30c, S3 of the client tab RLS work). Manage access › Organization tabs now reads and writes `clients.hidden_tabs` (admins only; others see the switches grayed out with "Only admins can turn tabs on or off."), the roster load (`index.html` `loadClientsRoster`) maps it to `client.hiddenTabs`, and `resolveAccess` gets its org-hidden set from there, so a client's own browser hides the same tabs the `qbo_*` RLS already closes (before, a tab hidden on the server would open empty). One-time copy of an admin browser's old `mygoodbooks_tab_config_v2` setting per client when they open Organization tabs, only while the server never held a value; new `mygoodbooks_tab_config_migrated_v1` marks it done. Migration `client_tab_rls_3` applied (`supabase/client-tab-rls-3.sql`): `clients.hidden_tabs_updated_at` + stamp trigger, and `delete_client_budget_comment` now checks `can_use_client_tools(client_id, array['budget'])`. With no tabs hidden (every client today) nothing changes.
 - **2026-10-30:** **Client page drop + Documents upgrades** built behind a hidden preview (label 2026-10-30b, spec `docs/client-page-drop.md`). Phase 1 (4a1d1a6): tables/columns `client_file_access`, `client_files.access_mode` + `display_name`, RPCs, `drive-files` v8; review fixes d2635ce (`client-page-drop-2-fixes.sql`, another agent). Phase 2 (this commit): client logins drop a file on any page (phone: **+ Add a file**), pick a folder, a name, a document type and who at their organization can see it; staff Documents get a row ⋯ menu (Rename, Who can see it, Replace with a new version, Copy link, History), tick-to-move, file kind tags, folder rename, original Drive name in gray, an upload Who can see choice, and View as hides what that login can't see. Migration `client_page_drop_2_staff` applied (`client_file_rename`, `client_file_access_history`, Desk New file row uses `display_name`). Feature flags › **Client page drop + Documents upgrades preview** (`mgb_clientdrop_preview`); firm switches `client_page_drop_enabled` / `client_page_drop_pilot` / `client_upload_notify_enabled` stay unset. Staff notice `client-page-drop`, the client tour step, tip `docs-row-menu` and the guide text are **held drafts**: `docs/staff-guide/drafts/staff-guide-client-page-drop.md` + `supabase/staff-guide-client-page-drop.sql` (NOT applied).
 - **2026-10-28:** **Slate plus launched** (label 2026-10-28w): published the staff guide (new `slate-plus`, `slate-profiles`, `task-dependencies`, `custom-fields`, admin `slate-rules`; updated `my-tasks`, `task-lists-and-projects`, `task-details`, `team-page`, `top-bar`, `slate-tour`, `tips`, `whats-new`, `admin-insight`), one next-visit notice `slate-plus` (shown only once the firm switch is on, from `mgb_slateplus_cache`) with the `slateplus` tour (`TOUR_slatePlusSteps`, setting `slatePlusTour`, `TOUR_STAFF_TOURS` lists it only while `TKP_on()`), eight Slate plus tips (each waits for its target; they follow `TKP_on()`, so preview users see them early), `data-tour="tkp-reassign"` on the row's Reassign button, and the old client-search tip (`tb-search`) now steps aside while Slate plus is on (the one search has no In <client> results). No gate change: the per-person preview flag still works and does nothing extra once the switch is on. `slateplus_enabled` is not set by code; the owner sets it. Rules, `month_rhythm_enabled` and `agreements_client_enabled` untouched.
 - **2026-10-28:** Developer tools cleanup part 2 (label 2026-10-28u, `docs/devtools-cleanup-2026-10-28.md`): the 8 finished `Supabase SQL (...)` INFRA_LINKS rows became one pointer row, the 5 `slate-rhythm-1..5` rows became one, and the System info `Audit log read` row was removed. Asana import undo recipe is in `docs/asana-daily-import.md`. No database change.
