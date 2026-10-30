@@ -300,6 +300,19 @@ const TIPS_CATALOG = [
     slug: "document-requests",
   },
   {
+    // Staff Documents upgrades (docs/client-page-drop.md). The ⋯ only renders
+    // with the preview mgb_clientdrop_preview or the owner's switch on, so the
+    // tip waits for it and nobody else sees it.
+    id: "docs-row-menu",
+    roles: "all",
+    match: (r) => r.client && r.page === "documents",
+    target: "doc-row-menu",
+    snug: true,
+    text: "Each file's ⋯ renames it, sets who at the client can see it, replaces it with a new version, copies a link or shows its history. Tick files to move several at once.",
+    slug: "add-documents",
+    ready: () => !!document.querySelector('[data-tour="doc-row-menu"]'),
+  },
+  {
     id: "docs-agreements",
     roles: "all",
     match: (r) => r.client && r.page === "documents",

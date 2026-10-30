@@ -164,6 +164,21 @@ function ANN_slatePlusLaunchOn() {
   }
 }
 
+// True once the owner has switched the client page drop on for the firm
+// (tk_settings.client_page_drop_enabled, cached as mgb_clientdrop_cache by
+// CPD_readSwitch in components/client/CPD_gate.js; the cache is only written
+// while the switch is on), and never during View as. Deliberately not the
+// per-person preview mgb_clientdrop_preview: a preview person sees no launch text.
+function ANN_clientDropLaunchOn() {
+  try {
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
+    var v = JSON.parse(window.localStorage.getItem("mgb_clientdrop_cache") || "null");
+    return !!(v && v.enabled === true);
+  } catch (e) {
+    return false;
+  }
+}
+
 // True when the left sidebar's Pinned and Recent clients are on for this person.
 function ANN_sidebarOn() {
   try {
@@ -1752,6 +1767,48 @@ var ANN_REGISTRY = [
         },
       ];
     },
+  },
+  {
+    // Client page drop + Documents upgrades launch, HELD (DRAFT, not published): visible only once
+    // the owner flips tk_settings.client_page_drop_enabled (cached as mgb_clientdrop_cache), never in
+    // View as, never for the per-person preview alone. RE-DATE `date` to the launch day when the switch
+    // goes on, because the notice stops showing 60 days after `date`.
+    // Drafts: docs/staff-guide/drafts/staff-guide-client-page-drop.md (guide, tip, What's new, the
+    // client notice text) and supabase/staff-guide-client-page-drop.sql (run at launch only).
+    id: "client-page-drop",
+    date: "2026-10-30",
+    title: "Clients can drop files anywhere",
+    summary:
+      "Clients can now drop a file anywhere in the portal and choose its folder, name and who at their organization can see it. On a client's Documents page, each file's ⋯ renames it, sets who can see it, replaces it, copies a link or shows its history.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/clients",
+    visible: () => ANN_clientDropLaunchOn(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Clients can drop files anywhere",
+        body: () =>
+          "Clients no longer need the Documents page to send a file: they drop it on any page, or tap Add a file on a phone. About half a minute.",
+      },
+      {
+        id: "ann-client-drop",
+        title: "What the client chooses",
+        body: () =>
+          "A folder, a name, and who can see it: everyone at their organization, only some people, or everyone except some people. MyGoodBooks staff always see every file.",
+      },
+      {
+        id: "ann-docs-menu",
+        title: "Your Documents page",
+        body: () =>
+          "Open a client's Documents. Each file's ⋯ has Rename, Who can see it, Replace with a new version, Copy link and History. Tick several files to move them to a folder or the Trash together, and ✎ renames a folder.",
+      },
+      {
+        id: "ann-done",
+        title: "See it again",
+        body: () =>
+          "A lock on a file means only some people at the client can see it. To see this again, press ? and pick the launch, or read How do I add, file, hide or delete a client's documents? in Help.",
+      },
+    ],
   },
   {
     // Thread menu launch, HELD: visible only once the owner flips tk_settings.threadmenu_enabled

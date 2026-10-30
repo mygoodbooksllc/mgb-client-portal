@@ -1051,6 +1051,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by CPD_previewOn / CPD_useStaffGate (components/client/CPD_gate.js).
+    key: "mgb_clientdrop_preview",
+    label: "Client page drop + Documents upgrades preview",
+    description:
+      "For you only, in this browser, while the owner-only client_page_drop_enabled switch is off. On a client's Documents tab: rename files and folders, tick several rows to move, trash or restore them together, a file type tag, Who can see it on each file (read only until the switch is on for that client), Replace with a new version, Copy link and History. In View as a client login: the client page drop (drop a file anywhere, or Add a file on a phone) in a demo that never uploads, and Documents hides the files that login can't see. Staff only; clients see nothing until the switch is on. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     key: "mgb_wb_classic",
     label: "Classic Today",
     description:
@@ -1112,6 +1120,11 @@ const INFRA_LINKS = [
     name: "Supabase edge functions (Ask client)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/functions",
     note: "tk-client-requests (staff sends, JWT on) · tk-request-respond (the public /respond answer page, JWT off; token in a header, hashed, rate-limited) · client-emails runs the client-request-nudge cron · drive-files takes portal uploads to a request · no extra secrets (RESEND_API_KEY, Google service account)",
+  },
+  {
+    name: "Supabase (client page drop)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/functions",
+    note: "drive-files v8 takes display_name, access_mode and access_emails (refused unless client_page_drop_enabled is on for that client) · table client_file_access (who can or can't see a file) · RPCs client_page_drop_state, client_org_logins, client_file_set_access, client_file_rename, client_file_access_history · SQL in supabase/client-page-drop-1-core.sql and client-page-drop-2-staff.sql; plan in docs/client-page-drop.md",
   },
   {
     name: "Supabase cron (Tasks: recurring + time-off hand-off)",
@@ -14098,6 +14111,8 @@ function resettableLocalStorageKeys() {
     // Client agreements: mgb_ag_seen_card_v1 (set when a staff member first sees a client's Agreements card; holds the launch notice; cleared by Reset).
     // Thread menu (hidden preview): mgb_threadmenu_preview (a flag, kept),
     // mgb_threadmenu_cache (the firm switch threadmenu_enabled as last read by TM_gate.js, cleared by Reset).
+    // Client page drop (hidden preview): mgb_clientdrop_preview (a flag, kept),
+    // mgb_clientdrop_cache (client_page_drop_enabled + pilot as last read by CPD_gate.js, cleared by Reset).
     return Object.keys(localStorage).filter(
       (k) =>
         (k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_")) &&
@@ -15631,6 +15646,9 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["slateplus_enabled", "Slate plus for all staff (owner only)", "Launched 2026-10-28 (label 2026-10-28w): the guide articles are already synced (they describe Slate plus on, so flip promptly); the slate-plus next-visit notice, the Slate plus tour and its tips appear for everyone once this is true. True turns Slate plus on for every staff member. Off = only people with the Slate plus preview flag see it. Off (or missing, the default) keeps Slate exactly as it is for everyone: task comment @mentions work as before (full @ list, no note after posting, no highlight of your own name), the Slate page keeps its own search box and client filter (no filter bar, no Saved filters, no top-bar search across clients, tasks, projects and people), and there is no Team load or 4-week bars anywhere (Slate, Team › People or profiles). No person profiles (#/tasks/person/<key>), no profile links on assignees, Team or shout-outs, no separate reassign button, no profile customization, manager or direct reports view, and no Teams card on Team › People (saved profile settings and teams stay stored, unseen). No Blocked by section, chip, Blocked group, Close order step or Ready to start notice (dependencies someone added with the preview still hold their task until done or removed). Slate keeps its text sidebar (no icon rail, hover menus or lists panel). No hours used / budget chip beside a client or in the Assign to menu. No Calendar button (month grid of tasks by due date) on Slate lists. No project status updates on project pages and no Portfolio page (#/tasks/portfolio); updates already posted stay stored, unseen. No Rules page (#/tasks/rules) and no rule ever runs, switched on or not; saved rules stay stored, unseen. No Fields button on project or client headers, no custom field rows in task details and no field chips on rows (fields and values already saved stay stored, unseen). The New project form stays as it is (no people, client, color, description, due date, Start from or visibility summary; descriptions and due dates already saved stay stored, unseen). Owner turns it on (true) from the SQL editor (override first; see the README Slate plus launch checklist), never from here. Never shown to clients; off in View as; Team load is read only (admins and account managers see everyone's load, others only their own)."],
             ["deskplus_enabled", "Desk additions for staff", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk exactly as it is for everyone: no Ledger chip in the Inbox, no Waiting on client, recent messages or recent files on the Client tab, no Ask client or Message buttons there, and no Ask client…, Message… or Time off in the + menu. Owner turns it on (true) from the SQL editor (override first; see the README Desk additions launch checklist), never from here, to give those to every staff member who has the Desk. Each person can try it early with Desk additions preview in Feature flags. Needs the Desk on (wb_enabled, unless the person picked Classic Today)."],
             ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Nothing emails clients and nothing orders gifts either way."],
+            ["client_page_drop_enabled", "Client page drop + who can see a file (owner only)", "Off (or missing, the default): clients drop files only on Documents and Basic Home as before, every file is seen by everyone at the client, and drive-files refuses any who-can-see rule. Staff with the Client page drop preview flag try it alone (View as is a demo that never uploads). Owner turns it on (true) with one SQL line, never from here, together with client_page_drop_pilot: then those clients can drop a file anywhere in the portal (Add a file on phones), name it, pick a folder and type, and choose Everyone, Only these people or Everyone except; staff Documents get the upgrades for everyone. Off again: the rules already saved still apply, no new ones can be set."],
+            ["client_page_drop_pilot", "Client page drop: which clients", "Owner only. \"all\" or a list of client ids. Missing or empty = no client, even with the switch on. Read by the database (cpd__on) and by the portal; code never writes it."],
+            ["client_upload_notify_enabled", "Email the account manager on a client upload", "Off (or missing, the default): a client's upload shows only in the Desk Inbox New file list. On (true): the client's account manager also gets the usual \"added a document\" email, only for clients the client page drop is on for, only for uploads by a client login. Owner sets it; never from here."],
             ["agreements_client_enabled", "Client agreements on for clients", "Off (or missing, the default): clients see no Agreements card at all; staff still add and edit agreements on each client's Documents tab, and the card there says clients don't see them yet. Owner turns it on (true) with one SQL line, never from here: then each client sees, read only, the agreements staff marked Visible to client (never the staff note). Off again hides them. Nothing is emailed and nothing can be signed either way."],
             ["org_gift_basis", "Client gifts: anniversary to follow", "Which anniversary Team › Client gifts and the weekly digest follow, for the whole firm: established (the founding date, the default; not set means this; Client since is used for clients whose founding date is Not sure or blank) or client_since (Client since, when an admin picks it). Admins change it on Team › Client gifts › Anniversary to follow (every change audited; the database refuses any other value)."],
             ["slate_app_enabled", "Slate app on for staff", "On since 2026-10-25 (launched for Monday 2026-10-26): every staff member gets the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app), plus the launch notice and tour. Owner-only, set with one SQL line, never from here; read-only here. Off (or missing) would put Slate back the way it was for everyone (Open in own window opens the old small window) right away."],
@@ -16933,6 +16951,7 @@ function StaffTeamThread({ chat, hideTitle }) {
   return (
     <div
       className={"card message-card" + (isDragging ? " dragging" : "")}
+      data-drop-owner="messages"
       onDragOver={(e) => {
         e.preventDefault();
         setIsDragging(true);
@@ -17467,6 +17486,12 @@ const USAGE_ACTION_LABELS = {
   "wb-filter": "Desk filters and tabs",
   "wb-scope": "Desk Mine / Everyone switches",
   "wb-drawer": "Desk opened",
+  // Client page drop (docs/client-page-drop.md); detail after the ":".
+  "client-page-drop": "Client page drop: files added from anywhere (demo: View as preview)",
+  "doc-access": "Documents: who can see a file changed",
+  "doc-bulk": "Documents: several files moved, trashed or restored together",
+  "doc-rename": "Documents: files or folders renamed",
+  "doc-replace": "Documents: a file replaced with a new version",
   // Grouped by the part before the first ":" (usage-stats-2.sql), so the
   // Desk additions clicks wb-hub:client-waiting, wb-hub:client-msg,
   // wb-hub:client-file, wb-hub:client-ask and wb-hub:client-message count here too.
@@ -22818,7 +22843,7 @@ const DOC_STAFF_FOLDER = "\u0000staff-only";
 // links with trashed_at set (supabase/document-trash.sql). Restorable.
 const DOC_TRASH_FOLDER = "\u0000trash";
 
-function DocumentsPage({ client, isBookkeeper, searchTarget }) {
+function DocumentsPage({ client, isBookkeeper, searchTarget, viewAsEmail }) {
   // Folders are shared per client in the database (components/client/
   // DocFolders.jsx); "local" is the per-browser fallback for prototype
   // clients and signed-out use.
@@ -22856,6 +22881,23 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const [uploadYear, setUploadYear] = useState(() => DRV_currentYear());
   const [copyingLegacy, setCopyingLegacy] = useState(false);
   const docSb = window.mgbSupabase || null;
+  // Client page drop + staff Documents upgrades (docs/client-page-drop.md;
+  // components/client/DocPlus.jsx). `plus` is staff only and false while
+  // the preview flag mgb_clientdrop_preview and the firm switch are both
+  // off; then this page renders exactly as it did before. viewAsEmail: the
+  // login a staff member is viewing as (View as), for the who-can-see filter.
+  const cpdStaff = CPD_useStaffGate(!!isBookkeeper || !!viewAsEmail);
+  const plus = !!cpdStaff.plus && (!!isBookkeeper || !!viewAsEmail);
+  const canSetAccess = !!isBookkeeper && cpdStaff.onFor(client.id);
+  const clientCpd = CPD_useClientState(!isBookkeeper && !viewAsEmail);
+  const [accessTick, setAccessTick] = useState(0);
+  const accessRows = DP_useAccessRows(docSb, client.id, plus, accessTick);
+  const [uploadAccess, setUploadAccess] = useState({ mode: "everyone", emails: [] });
+  const [selected, setSelected] = useState(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [dpModal, setDpModal] = useState(null); // { kind: rename | folder | access | history, ... }
+  const replaceInputRef = useRef(null);
+  const replaceForRef = useRef(null);
 
   const loadRemoteDocs = useCallback(async () => {
     const fm = await DF_load(docSb, client.id);
@@ -22969,7 +23011,15 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         driveId: r.id,
         source: "drive",
         staffOnly: r.visibility === "internal",
-        name: r.name,
+        // display_name: a name set at upload or by a rename (client page
+        // drop); the Drive file keeps its own name (origName).
+        name: r.display_name || r.name,
+        origName: r.name,
+        accessMode: r.access_mode,
+        uploadedByEmail: r.uploaded_by || "",
+        mime: r.mime || "",
+        year: r.year || null,
+        docType: r.doc_type || null,
         category: r.visibility === "internal" ? "Staff only" : r.doc_type || "Uploaded",
         uploadedBy: isBookkeeper ? r.uploaded_by || "" : fromStaff(r.uploaded_by) ? "MyGoodBooks" : "Your organization",
         date: String(r.uploaded_at || "").slice(0, 10),
@@ -23073,6 +23123,15 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const newFolderInputRef = useRef(null);
   const showToast = useToast();
   const { flashCardId, jumpToCard } = useCardFlash();
+  // The client page drop files into the folder the client has open.
+  useEffect(() => {
+    if (isBookkeeper || viewAsEmail) return undefined;
+    CPD_setOpenFolder(activeFolder && activeFolder !== DOC_STAFF_FOLDER && activeFolder !== DOC_TRASH_FOLDER ? activeFolder : null);
+    return () => CPD_setOpenFolder(null);
+  }, [activeFolder, isBookkeeper, viewAsEmail]);
+  useEffect(() => {
+    setSelected((s) => (s.size ? new Set() : s));
+  }, [activeFolder]);
 
   useEffect(() => {
     if (searchTarget)
@@ -23100,19 +23159,31 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   // <client>/trash/<sub>/; links flip trashed_at. Trash never empties on
   // its own; only Delete forever (below) removes anything.
   const [trashBusy, setTrashBusy] = useState(null);
+  // One item to Trash or back; resolve to an error (or null).
+  const trashOne = async (d) => {
+    if (d.source === "link") {
+      const { error } = await docSb.from("client_documents").update({ trashed_at: new Date().toISOString() }).eq("id", d.id);
+      return error;
+    }
+    // Google Drive's own trash: nothing is deleted.
+    if (d.source === "drive") return DRV_trash(d.driveId).then(() => null, (e) => e);
+    const rel = d.path.slice(client.id.length + 1);
+    const { error } = await docSb.storage.from("client-uploads").move(d.path, `${client.id}/trash/${rel}`);
+    return error;
+  };
+  const restoreOne = async (d) => {
+    if (d.source === "link") {
+      const { error } = await docSb.from("client_documents").update({ trashed_at: null }).eq("id", d.id);
+      return error;
+    }
+    if (d.source === "drive") return DRV_restore(d.driveId).then(() => null, (e) => e);
+    const { error } = await docSb.storage.from("client-uploads").move(d.path, d.restorePath);
+    return error;
+  };
   const trashDoc = async (d) => {
     if (!docSb || trashBusy) return;
     setTrashBusy(d.key);
-    let error = null;
-    if (d.source === "link") {
-      ({ error } = await docSb.from("client_documents").update({ trashed_at: new Date().toISOString() }).eq("id", d.id));
-    } else if (d.source === "drive") {
-      // Google Drive's own trash: nothing is deleted.
-      error = await DRV_trash(d.driveId).then(() => null, (e) => e);
-    } else {
-      const rel = d.path.slice(client.id.length + 1);
-      ({ error } = await docSb.storage.from("client-uploads").move(d.path, `${client.id}/trash/${rel}`));
-    }
+    const error = await trashOne(d);
     setTrashBusy(null);
     if (error) {
       showToast(`Couldn't move ${d.name} to Trash: ${error.message}`);
@@ -23129,14 +23200,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const restoreDoc = async (d) => {
     if (!docSb || trashBusy) return;
     setTrashBusy(d.key);
-    let error = null;
-    if (d.source === "link") {
-      ({ error } = await docSb.from("client_documents").update({ trashed_at: null }).eq("id", d.id));
-    } else if (d.source === "drive") {
-      error = await DRV_restore(d.driveId).then(() => null, (e) => e);
-    } else {
-      ({ error } = await docSb.storage.from("client-uploads").move(d.path, d.restorePath));
-    }
+    const error = await restoreOne(d);
     setTrashBusy(null);
     if (error) {
       showToast(`Couldn't restore ${d.name}: ${error.message}`);
@@ -23219,6 +23283,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           visibility: staffView ? "internal" : "shared",
           docType: isBookkeeper ? uploadDocType : "Other",
           year: isBookkeeper ? uploadYear : undefined,
+          ...(plus && canSetAccess && !staffView && uploadAccess.mode !== "everyone"
+            ? { accessMode: uploadAccess.mode, accessEmails: uploadAccess.emails }
+            : {}),
         });
         ok += 1;
         if (activeFolder && !staffView && res.file) filed.push("drive:" + res.file.id);
@@ -23330,6 +23397,144 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     if (activeFolder === name) setActiveFolder(null);
   };
 
+  // ---- Documents upgrades (plus only; components/client/DocPlus.jsx) ----
+  const bulkOn = plus && !!isBookkeeper;
+  const isRestricted = (d) => d.source === "drive" && (d.accessMode === "only" || d.accessMode === "except");
+  const pickedDocs = () => [...docs, ...trashDocs].filter((d) => selected.has(d.key));
+  const toggleSelected = (key) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
+      return n;
+    });
+  const afterBulk = (verb, ok, fails) => {
+    setBulkBusy(false);
+    setSelected(new Set());
+    showToast(fails.length ? `${verb} ${ok} of ${ok + fails.length}. Couldn't do ${fails[0]}.` : `${verb} ${ok} document${ok === 1 ? "" : "s"}.`);
+    WB_filesChanged(client.id);
+    loadRemoteDocs();
+  };
+  const bulkMove = async (folder) => {
+    const list = pickedDocs().filter((d) => !d.trashed);
+    if (!list.length || bulkBusy) return;
+    setBulkBusy(true);
+    const keys = list.map((d) => d.key);
+    const err = await DF_assign(docSb, client.id, folderMode, keys, folder);
+    setBulkBusy(false);
+    if (err) {
+      showToast(`Couldn't move them: ${err}`);
+      return;
+    }
+    setDocs((all) => all.map((x) => (keys.includes(x.key) ? { ...x, folder: folder || null } : x)));
+    setSelected(new Set());
+    MGB_track("doc-bulk", "move:" + keys.length);
+    showToast(`Moved ${keys.length} document${keys.length === 1 ? "" : "s"} to ${folder || "Unfiled"}.`);
+  };
+  const bulkTrash = async () => {
+    const list = pickedDocs().filter((d) => !d.trashed && d.source !== "sample");
+    if (!list.length || bulkBusy) return;
+    setBulkBusy(true);
+    let ok = 0;
+    const fails = [];
+    for (const d of list) {
+      const e = await trashOne(d);
+      if (e) fails.push(d.name);
+      else ok += 1;
+    }
+    MGB_track("doc-bulk", "trash:" + ok);
+    afterBulk("Moved to Trash:", ok, fails);
+  };
+  const bulkRestore = async () => {
+    const list = pickedDocs().filter((d) => d.trashed);
+    if (!list.length || bulkBusy) return;
+    setBulkBusy(true);
+    let ok = 0;
+    const fails = [];
+    for (const d of list) {
+      const e = await restoreOne(d);
+      if (e) fails.push(d.name);
+      else ok += 1;
+    }
+    MGB_track("doc-bulk", "restore:" + ok);
+    afterBulk("Restored", ok, fails);
+  };
+  // Rename a file: Drive files change the shown name only (client_file_rename);
+  // links rename the link.
+  const renameDoc = async (d, value) => {
+    const c = CPD_cleanName(value);
+    if (c.error) return c.error;
+    let error = null;
+    if (d.source === "drive") {
+      ({ error } = await docSb.rpc("client_file_rename", { p_file_id: d.driveId, p_display_name: c.value }));
+    } else if (d.source === "link") {
+      ({ error } = await docSb.from("client_documents").update({ name: c.value }).eq("id", d.id));
+    } else return "This file can't be renamed.";
+    if (error) return CPD_errorText({ message: error.message });
+    MGB_track("doc-rename", d.source);
+    showToast(`Renamed to “${c.value}”.`);
+    WB_filesChanged(client.id);
+    loadRemoteDocs();
+    return null;
+  };
+  const renameFolder = async (from, to) => {
+    const err = await DF_renameFolder(docSb, client.id, folderMode, from, to);
+    if (err) return `Couldn't rename “${from}”: ${err}`;
+    setFolders((f) => f.map((x) => (x === from ? to : x)));
+    setDocs((all) => all.map((x) => (x.folder === from ? { ...x, folder: to } : x)));
+    setTrashDocs((all) => all.map((x) => (x.folder === from ? { ...x, folder: to } : x)));
+    if (activeFolder === from) setActiveFolder(to);
+    MGB_track("doc-rename", "folder");
+    showToast(`Renamed the folder to “${to}”.`);
+    return null;
+  };
+  const onReplacePicked = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    const d = replaceForRef.current;
+    replaceForRef.current = null;
+    if (!f || !d) return;
+    if (f.size > 25 * 1024 * 1024) {
+      showToast(`${f.name} is ${formatBytes(f.size)}. Files are capped at 25 MB.`);
+      return;
+    }
+    setTrashBusy(d.key);
+    const err = await DP_replaceFile({
+      sb: docSb,
+      clientId: client.id,
+      folderMode,
+      d,
+      file: f,
+      accessEmails: accessRows[d.driveId] || [],
+    });
+    setTrashBusy(null);
+    if (err) showToast(`Couldn't replace ${d.name}: ${err}`);
+    else showToast(`Replaced ${d.name} with ${f.name}. The old version is in Trash.`);
+    MGB_track("doc-replace", err ? "fail" : "ok");
+    WB_filesChanged(client.id);
+    setAccessTick((t) => t + 1);
+    loadRemoteDocs();
+  };
+  const rowMenu = (d) => {
+    const items = [];
+    if (!d.trashed && (d.source === "drive" || d.source === "link"))
+      items.push({ label: "Rename", onClick: () => setDpModal({ kind: "rename", d }) });
+    if (!d.trashed && d.source === "drive" && !d.staffOnly)
+      items.push({ label: "Who can see it", onClick: () => setDpModal({ kind: "access", d }) });
+    if (!d.trashed && d.source === "drive")
+      items.push({
+        label: "Replace with a new version",
+        disabled: !!trashBusy,
+        onClick: () => {
+          replaceForRef.current = d;
+          if (replaceInputRef.current) replaceInputRef.current.click();
+        },
+      });
+    if (!d.trashed) items.push({ label: "Copy link", onClick: () => DP_copyLink(client.id, d.key, showToast) });
+    if (d.source === "drive") items.push({ label: "History", onClick: () => setDpModal({ kind: "history", d }) });
+    return items.length ? <DP_RowMenu label={`More for ${d.name}`} items={items} /> : null;
+  };
+
   // "Full Access Only" filters down to the visibility flag itself
   // (set on the sample documents) rather than some separate "shared with me"
   // concept — this app's documents only ever carry that one binary flag
@@ -23342,14 +23547,27 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const hasRestrictedDocs = docs.some((d) => d.visibility === "full");
   const staffView = isBookkeeper && activeFolder === DOC_STAFF_FOLDER;
   const trashView = isBookkeeper && activeFolder === DOC_TRASH_FOLDER;
+  // View as (preview): hide the files this login can't see under the
+  // who-can-see rules, so staff see what the client sees.
+  const viewAsHidden =
+    plus && viewAsEmail
+      ? docs.filter(
+          (d) =>
+            // A client login never sees staff-only files; the staff session
+            // that View as runs on can still list them.
+            (d.staffOnly && !d.trashed) ||
+            (isRestricted(d) && !CPD_loginSees(d.accessMode, accessRows[d.driveId], viewAsEmail)),
+        )
+      : [];
+  const shownDocs = viewAsHidden.length ? docs.filter((d) => !viewAsHidden.includes(d)) : docs;
   const folderFiltered =
     activeFolder === null
-      ? docs
+      ? shownDocs
       : trashView
         ? trashDocs
       : staffView
         ? docs.filter((d) => d.staffOnly)
-        : docs.filter((d) => d.folder === activeFolder);
+        : shownDocs.filter((d) => d.folder === activeFolder);
   const docQuery = docSearch.trim().toLowerCase();
   const visibleDocs = (
     visFilter === "full"
@@ -23393,7 +23611,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         >
           <FolderIcon width="14" height="14" strokeWidth="1.8" />
           All Documents
-          <span className="doc-folder-count">{docs.length}</span>
+          <span className="doc-folder-count">{shownDocs.length}</span>
         </button>
         {isBookkeeper && (
           <button
@@ -23420,7 +23638,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           </button>
         )}
         {folders.map((name) => {
-          const count = docs.filter((d) => d.folder === name).length;
+          const count = shownDocs.filter((d) => d.folder === name).length;
           return (
             <button
               type="button"
@@ -23433,6 +23651,27 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
               <FolderIcon width="14" height="14" strokeWidth="1.8" />
               {name}
               <span className="doc-folder-count">{count}</span>
+              {plus && isBookkeeper && (
+                <span
+                  className="doc-folder-rename"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Rename folder ${name}`}
+                  title="Rename folder"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDpModal({ kind: "folder", name });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.stopPropagation();
+                      setDpModal({ kind: "folder", name });
+                    }
+                  }}
+                >
+                  ✎
+                </span>
+              )}
               <span
                 className="doc-folder-remove"
                 role="button"
@@ -23492,6 +23731,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           "card upload-card dropzone" + (isDragging ? " dragging" : "")
         }
         style={{ marginBottom: 20 }}
+        data-drop-owner="documents"
         onClick={() => fileInputRef.current.click()}
         onDragOver={(e) => {
           e.preventDefault();
@@ -23553,6 +23793,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                     <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
+                {plus && canSetAccess && !staffView && (
+                  <DP_UploadAccess sb={docSb} clientId={client.id} orgName={client.name} value={uploadAccess} onChange={setUploadAccess} />
+                )}
               </React.Fragment>
             ) : driveInfo.connected === false ? (
               <span className="tp-muted" style={{ fontSize: 12.5 }}>
@@ -23596,6 +23839,11 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
               click a document to open it
               {remoteState === "loading" ? " · loading…" : ""}
             </p>
+            {viewAsHidden.length > 0 && (
+              <p className="cpd-chip dp-viewas-chip">
+                Viewing as {viewAsEmail}: {viewAsHidden.length} file{viewAsHidden.length === 1 ? "" : "s"} they can't see {viewAsHidden.length === 1 ? "is" : "are"} hidden
+              </p>
+            )}
           </div>
           <div className="doc-tools" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {isBookkeeper && driveInfo.connected && driveInfo.legacyCount > 0 && (
@@ -23653,10 +23901,39 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             </div>
           )}
         </div>
+        {bulkOn && (
+          <DP_BulkBar
+            count={selected.size}
+            folders={folders}
+            trashView={trashView}
+            busy={bulkBusy}
+            onMove={bulkMove}
+            onTrash={bulkTrash}
+            onRestore={bulkRestore}
+            onClear={() => setSelected(new Set())}
+          />
+        )}
         <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>
+                {bulkOn && (
+                  <th className="dp-check-col">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all shown"
+                      checked={
+                        visibleDocs.some((d) => d.source !== "sample") &&
+                        visibleDocs.filter((d) => d.source !== "sample").every((d) => selected.has(d.key))
+                      }
+                      onChange={(e) =>
+                        setSelected(
+                          e.target.checked ? new Set(visibleDocs.filter((d) => d.source !== "sample").map((d) => d.key)) : new Set(),
+                        )
+                      }
+                    />
+                  </th>
+                )}
                 <th>Name</th>
                 <th>Category</th>
                 <th>Uploaded By</th>
@@ -23671,7 +23948,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             </thead>
             <tbody>
               {remoteState === "error" && (
-                <EmptyRow colSpan={isBookkeeper ? 8 : 6}>
+                <EmptyRow colSpan={(isBookkeeper ? 8 : 6) + (bulkOn ? 1 : 0)}>
                   Some documents couldn't be loaded.{" "}
                   <button type="button" className="btn-secondary" onClick={loadRemoteDocs}>
                     Try again
@@ -23679,7 +23956,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                 </EmptyRow>
               )}
               {visibleDocs.length === 0 && remoteState !== "loading" && (
-                <EmptyRow colSpan={isBookkeeper ? 8 : 6}>
+                <EmptyRow colSpan={(isBookkeeper ? 8 : 6) + (bulkOn ? 1 : 0)}>
                   {docQuery
                     ? "No documents match that search."
                     : trashView
@@ -23709,6 +23986,18 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                       if (e.key === "Enter") openDoc(d, i);
                     }}
                   >
+                    {bulkOn && (
+                      <td className="dp-check-col" data-label="" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                        {d.source !== "sample" && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${d.name}`}
+                            checked={selected.has(d.key)}
+                            onChange={() => toggleSelected(d.key)}
+                          />
+                        )}
+                      </td>
+                    )}
                     <td data-primary="">
                       <span className="doc-name-link">
                         <FileIcon
@@ -23719,6 +24008,33 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                         />
                         {d.name}
                       </span>
+                      {plus && isBookkeeper && d.origName && d.origName !== d.name && (
+                        <span className="dp-orig" title="The file's own name">
+                          {d.origName}
+                        </span>
+                      )}
+                      {!isBookkeeper && isRestricted(d) && (
+                        <span className="cpd-chip">
+                          {viewAsEmail
+                            ? CPD_accessBadge(d.accessMode, (accessRows[d.driveId] || []).length)
+                            : d.accessMode === "only"
+                              ? "Only some people"
+                              : "Hidden from some people"}
+                        </span>
+                      )}
+                      {!isBookkeeper && !viewAsEmail && clientCpd.enabled && d.source === "drive" && d.accessMode != null && !d.trashed && (
+                        <button
+                          type="button"
+                          className="cpd-row-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDpModal({ kind: "access", d, who: "client" });
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          Who can see
+                        </button>
+                      )}
                     </td>
                     <td data-label="Category">
                       <span
@@ -23727,6 +24043,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                       >
                         {d.category}
                       </span>
+                      {plus && isBookkeeper && d.source !== "link" && (
+                        <span className="dp-type-tag">{CPD_fileTypeTag(d.origName || d.name, d.mime)}</span>
+                      )}
                     </td>
                     <td data-label="Uploaded by">{d.uploadedBy}</td>
                     <td data-label="Date">{fmtDate(d.date)}</td>
@@ -23761,11 +24080,20 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                         <span
                           className={
                             "visibility-toggle" +
-                            (d.visibility === "full" || d.staffOnly ? " restricted" : "")
+                            (d.visibility === "full" || d.staffOnly || isRestricted(d) ? " restricted" : "")
                           }
                         >
                           {d.trashed ? (
                             "Staff only (in Trash)"
+                          ) : isRestricted(d) ? (
+                            <React.Fragment>
+                              <LockIcon />{" "}
+                              {plus
+                                ? CPD_accessBadge(d.accessMode, (accessRows[d.driveId] || []).length)
+                                : d.accessMode === "only"
+                                  ? "Only some people"
+                                  : "Hidden from some people"}
+                            </React.Fragment>
                           ) : d.staffOnly ? (
                             <React.Fragment>
                               <LockIcon /> Staff only
@@ -23811,6 +24139,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                             Delete forever
                           </button>
                           )}
+                          {plus && rowMenu(d)}
                           </span>
                         ) : (
                           <span className="doc-actions-row">
@@ -23839,6 +24168,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                           >
                             <TrashIcon width="15" height="15" />
                           </button>
+                          {plus && rowMenu(d)}
                           </span>
                         )}
                       </td>
@@ -23875,6 +24205,70 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           confirmLabel="Delete forever"
           onConfirm={deleteForever}
           onCancel={() => setDeletePending(null)}
+        />
+      )}
+
+      {bulkOn && (
+        <input ref={replaceInputRef} type="file" style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={onReplacePicked} />
+      )}
+      {dpModal && dpModal.kind === "rename" && (
+        <DP_RenameModal
+          title="Rename file"
+          label="Name"
+          initial={dpModal.d.name}
+          hint={
+            dpModal.d.source === "drive"
+              ? `Changes the name everyone sees here. The file in Google Drive keeps its own name (${dpModal.d.origName || dpModal.d.name}). Leave it blank to go back to that name.`
+              : null
+          }
+          maxLength={CPD_NAME_MAX}
+          validate={(v) => (dpModal.d.source === "drive" && !v ? null : CPD_cleanName(v).error)}
+          onSave={(v) => renameDoc(dpModal.d, v || dpModal.d.origName || dpModal.d.name)}
+          onClose={() => setDpModal(null)}
+        />
+      )}
+      {dpModal && dpModal.kind === "folder" && (
+        <DP_RenameModal
+          title="Rename folder"
+          label="Folder name"
+          initial={dpModal.name}
+          hint="Its documents stay in it. Everyone on this client's Documents page sees the new name."
+          maxLength={60}
+          validate={(v) => CPD_folderNameError(v, folders, dpModal.name)}
+          onSave={(v) => renameFolder(dpModal.name, v)}
+          onClose={() => setDpModal(null)}
+        />
+      )}
+      {dpModal && dpModal.kind === "access" && (
+        <CPD_AccessModal
+          sb={docSb}
+          clientId={client.id}
+          orgName={client.name}
+          file={{
+            id: dpModal.d.driveId,
+            name: dpModal.d.name,
+            origName: dpModal.d.origName,
+            uploadedBy: dpModal.d.uploadedByEmail,
+            accessMode: dpModal.d.accessMode,
+          }}
+          who={dpModal.who === "client" ? "client" : "staff"}
+          meEmail=""
+          canSave={dpModal.who === "client" ? clientCpd.enabled : canSetAccess}
+          offNote="Saving a rule turns on when the owner switches on the client page drop for this client."
+          onSaved={() => {
+            setAccessTick((t) => t + 1);
+            WB_filesChanged(client.id);
+            loadRemoteDocs();
+          }}
+          onClose={() => setDpModal(null)}
+          showToast={showToast}
+        />
+      )}
+      {dpModal && dpModal.kind === "history" && (
+        <DP_HistoryModal
+          sb={docSb}
+          file={{ driveId: dpModal.d.driveId, name: dpModal.d.name, origName: dpModal.d.origName }}
+          onClose={() => setDpModal(null)}
         />
       )}
 
@@ -24417,6 +24811,7 @@ function MessagesPage({
         className={
           "card message-card msg-page-card" + (unavailable ? " msg-page-card--off" : "") + (isDragging ? " dragging" : "")
         }
+        data-drop-owner="messages"
         onDragOver={(e) => {
           if (unavailable || readOnlyNote) return;
           e.preventDefault();
@@ -25902,6 +26297,7 @@ function TabSettingsModal({
                           : "")
                       }
                       draggable={!locked}
+                      data-drop-owner="reorder"
                       onDragStart={() => setDraggedKey(item.key)}
                       onDragOver={(e) => {
                         e.preventDefault();
@@ -27037,6 +27433,9 @@ const PAGE_META = {
   },
   documents: {
     title: "Documents",
+    // Client page drop: files can be added from any page once the owner's
+    // switch is on for the client (components/client/ClientPageDrop.jsx);
+    // the title stays the same.
     subtitle: "Shared files between you and your bookkeeper",
   },
   messages: {
@@ -29446,6 +29845,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // session". A client-portal session is never the bookkeeper, whatever the
   // view-as state happens to say.
   const isStaffSession = !clientPortalUser;
+  // Client page drop (components/client/ClientPageDrop.jsx): the firm switch
+  // for a real client login (client_page_drop_state); false for staff.
+  const cpdClientState = CPD_useClientState(!isStaffSession);
 
   // Customizable boards save to the signed-in account
   // (components/dashboard/WidgetDrawer.jsx). Staff "View as" and client-user
@@ -30331,6 +30733,22 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           currentClient={onStaffPage ? null : client}
         />
       )}
+      {typeof CPD_ClientPageDrop === "function" && !showStaffRail && !NON_CLIENT_PAGES.has(effectivePage) && (() => {
+        // Basic Home has its own page-wide drop (BasicHome.jsx).
+        const basicHomeOwnsPage = effectivePage === "dashboard" && access.plan === "basic" && typeof BasicHome === "function";
+        const hasDocs = access.tabs.has("documents") && !basicHomeOwnsPage;
+        return (
+          <CPD_ClientPageDrop
+            enabled={!isStaffSession && hasDocs && cpdClientState.enabled}
+            // Staff View as with the preview flag: the same drop, uploads stubbed.
+            demo={isStaffSession && !!isPreviewingUser && hasDocs && CPD_previewOn()}
+            client={scopedClient || client}
+            sb={window.mgbSupabase || null}
+            demoEmail={access.user && access.user.email}
+            page={effectivePage}
+          />
+        );
+      })()}
       <div
         className={
           "app-shell" +
@@ -31414,6 +31832,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <DocumentsPage
               client={scopedClient}
               isBookkeeper={isStaffSession && !isPreviewingUser}
+              viewAsEmail={isStaffSession && isPreviewingUser && access.user ? access.user.email : null}
               searchTarget={
                 searchTarget && searchTarget.page === "documents"
                   ? searchTarget

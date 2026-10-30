@@ -556,6 +556,20 @@ function TOUR_cadence(plan) {
   return plan === "premium" ? "every hour" : plan === "standard" ? "weekly" : "monthly";
 }
 
+// Client page drop (docs/client-page-drop.md): the Documents step mentions
+// dropping a file anywhere only when the drop is on for this client login
+// (client_page_drop_state, read once by CPD_gate.js), or for staff in View as
+// with the per-person preview mgb_clientdrop_preview on (they get the demo).
+// While the owner's switch is off, real clients keep the old wording.
+function TOUR_clientDropOn(ctx) {
+  try {
+    if (ctx && ctx.preview) return typeof CPD_previewOn === "function" && CPD_previewOn();
+    return !!(typeof CPD__client !== "undefined" && CPD__client.value && CPD__client.value.enabled);
+  } catch (e) {
+    return false;
+  }
+}
+
 // How the books stay current, the same words wherever the client tour says
 // it: from QuickBooks on the plan's schedule, or by the bookkeeper when the
 // client has no QuickBooks connection.
@@ -696,7 +710,9 @@ function TOUR_clientSteps(ctx) {
       targets: ["doc-upload"],
       title: "Documents",
       body: () =>
-        "When your bookkeeper asks for something, like a bank statement or a receipt, upload it here. You'll see a reminder until it's in.",
+        TOUR_clientDropOn(ctx)
+          ? "Drop a file anywhere in the portal, or upload it here. You pick the folder, a name, and who at your organization can see it. When your bookkeeper asks for something, you'll see a reminder until it's in."
+          : "When your bookkeeper asks for something, like a bank statement or a receipt, upload it here. You'll see a reminder until it's in.",
     },
     {
       id: "messages",

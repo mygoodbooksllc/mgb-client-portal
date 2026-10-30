@@ -373,6 +373,8 @@ function WD_useDragReorder(layout) {
     // a neighbor; dropping only ends the grab.
     dragProps: (id) => ({
       "data-wd-id": id,
+      // The client page drop (ClientPageDrop.jsx) leaves drops here alone.
+      "data-drop-owner": "widgets",
       draggable: true,
       onDragStart: () => {
         lastTarget.current = null;
@@ -588,6 +590,7 @@ function WD_OnBoardList({ title, ids, widgets, layout, rowRefs, onRemove }) {
                 (overId === id && draggedId && draggedId !== id ? " is-over" : "")
               }
               draggable
+              data-drop-owner="widgets"
               onDragStart={(e) => {
                 setDraggedId(id);
                 try {

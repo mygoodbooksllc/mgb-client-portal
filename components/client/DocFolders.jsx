@@ -102,6 +102,21 @@ async function DF_removeFolder(sb, clientId, mode, name) {
   return error ? error.message : null;
 }
 
+// Renames a folder; its documents go with it (the database cascades the
+// folder name onto document_folder_items: ON UPDATE CASCADE).
+async function DF_renameFolder(sb, clientId, mode, from, to) {
+  if (!to || from === to) return null;
+  if (mode !== "shared") {
+    const cur = loadDocFolders(clientId);
+    const assignments = {};
+    Object.entries(cur.assignments).forEach(([k, f]) => (assignments[k] = f === from ? to : f));
+    saveDocFolders(clientId, cur.folders.map((f) => (f === from ? to : f)), assignments);
+    return null;
+  }
+  const { error } = await sb.from("document_folders").update({ name: to }).eq("client_id", clientId).eq("name", from);
+  return error ? error.message : null;
+}
+
 // Files one or more documents (by key) into a folder, or Unfiled when
 // folder is empty.
 async function DF_assign(sb, clientId, mode, keys, folder) {
