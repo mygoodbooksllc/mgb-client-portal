@@ -285,10 +285,11 @@ async function doUpload(req: Request, admin: SupabaseClient) {
     }
     const { data: old } = await admin
       .from("client_files")
-      .select("id, client_id, uploaded_by, trashed_at, legacy_path")
+      .select("id, client_id, uploaded_by, trashed_at, legacy_path, visibility")
       .eq("id", replacesRaw)
       .maybeSingle();
-    if (!old || old.client_id !== clientId || old.trashed_at || old.legacy_path) {
+    if (!old || old.client_id !== clientId || old.trashed_at || old.legacy_path ||
+        (old.visibility !== "shared" && old.visibility !== "internal")) {
       throw new HttpError(400, "That file can't be replaced (it's gone, in Trash or an old upload).", "bad_replace");
     }
     replaced = { id: old.id, uploaded_by: old.uploaded_by };

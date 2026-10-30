@@ -25655,6 +25655,7 @@ function ConfirmModal({
   title,
   body,
   confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
   onConfirm,
   onCancel,
 }) {
@@ -25683,7 +25684,7 @@ function ConfirmModal({
       </div>
       <div className="modal-footer">
         <button className="btn-secondary" onClick={onCancel}>
-          Cancel
+          {cancelLabel}
         </button>
         <button
           className="btn-primary"
@@ -27056,6 +27057,9 @@ const TAB_CONFIG_STORAGE_KEY = "mygoodbooks_tab_config_v2";
 // { [clientId]: true } once this browser's old setting for that client has
 // been dealt with (copied up, or skipped because the server already had one).
 const TAB_CONFIG_MIGRATED_STORAGE_KEY = "mygoodbooks_tab_config_migrated_v1";
+// { [clientId]: true } once an admin answered "Not now" to the copy-up prompt
+// in this browser, so it does not ask again here.
+const TAB_CONFIG_DISMISSED_STORAGE_KEY = "mygoodbooks_tab_config_dismissed_v1";
 
 function loadTabConfig() {
   try {
@@ -28529,6 +28533,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // Read-only copy of the old per-browser org-hidden tabs (see
   // TAB_CONFIG_STORAGE_KEY); only migrateLegacyHiddenTabs uses it.
   const [legacyTabConfig] = useState(loadTabConfig);
+  const [legacyTabPrompt, setLegacyTabPrompt] = useState(null); // { clientId, clientName, tabs }
   // Org-hidden tabs saved in this session, by client id, on top of
   // client.hiddenTabs from the roster (so the change shows at once).
   const [orgHiddenOverride, setOrgHiddenOverride] = useState({});
@@ -29520,6 +29525,49 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       markDone();
       return;
     }
+    let dismissed = {};
+    try {
+      dismissed =
+        JSON.parse(localStorage.getItem(TAB_CONFIG_DISMISSED_STORAGE_KEY) || "{}") ||
+        {};
+    } catch (e) {
+      dismissed = {};
+    }
+    if (dismissed[clientId]) return;
+    // Hiding tabs for a client's users is visible to them, so ask first.
+    setLegacyTabPrompt({ clientId, clientName: client.name, tabs: local });
+  };
+
+  const dismissLegacyTabPrompt = () => {
+    const p = legacyTabPrompt;
+    setLegacyTabPrompt(null);
+    if (!p) return;
+    try {
+      const cur =
+        JSON.parse(localStorage.getItem(TAB_CONFIG_DISMISSED_STORAGE_KEY) || "{}") ||
+        {};
+      cur[p.clientId] = true;
+      localStorage.setItem(TAB_CONFIG_DISMISSED_STORAGE_KEY, JSON.stringify(cur));
+    } catch (e) {}
+  };
+
+  const confirmLegacyTabPrompt = async () => {
+    const p = legacyTabPrompt;
+    setLegacyTabPrompt(null);
+    if (!p || !canEditOrgTabs) return;
+    const sb = window.mgbSupabase;
+    if (!sb) return;
+    const clientId = p.clientId;
+    const local = p.tabs;
+    const markDone = () => {
+      try {
+        const cur =
+          JSON.parse(localStorage.getItem(TAB_CONFIG_MIGRATED_STORAGE_KEY) || "{}") ||
+          {};
+        cur[clientId] = true;
+        localStorage.setItem(TAB_CONFIG_MIGRATED_STORAGE_KEY, JSON.stringify(cur));
+      } catch (e) {}
+    };
     const { data, error } = await sb
       .from("clients")
       .update({ hidden_tabs: local })
@@ -29541,7 +29589,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     }
     applyOrgHidden(clientId, data[0].hidden_tabs);
     orgTabsToast(
-      `Saved the tabs this browser had hidden for ${client.name}, so they're now hidden for everyone there.`,
+      `Saved the tabs this browser had hidden for ${p.clientName}, so they're now hidden for everyone there.`,
     );
   };
 
@@ -32203,6 +32251,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         />
       )}
 
+      {legacyTabPrompt && (
+        <ConfirmModal
+          title="Hide these tabs for everyone?"
+          body={`This browser has hidden tabs for ${legacyTabPrompt.clientName}: ${legacyTabPrompt.tabs
+            .map((k) => NAV_LABEL_BY_KEY[k] || k)
+            .join(", ")}. Hide them for everyone at ${legacyTabPrompt.clientName}?`}
+          confirmLabel="Hide"
+          cancelLabel="Not now"
+          onConfirm={confirmLegacyTabPrompt}
+          onCancel={dismissLegacyTabPrompt}
+        />
+      )}
       {settingsOpen && (
         <TabSettingsModal
           scope="access"
