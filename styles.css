@@ -2596,6 +2596,10 @@ th {
   margin-bottom: 16px;
 }
 
+/* The cards above the folder bar (requests, chaser, agreements) have no bottom
+   margin, so the pills touched the last card. Space the bar off whatever precedes it. */
+* + .doc-folder-bar { margin-top: 16px; }
+
 .doc-folder-pill {
   display: inline-flex;
   align-items: center;
