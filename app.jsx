@@ -1126,7 +1126,7 @@ const INFRA_LINKS = [
   {
     name: "Supabase SQL files: see supabase/*.sql and the README",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "Finished migrations (Tasks bulk actions + undo, close checklist, late-task grace period, Workbench, manage projects, project colors, unassigned + Asana import, client org profile + gifts) are all applied; each file in supabase/ has its own -tests.sql and the README describes them. Asana import undo recipe: docs/asana-daily-import.md. Hidden or unlaunched features keep their own rows below.",
+    note: "Finished migrations (Tasks bulk actions + undo, close checklist, late-task grace period, Desk, manage projects, project colors, unassigned + Asana import, client org profile + gifts) are all applied; each file in supabase/ has its own -tests.sql and the README describes them. Asana import undo recipe: docs/asana-daily-import.md. Hidden or unlaunched features keep their own rows below.",
   },
   {
     name: "Slate month rhythm SQL (slate-rhythm-1..5)",
@@ -5872,7 +5872,7 @@ const CLOSE_STEPS_EVENT = "mgb:close-steps-context";
 // Fired after any sign-off RPC (and by the Ledger tab) so the Close tab,
 // checklist and counts reload.
 const GL_REVIEW_EVENT = "mgb:gl-review-changed";
-// Workbench (components/workbench/WB_store.js) refetches on this: a client
+// Desk (components/workbench/WB_store.js) refetches on this: a client
 // file was trashed or restored on Documents, so "New file" rows stay true.
 function WB_filesChanged(clientId) {
   try {
@@ -28202,7 +28202,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const [chatWidgetOpen, setChatWidgetOpen] = useState(false);
   // Staff chat drawer (components/inbox/StaffInbox.jsx): null when closed,
   // else {clientId, email?, seq?} — the client whose threads it opens on, if
-  // any, and (from the Workbench hub's Reply) the person's thread to open.
+  // any, and (from the Desk hub's Reply) the person's thread to open.
   const [siDrawer, setSiDrawer] = useState(null);
   // The chat drawer and the client tasks panel share the right edge: opening
   // chat closes the panel (TK_ClientDrawer.jsx).
@@ -29588,7 +29588,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   useEffect(() => {
     if (!siStaffChat || effectivePage === "inbox") setSiDrawer(null);
   }, [siStaffChat, effectivePage]);
-  // The Workbench hub's Reply (components/workbench/WB_store.js, WB_hubOpen):
+  // The Desk hub's Reply (components/workbench/WB_store.js, WB_hubOpen):
   // open the chat drawer on that client and person so the page under the hub
   // never changes. It sets detail.handled when it took the request, and
   // declines (so the hub follows the thread's link instead) when staff chat
@@ -30871,7 +30871,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               page={effectivePage}
             />
           )}
-          {/* Desk (was Workbench; components/workbench/WB_Drawer.jsx): an info
+          {/* Desk ( components/workbench/WB_Drawer.jsx): an info
               bar at the bottom and a slim rail on the right of every staff
               page; D or a click opens the right column. Renders nothing while
               the Desk is off; never while viewing as someone, previewing or

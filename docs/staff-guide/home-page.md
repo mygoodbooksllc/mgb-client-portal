@@ -2,7 +2,7 @@
 title: What's on my Today page?
 section: Getting started
 audience: staff
-keywords: [do next, clients needing attention, waiting on others, this week card, recent clients, count line, also needs you, workbench, press w, handbook, sign policy, countersign, today, home, start page, tasks, task details, needs you, needs you now, now, this week, replies waiting, tasks due today, overdue, closes open, tiles, reminders, milestones to review, recently viewed, also show, show everything, access requests, upgrade requests, bills, deadlines, client at risk, review due, sop, coverage, all clear, nothing needs you, desk, slate]
+keywords: [do next, clients needing attention, waiting on others, this week card, recent clients, count line, also needs you, desk, press w, handbook, sign policy, countersign, today, home, start page, tasks, task details, needs you, needs you now, now, this week, replies waiting, tasks due today, overdue, closes open, tiles, reminders, milestones to review, recently viewed, also show, show everything, access requests, upgrade requests, bills, deadlines, client at risk, review due, sop, coverage, all clear, nothing needs you, desk, slate]
 sort: 40
 ---
 **Today** is your starting point: the one thing to do next, and a few small cards about everything around it. It's the first of the five places in the left rail (**Today**, **Inbox**, **Work**, **Clients**, **Team**), and it opens when you sign in unless you picked another start page in [Settings](#/help/staff-settings).

@@ -599,7 +599,7 @@ var ANN_REGISTRY = [
         id: "ann-welcome",
         title: "Your Desk, updated",
         body: () =>
-          "The Workbench is now called the Desk, it has a new glass look, you can make it taller or shorter, and the page stays usable while it is open. The shortcut is now D. About a minute.",
+          "The Desk has a new glass look, you can make it taller or shorter, and the page stays usable while it is open. The shortcut is now D. About a minute.",
       },
       {
         id: "ann-bar",
@@ -635,23 +635,21 @@ var ANN_REGISTRY = [
     id: "desk-rename",
     date: "2026-10-17",
     // Wording follows whether the Desk is on for this person: someone who
-    // never had the Workbench only hears about Slate.
+    // never had the Desk only hears about Slate.
     get title() {
-      return ANN_deskOn() ? "Workbench is now Desk, Tasks is now Slate" : "Tasks is now Slate";
+      return "Tasks is now Slate";
     },
     get summary() {
-      return ANN_deskOn()
-        ? "Two names changed and nothing else: the Workbench is now the Desk, and Tasks is now Slate. Your tasks, lists and shortcuts are all where they were."
-        : "One name changed and nothing else: Tasks is now Slate. Your tasks, lists and shortcuts are all where they were.";
+      return "One name changed and nothing else: Tasks is now Slate. Your tasks, lists and shortcuts are all where they were.";
     },
     roles: ["admin", "bookkeeper"],
     hash: "#/tasks/my",
     steps: (ctx) => [
       {
         id: "ann-welcome",
-        title: ANN_deskOn() ? "Two new names" : "Tasks is now Slate",
+        title: "Tasks is now Slate",
         body: () =>
-          (ANN_deskOn() ? "The Workbench is now the Desk, and Tasks is now Slate." : "Tasks is now Slate.") +
+          "Tasks is now Slate." +
           " Only the names changed: your tasks, lists, projects and keyboard shortcuts work the same. About a minute.",
       },
       {
@@ -785,11 +783,11 @@ var ANN_REGISTRY = [
   {
     id: "workbench-launch",
     date: "2026-10-16",
-    title: "The Workbench",
+    title: "The Desk",
     summary: "Today is now one ordered list of everything that needs you (tasks, reviews, client messages, Ledger flags and new client files), and a drawer at the bottom of every page shows it too. Press D.",
     roles: ["admin", "bookkeeper"],
     hash: "#/today",
-    // Only once the Workbench is on for this person (the owner's wb_enabled
+    // Only once the Desk is on for this person (the owner's wb_enabled
     // switch and no Classic Today), so nobody is toured through
     // tiles they can't see. Classic Today keeps it waiting.
     ready: () => typeof WB_store !== "undefined" && !!WB_store.getState().on,
@@ -827,7 +825,7 @@ var ANN_REGISTRY = [
           id: "ann-done",
           title: "That's it",
           body: () =>
-            "Messages you've answered, tasks you've finished and files you've checked drop off by themselves. To see this again, press ? and pick New: The Workbench tour, or read Use the Workbench in the guide.",
+            "Messages you've answered, tasks you've finished and files you've checked drop off by themselves. To see this again, press ? and pick New: The Desk tour, or read Use the Desk in the guide.",
         },
       ];
     },

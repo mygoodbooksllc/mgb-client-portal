@@ -2,7 +2,7 @@
 title: How do I message a client or a teammate?
 section: Daily work
 audience: staff
-keywords: [no reply needed, workbench, inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, deleted message, unsend, 24 hours, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email, desk]
+keywords: [no reply needed, desk, inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, deleted message, unsend, 24 hours, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email, desk]
 sort: 140
 ---
 The **Inbox** (in the left rail) holds client conversations and team chat in one place. The bell in the top bar also lists client messages waiting for a reply.
