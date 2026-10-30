@@ -15,13 +15,29 @@
 -- document_folder_items policy, the message-link trigger guard, and that
 -- the account-manager upload email stays silent while its switch is off.
 --
+-- Review fixes (supabase/client-page-drop-2-fixes.sql) add: F1 the drive:
+-- key parse (old and new match agree on every folder item, malformed keys
+-- never raise), F2 inactive or removed excluded people stay excluded, F3 a
+-- failing account-manager email never blocks an upload, F4
+-- client_docs_tab_ok says nothing about other clients, F5 display names
+-- only on shared rows (a client's only while on) and staff may reset to
+-- everyone while the switch is off.
+--
+-- Section 7 runs the switch-ON paths: it writes the three switch rows
+-- (client_page_drop_enabled, client_page_drop_pilot = ["grace-community"],
+-- client_upload_notify_enabled) with the owner override set locally, INSIDE
+-- this transaction only. They vanish at the ROLLBACK, like everything else,
+-- and no other session ever sees them. Section 7 also adds a throwaway
+-- trigger on notification_outbox (to force a failure), which is rolled
+-- back too; it holds a lock on notification_outbox for the last moments
+-- of the run.
+--
 -- Run it whole; it ends in ROLLBACK, so nothing it writes is kept. It uses
 -- the test clients grace-community and basic-test, with throwaway logins
 -- (example.invalid) and throwaway client_files rows that live only inside
--- this transaction. It never writes tk_settings: checks that depend on the
--- firm switch read it once and expect the matching result. No names or
--- emails of real people live in this file; staff are picked at run time.
--- A failed check raises and stops the run.
+-- this transaction. Sections 1-6 read the real switch once and expect the
+-- matching result. No names or emails of real people live in this file;
+-- staff are picked at run time. A failed check raises and stops the run.
 -- =====================================================================
 begin;
 
@@ -196,8 +212,24 @@ insert into t_ctx select 'atomic', (public.cfa_insert_file_with_access(jsonb_bui
     'year', 2026, 'doc_type', 'Reports', 'visibility', 'shared', 'uploaded_by', 'CPD-A@example.invalid'),
     'only', array['cpd-b@example.invalid'])).id::text;
 reset role;
-select pg_temp.ok((select access_mode = 'only' and display_name = 'Board  minutes' and uploaded_by = 'cpd-a@example.invalid' from client_files where id = pg_temp.ctx('atomic')::uuid),
-                  'atomic insert stored mode, trimmed display name, lower-case uploader');
+select pg_temp.ok((select access_mode = 'only' and uploaded_by = 'cpd-a@example.invalid'
+                           and display_name is not distinct from case when pg_temp.ctx('sw') = 'on' then 'Board  minutes' end
+                      from client_files where id = pg_temp.ctx('atomic')::uuid),
+                  'atomic insert stored mode and lower-case uploader; a client''s display name only while the switch is on (F5)');
+set local role service_role;
+insert into t_ctx select 'atomic_staff', (public.cfa_insert_file_with_access(jsonb_build_object(
+    'client_id', 'grace-community', 'drive_file_id', 'cpd-selftest-atomic-staff', 'name', 'staff.pdf', 'display_name', '  Year end pack ',
+    'year', 2026, 'doc_type', 'Reports', 'visibility', 'shared', 'uploaded_by', pg_temp.ctx('ad')),
+    'everyone', '{}')).id::text;
+insert into t_ctx select 'atomic_internal', (public.cfa_insert_file_with_access(jsonb_build_object(
+    'client_id', 'grace-community', 'drive_file_id', 'cpd-selftest-atomic-internal', 'name', 'int.pdf', 'display_name', 'Hidden name',
+    'year', 2026, 'doc_type', 'Other', 'visibility', 'internal', 'uploaded_by', pg_temp.ctx('ad')),
+    'everyone', '{}')).id::text;
+reset role;
+select pg_temp.ok((select display_name = 'Year end pack' from client_files where id = pg_temp.ctx('atomic_staff')::uuid),
+                  'F5: staff may name a shared file at upload, switch on or off');
+select pg_temp.ok((select display_name is null from client_files where id = pg_temp.ctx('atomic_internal')::uuid),
+                  'F5: a display name is dropped on a non-shared row');
 select pg_temp.ok((select array_agg(email order by email) from client_file_access where file_id = pg_temp.ctx('atomic')::uuid)
                   = array['cpd-a@example.invalid', 'cpd-b@example.invalid'], 'atomic insert list includes the uploader');
 select pg_temp.ok(pg_temp.ctx('nsw') = 'on' or not exists (select 1 from notification_outbox where ref_id = pg_temp.ctx('atomic')),
@@ -288,13 +320,23 @@ select case when pg_temp.ctx('sw') = 'off' then pg_temp.expect_err(
 select case when pg_temp.ctx('sw') = 'off' then pg_temp.ok(
          (select count(*) from public.client_org_logins()) = 0 and not (public.client_page_drop_state() ->> 'enabled')::boolean,
          'switch off: client_org_logins() is empty and state.enabled is false') end;
+select pg_temp.as_client('cpd-b@example.invalid');
+select case when pg_temp.ctx('sw') = 'off' then pg_temp.ok(not pg_temp.sees('except'),
+         'switch off: a rule already set keeps applying (B still cannot see the except file)') end;
 select pg_temp.as_staff(pg_temp.ctx('ad'));
 select case when pg_temp.ctx('sw') = 'off' then pg_temp.expect_err(
-         format($q$select public.client_file_set_access(%L::uuid, 'everyone', '{}')$q$, pg_temp.ctx('only')),
-         'feature_off', 'switch off: staff cannot change access either') end;
-select case when pg_temp.ctx('sw') = 'on' then pg_temp.ok(
-         (public.client_file_set_access(pg_temp.ctx('except')::uuid, 'everyone', '{}') ->> 'access_mode') = 'everyone',
-         'switch on: staff can reset a rule to everyone') end;
+         format($q$select public.client_file_set_access(%L::uuid, 'only', array['cpd-b@example.invalid'])$q$, pg_temp.ctx('staffonly')),
+         'feature_off', 'switch off: staff cannot set a rule') end;
+select case when pg_temp.ctx('sw') = 'off' then pg_temp.expect_err(
+         format($q$select public.client_file_set_access(%L::uuid, 'everyone', '{}', 'New name')$q$, pg_temp.ctx('staffonly')),
+         'feature_off', 'switch off: staff cannot rename through set_access') end;
+select pg_temp.ok(
+         (public.client_file_set_access(pg_temp.ctx('staffonly')::uuid, 'everyone', '{}') ->> 'access_mode') = 'everyone',
+         'F5: staff can reset a rule to everyone (switch on or off)');
+select pg_temp.ok(not exists (select 1 from client_file_access where file_id = pg_temp.ctx('staffonly')::uuid), 'reset cleared the list');
+select pg_temp.ok(public.client_docs_tab_ok('grace-community'), 'F4: staff (not a member) get true from client_docs_tab_ok');
+select pg_temp.as_client('cpd-x@example.invalid');
+select pg_temp.ok(public.client_docs_tab_ok('grace-community'), 'F4: another org gets true for grace-community (nothing leaks)');
 reset role;
 
 -- ---------------------------------------------------------------------
@@ -319,8 +361,196 @@ values ('grace-community', 'drive:' || pg_temp.ctx('plain'), 'CPD selftest folde
 select pg_temp.ok((select count(*) from document_folder_items where folder = 'CPD selftest folder') = 3,
                   'A can file a readable drive: item');
 reset role;
+-- F1: malformed and upper-case drive: keys never raise and never match.
+insert into document_folder_items (client_id, doc_key, folder)
+values ('grace-community', 'drive:------------------------------------', 'CPD selftest folder'),
+       ('grace-community', 'drive:' || replace(pg_temp.ctx('plain'), '-', 'a'), 'CPD selftest folder'),
+       ('grace-community', 'drive:' || upper(pg_temp.ctx('plain')), 'CPD selftest folder'),
+       ('grace-community', 'drive:' || pg_temp.ctx('plain') || 'x', 'CPD selftest folder');
+set local role authenticated;
+select pg_temp.as_client('cpd-a@example.invalid');
+select pg_temp.ok((select count(*) from document_folder_items where folder = 'CPD selftest folder') = 3,
+                  'F1: malformed / upper-case drive: keys raise nothing and stay hidden from A');
+select pg_temp.as_staff(pg_temp.ctx('ad'));
+select pg_temp.ok((select count(*) from document_folder_items where folder = 'CPD selftest folder') >= 0,
+                  'F1: staff read the folder with malformed keys in it without an error');
+reset role;
+select pg_temp.ok((select count(*) from document_folder_items d
+                    where exists (select 1 from client_files f where f.client_id = d.client_id and d.doc_key = 'drive:' || f.id::text)
+                          is distinct from
+                          exists (select 1 from client_files f where f.client_id = d.client_id
+                                     and f.id = case when d.doc_key ~ '^drive:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                                                     then substr(d.doc_key, 7)::uuid end)) = 0,
+                  'F1: the old text match and the new uuid match agree on every folder item (real rows + test rows)');
 select pg_temp.ok(position($q$visibility = 'message'$q$ in pg_get_functiondef('public.client_messages_link_drive_file'::regproc)) > 0,
                   'message-link trigger only links message (or internal-note) files');
+
+-- ---------------------------------------------------------------------
+-- 7. Switch ON paths. The switch rows are written INSIDE this transaction
+--    (owner override set locally, cleared right after) and vanish at the
+--    ROLLBACK below; no other session ever sees them.
+-- ---------------------------------------------------------------------
+select set_config('mgb.tk_owner_override', 'on', true);
+insert into tk_settings (key, value) values
+  ('client_page_drop_enabled', 'true'::jsonb),
+  ('client_page_drop_pilot', '["grace-community"]'::jsonb),
+  ('client_upload_notify_enabled', 'true'::jsonb)
+on conflict (key) do update set value = excluded.value;
+select set_config('mgb.tk_owner_override', '', true);
+select pg_temp.ok(public.cpd__on('grace-community') and not public.cpd__on('basic-test'),
+                  'switch on (this transaction only): grace-community in the pilot, basic-test not');
+
+-- The upload email needs an active staff account manager on the client.
+update clients set account_manager_email = pg_temp.ctx('ad')
+ where id = 'grace-community'
+   and not exists (select 1 from staff s where s.active and lower(s.email) = lower(clients.account_manager_email));
+insert into t_ctx select 'am', lower(account_manager_email) from clients where id = 'grace-community';
+
+insert into client_users (email, client_id, name, role, active, access, tabs) values
+  ('cpd-e1@example.invalid', 'grace-community', 'CPD Excluded Inactive', 'Team member', true, 'full', null),
+  ('cpd-e2@example.invalid', 'grace-community', 'CPD Excluded Removed', 'Team member', true, 'full', null);
+with ins as (
+  insert into client_files (client_id, drive_file_id, name, year, doc_type, visibility, uploaded_by)
+  values ('grace-community', 'cpd-selftest-on1-' || gen_random_uuid(), 'on1.pdf', 2026, 'Other', 'shared', 'cpd-a@example.invalid'),
+         ('grace-community', 'cpd-selftest-on2-' || gen_random_uuid(), 'on2.pdf', 2026, 'Other', 'shared', 'cpd-a@example.invalid'),
+         ('grace-community', 'cpd-selftest-on3-' || gen_random_uuid(), 'on3.pdf', 2026, 'Other', 'shared', pg_temp.ctx('ad')),
+         ('grace-community', 'cpd-selftest-on4-' || gen_random_uuid(), 'on4.pdf', 2026, 'Other', 'internal', 'cpd-a@example.invalid')
+  returning id, name)
+insert into t_ctx select split_part(name, '.', 1), id::text from ins;
+
+-- 7a. Upload email (F3 + the trigger itself)
+select pg_temp.ok(exists (select 1 from notification_outbox
+                           where ref_id = pg_temp.ctx('on1') and kind = 'staff_doc_upload'
+                             and recipient_email = pg_temp.ctx('am') and payload ->> 'page_drop' = 'true'),
+                  'switch on: a client login''s shared upload queues the account-manager email');
+select pg_temp.ok(not exists (select 1 from notification_outbox where ref_id in (pg_temp.ctx('on3'), pg_temp.ctx('on4'))),
+                  'no email for a staff upload or a non-shared row');
+set local role service_role;
+insert into t_ctx select 'on5', (public.cfa_insert_file_with_access(jsonb_build_object(
+    'client_id', 'grace-community', 'drive_file_id', 'cpd-selftest-on5', 'name', 'on5.pdf', 'display_name', 'Bank statements',
+    'year', 2026, 'doc_type', 'Other', 'visibility', 'shared', 'uploaded_by', 'cpd-a@example.invalid'),
+    'except', array['cpd-b@example.invalid'])).id::text;
+reset role;
+select pg_temp.ok((select display_name = 'Bank statements' and access_mode = 'except' from client_files where id = pg_temp.ctx('on5')::uuid),
+                  'switch on: a client upload keeps its display name and rule (F5)');
+select pg_temp.ok(exists (select 1 from notification_outbox where ref_id = pg_temp.ctx('on5') and payload ->> 'title' = 'Bank statements'),
+                  'the upload email uses the display name');
+
+-- 7b. Documents tab
+set local role authenticated;
+select pg_temp.as_client('cpd-s@example.invalid');
+select pg_temp.ok(not pg_temp.sees('plain') and not pg_temp.sees('on1'),
+                  'switch on: a scoped login without the Documents tab is hidden from shared files');
+select pg_temp.ok(not public.client_docs_tab_ok('grace-community') and public.client_docs_tab_ok('basic-test'),
+                  'switch on: client_docs_tab_ok false for its own client, true (F4) for one it is not in');
+select pg_temp.ok((select count(*) from public.client_org_logins()) = 0 and not (public.client_page_drop_state() ->> 'enabled')::boolean,
+                  'switch on: no Documents tab = empty org list and state.enabled false');
+select pg_temp.as_client('cpd-t@example.invalid');
+select pg_temp.ok(pg_temp.sees('plain') and pg_temp.sees('on1'), 'switch on: a scoped login with the Documents tab sees shared files');
+select pg_temp.as_client('cpd-n@example.invalid');
+select pg_temp.ok(pg_temp.sees('plain'), 'switch on: scoped with tabs NULL sees shared files');
+select pg_temp.as_client('cpd-x@example.invalid');
+select pg_temp.ok(public.client_docs_tab_ok('grace-community') and not pg_temp.sees('plain'),
+                  'switch on: another org gets true from client_docs_tab_ok (F4) and still sees nothing');
+
+-- 7c. client_org_logins + state
+select pg_temp.as_client('cpd-a@example.invalid');
+select pg_temp.ok((select count(*) from public.client_org_logins() where email like 'cpd-%@example.invalid') = 7,
+                  'switch on: client_org_logins returns the active test logins (a, b, s, t, n, e1, e2)');
+select pg_temp.ok((select email = 'cpd-a@example.invalid' and is_me from public.client_org_logins() limit 1),
+                  'client_org_logins puts the caller first, flagged is_me');
+select pg_temp.ok(not exists (select 1 from public.client_org_logins() where email in ('cpd-off@example.invalid', 'cpd-x@example.invalid', 'cpd-bs@example.invalid')),
+                  'client_org_logins leaves out inactive and other-org logins');
+select pg_temp.ok((public.client_page_drop_state() ->> 'enabled')::boolean and (public.client_page_drop_state() ->> 'notify_account_manager')::boolean,
+                  'switch on: state enabled and notify_account_manager true');
+
+-- 7d. The uploader changes access
+select pg_temp.ok((public.client_file_set_access(pg_temp.ctx('on1')::uuid, 'only', array['cpd-b@example.invalid'], 'Q3 board pack') -> 'emails')
+                  = '["cpd-a@example.invalid", "cpd-b@example.invalid"]'::jsonb,
+                  'switch on: the uploader sets only B (and is force-added)');
+select pg_temp.ok((select display_name = 'Q3 board pack' and access_mode = 'only' from client_files where id = pg_temp.ctx('on1')::uuid),
+                  'the uploader''s rule and display name are stored');
+select pg_temp.as_client('cpd-t@example.invalid');
+select pg_temp.ok(not pg_temp.sees('on1'), 'an unlisted login no longer sees it');
+select pg_temp.as_client('cpd-b@example.invalid');
+select pg_temp.ok(pg_temp.sees('on1'), 'the listed login sees it');
+select pg_temp.expect_err(format($q$select public.client_file_set_access(%L::uuid, 'everyone', '{}')$q$, pg_temp.ctx('on1')),
+                          'forbidden', 'switch on: a non-uploader client still cannot change it');
+select pg_temp.as_client('cpd-a@example.invalid');
+-- (Read the row in a separate statement: one statement sees its own start snapshot.)
+select pg_temp.ok((public.client_file_set_access(pg_temp.ctx('on1')::uuid, 'everyone', '{}', '') ->> 'access_mode') = 'everyone',
+                  'the uploader resets to everyone');
+select pg_temp.ok((select display_name is null from client_files where id = pg_temp.ctx('on1')::uuid),
+                  'and the display name goes back to the file name');
+select pg_temp.as_staff(pg_temp.ctx('ad'));
+select pg_temp.expect_err(format($q$select public.client_file_set_access(%L::uuid, 'everyone', '{}', 'Name')$q$, pg_temp.ctx('on4')),
+                          'bad_access_mode', 'F5: no display name through set_access on a non-shared row');
+select pg_temp.ok((public.client_file_set_access(pg_temp.ctx('on3')::uuid, 'except', array['cpd-b@example.invalid']) ->> 'access_mode') = 'except',
+                  'switch on: staff set a rule on a staff upload');
+
+-- 7e. F2: excluded people whose login goes inactive or is removed stay excluded
+reset role;
+select pg_temp.ok(public.cfa__apply_access(pg_temp.ctx('on2')::uuid, 'except',
+                  array['cpd-b@example.invalid', 'cpd-e1@example.invalid', 'cpd-e2@example.invalid'], 'cpd-a@example.invalid') = 3,
+                  'on2 excludes B, E1, E2');
+update client_users set active = false where email = 'cpd-e1@example.invalid';
+delete from client_users where email = 'cpd-e2@example.invalid';  -- a throwaway login inserted above
+set local role authenticated;
+select pg_temp.as_client('cpd-a@example.invalid');
+select pg_temp.ok((public.client_file_set_access(pg_temp.ctx('on2')::uuid, 'except', array['cpd-b@example.invalid']) -> 'emails')
+                  = '["cpd-b@example.invalid", "cpd-e1@example.invalid", "cpd-e2@example.invalid"]'::jsonb,
+                  'F2: re-saving with only the active checklist keeps the inactive and the removed excluded people');
+select pg_temp.ok((public.client_file_set_access(pg_temp.ctx('on2')::uuid, 'except', array['cpd-b@example.invalid', 'cpd-e1@example.invalid']) -> 'emails')
+                  = '["cpd-b@example.invalid", "cpd-e1@example.invalid", "cpd-e2@example.invalid"]'::jsonb,
+                  'F2: sending an inactive excluded person explicitly is accepted');
+reset role;
+insert into client_users (email, client_id, name, role, active, access, tabs)
+values ('cpd-e2@example.invalid', 'grace-community', 'CPD Excluded Removed', 'Team member', true, 'full', null);
+set local role authenticated;
+select pg_temp.as_client('cpd-e2@example.invalid');
+select pg_temp.ok(not pg_temp.sees('on2'), 'F2: a re-created login is still excluded');
+select pg_temp.as_client('cpd-a@example.invalid');
+select pg_temp.ok((public.client_file_set_access(pg_temp.ctx('on2')::uuid, 'except', array['cpd-b@example.invalid']) -> 'emails')
+                  = '["cpd-b@example.invalid", "cpd-e1@example.invalid"]'::jsonb,
+                  'F2: an active login left unticked is a real choice (E2 dropped), the inactive E1 stays');
+reset role;
+update client_users set active = true where email = 'cpd-e1@example.invalid';
+set local role authenticated;
+select pg_temp.as_client('cpd-e1@example.invalid');
+select pg_temp.ok(not pg_temp.sees('on2'), 'F2: a reactivated login is still excluded');
+reset role;
+update client_users set active = false where email = 'cpd-e1@example.invalid';
+select pg_temp.expect_err(format($q$select public.cfa__apply_access(%L::uuid, 'only', array['cpd-e1@example.invalid'], 'x')$q$, pg_temp.ctx('on2')),
+                          'bad_access_list', 'an only list still refuses an inactive login');
+select pg_temp.expect_err(format($q$insert into client_file_access (file_id, client_id, email, created_by) values (%L::uuid, 'grace-community', 'cpd-off@example.invalid', 't')$q$, pg_temp.ctx('on2')),
+                          'bad_access_list', 'cfa_guard: a new row still needs an active login');
+with u as (update client_file_access set created_by = created_by
+             where file_id = pg_temp.ctx('on2')::uuid and email = 'cpd-e1@example.invalid' returning 1)
+select pg_temp.ok((select count(*) from u) = 1, 'cfa_guard: an unchanged inactive row on an except file can be updated');
+set local role authenticated;
+select pg_temp.as_staff(pg_temp.ctx('ad'));
+select pg_temp.ok((public.client_file_set_access(pg_temp.ctx('on2')::uuid, 'everyone', '{}') ->> 'access_mode') = 'everyone',
+                  'switch on: staff reset to everyone clears the list');
+reset role;
+
+-- 7f. F3: a failing outbox insert never blocks the upload. The blocking
+--     trigger exists only inside this transaction.
+create function public.cpd_selftest_fail_outbox() returns trigger language plpgsql as $f$
+begin
+  raise exception 'cpd selftest: forced outbox failure';
+end $f$;
+create trigger cpd_selftest_fail_outbox before insert on public.notification_outbox
+  for each row when (new.kind = 'staff_doc_upload' and new.client_id = 'grace-community')
+  execute function public.cpd_selftest_fail_outbox();
+set local role service_role;
+insert into t_ctx select 'forced', (public.cfa_insert_file_with_access(jsonb_build_object(
+    'client_id', 'grace-community', 'drive_file_id', 'cpd-selftest-forced', 'name', 'forced.pdf',
+    'year', 2026, 'doc_type', 'Other', 'visibility', 'shared', 'uploaded_by', 'cpd-a@example.invalid'),
+    'everyone', '{}')).id::text;
+reset role;
+select pg_temp.ok(exists (select 1 from client_files where id = pg_temp.ctx('forced')::uuid)
+                  and not exists (select 1 from notification_outbox where ref_id = pg_temp.ctx('forced')),
+                  'F3: with the email insert forced to fail, the upload is still saved (no email queued)');
 
 select 'Client page drop self-test passed';
 rollback;

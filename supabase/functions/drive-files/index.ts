@@ -53,6 +53,9 @@ import {
 //                                  display_name, access_mode (everyone |
 //                                  only | except), access_emails (JSON array
 //                                  of the client's own active logins, max 50).
+//                                  display_name is kept only on shared rows,
+//                                  and from a client login only while the
+//                                  feature is on for that client.
 //                                  A rule other than everyone is refused
 //                                  (403 feature_off) while the firm switch is
 //                                  off for that client. Shared rows go in
@@ -67,6 +70,11 @@ import {
 //                                  client-uploads objects into Drive and
 //                                  leaves the originals where they are.
 // GET ?t=<token>                   streams the file (the link from `link`).
+//                                  The token is not re-checked against
+//                                  access rules: a link handed out before
+//                                  an access change keeps working until it
+//                                  expires (up to 10 minutes). Lists and
+//                                  new links follow the new rule at once.
 //
 // Secrets: GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_DRIVE_SHARED_DRIVE_ID. Until
 // both are set, Drive actions answer 503 {error: "drive_not_connected"} and
@@ -192,15 +200,26 @@ async function doUpload(req: Request, admin: SupabaseClient) {
   }
 
   // Client page drop: a display name and a per-login rule on shared files.
-  const displayName = cleanDisplayName(form.get("display_name"));
+  let featureOn: boolean | null = null;
+  const pageDropOn = async () => {
+    if (featureOn === null) {
+      const { data: on, error: onErr } = await admin.rpc("cpd__on", { p_client_id: clientId });
+      featureOn = !onErr && on === true;
+    }
+    return featureOn;
+  };
+  // A display name rides only on shared rows; a client login's only while
+  // the feature is on for that client (staff may name shared files any
+  // time). Otherwise it is dropped quietly and the file shows its own name.
+  let displayName = cleanDisplayName(form.get("display_name"));
+  if (displayName && (visibility !== "shared" || (!staff && !(await pageDropOn())))) displayName = null;
   const accessMode = parseAccessMode(form.get("access_mode"));
   if (!accessMode) throw new HttpError(400, "Unknown access setting.", "bad_access_mode");
   const accessEmails = normalizeAccessEmails(form.get("access_emails"));
   if (!accessEmails) throw new HttpError(400, "The list of people isn't valid (50 people at most).", "bad_access_list");
   if (accessMode !== "everyone") {
     if (visibility !== "shared") throw new HttpError(400, "Only shared documents can be limited to certain people.", "bad_access_mode");
-    const { data: on, error: onErr } = await admin.rpc("cpd__on", { p_client_id: clientId });
-    if (onErr || on !== true) throw new HttpError(403, "Choosing who can see a file isn't turned on yet.", "feature_off");
+    if (!(await pageDropOn())) throw new HttpError(403, "Choosing who can see a file isn't turned on yet.", "feature_off");
     if (member && accessMode === "except" && accessEmails.includes(c.email)) {
       throw new HttpError(400, "You can't hide a file from yourself.", "bad_access_list");
     }
