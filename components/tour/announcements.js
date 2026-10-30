@@ -164,16 +164,19 @@ function ANN_slatePlusLaunchOn() {
   }
 }
 
-// True once the owner has switched the client page drop on for the firm
-// (tk_settings.client_page_drop_enabled, cached as mgb_clientdrop_cache by
-// CPD_readSwitch in components/client/CPD_gate.js; the cache is only written
-// while the switch is on), and never during View as. Deliberately not the
-// per-person preview mgb_clientdrop_preview: a preview person sees no launch text.
+// True once the owner has switched the client page drop on for the whole
+// firm (tk_settings.client_page_drop_enabled true AND
+// client_page_drop_pilot "all"; cached as mgb_clientdrop_cache by
+// CPD_readSwitch in components/client/CPD_gate.js, which the staff app calls
+// once at boot; the cache is only written while the switch is on), and never
+// during View as. A pilot list of a few clients is not a launch. Deliberately
+// not the per-person preview mgb_clientdrop_preview: a preview person sees no
+// launch text.
 function ANN_clientDropLaunchOn() {
   try {
     if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
     var v = JSON.parse(window.localStorage.getItem("mgb_clientdrop_cache") || "null");
-    return !!(v && v.enabled === true);
+    return !!(v && v.enabled === true && v.pilot === "all");
   } catch (e) {
     return false;
   }

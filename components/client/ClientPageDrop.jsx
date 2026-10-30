@@ -167,7 +167,10 @@ function CPD_Dialog({ demo, orgName, items, rejected, busy, progress, folders, f
   const failed = items.filter((i) => i.status === "failed");
   const doneN = items.filter((i) => i.status === "done").length;
   const single = items.length === 1 && pending.length === 1;
-  const showAccess = logins && logins.length > 1;
+  // With one login left, the picker still shows while a limit is chosen, so
+  // the person sees why instead of the setting silently becoming Everyone.
+  const showAccess = !!logins && (logins.length > 1 || mode !== "everyone");
+  const aloneWarn = showAccess && logins.length <= 1 && mode !== "everyone";
   const close = () => {
     if (!busy) onClose();
   };
@@ -284,6 +287,11 @@ function CPD_Dialog({ demo, orgName, items, rejected, busy, progress, folders, f
                 disabled={busy}
               />
             )}
+            {aloneWarn && (
+              <p className="cpd-warn" role="status">
+                {mode === "only" ? "Nobody else has a login now, so only you will see it." : "Nobody else has a login now. Pick Everyone to add it."}
+              </p>
+            )}
             {accessNote && <p className="cpd-warn">{accessNote}</p>}
             {accessErr && <p className="cpd-err">{accessErr}</p>}
           </div>
@@ -318,12 +326,25 @@ function CPD_Dialog({ demo, orgName, items, rejected, busy, progress, folders, f
 //   enabled: a real client whose org has the switch on (uploads for real).
 //   demo: staff in View as with the preview flag (nothing uploads).
 //   demoEmail: the previewed login's email (demo only).
-function CPD_ClientPageDrop({ enabled, demo, client, sb, demoEmail, page }) {
-  const on = !!(enabled || demo);
-  const showToast = useToast();
-  const [dragging, setDragging] = React.useState(false);
+//   pageOk: false on pages that don't take the page drop (Basic Home, staff
+//     pages, the pages in NON_CLIENT_PAGES). Only the listener and the
+//     "Add a file" button follow it.
+// app.jsx keeps this mounted. While an upload runs or the dialog is open the
+// props are latched (holdRef): switching pages, leaving View as or the gate
+// changing never unmounts the dialog mid-upload or loses the chosen files.
+function CPD_ClientPageDrop(props) {
   const [queue, setQueue] = React.useState({ open: false, items: [], rejected: [] });
   const [busy, setBusy] = React.useState(false);
+  const holdRef = React.useRef(null);
+  if (!(busy || queue.open) || !holdRef.current) {
+    holdRef.current = { enabled: props.enabled, demo: props.demo, client: props.client, sb: props.sb, demoEmail: props.demoEmail };
+  }
+  const { enabled, demo, client, sb, demoEmail } = holdRef.current;
+  const page = props.page;
+  const on = !!(enabled || demo);
+  const listen = on && props.pageOk !== false;
+  const showToast = useToast();
+  const [dragging, setDragging] = React.useState(false);
   const [progress, setProgress] = React.useState(null);
   const [folders, setFolders] = React.useState({ mode: "local", folders: [] });
   const [folder, setFolder] = React.useState("");
@@ -336,13 +357,15 @@ function CPD_ClientPageDrop({ enabled, demo, client, sb, demoEmail, page }) {
   const [emails, setEmails] = React.useState([]);
   const [accessErr, setAccessErr] = React.useState("");
   const [accessNote, setAccessNote] = React.useState("");
-  const [me, setMe] = React.useState(demo ? String(demoEmail || "").toLowerCase() : "");
+  const [meState, setMe] = React.useState(demo ? String(demoEmail || "").toLowerCase() : "");
   const inputRef = React.useRef(null);
   const idRef = React.useRef(0);
   const busyRef = React.useRef(false);
   busyRef.current = busy;
   const clientId = client && client.id;
-  const { logins, reload: reloadLogins } = CPD_useLogins(sb, clientId, demo ? "staff" : "client", demo ? demoEmail : me, on && queue.open);
+  const { logins, reload: reloadLogins } = CPD_useLogins(sb, clientId, demo ? "staff" : "client", demo ? demoEmail : meState, on && queue.open);
+  // Before the session read lands, the login list's own is_me row says who I am.
+  const me = (demo ? String(demoEmail || "").toLowerCase() : meState) || ((logins || []).find((l) => l.is_me) || {}).email || "";
 
   // The signed-in client's email (to lock "you" on Only).
   React.useEffect(() => {
@@ -403,7 +426,7 @@ function CPD_ClientPageDrop({ enabled, demo, client, sb, demoEmail, page }) {
 
   // Page-wide drop (the Basic Home listener, BasicHome.jsx).
   React.useEffect(() => {
-    if (!on) return;
+    if (!listen) return;
     let depth = 0;
     let timer = null;
     const hide = () => {
@@ -469,7 +492,7 @@ function CPD_ClientPageDrop({ enabled, demo, client, sb, demoEmail, page }) {
       window.removeEventListener("blur", hide);
       setDragging(false);
     };
-  }, [on, addFiles]);
+  }, [listen, addFiles]);
 
   React.useEffect(() => {
     if (!busy) return;
@@ -511,10 +534,11 @@ function CPD_ClientPageDrop({ enabled, demo, client, sb, demoEmail, page }) {
       if (c.error) return setNameErr(c.error);
       displayName = CPD_displayNameFor(todo[0].file.name, c.value);
     }
-    // Who can see it (stale logins come off the list, and we say so).
+    // Who can see it. A new file takes active logins only, so stale ones
+    // come off the list (in every mode) and we say so.
     let acc = { mode: "everyone", emails: [], dropped: [], error: null };
-    if (logins && logins.length > 1 && mode !== "everyone") {
-      acc = CPD_normalizeAccess(mode, emails, logins, me);
+    if (logins && mode !== "everyone") {
+      acc = CPD_normalizeAccess(mode, emails, logins, me, { forNewFile: true });
       if (acc.error) return setAccessErr(acc.error);
       if (acc.dropped.length) setAccessNote(acc.dropped.join(", ") + " no longer " + (acc.dropped.length === 1 ? "has" : "have") + " a login, so they were left off.");
     }
@@ -627,7 +651,8 @@ function CPD_ClientPageDrop({ enabled, demo, client, sb, demoEmail, page }) {
           addFiles(picked);
         }}
       />
-      {page !== "documents" &&
+      {listen &&
+        page !== "documents" &&
         !queue.open &&
         ReactDOM.createPortal(
           <button type="button" className="cpd-fab" onClick={() => inputRef.current && inputRef.current.click()}>

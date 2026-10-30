@@ -4,10 +4,11 @@
 --
 --   * client_file_rename(file, name): staff rename a portal file's display
 --     name (the Drive file and its original name are untouched). Staff
---     only, not behind the firm switch (the staff Documents upgrades sit
---     behind the per-person preview flag mgb_clientdrop_preview).
---     '' or null = back to the original name. Logged in drive_file_events
---     as 'renamed'.
+--     only. A new name needs the firm switch on for that client
+--     (cpd__on; the client sees it), else 'feature_off'; going back to the
+--     original name ('' or null) is allowed any time. Live portal files
+--     only: a file in Trash or an old Storage upload (legacy_path) is
+--     refused ('bad_file'). Logged in drive_file_events as 'renamed'.
 --   * client_file_access_history(file): the file's access trail (upload,
 --     access_changed, renamed, trash, restore) from drive_file_events, for
 --     staff who can open that client. drive_file_events itself stays
@@ -20,6 +21,8 @@
 -- granted to authenticated only (both functions check staff inside).
 --
 -- Applied to production 2026-10-30 (project xumsqmhccgfjnlmieqyu).
+-- client_file_rename re-applied 2026-10-30 with the switch gate and the
+-- trashed/legacy refusal (review fixes).
 -- Tests: supabase/client-page-drop-2-tests.sql (ends in ROLLBACK).
 -- =====================================================================
 
@@ -47,6 +50,9 @@ begin
   if not public.can_access_client(f.client_id) then
     raise exception 'forbidden' using errcode = '42501';
   end if;
+  if f.trashed_at is not null or f.legacy_path is not null then
+    raise exception 'bad_file: only live portal files can be renamed' using errcode = '22023';
+  end if;
   v_dn := nullif(btrim(regexp_replace(coalesce(p_display_name, ''), '[[:cntrl:]]', ' ', 'g')), '');
   if v_dn is not null and length(v_dn) > 200 then
     raise exception 'bad_display_name: 200 characters at most' using errcode = '22023';
@@ -54,6 +60,11 @@ begin
   -- Same as the original name: store null so the row follows the file.
   if v_dn = f.name then
     v_dn := null;
+  end if;
+  -- A new name is something the client sees: only once the switch is on
+  -- for them. Back to the original name stays allowed.
+  if v_dn is not null and not public.cpd__on(f.client_id) then
+    raise exception 'feature_off' using errcode = '42501';
   end if;
   update client_files set display_name = v_dn where id = p_file_id;
 

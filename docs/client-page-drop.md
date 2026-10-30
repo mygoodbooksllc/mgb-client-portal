@@ -326,7 +326,7 @@ New RPC: `client_org_logins()`. It is SECURITY DEFINER, STABLE, revoked from ano
 | Probing who is excluded | The helper checks only the caller. `client_file_access` is readable only by staff and the uploader. |
 | Function search_path hijack | All new functions set `search_path = public` and are revoked from public and anon. |
 | Half-written rows | A single RPC inserts both rows. Drive trash on failure, as today. |
-| Workbench leaks | `wb_inbox` is staff-only (`workbench-1-core.sql:416-430`), so it is unaffected. |
+| Desk inbox leaks | `wb_inbox` is staff-only (`workbench-1-core.sql:416-430`), so it is unaffected. |
 | Other security-definer readers of `client_files` | Checked live: `client_requests_for_client` and `tk_attach_client_file` are staff- or request-scoped. Re-verify in critique with a grep for `from client_files` in `supabase/*.sql`. |
 
 Tests: add `supabase/client-page-drop-tests.sql` using the `pg_temp.ok` style from `security-hardening-tests.sql`. Cover:
@@ -410,7 +410,7 @@ How it works today:
 - The `staff_doc_upload` email fires only when a legacy `client_doc_requests` row moves to `uploaded`. This is trigger `notify_enqueue_doc_upload` in `supabase/notification-emails.sql:109-131`.
   - It is sent by `notification-emails` with pref key `doc_upload`, default on (`supabase/functions/notification-emails/index.ts:65`).
   - Body: "uploaded a requested document" (`index.ts:544-551`).
-- A plain Documents upload sends **no email**. Staff see it only in Workbench and Desk as a "New file: <name>" row from the `wb_inbox` docs CTE (`supabase/workbench-1-core.sql:416-430`). That row covers:
+- A plain Documents upload sends **no email**. Staff see it only in the Desk inbox as a "New file: <name>" row from the `wb_inbox` docs CTE (`supabase/workbench-1-core.sql:416-430`). That row covers:
   - `visibility = 'shared'`
   - not trashed
   - uploader not active staff
@@ -486,3 +486,14 @@ S9: staff View as shows access chip / filters by list.
 S10: if drive-files/logic.ts changes, redeploy team-reviews, tech-inventory, tk-request-respond.
 NITS: file id goes in drive_file_events.detail; shape() returns access_mode only to uploader+staff; show staff the original file name beside display_name; reorder list at app.jsx ~25913 gets data-drop-owner; add client_page_drop_pilot to tk__owner_only_key; keep client_file_access out of realtime; keep policy name/role/(select auth.jwt()) form when swapping; document 10-min link TTL.
 Extras folded in (owner OK'd by "do all" + my recommendation): stale access list rule, visible "Add a file" button for phones, search respects restrictions, staff access badge, access-change history log. Email-on-upload and Drive sharing check are left to owner.
+
+---
+## ADDENDUM 2026-10-30 (later): Phase 2 review fixes
+- **Stale logins on a new file.** `CPD_normalizeAccess(..., { forNewFile: true })` drops inactive emails in every mode, because the database only lets active logins onto a new file (cfa_guard). Used by the client page drop, the staff upload picker and Replace. Re-saving an existing file's Except list still keeps people whose login went inactive (they stay hidden). Replace: an Except list left with nobody becomes Everyone; an Only list left with nobody is refused with a message. drive-files was not changed to accept inactive emails on a new file (it would need a cfa_guard change).
+- **Error text.** `bad_access_list` says "One of those people no longer has a login. Refresh and try again." only when the message is about a login; otherwise the server's own sentence without the code prefix. Friendly text for `bad_access_mode` and `blocked_type`.
+- **Launch notice.** The staff app reads the switch once at boot (`CPD_readSwitch`, like TM_gate). `ANN_clientDropLaunchOn` needs `enabled` AND pilot `"all"`; a pilot list is not a launch.
+- **Dialog never unmounts mid-upload.** `CPD_ClientPageDrop` is always mounted; it latches its props while an upload runs or the dialog is open. `pageOk` (not staff pages, not NON_CLIENT_PAGES, not Basic Home) only turns the page-wide listener and the "Add a file" button on or off.
+- **Renames wait for the switch.** Staff file rename, folder rename and `client_file_rename` need the switch on for that client (`cpd__on`), because the client sees the new name. The server refuses a new name with `feature_off` (going back to the original name is allowed any time) and refuses files in Trash and old Storage uploads (`bad_file`). Preview staff still see the Rename dialogs read-only with a "turns on at launch" note; the row-menu tip says so too. Links (`client_documents`) and folders are gated in the UI only.
+- **Replace keeps the uploader.** drive-files takes `replaces` (staff only, a live portal file of the same client). The new row gets the old one's `uploaded_by` (checked with `cfa_validate`, put back on failure) and, if the old file was checked off on the Desk, a check of its own, so a staff Replace never shows as a new client file. The new-file email trigger is insert-only, so nothing is sent. The upload event's detail carries `replaces`; History reads "Replaced by a new version" on the old file and "Uploaded as a new version" on the new one.
+- **Smaller fixes.** "Only" stays Only (with a note) when nobody else has a login; `me` falls back to the login list's own row; bulk actions keep failed rows ticked, clear the ticks when the search or filter changes, and block single-row trash while running; View as hides every restricted file until the lists load; the client state read waits 3 seconds between tries with no session.
+- Tests: `clientPageDropLogic.test.js`; `client-page-drop-2-tests.sql` now writes the switch rows inside its transaction (switch off and on paths, Trash and legacy refusals, `wb_inbox` title run as an admin).

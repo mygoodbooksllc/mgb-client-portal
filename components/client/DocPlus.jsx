@@ -8,13 +8,15 @@
 //   - Rename a file (display name only; Drive and the original name stay):
 //     client_file_rename. Links rename client_documents.name.
 //   - Rename a folder (its files go with it: ON UPDATE CASCADE).
+//     Both renames need the firm switch on for that client (the client sees
+//     the new name); with the preview alone they open read-only.
 //   - Select several rows: move to a folder, move to Trash, restore.
 //   - Type tag (PDF, Excel, ...) beside the document type.
 //   - "Who can see" badge, the per-file rule, and per-login rules on staff
 //     uploads. Saving a rule needs the firm switch on for that client (the
 //     database refuses otherwise); the preview alone shows it read-only.
 //   - Replace with a new version: uploads the new file with the same type,
-//     year, name, folder and rule, then moves the old one to Trash.
+//     year, name, folder, rule and uploader, then moves the old one to Trash.
 //   - Copy link (the deep link to the row).
 //   - History: uploads, renames, rule changes, trash and restore.
 //
@@ -24,12 +26,19 @@
 // ----------------------------------------------------------------------------
 
 // { [file id]: [emails] } for the client's restricted files (staff read
-// client_file_access directly).
+// client_file_access directly). null until the first read lands (View as
+// hides every restricted file until then); a refetch keeps the old map.
 function DP_useAccessRows(sb, clientId, on, tick) {
-  const [rows, setRows] = React.useState({});
+  const [rows, setRows] = React.useState(null);
+  const lastClient = React.useRef(clientId);
   React.useEffect(() => {
     let dead = false;
     if (!on || !sb || !clientId) return;
+    // Another client: forget the last one's rows while this one loads.
+    if (lastClient.current !== clientId) {
+      lastClient.current = clientId;
+      setRows(null);
+    }
     sb.from("client_file_access")
       .select("file_id, email")
       .eq("client_id", clientId)
@@ -49,11 +58,13 @@ function DP_useAccessRows(sb, clientId, on, tick) {
   return rows;
 }
 
-// The "⋯" row menu. items: [{ label, onClick, disabled }].
+// The "⋯" row menu. items: [{ label, onClick, disabled }]. off: the firm
+// switch is off for this client (Rename and Who can see it open read-only);
+// marks the menu data-cpd-off so the row-menu tip can say so.
 // The list is position: fixed (placed from the button) so the table's
 // scroll box never clips it; it opens upward when there's no room below and
 // closes on scroll or resize.
-function DP_RowMenu({ label, items }) {
+function DP_RowMenu({ label, items, off }) {
   const [pos, setPos] = React.useState(null);
   const open = !!pos;
   const ref = React.useRef(null);
@@ -92,7 +103,7 @@ function DP_RowMenu({ label, items }) {
     };
   }, [open]);
   return (
-    <span className="dp-menu" data-tour="doc-row-menu" ref={ref} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+    <span className="dp-menu" data-tour="doc-row-menu" data-cpd-off={off ? "" : undefined} ref={ref} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
       <button ref={btnRef} type="button" className="dp-menu-btn" aria-haspopup="menu" aria-expanded={open} aria-label={label} title="More" onClick={toggle}>
         ⋯
       </button>
@@ -119,14 +130,15 @@ function DP_RowMenu({ label, items }) {
 }
 
 // One text field + Save. validate(value) -> error | null; onSave(value) ->
-// error | null (async).
-function DP_RenameModal({ title, label, initial, hint, maxLength, validate, onSave, onClose }) {
+// error | null (async). canSave false (switch off for this client): the
+// field is read-only, Save is off and offNote says why.
+function DP_RenameModal({ title, label, initial, hint, maxLength, validate, onSave, onClose, canSave = true, offNote }) {
   const [value, setValue] = React.useState(initial || "");
   const [err, setErr] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const submit = async (e) => {
     e.preventDefault();
-    if (busy) return;
+    if (busy || !canSave) return;
     const v = value.trim();
     const bad = validate ? validate(v) : null;
     if (bad) return setErr(bad);
@@ -160,8 +172,10 @@ function DP_RenameModal({ title, label, initial, hint, maxLength, validate, onSa
                 setErr("");
               }}
               disabled={busy}
+              readOnly={!canSave}
             />
-            {hint && <p className="cpd-note">{hint}</p>}
+            {hint && canSave && <p className="cpd-note">{hint}</p>}
+            {!canSave && <p className="cpd-warn">{offNote || "Renaming turns on for this client at launch."}</p>}
             {err && <p className="cpd-err">{err}</p>}
           </div>
         </div>
@@ -169,11 +183,13 @@ function DP_RenameModal({ title, label, initial, hint, maxLength, validate, onSa
           <span />
           <span className="cpd-foot-right">
             <button type="button" className="btn-secondary btn-sm" onClick={onClose} disabled={busy}>
-              Cancel
+              {canSave ? "Cancel" : "Close"}
             </button>
-            <button type="submit" className="btn-primary btn-sm" disabled={busy}>
-              {busy ? "Saving…" : "Save"}
-            </button>
+            {canSave && (
+              <button type="submit" className="btn-primary btn-sm" disabled={busy}>
+                {busy ? "Saving…" : "Save"}
+              </button>
+            )}
           </span>
         </div>
       </form>
@@ -190,7 +206,7 @@ function DP_HistoryModal({ sb, file, onClose }) {
     sb.rpc("client_file_access_history", { p_file_id: file.driveId }).then((res) => {
       if (dead) return;
       if (res.error) setErr(res.error.message);
-      else setLines(CPD_historyLines(res.data || []));
+      else setLines(CPD_historyLines(res.data || [], file.driveId));
     });
     return () => {
       dead = true;
@@ -250,7 +266,7 @@ function DP_UploadAccess({ sb, clientId, orgName, value, onChange }) {
   const label =
     value.mode === "everyone" ? "Everyone at the client" : CPD_accessBadge(value.mode, value.emails.length);
   const save = () => {
-    const acc = CPD_normalizeAccess(draft.mode, draft.emails, logins || [], "");
+    const acc = CPD_normalizeAccess(draft.mode, draft.emails, logins || [], "", { forNewFile: true });
     if (acc.error) return setErr(acc.error);
     onChange({ mode: acc.mode, emails: acc.emails });
     setOpen(false);
@@ -377,10 +393,30 @@ function DP_copyLink(clientId, key, showToast) {
   showToast(url);
 }
 
-// Replace a Drive file with a new version: same type, year, name, folder and
-// rule; then the old one goes to Trash (Drive's trash, so it can come back).
-// Returns an error message, or null.
+// A "who can see it" list for a NEW file (a staff upload or a Replace): only
+// active logins can go on a new file (the database refuses the rest), so
+// stale ones come off. An Except list left with nobody becomes Everyone (the
+// people it hid are gone); an Only list left with nobody is an error.
+// Returns { mode, emails, dropped, error }.
+async function DP_accessForNewFile(sb, clientId, mode, emails) {
+  if (mode !== "only" && mode !== "except") return { mode: "everyone", emails: [], dropped: [], error: null };
+  const res = await sb.from("client_users").select("email").eq("client_id", clientId).eq("active", true);
+  if (res.error) return { mode, emails: [], dropped: [], error: "Couldn't check the client's logins: " + res.error.message };
+  const logins = (res.data || []).map((r) => ({ email: String(r.email || "").toLowerCase() }));
+  const acc = CPD_normalizeAccess(mode, emails, logins, "", { forNewFile: true });
+  if (acc.error && mode === "except" && !acc.emails.length) return { mode: "everyone", emails: [], dropped: acc.dropped, error: null };
+  if (acc.error && mode === "only" && !acc.emails.length) return { ...acc, error: "Nobody on its Only list still has a login. Change Who can see it first." };
+  return acc;
+}
+
+// Replace a Drive file with a new version: same type, year, name, folder,
+// rule and uploader (drive-files copies the uploader and the Desk check when
+// it gets `replaces`); then the old one goes to Trash (Drive's trash, so it
+// can come back). Returns { error, dropped }.
 async function DP_replaceFile({ sb, clientId, folderMode, d, file, accessEmails }) {
+  const restricted = !d.staffOnly && (d.accessMode === "only" || d.accessMode === "except");
+  const acc = restricted ? await DP_accessForNewFile(sb, clientId, d.accessMode, accessEmails || []) : { mode: "everyone", emails: [], dropped: [], error: null };
+  if (acc.error) return { error: acc.error, dropped: [] };
   let res;
   try {
     res = await DRV_upload({
@@ -390,18 +426,19 @@ async function DP_replaceFile({ sb, clientId, folderMode, d, file, accessEmails 
       docType: d.docType || "Other",
       year: d.year || undefined,
       displayName: d.name !== file.name ? d.name : null,
-      accessMode: !d.staffOnly && d.accessMode && d.accessMode !== "everyone" ? d.accessMode : undefined,
-      accessEmails: accessEmails || [],
+      accessMode: acc.mode !== "everyone" ? acc.mode : undefined,
+      accessEmails: acc.emails,
+      replacesId: d.driveId,
     });
   } catch (e) {
-    return CPD_errorText(e);
+    return { error: CPD_errorText(e), dropped: [] };
   }
   const newKey = res && res.file && res.file.id ? "drive:" + res.file.id : null;
   if (newKey && d.folder) await DF_assign(sb, clientId, folderMode, [newKey], d.folder);
   try {
     await DRV_trash(d.driveId);
   } catch (e) {
-    return "The new version is up, but the old one couldn't go to Trash: " + ((e && e.message) || "");
+    return { error: "The new version is up, but the old one couldn't go to Trash: " + ((e && e.message) || ""), dropped: acc.dropped };
   }
-  return null;
+  return { error: null, dropped: acc.dropped };
 }

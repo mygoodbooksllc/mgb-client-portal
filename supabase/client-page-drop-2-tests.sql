@@ -4,14 +4,19 @@
 --
 -- Covers: grants (anon can't run either function), staff rename (set,
 -- reset to the original, same-as-original stores null, 200-char cap,
--- control characters cleaned, logged as 'renamed'), a client login can't
--- rename or read history, history returns only that file's rows, the Desk
--- inbox title uses display_name, and a folder rename carries its files
--- (ON UPDATE CASCADE).
+-- control characters cleaned, logged as 'renamed'), a new name refused
+-- while the switch is off for the client (going back to the original name
+-- still allowed), files in Trash and old Storage uploads refused, a client
+-- login can't rename or read history, history returns only that file's
+-- rows, the Desk inbox row shows "New file: <display name>" (wb_inbox run
+-- as an admin), and a folder rename carries its files (ON UPDATE CASCADE).
 --
 -- Run it whole; it ends in ROLLBACK. Uses the test client grace-community
--- with throwaway rows that live only inside this transaction. Never writes
--- tk_settings. A failed check raises and stops the run.
+-- with throwaway rows that live only inside this transaction. The switch
+-- rows (client_page_drop_enabled / _pilot) are written INSIDE this
+-- transaction (owner override set locally and cleared right after, as in
+-- client-page-drop-tests.sql section 7) and vanish at the ROLLBACK; no other
+-- session ever sees them. A failed check raises and stops the run.
 -- =====================================================================
 begin;
 
@@ -68,7 +73,31 @@ insert into drive_file_events (action, ok, client_id, actor, detail) values
   ('upload', true, 'grace-community', 'cpd2-a@example.invalid', json_build_object('file_id', pg_temp.ctx('bank-statement'), 'access_mode', 'everyone')::text),
   ('upload', true, 'grace-community', 'cpd2-a@example.invalid', json_build_object('file_id', pg_temp.ctx('other'), 'access_mode', 'everyone')::text);
 
--- 1. Staff rename
+-- 1a. Switch OFF for this client (inside this transaction only): a new
+--     name is refused, back to the original name is allowed.
+select set_config('mgb.tk_owner_override', 'on', true);
+insert into tk_settings (key, value) values ('client_page_drop_enabled', 'false'::jsonb)
+on conflict (key) do update set value = excluded.value;
+select set_config('mgb.tk_owner_override', '', true);
+select pg_temp.ok(not public.cpd__on('grace-community'), 'switch off (this transaction only)');
+select pg_temp.as_staff(pg_temp.ctx('ad'));
+set local role authenticated;
+select pg_temp.expect_err(format('select public.client_file_rename(%L::uuid, %L)', pg_temp.ctx('bank-statement'), 'New name'),
+                          'feature_off', 'a new name waits for the switch');
+select pg_temp.ok((public.client_file_rename(pg_temp.ctx('bank-statement')::uuid, '') ->> 'display_name') is null,
+                  'going back to the original name works with the switch off');
+reset role;
+
+-- 1b. Switch ON for grace-community (inside this transaction only).
+select set_config('mgb.tk_owner_override', 'on', true);
+insert into tk_settings (key, value) values
+  ('client_page_drop_enabled', 'true'::jsonb),
+  ('client_page_drop_pilot', '["grace-community"]'::jsonb)
+on conflict (key) do update set value = excluded.value;
+select set_config('mgb.tk_owner_override', '', true);
+select pg_temp.ok(public.cpd__on('grace-community'), 'switch on (this transaction only) for grace-community');
+
+-- 1c. Staff rename
 select pg_temp.as_staff(pg_temp.ctx('ad'));
 set local role authenticated;
 select pg_temp.ok((public.client_file_rename(pg_temp.ctx('bank-statement')::uuid, '  March  statement ') ->> 'display_name') = 'March  statement',
@@ -81,7 +110,7 @@ select pg_temp.ok((public.client_file_rename(pg_temp.ctx('bank-statement')::uuid
                   'rename again');
 select pg_temp.expect_err(format('select public.client_file_rename(%L::uuid, %L)', pg_temp.ctx('bank-statement'), repeat('x', 201)),
                           'bad_display_name', '201 characters refused');
-select pg_temp.ok((select count(*) from public.client_file_access_history(pg_temp.ctx('bank-statement')::uuid) where action = 'renamed') = 4,
+select pg_temp.ok((select count(*) from public.client_file_access_history(pg_temp.ctx('bank-statement')::uuid) where action = 'renamed') = 5,
                   'each rename is in the history');
 select pg_temp.ok((select count(*) from public.client_file_access_history(pg_temp.ctx('bank-statement')::uuid) where action = 'upload') = 1,
                   'history has the upload row');
@@ -93,6 +122,33 @@ select pg_temp.ok((select display_name from client_files where id = pg_temp.ctx(
                   'display_name saved');
 select pg_temp.ok((select name from client_files where id = pg_temp.ctx('bank-statement')::uuid) = 'bank-statement.pdf',
                   'original name untouched');
+
+-- 1d. Only live portal files: Trash and old Storage uploads are refused.
+update client_files set trashed_at = now(), trashed_by = pg_temp.ctx('ad') where id = pg_temp.ctx('other')::uuid;
+select pg_temp.as_staff(pg_temp.ctx('ad'));
+set local role authenticated;
+select pg_temp.expect_err(format('select public.client_file_rename(%L::uuid, %L)', pg_temp.ctx('other'), 'x'),
+                          'bad_file', 'a file in Trash cannot be renamed');
+reset role;
+update client_files set trashed_at = null, trashed_by = null, legacy_path = 'grace-community/shared/cpd2-selftest.pdf'
+ where id = pg_temp.ctx('other')::uuid;
+select pg_temp.as_staff(pg_temp.ctx('ad'));
+set local role authenticated;
+select pg_temp.expect_err(format('select public.client_file_rename(%L::uuid, %L)', pg_temp.ctx('other'), 'x'),
+                          'bad_file', 'an old Storage upload cannot be renamed');
+reset role;
+update client_files set legacy_path = null where id = pg_temp.ctx('other')::uuid;
+
+-- 1e. The Desk inbox row shows the display name (wb_inbox as an admin).
+select pg_temp.as_staff(pg_temp.ctx('ad'));
+set local role authenticated;
+select pg_temp.ok((select title from public.wb_inbox('everyone', array['doc'], true)
+                    where source_id = pg_temp.ctx('bank-statement')) = 'New file: Final name',
+                  'Desk inbox: New file: <display name>');
+select pg_temp.ok((select title from public.wb_inbox('everyone', array['doc'], true)
+                    where source_id = pg_temp.ctx('other')) = 'New file: other.pdf',
+                  'Desk inbox: no display name falls back to the file name');
+reset role;
 
 -- 2. Clients can't
 select pg_temp.as_client('cpd2-a@example.invalid');

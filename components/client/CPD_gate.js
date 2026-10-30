@@ -159,18 +159,22 @@ function CPD_useStaffGate(isStaff) {
 }
 
 // Client: client_page_drop_state() once per page load.
-var CPD__client = { state: "idle", value: null };
+// No session yet (or the session read failed): wait 3 seconds before asking
+// again, so a re-rendering page doesn't call getSession() on every render.
+var CPD__client = { state: "idle", value: null, nextAt: 0 };
 function CPD_readClientState(force) {
   var c = typeof window !== "undefined" ? window.mgbSupabase : null;
   if (!c || (!force && CPD__client.state !== "idle")) return;
+  if (!force && Date.now() < CPD__client.nextAt) return;
   CPD__client.state = "reading";
+  var wait = function () {
+    CPD__client.state = "idle";
+    CPD__client.nextAt = Date.now() + 3000;
+  };
   try {
     c.auth.getSession().then(
       function (r) {
-        if (!r || !r.data || !r.data.session) {
-          CPD__client.state = "idle";
-          return;
-        }
+        if (!r || !r.data || !r.data.session) return wait();
         c.rpc("client_page_drop_state").then(
           function (res) {
             CPD__client.state = "done";
@@ -184,9 +188,7 @@ function CPD_readClientState(force) {
           },
         );
       },
-      function () {
-        CPD__client.state = "idle";
-      },
+      wait,
     );
   } catch (e) {
     CPD__client.state = "done";
@@ -197,7 +199,7 @@ function CPD_readClientState(force) {
 function CPD_useClientState(isRealClient) {
   CPD__useBump(/^$/);
   React.useEffect(function () {
-    if (isRealClient && CPD__client.state === "idle") CPD_readClientState();
+    if (isRealClient && CPD__client.state === "idle" && Date.now() >= CPD__client.nextAt) CPD_readClientState();
   });
   if (!isRealClient) return { enabled: false };
   return { enabled: !!(CPD__client.value && CPD__client.value.enabled) };

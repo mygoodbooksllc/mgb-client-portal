@@ -114,7 +114,12 @@ function CPD_fileTypeTag(name, mime) {
 //   uploader too); "except" never lists me.
 // - Emails that no longer have an active login are dropped (the database
 //   refuses them), and reported so the dialog can say so.
-function CPD_normalizeAccess(mode, emails, logins, me) {
+// - opts.forNewFile: the list goes on a NEW file (an upload, or Replace with a
+//   new version). The database only keeps an inactive person on an 'except'
+//   list the file already had, so a new file's list drops them in every mode.
+//   Without it (re-saving an existing file's rule) an 'except' list keeps them.
+function CPD_normalizeAccess(mode, emails, logins, me, opts) {
+  var forNew = !!(opts && opts.forNewFile);
   var m = mode === "only" || mode === "except" ? mode : "everyone";
   var active = {};
   (logins || []).forEach(function (l) {
@@ -128,9 +133,10 @@ function CPD_normalizeAccess(mode, emails, logins, me) {
     var v = String(e || "").trim().toLowerCase();
     if (!v || seen[v]) return;
     seen[v] = true;
-    // An 'except' list keeps people whose login went inactive (they stay
-    // hidden; the server keeps them too). An 'only' list drops them.
-    if (!active[v] && m !== "except") dropped.push(v);
+    // An existing file's 'except' list keeps people whose login went
+    // inactive (they stay hidden; the server keeps them too). An 'only' list,
+    // and any list for a new file, drops them.
+    if (!active[v] && (m !== "except" || forNew)) dropped.push(v);
     else list.push(v);
   });
   if (m === "everyone") return { mode: m, emails: [], dropped: [], error: null };
@@ -175,17 +181,40 @@ function CPD_loginSees(mode, rowsEmails, email) {
 }
 
 // ---- Errors and summaries -------------------------------------------------
+// A server message without its "code: " prefix, as a sentence:
+// "bad_access_list: pick at least one person" -> "Pick at least one person."
+function CPD__plainMessage(msg) {
+  var s = String(msg || "")
+    .replace(/^\s*[a-z_]+:\s*/, "")
+    .trim();
+  if (!s) return "";
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  return /[.!?]$/.test(s) ? s : s + ".";
+}
+
+var CPD_STALE_LOGIN_TEXT = "One of those people no longer has a login. Refresh and try again.";
+
 function CPD_errorText(err) {
   var code = err && err.code;
   var status = err && err.status;
   var msg = String((err && err.message) || "");
   if (code === "drive_not_connected") return "File storage is down for a moment. Try again shortly.";
-  if (code === "bad_access_list" || /bad_access_list/.test(msg)) return "One of those people no longer has a login. Refresh and try again.";
+  if (code === "bad_access_list" || /bad_access_list/.test(msg)) {
+    // A login that left (drive-files: "must be an active login"; the
+    // database: "x is not an active login of this client"). Anything else
+    // (pick at least one person, can't exclude the uploader, 50 at most):
+    // the server's own words.
+    if (/inactive|login/i.test(msg)) return CPD_STALE_LOGIN_TEXT;
+    return CPD__plainMessage(msg) || CPD_STALE_LOGIN_TEXT;
+  }
+  if (code === "bad_access_mode" || /bad_access_mode/.test(msg))
+    return "Only shared documents can be limited to certain people (not staff-only files, request files or files in Trash).";
   if (code === "feature_off" || /feature_off/.test(msg)) return "Choosing who can see a file isn't turned on yet.";
   if (code === "too_big" || status === 413) return "Over 25 MB.";
-  if (code === "bad_type" || code === "blocked_type" || status === 415) return "Not a type we take (PDF, PNG, JPEG, HEIC, CSV, Excel, Word and text files only).";
+  if (code === "blocked_type") return "Programs, scripts and installers can't be uploaded. Send a PDF, picture, spreadsheet or Word document instead.";
+  if (code === "bad_type" || status === 415) return "Not a type we take (PDF, PNG, JPEG, HEIC, CSV, Excel, Word and text files only).";
   if (code === "forbidden" || /forbidden/.test(msg)) return "You don't have permission to do that.";
-  return msg || "Didn't upload.";
+  return CPD__plainMessage(msg) || "Didn't upload.";
 }
 
 function CPD_summary(ok, failed) {
@@ -199,8 +228,11 @@ function CPD_summary(ok, failed) {
 
 // ---- Access history (staff) ----------------------------------------------
 // rows from client_file_access_history: { at, action, ok, actor, detail }.
-// Returns [{ at, actor, text }] newest first; skips failed rows.
-function CPD_historyLines(rows) {
+// Returns [{ at, actor, text }] newest first; skips failed rows. fileId (the
+// file the history is for) tells a Replace apart: the new version's upload
+// row names the old file in `replaces`, so the old file reads "Replaced by a
+// new version" and the new one "Uploaded as a new version".
+function CPD_historyLines(rows, fileId) {
   var out = [];
   (rows || []).forEach(function (r) {
     if (!r || r.ok === false) return;
@@ -211,8 +243,11 @@ function CPD_historyLines(rows) {
       d = {};
     }
     var text;
-    if (r.action === "upload")
-      text = "Uploaded" + (d.access_mode === "only" ? ", for only some people" : d.access_mode === "except" ? ", hidden from some people" : "");
+    if (r.action === "upload" && d.replaces && fileId && String(d.replaces) === String(fileId)) text = "Replaced by a new version";
+    else if (r.action === "upload")
+      text =
+        (d.replaces ? "Uploaded as a new version" : "Uploaded") +
+        (d.access_mode === "only" ? ", for only some people" : d.access_mode === "except" ? ", hidden from some people" : "");
     else if (r.action === "access_changed") {
       text = "Who can see it: " + CPD_accessBadge(d.access_mode, d.count);
       if (Array.isArray(d.emails) && d.emails.length && d.access_mode !== "everyone") text += " (" + d.emails.join(", ") + ")";

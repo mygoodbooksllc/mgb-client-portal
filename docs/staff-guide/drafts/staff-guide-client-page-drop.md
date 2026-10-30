@@ -87,6 +87,8 @@ Same limits as the Documents page: up to 10 files, 25 MB each, PDF, images, CSV,
 | A client's Documents | Each file's ⋯ renames it, sets who at the client can see it, replaces it with a new version, copies a link or shows its history. Tick files to move several at once. | [How do I add, file, hide or delete a client's documents?](#/help/add-documents) |
 ````
 
+(Tips.jsx shows this text once the switch is on for the client. Before that, for preview staff, the tip reads: "Each file's ⋯ replaces it with a new version, copies a link or shows its history. Renaming and choosing who can see it turn on for this client at launch. Tick files to move several at once." Rename and Who can see it open read-only until then.)
+
 ### docs/staff-guide/whats-new.md: new top entry
 
 ````markdown

@@ -308,7 +308,12 @@ const TIPS_CATALOG = [
     match: (r) => r.client && r.page === "documents",
     target: "doc-row-menu",
     snug: true,
-    text: "Each file's ⋯ renames it, sets who at the client can see it, replaces it with a new version, copies a link or shows its history. Tick files to move several at once.",
+    // While the switch is off for this client, Rename and Who can see it
+    // open read-only (DP_RowMenu marks itself data-cpd-off).
+    text: () =>
+      document.querySelector('[data-tour="doc-row-menu"][data-cpd-off]')
+        ? "Each file's ⋯ replaces it with a new version, copies a link or shows its history. Renaming and choosing who can see it turn on for this client at launch. Tick files to move several at once."
+        : "Each file's ⋯ renames it, sets who at the client can see it, replaces it with a new version, copies a link or shows its history. Tick files to move several at once.",
     slug: "add-documents",
     ready: () => !!document.querySelector('[data-tour="doc-row-menu"]'),
   },

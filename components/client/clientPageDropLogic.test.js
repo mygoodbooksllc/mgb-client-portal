@@ -138,6 +138,29 @@ t("except keeps stale logins (they stay hidden, matching the server)", () => {
   assert.deepStrictEqual(r.dropped, []);
   assert.strictEqual(L.CPD_normalizeAccess("except", ["gone@org.test"], logins, "me@org.test").error, null);
 });
+t("a new file's list drops stale logins in every mode (upload, Replace)", () => {
+  const nf = { forNewFile: true };
+  const ex = L.CPD_normalizeAccess("except", ["gone@org.test", "b@org.test"], logins, "me@org.test", nf);
+  assert.deepStrictEqual(ex.emails, ["b@org.test"]);
+  assert.deepStrictEqual(ex.dropped, ["gone@org.test"]);
+  assert.strictEqual(ex.error, null);
+  // Only the inactive person was hidden: nobody is left to hide.
+  const exAll = L.CPD_normalizeAccess("except", ["gone@org.test"], logins, "me@org.test", nf);
+  assert.deepStrictEqual(exAll.emails, []);
+  assert.deepStrictEqual(exAll.dropped, ["gone@org.test"]);
+  assert.ok(exAll.error);
+  const on = L.CPD_normalizeAccess("only", ["gone@org.test", "c@org.test"], logins, "staff@mygoodbooks.org", nf);
+  assert.deepStrictEqual(on.emails, ["c@org.test"]);
+  assert.deepStrictEqual(on.dropped, ["gone@org.test"]);
+  // Re-saving an existing file (no option) still keeps them on except.
+  assert.deepStrictEqual(L.CPD_normalizeAccess("except", ["gone@org.test", "b@org.test"], logins, "me@org.test", {}).emails, ["b@org.test", "gone@org.test"]);
+});
+t("only stays only when I'm the last login (no silent switch to everyone)", () => {
+  const r = L.CPD_normalizeAccess("only", ["b@org.test"], [{ email: "me@org.test", is_me: true }], "me@org.test", { forNewFile: true });
+  assert.strictEqual(r.mode, "only");
+  assert.deepStrictEqual(r.emails, ["me@org.test"]);
+  assert.deepStrictEqual(r.dropped, ["b@org.test"]);
+});
 t("50-person cap", () => {
   const many = Array.from({ length: 51 }, (_, i) => ({ email: "p" + i + "@o.test" }));
   assert.ok(L.CPD_normalizeAccess("except", many.map((l) => l.email), many, "x@o.test").error);
@@ -163,7 +186,33 @@ t("error wording", () => {
   assert.ok(/no longer has a login/.test(L.CPD_errorText({ message: "bad_access_list: x is not an active login" })));
   assert.strictEqual(L.CPD_errorText({ status: 413 }), "Over 25 MB.");
   assert.ok(/isn't turned on/.test(L.CPD_errorText({ code: "feature_off" })));
-  assert.strictEqual(L.CPD_errorText({ message: "Other" }), "Other");
+  assert.strictEqual(L.CPD_errorText({ message: "Other" }), "Other.");
+  assert.strictEqual(L.CPD_errorText({}), "Didn't upload.");
+});
+t("bad_access_list: a stale login gets the refresh text; anything else the server's own words", () => {
+  const stale = /no longer has a login/;
+  // drive-files' own message and the database's.
+  assert.ok(stale.test(L.CPD_errorText({ code: "bad_access_list", message: "Everyone on the list must be an active login for this organization." })));
+  assert.ok(stale.test(L.CPD_errorText({ message: "bad_access_list: gone@x.test is not an active login of this client" })));
+  assert.ok(stale.test(L.CPD_errorText({ message: "bad_access_list: that person is inactive" })));
+  // Not about a login: no code prefix, sentence case, full stop.
+  assert.strictEqual(L.CPD_errorText({ message: "bad_access_list: pick at least one person" }), "Pick at least one person.");
+  assert.strictEqual(L.CPD_errorText({ message: "bad_access_list: you cannot exclude the person who added the file" }), "You cannot exclude the person who added the file.");
+  assert.strictEqual(L.CPD_errorText({ code: "bad_access_list", message: "You can't hide a file from yourself." }), "You can't hide a file from yourself.");
+  assert.strictEqual(L.CPD_errorText({ code: "bad_access_list", message: "Pick at least one person." }), "Pick at least one person.");
+  assert.ok(!/bad_access_list/.test(L.CPD_errorText({ message: "bad_access_list: at most 50 people" })));
+});
+t("bad_access_mode, blocked_type and other codes get friendly text", () => {
+  const mode = L.CPD_errorText({ code: "bad_access_mode", message: "Unknown access setting." });
+  assert.ok(/Only shared documents/.test(mode));
+  assert.ok(/Only shared documents/.test(L.CPD_errorText({ message: "bad_access_mode: only live shared portal files can be restricted" })));
+  const blocked = L.CPD_errorText({ code: "blocked_type", status: 415, message: "Programs, scripts and installers can't be uploaded." });
+  assert.ok(/Programs, scripts and installers/.test(blocked));
+  assert.ok(!/blocked_type/.test(blocked));
+  assert.ok(/Not a type we take/.test(L.CPD_errorText({ code: "bad_type", status: 415 })));
+  assert.ok(/Not a type we take/.test(L.CPD_errorText({ status: 415 })));
+  assert.ok(/permission/.test(L.CPD_errorText({ message: "forbidden" })));
+  assert.strictEqual(L.CPD_errorText({ message: "bad_file: only live portal files can be renamed" }), "Only live portal files can be renamed.");
 });
 t("summary", () => {
   assert.strictEqual(L.CPD_summary(2, 0), "Added 2 files. Your bookkeeper can see them now.");
@@ -184,6 +233,12 @@ t("history lines", () => {
   assert.strictEqual(lines[1].text, "Renamed to “New”");
   assert.strictEqual(lines[2].text, "Uploaded, hidden from some people");
   assert.strictEqual(lines[3].text, "Restored from Trash");
+});
+t("history lines: Replace reads differently on the old and the new file", () => {
+  const rows = [{ at: "2026-10-30T10:00:00Z", action: "upload", ok: true, actor: "s@x", detail: JSON.stringify({ file_id: "new", access_mode: "everyone", replaces: "old" }) }];
+  assert.strictEqual(L.CPD_historyLines(rows, "old")[0].text, "Replaced by a new version");
+  assert.strictEqual(L.CPD_historyLines(rows, "new")[0].text, "Uploaded as a new version");
+  assert.strictEqual(L.CPD_historyLines(rows)[0].text, "Uploaded as a new version");
 });
 t("copy link", () => {
   assert.strictEqual(L.CPD_copyLinkUrl("https://app.x", "/", "#c=a&t=documents"), "https://app.x/#c=a&t=documents");

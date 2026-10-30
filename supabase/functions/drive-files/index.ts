@@ -63,6 +63,12 @@ import {
 //                                  (cfa_insert_file_with_access). Programs,
 //                                  scripts and installers are refused (415
 //                                  blocked_type).
+//                                  replaces (staff only): the id of the live
+//                                  portal file this one replaces (Documents >
+//                                  Replace with a new version). The new row
+//                                  keeps the old one's uploader and its Desk
+//                                  check, and the upload event names it. The
+//                                  portal trashes the old file afterwards.
 //   list    client_id, scope (documents | trash | request), request_id
 //   link    ids[] (client_files ids) -> { links: { id: url } }   10 min each
 //   trash / restore   id           staff only. Drive trash, never delete.
@@ -133,6 +139,36 @@ const webViewLink = (driveFileId: string) => `https://drive.google.com/file/d/${
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
+// Replace with a new version: the new row takes the old one's uploader (so a
+// client's file stays theirs: their row menu, the Only list rule) and, when
+// the old file was checked off on the Desk, a check of its own, so a staff
+// Replace doesn't land in the inbox as a new client file. The new-file email
+// trigger runs on insert only, so this sends nothing. Best effort: a refusal
+// (cfa_validate) puts the staff uploader back and the upload still stands.
+async function carryOverReplaced(admin: SupabaseClient, row: any, old: { id: string; uploaded_by: string | null }, staffEmail: string) {
+  const by = String(old.uploaded_by || "").trim().toLowerCase();
+  if (by && by !== String(row.uploaded_by || "").toLowerCase()) {
+    const { error: uErr } = await admin.from("client_files").update({ uploaded_by: by }).eq("id", row.id);
+    if (!uErr) {
+      const { error: vErr } = await admin.rpc("cfa_validate", { p_file_id: row.id });
+      if (vErr) await admin.from("client_files").update({ uploaded_by: row.uploaded_by }).eq("id", row.id);
+      else row.uploaded_by = by;
+    }
+  }
+  const { data: checks } = await admin
+    .from("client_file_checks")
+    .select("id")
+    .eq("client_file_id", old.id)
+    .is("undone_at", null)
+    .limit(1);
+  if (checks && checks.length) {
+    await admin
+      .from("client_file_checks")
+      .insert({ client_file_id: row.id, client_id: row.client_id, checked_by: staffEmail, note: "Replaced with a new version" })
+      .then(() => {}, () => {});
+  }
+}
+
 async function doUpload(req: Request, admin: SupabaseClient) {
   const c = await caller(req);
   const len = Number(req.headers.get("Content-Length") || 0);
@@ -239,6 +275,24 @@ async function doUpload(req: Request, admin: SupabaseClient) {
       }
     }
   }
+  // Replace with a new version (staff): checked before anything reaches Drive.
+  const replacesRaw = String(form.get("replaces") || "").trim();
+  let replaced: { id: string; uploaded_by: string | null } | null = null;
+  if (replacesRaw) {
+    if (!staff) throw new HttpError(403, "Only MyGoodBooks staff can replace a file.", "forbidden");
+    if (!UUID_RE.test(replacesRaw) || (visibility !== "shared" && visibility !== "internal")) {
+      throw new HttpError(400, "That file can't be replaced.", "bad_replace");
+    }
+    const { data: old } = await admin
+      .from("client_files")
+      .select("id, client_id, uploaded_by, trashed_at, legacy_path")
+      .eq("id", replacesRaw)
+      .maybeSingle();
+    if (!old || old.client_id !== clientId || old.trashed_at || old.legacy_path) {
+      throw new HttpError(400, "That file can't be replaced (it's gone, in Trash or an old upload).", "bad_replace");
+    }
+    replaced = { id: old.id, uploaded_by: old.uploaded_by };
+  }
   // Documents tab (resolveAccess semantics). client_docs_tab_ok is true while
   // the page-drop switch is off for the client, so nothing changes until then.
   if (visibility === "shared" && !staff && !(await rpcTrue(c, "client_docs_tab_ok", { p_client_id: clientId }))) {
@@ -319,7 +373,15 @@ async function doUpload(req: Request, admin: SupabaseClient) {
     }
     throw new HttpError(500, "The file reached Drive but couldn't be recorded. Try again.");
   }
-  await logEvent(admin, "upload", true, clientId, c.email, JSON.stringify({ file_id: row.id, access_mode: row.access_mode || "everyone" }));
+  if (replaced) await carryOverReplaced(admin, row, replaced, c.email);
+  await logEvent(
+    admin,
+    "upload",
+    true,
+    clientId,
+    c.email,
+    JSON.stringify({ file_id: row.id, access_mode: row.access_mode || "everyone", ...(replaced ? { replaces: replaced.id } : {}) }),
+  );
 
   let path: string | null = null;
   if (requestId && legacyRequest) {
