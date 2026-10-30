@@ -321,6 +321,20 @@ body {
 }
 :where(select, input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"]):focus-visible { outline: 2px solid var(--gold); outline-offset: 0; border-color: var(--gold); }
 :where(select, input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"]):disabled { background-color: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
+/* Plain textareas (feedback box, notes) fall back to the browser's gray box and
+   monospace font. Same themed look as the select above; zero specificity so any
+   class that already styles a textarea still wins. */
+:where(textarea) {
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--surface);
+  color: var(--text);
+  font: 14px/1.45 var(--font-body);
+}
+:where(textarea)::placeholder { color: var(--text-muted); opacity: 1; }
+:where(textarea):focus-visible { outline: 2px solid var(--gold); outline-offset: 0; border-color: var(--gold); }
+:where(textarea):disabled { background-color: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
 
 /* Ambient gradient mesh behind the glass cards (Option C direction). A fixed
    layer sits behind .app-shell (which needs its own stacking context via
