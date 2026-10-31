@@ -690,12 +690,15 @@ function TP_ViewAsHandbookList({ email }) {
 // viewingAs: the staff row App is viewing as, or null (view-as spec §10.3).
 function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, renderMembers, viewingAs }) {
   const placeKey = place === "hr" ? "hr" : "team";
+  // Members area (hidden): subscribing re-renders this hub when the gate's answer arrives.
+  // Hooks run every render, so a no-op stands in when the file is missing.
+  (typeof MB_useGate === "function" ? MB_useGate : () => null)();
   const admin = !!isAdmin;
   const realAdmin = isRealAdmin != null ? !!isRealAdmin : !!(staffUser && staffUser.role === "admin");
   // View as never offers Employee records or Members, even if a hash names
   // them (isAdmin is already false there; this is the backstop).
   const tabs = NAV_visibleTabs(placeKey, { isAdmin: admin, isRealAdmin: realAdmin }).filter(
-    (t) => !viewingAs || (t.key !== "employees" && t.key !== "members"),
+    (t) => !viewingAs || (t.key !== "employees" && t.key !== "members" && t.key !== "members-area"),
   );
   const keys = tabs.map((t) => t.key);
   const [current, setTab] = NAV_useHashSub(placeKey, keys, placeKey === "hr" ? keys[0] || "handbook" : "people");
@@ -727,7 +730,7 @@ function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, rend
   let body = null;
   const vaName = viewingAs ? viewingAs.name || viewingAs.email : "";
   const vaCard = viewingAs && typeof VA_PrivatePlaceholder === "function";
-  if (viewingAs && (current === "employees" || current === "members")) body = null;
+  if (viewingAs && (current === "employees" || current === "members" || current === "members-area")) body = null;
   else if (current === "people") body = <TP_PeopleTab staffUser={staffUser} isAdmin={realAdmin} clients={clients} />;
   // View as: Reviews and Handbook would show the admin's own (blind rule),
   // so a placeholder; Handbook adds a read-only signed / not signed list.
@@ -756,6 +759,8 @@ function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, rend
     body = typeof LR_SettingsPanel === "function" ? <LR_SettingsPanel staffUser={staffUser} isAdmin={realAdmin} /> : missing("Ledger review");
   else if (current === "gifts")
     body = typeof OP_GiftsTab === "function" && realAdmin ? <OP_GiftsTab staffUser={staffUser} clients={clients} /> : missing("Client gifts");
+  else if (current === "members-area")
+    body = typeof MB_MembersTab === "function" ? <MB_MembersTab staffUser={staffUser} /> : missing("Members area");
   else if (current === "members") body = typeof renderMembers === "function" ? renderMembers() : missing("Members");
   else if (current === "employees")
     body = typeof HR_RecordsTab === "function" && realAdmin ? <HR_RecordsTab staffUser={staffUser} /> : missing("Employee records");

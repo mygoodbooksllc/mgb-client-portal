@@ -1008,6 +1008,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by MB_previewOn / MB_useGate (components/members/MB_gate.js).
+    key: "mgb_members_preview",
+    label: "Members area preview",
+    description:
+      "Turns on for you only, in this browser, while the firm-wide members_staff_enabled switch is off, the HR › Members area tab: the customers of the course, the Launch Kit and the client library, for staff who help them. You still need the permission to list members from the owner. Opening a customer is recorded. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     // Read by TM_previewOn / TM_isOn (components/inbox/TM_gate.js).
     key: "mgb_threadmenu_preview",
     label: "Thread menu preview",
@@ -1132,6 +1140,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Desk additions switch)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "Desk additions (preview): supabase/owner-only-deskplus-switch.sql (+ -tests.sql, rolls back) makes tk_settings.deskplus_enabled owner-only (tk__owner_only_key). No row: missing = off. Read by components/workbench/WB_plus.js, never written by the app.",
+  },
+  {
+    name: "Supabase SQL (Members area)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Members area (hidden preview): supabase/members-foundation-v1.sql, members-area-gate-v1.sql and members-staff-list-v1.sql (each with a -tests.sql self-test that rolls back and a -rollback.sql). Staff tab RPCs: members_staff_me, members_staff_list, open_member (logs every call), members_support_people and set_members_support (owner only). tk_settings.members_staff_enabled (the staff tab) and members_area_open (customer data) are owner-only; no row = off. Read by components/members/MB_gate.js, never written by the app.",
   },
   {
     name: "Supabase SQL (Slate plus workload)",
@@ -14109,6 +14122,8 @@ function resettableLocalStorageKeys() {
     // and sessionStorage mgb_op_later:<email> (the client's "Later" for this sign-in; not touched by Reset).
     // Desk additions (hidden preview): mgb_deskplus_preview (a flag, kept),
     // mgb_deskplus_cache (the firm switch deskplus_enabled as last read by WB_plus.js, cleared by Reset).
+    // Members area (hidden preview): mgb_members_preview (a flag, kept),
+    // mgb_members_cache (the firm switch members_staff_enabled as last read by MB_gate.js, cleared by Reset).
     // Slate plus (hidden preview): mgb_slateplus_preview (a flag, kept),
     // mgb_slateplus_cache (the firm switch slateplus_enabled as last read by TK_slatePlus.js, cleared by Reset),
     // mgb_slateplus_workload_v1 (Team load strip collapsed, cleared by Reset),
@@ -15343,6 +15358,7 @@ function parseClientUserCsv(text) {
 // ----------------------------------------------------------------------------
 
 function readAllMygoodbooksStorage() {
+  // Lists every mgb_ key by prefix, so mgb_members_preview and mgb_members_cache (Members area, hidden) show here too.
   try {
     return Object.keys(localStorage)
       .filter((k) => k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_"))
@@ -15654,6 +15670,8 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["threadmenu_enabled", "Message thread menu for all staff (owner only)", "Off = only people with the Thread menu preview flag see it. Off (or missing, the default) keeps Messages and the Desk Inbox exactly as they are: no right-click menu or ⋯ on threads, no Done, Snoozed or Hidden chips, no thread tags. Owner turns it on (true) from the SQL editor (override first; see the README Thread menu launch checklist), never from here. Never shown to clients; off in View as."],
             ["slateplus_enabled", "Slate plus for all staff (owner only)", "Launched 2026-10-28 (label 2026-10-28w): the guide articles are already synced (they describe Slate plus on, so flip promptly); the slate-plus next-visit notice, the Slate plus tour and its tips appear for everyone once this is true. True turns Slate plus on for every staff member. Off = only people with the Slate plus preview flag see it. Off (or missing, the default) keeps Slate exactly as it is for everyone: task comment @mentions work as before (full @ list, no note after posting, no highlight of your own name), the Slate page keeps its own search box and client filter (no filter bar, no Saved filters, no top-bar search across clients, tasks, projects and people), and there is no Team load or 4-week bars anywhere (Slate, Team › People or profiles). No person profiles (#/tasks/person/<key>), no profile links on assignees, Team or shout-outs, no separate reassign button, no profile customization, manager or direct reports view, and no Teams card on Team › People (saved profile settings and teams stay stored, unseen). No Blocked by section, chip, Blocked group, Close order step or Ready to start notice (dependencies someone added with the preview still hold their task until done or removed). Slate keeps its text sidebar (no icon rail, hover menus or lists panel). No hours used / budget chip beside a client or in the Assign to menu. No Calendar button (month grid of tasks by due date) on Slate lists. No project status updates on project pages and no Portfolio page (#/tasks/portfolio); updates already posted stay stored, unseen. No Rules page (#/tasks/rules) and no rule ever runs, switched on or not; saved rules stay stored, unseen. No Fields button on project or client headers, no custom field rows in task details and no field chips on rows (fields and values already saved stay stored, unseen). The New project form stays as it is (no people, client, color, description, due date, Start from or visibility summary; descriptions and due dates already saved stay stored, unseen). Owner turns it on (true) from the SQL editor (override first; see the README Slate plus launch checklist), never from here. Never shown to clients; off in View as; Team load is read only (admins and account managers see everyone's load, others only their own)."],
             ["deskplus_enabled", "Desk additions for staff", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk exactly as it is for everyone: no Ledger chip in the Inbox, no Waiting on client, recent messages or recent files on the Client tab, no Ask client or Message buttons there, and no Ask client…, Message… or Time off in the + menu. Owner turns it on (true) from the SQL editor (override first; see the README Desk additions launch checklist), never from here, to give those to every staff member who has the Desk. Each person can try it early with Desk additions preview in Feature flags. Needs the Desk on (wb_enabled, unless the person picked Classic Today)."],
+            ["members_staff_enabled", "Members area for staff (owner only)", "Owner-only; off = hidden. Off (or missing, the default) hides HR › Members area from every staff member. The owner turns it on (true) from the SQL editor, never from here; until then each person with the permission can try it with Members area preview in Feature flags. Even when on, only admins the owner allowed can list customers. The app only reads it."],
+            ["members_area_open", "Members area: customer data open to members (owner only)", "Owner-only; off = closed. Off (or missing, the default) means members and the members-file download can read nothing from the members area except the owner's allowlisted email. The owner turns it on (true) from the SQL editor when the customer-facing members area launches, never from here. Separate from members_staff_enabled, which only shows the staff tab."],
             ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Nothing emails clients and nothing orders gifts either way."],
             ["client_page_drop_enabled", "Client page drop + who can see a file (owner only)", "Launched 2026-10-31: on (true) with the pilot set to \"all\". Off (or missing): clients drop files only on Documents and Basic Home as before, every file is seen by everyone at the client, and drive-files refuses any who-can-see rule. Staff with the Client page drop preview flag try it alone (View as is a demo that never uploads). Owner sets it with one SQL line, never from here, together with client_page_drop_pilot: when on, then those clients can drop a file anywhere in the portal (Add a file on phones), name it, pick a folder and type, and choose Everyone, Only these people or Everyone except; staff Documents get the upgrades for everyone. Off again: the rules already saved still apply, no new ones can be set."],
             ["client_page_drop_pilot", "Client page drop: which clients", "Launched 2026-10-31 with \"all\". Owner only. \"all\" or a list of client ids. Missing or empty = no client, even with the switch on. Read by the database (cpd__on) and by the portal; code never writes it."],

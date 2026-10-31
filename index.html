@@ -446,7 +446,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-31f", note: "Internal profitability updates (see the Profitability guide article)." };
+      window.MGB_VERSION = { label: "2026-10-31g", note: "Behind-the-scenes updates." };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -525,6 +525,7 @@
       document.write('<link rel="stylesheet" href="components/ledger/ledger.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/client/op.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/client/agreements.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/members/mb.css?v=' + Date.now() + '">');
 
       // Kick every source fetch off HERE, in <head>, so all five download in
       // parallel with React/Babel/jsPDF instead of after them. Previously each
@@ -599,6 +600,9 @@
         "components/hr/HR_logic.js",
         "components/hr/HR_api.js",
         "components/hr/HR_RecordsTab.jsx",
+        "components/members/MB_logic.js",
+        "components/members/MB_gate.js",
+        "components/members/MB_MembersTab.jsx",
         "components/staff/staffOpsLogic.js",
         "components/staff/HoursBudget.jsx",
         "components/staff/ReplyTimes.jsx",

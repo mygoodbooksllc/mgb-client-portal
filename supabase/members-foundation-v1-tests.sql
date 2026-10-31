@@ -41,6 +41,14 @@ begin
   insert into public.member_purchases (email, member_id, product, amount_cents, status, is_test) values
     (c_course, u_course, 'course', 9900, 'paid', true),
     (c_kit, null, 'kit', 7900, 'paid', true);
+  -- Since members-area-gate-v1 (2026-10-31) nobody outside members_area_allowlist
+  -- reads these tables while the switch is off. These tests check the step 1
+  -- "own rows only" rules, so the test users are allowlisted (rolled back).
+  -- The gate itself is tested in members-area-gate-v1-tests.sql.
+  if to_regclass('public.members_area_allowlist') is not null then
+    execute 'insert into public.members_area_allowlist (email, note) select e, ''rolled-back test'' from unnest($1) e on conflict do nothing'
+      using array[c_client, c_course, c_kit, c_unc];
+  end if;
 
   -- T1 trigger: active roster row created a client row
   total := total + 1;

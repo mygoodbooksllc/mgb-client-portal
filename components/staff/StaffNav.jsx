@@ -137,6 +137,10 @@ const NAV_PLACES = [
         visible: () => typeof HR_RecordsTab === "function",
       },
       { key: "members", label: "Members", help: "staff-management", admin: true },
+      // Members area (hidden preview): customers of the course, kit and library, for staff who help
+      // them. Not the staff roster above. Gated by MB_tabVisible (components/members/MB_gate.js);
+      // hidden in View as and impersonation.
+      { key: "members-area", label: "Members area", help: "members-area", visible: (c) => typeof MB_tabVisible === "function" && MB_tabVisible(c) },
     ],
   },
   // MGB (internal): MyGoodBooks' own books, files and close, in the same

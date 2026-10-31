@@ -8,7 +8,12 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Authorization: Bearer <the member's Supabase access token>
 //
 // Order, failing closed at every step:
-//   1. Path is checked before anything else (400 on traversal or odd chars).
+//   0. The members area gate (members-area-gate-v1.sql). While the owner's
+//      switch tk_settings.members_area_open is off, every caller gets 403
+//      unless their CONFIRMED email is in members_area_allowlist (the owner
+//      only). Signed in or not, bad path or not. If the gate cannot be read,
+//      the answer is 403.
+//   1. Path is checked (400 on traversal or odd chars).
 //   2. The token is resolved with auth.getUser (401 if missing or invalid).
 //      The session is only ever read from the Authorization header, never a
 //      query string.
@@ -112,29 +117,56 @@ function rawPathFrom(url: URL): string {
   return i === -1 ? "" : url.pathname.slice(i + marker.length);
 }
 
+const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+// true only when the gate says yes. Any error = false (fail closed).
+async function gateAllows(confirmedEmail: string | null): Promise<boolean> {
+  try {
+    const { data, error } = await admin.rpc("members_area_gate_for", { p_email: confirmedEmail });
+    if (error || !data || typeof data !== "object") return false;
+    return (data as { allowed?: unknown }).allowed === true;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: BASE_HEADERS });
   if (req.method !== "GET" && req.method !== "HEAD") return fail(405, "method_not_allowed");
 
   try {
     const url = new URL(req.url);
+
+    const authHeader = req.headers.get("Authorization") || "";
+    const jwt = authHeader.toLowerCase().startsWith("bearer ") ? authHeader.slice(7).trim() : "";
+    const caller = jwt
+      ? createClient(SUPABASE_URL, ANON_KEY, {
+        global: { headers: { Authorization: `Bearer ${jwt}` } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+      : null;
+    let user: { email?: string; email_confirmed_at?: string } | null = null;
+    if (caller) {
+      try {
+        user = (await caller.auth.getUser(jwt)).data?.user ?? null;
+      } catch {
+        user = null;
+      }
+    }
+    const confirmedEmail = user?.email && user.email_confirmed_at ? user.email.toLowerCase() : null;
+
+    // 0. The gate, before anything else is answered.
+    if (!(await gateAllows(confirmedEmail))) return fail(403, "members_area_closed");
+
     const path = cleanPath(rawPathFrom(url));
     if (!path) return fail(400, "bad_path");
     const needs = allowedFor(path);
 
-    const authHeader = req.headers.get("Authorization") || "";
-    if (!authHeader.toLowerCase().startsWith("bearer ")) return fail(401, "sign_in_required");
-    const jwt = authHeader.slice(7).trim();
-    if (!jwt) return fail(401, "sign_in_required");
-
-    const caller = createClient(SUPABASE_URL, ANON_KEY, {
-      global: { headers: { Authorization: `Bearer ${jwt}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { data: userData, error: userError } = await caller.auth.getUser(jwt);
-    if (userError || !userData?.user?.email) return fail(401, "sign_in_required");
+    if (!caller || !user?.email) return fail(401, "sign_in_required");
     // Unconfirmed accounts get nothing (RLS's member_jwt_email() also refuses them).
-    if (!userData.user.email_confirmed_at) return fail(403, "not_allowed");
+    if (!user.email_confirmed_at) return fail(403, "not_allowed");
 
     if (!needs) return fail(403, "not_allowed");
 

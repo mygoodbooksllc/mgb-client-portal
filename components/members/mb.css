@@ -1,0 +1,283 @@
+/* ---------------------------------------------------------------------------
+   Members area (components/members/*, HR > Members area, hidden preview).
+   Reuses .card, .card-title, .pill, .btn-primary / .btn-secondary, .link-btn,
+   .al-error and the modal classes. Theme tokens only. Under 640px each row
+   stacks into a card, so there is no sideways scroll.
+   --------------------------------------------------------------------------- */
+
+.mb-tab,
+.mb-view {
+  min-width: 0;
+}
+.mb-tab > .card,
+.mb-view > .card {
+  margin-bottom: 16px;
+}
+.mb-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.mb-muted {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  margin: 0;
+}
+.mb-note {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.mb-back {
+  margin-bottom: 12px;
+}
+.mb-inp {
+  width: 100%;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+.mb-inp:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+  border-color: var(--gold);
+}
+.mb-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  margin: 10px 0 6px;
+}
+
+.mb-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin: 12px 0 4px;
+}
+.mb-tools .mb-search {
+  flex: 1 1 240px;
+  max-width: 360px;
+}
+.mb-tools .mb-sel {
+  flex: 0 1 180px;
+}
+.mb-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 8px 0 4px;
+}
+.mb-chip {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.mb-chip.on {
+  background: var(--surface-2);
+  color: var(--ink-strong);
+  border-color: var(--gold);
+  font-weight: 600;
+}
+.mb-chip:focus-visible,
+.mb-check input:focus-visible,
+.mb-radio input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.mb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.mb-tests {
+  margin-left: auto;
+}
+.mb-empty {
+  margin-top: 14px;
+}
+
+/* The list. Desktop: a header row and one grid row per customer. */
+.mb-head,
+.mb-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 1.6fr) minmax(90px, 1fr) minmax(110px, 1fr) 90px 110px minmax(130px, 1.2fr) minmax(90px, 0.8fr) 64px;
+  gap: 8px 12px;
+  align-items: center;
+}
+.mb-head {
+  margin-top: 14px;
+  padding: 0 6px 6px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.mb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.mb-row {
+  padding: 10px 6px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  min-width: 0;
+}
+.mb-row:first-child {
+  border-top: 0;
+}
+.mb-cell {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mb-who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.mb-who strong {
+  color: var(--ink-strong);
+}
+.mb-act {
+  text-align: right;
+}
+.mb-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+@media (max-width: 640px) {
+  .mb-head {
+    display: none;
+  }
+  .mb-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    margin-top: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+  .mb-row:first-child {
+    border-top: 1px solid var(--border);
+  }
+  .mb-cell[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  .mb-act {
+    text-align: left;
+    margin-top: 4px;
+  }
+  .mb-tests {
+    margin-left: 0;
+  }
+  .mb-tools .mb-search,
+  .mb-tools .mb-sel {
+    max-width: none;
+    flex: 1 1 100%;
+  }
+}
+
+/* The why dialog. */
+.mb-dialog {
+  max-width: 440px;
+}
+.mb-why-note {
+  margin: 10px 0 12px;
+}
+.mb-why-set {
+  border: 0;
+  margin: 0 0 6px;
+  padding: 0;
+}
+.mb-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+.mb-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* One opened customer. */
+.mb-group-title {
+  margin: 16px 0 6px;
+  font-size: 13px;
+  color: var(--ink-strong);
+}
+.mb-dl {
+  display: grid;
+  grid-template-columns: minmax(110px, 160px) 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+.mb-dl dt {
+  color: var(--text-muted);
+}
+.mb-dl dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.mb-plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+/* Owner card. */
+.mb-people-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.mb-person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.mb-person:first-child {
+  border-top: 0;
+}
+.mb-person-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
