@@ -8,8 +8,8 @@
 // src/styles.css :root and its dark-mode block; brand guide in
 // design-system/guides/brand-guide.md):
 //   cream ground, white surface with a hairline border, 12px card radius,
-//   999px pill button in navy chrome, Bitter headings (italic serif subtitle
-//   is the house voice), IBM Plex Sans body and figures, muted ink >= 12.5px.
+//   999px pill button in brand navy, Montserrat headings, Lato body and figures
+//   (the portal's brand look since 2026-10-21), muted ink >= 12.5px.
 //
 // Email-safe: table layout and inline styles. A small <style> block only adds
 // progressive enhancements (web fonts, <600px padding, dark mode in clients
@@ -29,9 +29,10 @@ export const T = {
   surface2: "#f0ece3", // --surface-2
   text: "#26343d", // --text
   muted: "#6b655c", // --text-muted
-  ink: "#05080d", // --ink-strong (headings)
-  navy: "#05080d", // --navy (chrome: primary button)
-  logoNavy: "#233746", // the logo's own navy (styles.css .auth-wordmark)
+  ink: "#243746", // brand navy 7546 C (headings)
+  navy: "#243746", // brand navy 7546 C (primary button)
+  logoNavy: "#243746", // brand navy
+  teal: "#06262d", // brand dark teal 5463 C (header band)
   gold: "#c7ae86", // --gold / --accent
   goldDeep: "#8a6d34", // --gold-deep / --warm-text (links, warnings)
   warmBg: "#fbf6ea", // --warm-bg
@@ -42,17 +43,17 @@ export const T = {
 
 // Dark tokens (design-system dark-mode block).
 export const TD = {
-  bg: "#101920",
-  surface: "#17222b",
-  border: "#2d3f4d",
-  surface2: "#1f2d38",
+  bg: "#0d1c22",
+  surface: "#132a32",
+  border: "#28434d",
+  surface2: "#19333c",
   text: "#e8ebed",
   muted: "#a4afb7",
   ink: "#f2f4f5",
   gold: "#c7ae86",
   goldDeep: "#d8c39f",
-  warmBg: "#1f2d38",
-  warmBorder: "#3a5060",
+  warmBg: "#19333c",
+  warmBorder: "#3a5a66",
   warmText: "#d8c9a4",
   good: "#5fbf7a",
   bad: "#e2635f",
@@ -61,8 +62,8 @@ export const TD = {
 
 // Font stacks: brand web font first, then a solid system fallback. Outlook
 // desktop is pinned to the fallbacks by the mso block in the <head>.
-export const FONT_BODY = "font-family:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;";
-export const FONT_HEAD = "font-family:Bitter,Georgia,'Times New Roman',serif;";
+export const FONT_BODY = "font-family:Lato,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;";
+export const FONT_HEAD = "font-family:Montserrat,'Segoe UI',Arial,sans-serif;";
 const NUM = "font-variant-numeric:tabular-nums;";
 
 type Tone = "text" | "muted" | "ink" | "warn" | "bad" | "good";
@@ -89,7 +90,7 @@ export function p(html: string, opts: { tone?: Tone; size?: number; margin?: str
 
 /** Serif section heading (plain text; escaped here). */
 export function heading(text: string, opts: { size?: number; margin?: string } = {}): string {
-  return `<h2 class="mgb-ink" style="${FONT_HEAD}font-size:${opts.size ?? 18}px;line-height:1.3;font-weight:700;letter-spacing:-0.01em;color:${T.ink};margin:${opts.margin ?? "0 0 10px 0"};">${esc(text)}</h2>`;
+  return `<h2 class="mgb-ink" style="${FONT_HEAD}font-size:${opts.size ?? 18}px;line-height:1.3;font-weight:700;letter-spacing:0;color:${T.ink};margin:${opts.margin ?? "0 0 10px 0"};">${esc(text)}</h2>`;
 }
 
 /** Small uppercase label above a list or table (plain text; escaped here). */
@@ -138,7 +139,7 @@ export function statTiles(stats: { value: string; label: string }[]): string {
     .map((s, i) =>
       `<td class="mgb-stack" width="${pct}%" valign="top" style="padding:0 ${i === stats.length - 1 ? 0 : 4}px 0 ${i === 0 ? 0 : 4}px;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="mgb-warm" align="left" style="background:${T.warmBg};border:1px solid ${T.warmBorder};border-radius:12px;padding:14px 16px;">
-    <div class="mgb-ink" style="${FONT_BODY}${NUM}font-size:26px;line-height:1.15;font-weight:700;letter-spacing:-0.01em;color:${T.ink};">${esc(s.value)}</div>
+    <div class="mgb-ink" style="${FONT_BODY}${NUM}font-size:26px;line-height:1.15;font-weight:700;letter-spacing:0;color:${T.ink};">${esc(s.value)}</div>
     <div class="mgb-muted" style="${FONT_BODY}font-size:12.5px;line-height:1.35;color:${T.muted};margin-top:4px;">${esc(s.label)}</div>
   </td></tr></table>
 </td>`
@@ -195,7 +196,7 @@ a{text-decoration:underline;}
   .mgb-card{background:${TD.surface} !important;border-color:${TD.border} !important;}
   .mgb-warm{background:${TD.warmBg} !important;border-color:${TD.warmBorder} !important;}
   .mgb-line{border-color:${TD.border} !important;}
-  .mgb-rule{background:${TD.gold} !important;}
+  .mgb-band{background:${T.teal} !important;}
   .mgb-text{color:${TD.text} !important;}
   .mgb-muted{color:${TD.muted} !important;}
   .mgb-ink,.mgb-word{color:${TD.ink} !important;}
@@ -226,8 +227,8 @@ export function emailDocument(opts: {
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="x-apple-disable-message-reformatting"><meta name="format-detection" content="telephone=no,address=no,email=no,date=no"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${esc(opts.title)}</title>
-<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><style>body,table,td,p,a,li,h1,h2,div,span{font-family:'Segoe UI',Arial,sans-serif !important;}.mgb-serif{font-family:Georgia,serif !important;}</style><![endif]-->
-<!--[if !mso]><!--><link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet"><!--<![endif]-->
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><style>body,table,td,p,a,li,h1,h2,div,span{font-family:'Segoe UI',Arial,sans-serif !important;}</style><![endif]-->
+<!--[if !mso]><!--><link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet"><!--<![endif]-->
 <style>${HEAD_STYLE}</style>
 </head>
 <body class="mgb-bg" style="margin:0;padding:0;background:${T.bg};">
@@ -235,11 +236,11 @@ export function emailDocument(opts: {
 <table role="presentation" class="mgb-bg" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${T.bg}" style="background:${T.bg};"><tr><td class="mgb-outer" align="center" style="padding:32px 16px 40px 16px;">
 <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
-  <tr><td align="left" style="padding:0 4px 22px 4px;">
-    <div class="mgb-word mgb-serif" style="${FONT_HEAD}font-size:24px;line-height:1.1;font-weight:700;letter-spacing:-0.01em;color:${T.logoNavy};">MyGoodBooks</div>
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:10px 0 0 0;"><tr><td class="mgb-rule" width="36" height="2" bgcolor="${T.gold}" style="width:36px;height:2px;line-height:2px;font-size:2px;background:${T.gold};">&nbsp;</td></tr></table>
-    ${opts.subtitle ? `<div class="mgb-muted mgb-serif" style="${FONT_HEAD}font-style:italic;font-size:14.5px;line-height:1.4;color:${T.muted};margin:10px 0 0 0;">${esc(opts.subtitle)}</div>` : ""}
+  <tr><td align="left" class="mgb-band" bgcolor="${T.teal}" style="padding:20px 24px 18px 24px;background:${T.teal};border-radius:12px;border-bottom:3px solid ${T.gold};">
+    <div class="mgb-word-on" style="${FONT_HEAD}font-size:22px;line-height:1.15;font-weight:800;letter-spacing:0;color:#ffffff;">MyGoodBooks</div>
+    ${opts.subtitle ? `<div style="${FONT_BODY}font-style:italic;font-size:14px;line-height:1.4;color:${T.gold};margin:6px 0 0 0;">${esc(opts.subtitle)}</div>` : ""}
   </td></tr>
+  <tr><td style="height:18px;line-height:18px;font-size:1px;">&nbsp;</td></tr>
   ${opts.intro || ""}
   ${opts.cards}
   <tr><td class="mgb-line" style="padding:8px 4px 0 4px;border-top:1px solid ${T.border};">
@@ -253,5 +254,5 @@ export function emailDocument(opts: {
 
 /** Page title for emails that have one (digest). Plain text; escaped here. */
 export function pageTitle(text: string): string {
-  return `<tr><td style="padding:0 4px 16px 4px;"><h1 class="mgb-ink mgb-h1 mgb-serif" style="${FONT_HEAD}font-size:28px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:${T.ink};margin:0;">${esc(text)}</h1></td></tr>`;
+  return `<tr><td style="padding:0 4px 16px 4px;"><h1 class="mgb-ink mgb-h1 mgb-serif" style="${FONT_HEAD}font-size:28px;line-height:1.2;font-weight:800;letter-spacing:0;color:${T.ink};margin:0;">${esc(text)}</h1></td></tr>`;
 }

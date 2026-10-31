@@ -1,9 +1,9 @@
-/* Brand fonts (same families and weights the app loads in index.html). */
-@import url("https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+/* Brand fonts (same families and weights the app loads in index.html; Lato body, Montserrat headings, IBM Plex Mono figures). */
+@import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&family=Montserrat:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 
 :root {
-  --navy: #05080d;
-  --navy-deep: #020306;
+  --navy: #243746;
+  --navy-deep: #06262d;
   --gold: #c7ae86;
   --gold-deep: #8a6d34;
   --bg: #faf9f6;
@@ -41,10 +41,10 @@
   --shadow: 0 1px 2px rgba(38, 52, 61, 0.04);
   --shadow-hover: 0 1px 2px rgba(38, 52, 61, 0.04);
   --radius: 12px;
-  --font-heading: "Bitter", Georgia, serif;
-  --font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-heading: "Montserrat", "Lato", system-ui, -apple-system, sans-serif;
+  --font-body: "Lato", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
-  --on-gold: #05080d;
+  --on-gold: #06262d;
   --on-gold-deep: #ffffff;
   --grid-line: rgba(138, 109, 52, 0.04);
   --grid-cell-w: 92px;
@@ -63,12 +63,12 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --navy: #243746;
-    --navy-deep: #0f181f;
+    --navy-deep: #06262d;
     --gold: #c7ae86;
     --gold-deep: #d8c39f;
-    --bg: #101920;
-    --surface: #17222b;
-    --border: #2d3f4d;
+    --bg: #0d1c22;
+    --surface: #132a32;
+    --border: #28434d;
     --text: #e8ebed;
     --text-muted: #a4afb7;
     --ink-strong: #f2f4f5;
@@ -76,14 +76,14 @@
     --sidebar-text: #aab5bd;
     --sidebar-text-active: #ffffff;
     --accent: var(--gold);
-    --accent-soft: #1f2d38;
+    --accent-soft: #19333c;
     --good: #5fbf7a;
     --good-soft: #16261c;
     --bad: #e2635f;
     --bad-soft: #2a1917;
     --shadow: none;
     --shadow-hover: none;
-    --surface-2: #1f2d38;
+    --surface-2: #19333c;
     --hover-bg: #1f2d38;
     --muted-line: #3a4e5c;
     --sidebar-text-muted: #8b99a3;
@@ -118,12 +118,12 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --navy: #243746;
-  --navy-deep: #0f181f;
+  --navy-deep: #06262d;
   --gold: #c7ae86;
   --gold-deep: #d8c39f;
-  --bg: #101920;
-  --surface: #17222b;
-  --border: #2d3f4d;
+  --bg: #0d1c22;
+  --surface: #132a32;
+  --border: #28434d;
   --text: #e8ebed;
   --text-muted: #a4afb7;
   --ink-strong: #f2f4f5;
@@ -131,14 +131,14 @@
   --sidebar-text: #aab5bd;
   --sidebar-text-active: #ffffff;
   --accent: var(--gold);
-  --accent-soft: #1f2d38;
+  --accent-soft: #19333c;
   --good: #5fbf7a;
   --good-soft: #16261c;
   --bad: #e2635f;
   --bad-soft: #2a1917;
   --shadow: none;
   --shadow-hover: none;
-  --surface-2: #1f2d38;
+  --surface-2: #19333c;
   --hover-bg: #1f2d38;
   --muted-line: #3a4e5c;
   --sidebar-text-muted: #8b99a3;
