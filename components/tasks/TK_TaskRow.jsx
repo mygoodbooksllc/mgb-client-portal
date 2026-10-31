@@ -88,6 +88,11 @@ function TK_vCopy(key, fallback) {
 // The C10 line for a failed write or read.
 function TK_vErrText(err, fallbackKey) {
   var code = err && err.code ? String(err.code) : "";
+  // Slate plus dependencies: the server refused a start or finish (only ever
+  // raised for a task that has a blocker, supabase/slateplus-deps.sql).
+  if ((err && err.reason === "tk_blocked") || /tk_blocked/.test(String((err && err.message) || ""))) {
+    return "This task is waiting on another task to finish.";
+  }
   var rk = typeof TK_reviewErrorKey === "function" ? TK_reviewErrorKey(err) : null; // tasks p2 s3
   if (rk && TK_vCopy(rk)) return TK_vCopy(rk);
   // P4-3: a one-row bulk call the server skipped; the message is the reason.
@@ -282,6 +287,11 @@ function TK_vAssignMenu(props) {
       </button>
       {menu.open ? (
         <div className="tk-menu" role="menu" aria-label="Assign to" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
+          {task.client_id && typeof TK_HoursChip === "function" && typeof TKP_on === "function" && TKP_on() ? (
+            <span className="tk-menu-note tkh-menu-note">
+              <TK_HoursChip clientId={task.client_id} />
+            </span>
+          ) : null}
           {people === null ? <span className="tk-menu-note">Loading…</span> : null}
           {list.map(function (p) {
             var em = String(p.email).toLowerCase();
@@ -681,6 +691,7 @@ function TK_vIcon(props) {
   if (name === "user") return <svg {...common}><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20c.7-3.6 3.4-5.5 7-5.5s6.3 1.9 7 5.5" /></svg>;
   if (name === "gear") return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
   if (name === "folder") return <svg {...common}><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" /></svg>;
+  if (name === "swap") return <svg {...common}><polyline points="16 4 20 8 16 12" /><line x1="20" y1="8" x2="6" y2="8" /><polyline points="8 12 4 16 8 20" /><line x1="4" y1="16" x2="18" y2="16" /></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="8" /></svg>;
 }
 
@@ -1298,6 +1309,19 @@ function TK_vRowAssignee(props) {
   var shownName = props.showName && email ? <span className="tk-who-name">{name}</span> : null;
   var hint = email ? null : <span className="tk-ph-label">Assign</span>;
   if (!props.editable) {
+    // Slate plus: a link to their profile while the gate is on. A plain check
+    // (no hook per row); off, the row renders exactly as before.
+    if (email && typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on()) {
+      return (
+        <span className="tk-asg" title={email ? name : "Unassigned"}>
+          <TKP_PersonLink email={email} className="tkp-asg-link" title={"Open " + name + "'s profile"}>
+            {face}
+            {shownName}
+          </TKP_PersonLink>
+          <span className="tk-sr">{email ? "Assignee: " + name : "Unassigned"}</span>
+        </span>
+      );
+    }
     return (
       <span className="tk-asg" title={email ? name : "Unassigned"}>
         {face}
@@ -1320,9 +1344,39 @@ function TK_vRowAssignee(props) {
     }
     TK_vRowSave(task, { assignee_email: p.email });
   };
-  return (
-    <span className="tk-pop-wrap tk-asg-wrap">
+  // Slate plus (gate on): the name/face opens the profile and a small, separate
+  // button opens the "Assign to" menu. Off, the single menu button is unchanged.
+  var plusRow = typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on();
+  var trigger = plusRow ? (
+    <React.Fragment>
+      {email ? (
+        <TKP_PersonLink email={email} className="tkp-asg-link" title={"Open " + name + "'s profile"}>
+          {face}
+          {shownName}
+        </TKP_PersonLink>
+      ) : null}
       <button
+        type="button"
+        ref={menu.btnRef}
+        className={"tkp-reassign" + (email ? "" : " is-empty")}
+        data-tour="tkp-reassign"
+        aria-haspopup="menu"
+        aria-expanded={menu.open ? "true" : "false"}
+        aria-label={email ? "Reassign. Assigned to " + name : "Assign someone"}
+        title={email ? "Reassign" : "Assign someone"}
+        onClick={function (e) {
+          e.stopPropagation();
+          menu.setOpen(!menu.open);
+        }}
+      >
+        {email ? <TK_vIcon name="swap" size={13} /> : face}
+        {hint}
+      </button>
+    </React.Fragment>
+  ) : null;
+  return (
+    <span className={"tk-pop-wrap tk-asg-wrap" + (plusRow ? " tkp-asg-wrap" : "")}>
+      {plusRow ? trigger : <button
         type="button"
         ref={menu.btnRef}
         className={"tk-cellbtn tk-asg" + (email ? "" : " is-empty")}
@@ -1338,9 +1392,14 @@ function TK_vRowAssignee(props) {
         {face}
         {shownName}
         {hint}
-      </button>
+      </button>}
       {menu.open ? (
         <div className="tk-menu" role="menu" aria-label="Assign to" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
+          {task.client_id && typeof TK_HoursChip === "function" && typeof TKP_on === "function" && TKP_on() ? (
+            <span className="tk-menu-note tkh-menu-note">
+              <TK_HoursChip clientId={task.client_id} />
+            </span>
+          ) : null}
           {people === null ? <span className="tk-menu-note">Loading…</span> : null}
           {list.map(function (p) {
             var em = String(p.email).toLowerCase();
@@ -1640,6 +1699,15 @@ function TK_vRowMore(props) {
 //   Workbench hub): onSelect(id, shiftKey) shows a select box before the title
 //   (on hover, or always once anything is selected: `selecting`), selected.
 
+// Slate plus dependencies: the small lock on the "Blocked by N" chip.
+function TK_vLockIcon() {
+  return (
+    <svg className="tk-lock-icon" width="11" height="11" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M5 7V5a3 3 0 0 1 6 0v2h.5A1.5 1.5 0 0 1 13 8.5v5A1.5 1.5 0 0 1 11.5 15h-7A1.5 1.5 0 0 1 3 13.5v-5A1.5 1.5 0 0 1 4.5 7H5zm1.5 0h3V5a1.5 1.5 0 0 0-3 0v2z" />
+    </svg>
+  );
+}
+
 function TK_TaskRow(props) {
   var task = props.task;
   var ref = React.useRef(null);
@@ -1667,6 +1735,11 @@ function TK_TaskRow(props) {
     },
     [unassignedOpen],
   );
+  // Slate plus dependencies (TKP_on): re-render when the deps load. No
+  // network and returns 0 while off.
+  if (typeof TKD_useDeps === "function") TKD_useDeps();
+  // Slate plus custom fields: re-render when field definitions or values change.
+  if (typeof TKCF_useFields === "function") TKCF_useFields();
   if (!task) return null;
   var id = task.id;
   // R2: the task showing in the Desk's task view (TK_store.deskTaskId) is marked
@@ -1771,6 +1844,18 @@ function TK_TaskRow(props) {
   if (cl) meta.push(<span key="cl" className="tk-meta-check" title="Checklist">{cl.done + "/" + cl.total}</span>);
   // tasks p2 s4: made by a recurring template
   if (task.source === "template") meta.push(<span key="rc" className="tk-meta-recurring" title="Made by a recurring template">Recurring</span>);
+  // Slate plus dependencies: "Blocked by N" (null while off or not loaded).
+  var depOpen = !done && typeof TKD_blockersOf === "function" ? TKD_blockersOf(task) : null;
+  if (depOpen && depOpen.length)
+    meta.push(
+      <span key="dep" className="tk-meta-blocked" title={TKD_chipTitle(depOpen)}>
+        <TK_vLockIcon />
+        {TKD_chipText(depOpen.length)}
+      </span>,
+    );
+  // Slate plus custom fields: up to 3 filled fields, then +N (nothing while off).
+  var cfChips = typeof TK_CFRowChips === "function" ? TK_CFRowChips(task) : null;
+  if (cfChips) cfChips.forEach(function (c) { meta.push(c); });
   if (props.snippet) meta.push(<span key="sn" className="tk-meta-snippet">{"In a comment: " + props.snippet}</span>);
   if (props.note) meta.push(<span key="nt" className="tk-meta-note">{props.note}</span>);
   // Month rhythm S6 (Close order): the first open step, or one waiting on the client

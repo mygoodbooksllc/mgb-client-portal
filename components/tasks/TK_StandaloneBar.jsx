@@ -174,6 +174,9 @@ function TK_StandaloneBar(props) {
   var route = TK_useRoute();
   var phone = slm ? !slWide : width <= 760;
   var followInMenu = touch || (!!slm && !slWide);
+  // Slate plus Profile 2: the unified search replaces the bar's search box
+  // while the gate is on. Off, the old box / link render exactly as before.
+  var tksOn = (typeof TKP_useOn === "function" ? TKP_useOn() : false) && typeof TKS_SearchBox === "function";
 
   // Follow my client: the list follows the client open in the portal window.
   var fPair = React.useState(function () {
@@ -306,7 +309,9 @@ function TK_StandaloneBar(props) {
         {follow.liveText}
       </span>
       <div className="tk-sbar-actions">
-        {slWide && typeof TK_SlateSearchBox === "function" ? (
+        {tksOn ? (
+          <TKS_SearchBox variant="sbar" compact={phone} clients={props.clients || []} isAdmin={staffUser.role === "admin"} />
+        ) : slWide && typeof TK_SlateSearchBox === "function" ? (
           <TK_SlateSearchBox />
         ) : (
           <a
@@ -357,6 +362,11 @@ function TK_StandaloneBar(props) {
           </a>
         ) : null}
         {slWide && typeof TK_SlateSizeButtons === "function" ? <TK_SlateSizeButtons /> : null}
+        {slm && slm.mode === "compact" && presets.ok ? (
+          <button type="button" className="tk-sbar-btn tk-slate-size" title="Back to the full page" onClick={function () { presets.apply("full"); }}>
+            Full page
+          </button>
+        ) : null}
         {followInMenu ? null : (
           <span className="tk-sbar-follow-wrap" title="Show the tasks for the client open in your portal window">
             <TK_vSwitch className="tk-sbar-follow" label="Follow my client" checked={followOn} onChange={setFollow} />

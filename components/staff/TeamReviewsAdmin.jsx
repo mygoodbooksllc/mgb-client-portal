@@ -2,7 +2,7 @@
 // Loaded after TeamReviews.jsx; uses its TR_* helpers. The database checks
 // every action again (tr_require_admin / tr_history's own-history rule).
 
-const TR_DRIVE_ROOT = "~ MGB: Staff Reviews";
+const TR_DRIVE_ROOT = "~ MGB: Personelle (Portal Connected)";
 
 function TR_useRpc(fn, args, deps) {
   const [state, setState] = React.useState({ data: null, error: "", loading: true });
@@ -234,7 +234,7 @@ function TR_HistoryTab({ ov }) {
             None yet.
           </p>
         ) : (
-          <div className="al-table-wrap">
+          <div className="al-table-wrap mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled tr-table">
               <thead>
                 <tr>
@@ -924,7 +924,7 @@ function TR_TeamStatusTab({ ov }) {
                 Nobody in this cycle yet.
               </p>
             ) : (
-              <div className="al-table-wrap">
+              <div className="al-table-wrap mgb-sticky-wrap">
                 <table className="tx-table tx-table-labeled tr-table">
                   <thead>
                     <tr>

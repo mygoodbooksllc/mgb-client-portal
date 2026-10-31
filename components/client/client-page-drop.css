@@ -1,0 +1,142 @@
+/* Client page drop + staff Documents upgrades (docs/client-page-drop.md;
+   components/client/ClientPageDrop.jsx and DocPlus.jsx). Existing variables
+   only. Nothing here applies until one of those components renders, which
+   needs the preview flag mgb_clientdrop_preview or the owner's
+   client_page_drop_enabled switch. */
+
+/* ---- The dialog (ModalShell puts the class on .modal-panel) ---- */
+.modal-panel.cpd-dialog { max-width: 540px; }
+.cpd-body { font-style: normal; gap: 14px; }
+.cpd-body p { margin: 0; }
+.cpd-fields { display: grid; gap: 12px; }
+.cpd-field { display: grid; gap: 6px; min-width: 0; }
+.cpd-label { font-size: 13px; font-weight: 700; color: var(--ink-strong); padding: 0; }
+.cpd-field input[type="text"],
+.cpd-field select,
+.cpd-newfolder {
+  font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  min-height: 40px; box-sizing: border-box; width: 100%;
+}
+.cpd-files { max-height: 160px; }
+.cpd-note { font-size: 12.5px; color: var(--text-muted); line-height: 1.45; }
+.cpd-warn { font-size: 12.5px; color: var(--warm-text); line-height: 1.45; }
+.cpd-err { font-size: 13px; color: var(--danger, #b4483c); font-weight: 600; }
+.cpd-demo {
+  font-size: 13px; padding: 8px 10px; border-radius: 8px;
+  background: var(--accent-soft); color: var(--ink-strong); border: 1px dashed var(--gold-deep);
+}
+.cpd-file-line { font-size: 14px; overflow-wrap: anywhere; }
+.cpd-orig { color: var(--text-muted); font-weight: 400; }
+
+/* Who can see it */
+.cpd-access { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+.cpd-access[disabled] { opacity: 0.8; }
+.cpd-radios { display: grid; gap: 6px; }
+.cpd-radio {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; min-height: 40px; box-sizing: border-box;
+  border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; font-size: 14px;
+}
+.cpd-radio.is-on { border-color: var(--gold-deep); background: var(--hover-bg); }
+.cpd-radio:focus-within { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
+.cpd-people {
+  display: grid; gap: 2px; max-height: 200px; overflow-y: auto;
+  padding: 4px; border: 1px solid var(--border); border-radius: 8px;
+}
+.cpd-person {
+  display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center;
+  padding: 6px 6px; border-radius: 6px; cursor: pointer; font-size: 14px; min-width: 0;
+}
+.cpd-person:hover { background: var(--hover-bg); }
+.cpd-person input { grid-row: span 2; }
+.cpd-person-name { color: var(--text); overflow-wrap: anywhere; }
+.cpd-person-email { grid-column: 2; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+
+/* Footer */
+.cpd-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  border-top: 1px solid var(--border); padding-top: 14px;
+}
+.cpd-foot-right { display: flex; gap: 8px; margin-left: auto; }
+
+/* Chips and the row button (Documents table) */
+.cpd-chip {
+  display: inline-flex; align-items: center; gap: 4px; margin: 4px 6px 0 0;
+  padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  background: var(--accent-soft); color: var(--ink-strong); border: 1px solid var(--border);
+}
+p.cpd-chip { display: inline-flex; margin-top: 6px; }
+.cpd-row-btn {
+  margin: 4px 0 0; padding: 2px 8px; border-radius: 999px; font: inherit; font-size: 11.5px; font-weight: 600;
+  background: transparent; color: var(--accent-text, var(--ink-strong)); border: 1px solid var(--border); cursor: pointer;
+}
+.cpd-row-btn:hover, .cpd-row-btn:focus-visible { border-color: var(--gold-deep); }
+
+/* Phones: "+ Add a file", bottom left, above the tab bar (60) and under
+   modals (2000). The chat button sits bottom right. */
+.cpd-fab { display: none; }
+@media (max-width: 760px) {
+  .cpd-fab {
+    display: inline-flex; align-items: center; gap: 6px; position: fixed; z-index: 880;
+    left: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--gold-deep);
+    background: var(--surface); color: var(--ink-strong); font: inherit; font-size: 14px; font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); cursor: pointer;
+  }
+  .cpd-fab span { font-size: 18px; line-height: 1; }
+  .has-client-tabbar ~ .cpd-fab,
+  body:has(.has-client-tabbar) .cpd-fab { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+  body:has(.modal-overlay) .cpd-fab { display: none; }
+  .modal-panel.cpd-dialog { padding: 18px; max-height: calc(100dvh - 24px); }
+  .modal-overlay:has(.cpd-dialog) { padding: 12px; }
+}
+
+/* ---- Staff Documents upgrades ---- */
+.dp-menu { position: relative; display: inline-flex; }
+.dp-menu-btn {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid transparent; background: transparent;
+  color: var(--text-muted); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.dp-menu-btn:hover, .dp-menu-btn:focus-visible, .dp-menu-btn[aria-expanded="true"] { border-color: var(--border); color: var(--text); background: var(--hover-bg); }
+.dp-menu-list {
+  position: fixed; z-index: 1500; min-width: 210px;
+  display: grid; padding: 4px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+.dp-menu-list button {
+  text-align: left; background: none; border: 0; border-radius: 6px; padding: 8px 10px;
+  font: inherit; font-size: 13.5px; color: var(--text); cursor: pointer; white-space: nowrap;
+}
+.dp-menu-list button:hover:not(:disabled), .dp-menu-list button:focus-visible { background: var(--hover-bg); }
+.dp-menu-list button:disabled { opacity: 0.5; cursor: default; }
+
+.dp-history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dp-history-list li { display: grid; gap: 2px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.dp-history-list li:last-child { border-bottom: 0; }
+.dp-history-text { font-size: 14px; color: var(--text); overflow-wrap: anywhere; }
+.dp-history-meta { font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+
+.dp-bulk {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 8px 0;
+  padding: 8px 12px; border-radius: 10px; background: var(--accent-soft); border: 1px solid var(--border); font-size: 13.5px;
+}
+.dp-bulk-move { display: inline-flex; align-items: center; gap: 6px; }
+.dp-bulk-move .rb-select { width: auto; padding: 5px 8px; }
+.dp-check-col { width: 32px; }
+.dp-check-col input { width: 16px; height: 16px; cursor: pointer; }
+.dp-orig { display: block; margin-top: 2px; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.dp-type-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; font-size: 11px; font-weight: 700;
+  color: var(--text-muted); border: 1px solid var(--border); vertical-align: middle;
+}
+.dp-upload-access { white-space: nowrap; }
+.doc-folder-rename {
+  display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px;
+  border-radius: 999px; font-size: 11px; line-height: 1; opacity: 0.55;
+}
+.doc-folder-rename:hover, .doc-folder-rename:focus-visible { opacity: 1; background: rgba(0, 0, 0, 0.08); }
+
+@media (max-width: 760px) {
+  /* The labeled table turns into cards: keep the checkbox and menu tidy. */
+  .tx-table-labeled td.dp-check-col { width: auto; }
+}

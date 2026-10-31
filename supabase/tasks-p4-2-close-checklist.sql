@@ -732,9 +732,11 @@ begin
       end if;
     end if;
   exception when others then
-    if sqlerrm ~ '^tk_(forbidden|bad_transition|has_open_requests|needs_approval|task_in_trash|project_trashed)' then
+    -- tk_blocked (Slate plus "Blocked by", 2026-10-27): plain words, never an error.
+    if sqlerrm ~ '^tk_(forbidden|bad_transition|has_open_requests|needs_approval|task_in_trash|project_trashed|blocked)' then
       v_status := 'blocked';
       v_msg := case
+        when sqlerrm like 'tk_blocked%' then 'This task is waiting on another task to finish.'
         when sqlerrm like 'tk_has_open_requests%' then 'Waiting on the client. Close the request first.'
         when sqlerrm like 'tk_needs_approval%' then 'In review'
         when sqlerrm like 'tk_forbidden%' and not v_done then 'Ask an admin to reopen'

@@ -2,7 +2,7 @@
 title: How do I set a monthly hours budget for a client?
 section: Admin
 audience: admin
-keywords: [hours budget, monthly hours budget, budget, over budget, over hours budget, hours used, quickbooks time, 80%, scope creep, profitability]
+keywords: [hours budget, monthly hours budget, budget, over budget, over hours budget, hours used, quickbooks time, 80%, scope creep, hourly rate]
 sort: 545
 ---
 An **hours budget** is how many QuickBooks Time hours you plan to spend on a client each month. Admins set it and see it. Bookkeepers don't see it.
@@ -16,7 +16,7 @@ An **hours budget** is how many QuickBooks Time hours you plan to spend on a cli
 
 ### Where it shows
 
-- **Client overview → Billing and time → Profitability · this month** (admins only): **Hours budget** shows hours used out of the budget (for example **11.5 h of 10 h**), a bar and the percent.
+- **Client overview → Billing and time → Hourly rate · this month** (admins only): **Hours budget** shows hours used out of the budget (for example **11.5 h of 10 h**), a bar and the percent.
 - **Team → Hours and tasks → Clients table**: the **Budget (this month)** column. Click the header to sort by it.
 - **Clients page**: the **Hours this month** column shows this month's hours against the budget for everyone assigned to the client, so bookkeepers can see where they stand. Amber from 80%, red when over.
 - **Today**: a client over budget does not make a row on its own; check the Clients page.

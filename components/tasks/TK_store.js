@@ -182,6 +182,12 @@ function TK_stMatches(state, key, task) {
   if (kind === "wb" && val.indexOf("client:") === 0) return task.client_id != null && String(task.client_id) === val.slice(7);
   if (kind === "project") return task.project_id != null && String(task.project_id) === val;
   if (kind === "children") return task.parent_id != null && String(task.parent_id) === val;
+  // Slate plus person profile (TK_Profile.jsx): one person's assigned tasks.
+  // The key is the profile key (TKP_personKey, TK_personLink.js), never an email.
+  if (kind === "assignee") {
+    if (!val || typeof TKP_personKey !== "function") return null;
+    return !!task.assignee_email && TKP_personKey(task.assignee_email) === val;
+  }
   if (kind === "person") {
     var staff = state.staff || [];
     for (var s = 0; s < staff.length; s++) {
@@ -510,28 +516,26 @@ function TK_createStore(reducer, init) {
 
 var TK_store = TK_createStore();
 
-// ---- Slate app flag (preview; spec-desk-fullpage.md section 4) ----------------------
-// Three layers behind one helper, TK_slateAppIsOn (TK_viewLogic.js):
-//   localStorage mgb_slate_app_preview "1"   this browser only
-//   localStorage mgb_slate_classic "1"       opt-out, wins over the other two
+// ---- Slate app flag (spec-desk-fullpage.md section 4) -------------------------------
+// One layer behind one helper, TK_slateAppIsOn (TK_viewLogic.js):
 //   tk_settings.slate_app_enabled            the firm switch (owner-only, never written here)
-// State: { setting, appFlagKnown, appOn }. appOn is computed from localStorage
-// the first time anyone looks (so a person's preview shows at once), then
-// recomputed on every change. appFlagKnown stays false until the tk_settings read
-// has finished, except when the classic key is "1": that is known off at once,
-// whatever the firm switch says. A read error, a missing client or a denied row
+// The personal Slate app preview box and the Classic tasks page opt-out (localStorage
+// mgb_slate_app_preview / mgb_slate_classic) were retired 2026-10-28; the switch is on
+// for everyone.
+// State: { setting, appFlagKnown, appOn }. appFlagKnown stays false until the
+// tk_settings read has finished. A read error, a missing client or a denied row
 // all count as "off" and still set it true, so the app never waits forever.
 // readSlateAppFlag shares one in-flight read between callers.
-// env (a test passes its own): { ls(key) -> string|null, sb() -> Supabase client|null }.
+// env (a test passes its own): { sb() -> Supabase client|null }.
 
-function TK_stSlateIsOn(setting, preview, classic) {
+function TK_stSlateIsOn(setting) {
   try {
-    if (typeof TK_slateAppIsOn === "function") return TK_slateAppIsOn(setting, preview, classic);
+    if (typeof TK_slateAppIsOn === "function") return TK_slateAppIsOn(setting);
   } catch (e) {}
   if (typeof require === "function") {
     try {
       var m = require("./TK_viewLogic.js");
-      if (m && typeof m.TK_slateAppIsOn === "function") return m.TK_slateAppIsOn(setting, preview, classic);
+      if (m && typeof m.TK_slateAppIsOn === "function") return m.TK_slateAppIsOn(setting);
     } catch (e) {}
   }
   return false;
@@ -543,22 +547,12 @@ function TK_createSlateFlag(env) {
   var state = null; // built on first use: TK_viewLogic.js loads after this file
   var inflight = null;
 
-  function ls(key) {
-    try {
-      return typeof e.ls === "function" ? e.ls(key) : null;
-    } catch (err) {
-      return null; // blocked storage reads as unset
-    }
-  }
   function compute(setting) {
-    var preview = ls("mgb_slate_app_preview") === "1";
-    var classic = ls("mgb_slate_classic") === "1";
-    return TK_stSlateIsOn(setting, preview ? "1" : null, classic);
+    return TK_stSlateIsOn(setting);
   }
   function init() {
     if (state) return state;
-    var classic = ls("mgb_slate_classic") === "1";
-    state = { setting: undefined, appFlagKnown: classic, appOn: compute(undefined) };
+    state = { setting: undefined, appFlagKnown: false, appOn: compute(undefined) };
     return state;
   }
   function set(patch) {
@@ -628,17 +622,10 @@ function TK_createSlateFlag(env) {
       };
     },
     readSlateAppFlag: readSlateAppFlag,
-    // Re-reads the two localStorage keys (after a Dev Tools toggle) without a network call.
-    refresh: function () {
-      return set({});
-    },
   };
 }
 
 var TK_slateFlag = TK_createSlateFlag({
-  ls: function (key) {
-    return typeof window !== "undefined" && window.localStorage ? window.localStorage.getItem(key) : null;
-  },
   sb: function () {
     return typeof window !== "undefined" ? window.mgbSupabase || null : null;
   },

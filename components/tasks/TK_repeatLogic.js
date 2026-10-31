@@ -364,7 +364,57 @@ var TK_repeat = (function () {
     return r;
   }
 
+  // The `start` a task's rule should be saved with. `start` is the series'
+  // unmoved first date. A task whose due date was pushed past a weekend or
+  // holiday must not re-anchor the schedule just because its Repeat menu was
+  // saved again, so an existing start is kept while the schedule itself
+  // (frequency, interval, weekdays, day of month) is unchanged. A new rule, a
+  // changed schedule or an old rule with no start takes the due date.
+  function repeatSaveStart(oldRule, newRule, dueDate, holidays) {
+    function shape(r) {
+      var dows = r && r.dows ? r.dows.slice().sort(function (a, b) { return a - b; }) : [];
+      return JSON.stringify([
+        r && r.freq,
+        r && r.interval == null ? 1 : r && r.interval,
+        dows,
+        r && r.by ? r.by : "dom",
+        r && r.day == null ? null : r && r.day,
+        r && r.n == null ? null : r && r.n,
+        r && r.dow == null ? null : r && r.dow,
+      ]);
+    }
+    if (
+      oldRule && valid(oldRule.start) && repeatValid(oldRule) && shape(oldRule) === shape(newRule) &&
+      onOldSeries(oldRule, dueDate, holidays)
+    ) {
+      return oldRule.start;
+    }
+    return dueDate;
+  }
+
+  // Is dueDate a date the old series produces, or one that series shifted past a
+  // weekend or holiday? A due date staff moved by hand to another valid
+  // occurrence (a different week, month or year) is not, so it re-anchors.
+  // With a holiday list the shifted dates are exact; without one (the drawer has
+  // none) a skip rule accepts a date up to 5 days after a scheduled one.
+  function onOldSeries(oldRule, dueDate, holidays) {
+    if (!valid(dueDate)) return true; // nothing to compare: keep the old start
+    var raw = Object.assign({}, oldRule, { skip: false, end: { type: "never" } });
+    var far = addDays(dueDate, 1);
+    var dates = repeatSeries(raw, oldRule.start, far, null, 5000);
+    if (dates.indexOf(dueDate) >= 0) return true;
+    if (!oldRule.skip) return false;
+    if (holidays) {
+      var shifted = repeatSeries(Object.assign({}, oldRule, { end: { type: "never" } }), oldRule.start, far, holidays, 5000);
+      return shifted.indexOf(dueDate) >= 0;
+    }
+    var last = null;
+    for (var i = 0; i < dates.length; i++) if (diffDays(dates[i], dueDate) <= 0) last = dates[i];
+    return last !== null && -diffDays(last, dueDate) <= 5;
+  }
+
   return {
+    TK_repeatSaveStart: repeatSaveStart,
     TK_repeatValid: repeatValid,
     TK_repeatNext: repeatNext,
     TK_repeatSeries: repeatSeries,
@@ -380,6 +430,7 @@ var TK_repeat = (function () {
   };
 })();
 
+var TK_repeatSaveStart = TK_repeat.TK_repeatSaveStart;
 var TK_repeatValid = TK_repeat.TK_repeatValid;
 var TK_repeatNext = TK_repeat.TK_repeatNext;
 var TK_repeatSeries = TK_repeat.TK_repeatSeries;

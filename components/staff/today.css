@@ -657,6 +657,12 @@ button.td-row-main:hover {
 .td-mini-row:hover {
   background: var(--hover-bg);
 }
+.td-mini-actions {
+  display: flex;
+  gap: 14px;
+  padding: 0 10px 6px;
+  font-size: 12.5px;
+}
 .td-mini-title {
   min-width: 0;
   font-size: 14px;

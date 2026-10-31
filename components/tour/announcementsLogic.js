@@ -29,7 +29,7 @@ function ANN_roleSet(ctx) {
 // Is the entry listed at all yet? An entry may carry visible(ctx) -> boolean
 // (the Slate app launch: nothing about it shows anywhere, not the notice, not
 // What's new's Launches list, not the ? menu tour, until the owner has turned
-// the firm switch on and this person is not on the Classic option). Without
+// the firm switch on). Without
 // one it is always visible. A visible() that throws counts as not visible.
 function ANN_listed(entry, ctx) {
   if (!entry || typeof entry.visible !== "function") return true;

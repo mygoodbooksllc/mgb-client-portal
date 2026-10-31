@@ -123,7 +123,8 @@ function CN_useRequests(clientId) {
   }, [clientId, reload]);
 
   const rows = state.clientId === (clientId || null) ? state.rows : [];
-  return { rows, loaded: state.loaded && state.clientId === (clientId || null), error: state.error, reload };
+  // clientId: whose rows these are (callers drop rows for another client).
+  return { rows, loaded: state.loaded && state.clientId === (clientId || null), error: state.error, reload, clientId: state.clientId };
 }
 
 /** Open requests only (Home "Needs you", the Messages tab dot). */

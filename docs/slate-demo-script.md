@@ -1,11 +1,11 @@
 # Slate app: Monday demo script (one page)
 
-Slate is still unlaunched. The demo runs on **your preview only**; do not touch the firm switch (`slate_app_enabled`).
+The Slate app is on for everyone (since October 25, 2026), and Slate plus launched on October 28, 2026 (on for everyone once the owner sets `slateplus_enabled`). No preview box is needed; to show Slate plus before the switch is on, tick **Developer tools › Feature flags › Slate plus preview** on the demo laptop only.
 
 ## Before the meeting (5 minutes)
 
 1. In Chrome on the demo laptop, sign in at app.mygoodbooks.org as yourself.
-2. Go to **Developer tools › Feature flags** and tick **Slate app preview**. The page reloads.
+2. Only if Slate plus isn't on yet: go to **Developer tools › Feature flags** and tick **Slate plus preview**. The page reloads.
 3. Open **Slate**, then click **Open Slate app**. Install it if Chrome offers, so it opens in its own window.
 4. Pick a demo client with 15 to 30 open tasks, including some overdue and a project with two or more sections. Use your own tasks, or tasks the room is fine seeing.
 5. Close every other tab that shows Slate, so only one window runs during the demo.

@@ -54,7 +54,16 @@ function TK_Activity(props) {
           <li key={a.id} className="tk-cm-activity">
             <span className="tk-cm-dot" aria-hidden="true" />
             <span className="tk-cm-activity-text">
-              <span className="tk-cm-name">{nameOf(a.actor_email)}</span>{" "}
+              <span className="tk-cm-name">
+                {typeof TK_cmPersonOn === "function" && TK_cmPersonOn() && TK_cmStaffOf(p.staff, a.actor_email) ? (
+                  // Slate plus: a staff actor opens their profile.
+                  <TKP_PersonLink email={a.actor_email} title={"Open " + nameOf(a.actor_email) + "'s profile"}>
+                    {nameOf(a.actor_email)}
+                  </TKP_PersonLink>
+                ) : (
+                  nameOf(a.actor_email)
+                )}
+              </span>{" "}
               {TK_activityText(a, { nameOf: nameOf, statusLabel: TK_dwStatusLabel, today: today })}
             </span>
             <time className="tk-cm-time" dateTime={a.created_at || undefined} title={exact}>

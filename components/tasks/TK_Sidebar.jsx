@@ -7,13 +7,20 @@
 //   My Tasks, Review (admins see a count of work they can approve), Search,
 //   Projects (archived hidden, "New project"; admins also get "Manage projects"), Clients and, for admins, People. Every item is a real link (TK_formatRoute), so a
 //   modifier click opens a new tab; a plain click calls onNavigate.
-// TK_NewProjectModal({ isAdmin, kind, clientId, clientName, onClose, onCreated(project) })
+// TK_NewProjectModal({ isAdmin, kind, clientId, clientName, clients, staffUser, onClose, onCreated(project) })
 //   name, sections (one per line) and, for admins only, "Open to all staff".
 //   A duplicate name shows TK_COPY.projectNameTaken under the name field and
-//   keeps the modal open.
+//   keeps the modal open. Slate plus (hidden, TKP_useOn()): the upgraded form
+//   TKPF_NewProjectModal (TK_ProjectForm.jsx) instead; gate off = this form.
 // ----------------------------------------------------------------------------
 
 function TK_NewProjectModal(props) {
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  if (plusOn && typeof TKPF_NewProjectModal === "function") return <TKPF_NewProjectModal {...props} />;
+  return <TK_vNewProjectModalClassic {...props} />;
+}
+
+function TK_vNewProjectModalClassic(props) {
   var isAdmin = props.isAdmin === true;
   var onboarding = props.kind === "onboarding";
   var fields = typeof TK_newProjectFields === "function" ? TK_newProjectFields({ isAdmin: isAdmin }) : ["name", "sections"];
@@ -293,9 +300,32 @@ function TK_Sidebar(props) {
     [isAdmin],
   );
   var reviewCount = isAdmin && typeof TK_reviewQueueCount === "function" ? TK_reviewQueueCount(reviewList && reviewList.tasks, me) : 0;
+  // Slate plus (hidden): People rows open the profile; off = the old person list.
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
   var people = (Array.isArray(staff) ? staff : []).filter(function (s) {
     return s && s.active !== false && s.id && (typeof TK_isUuid !== "function" || TK_isUuid(s.id));
   });
+  // Slate plus (hidden): the icon rail (TK_SlateRail.jsx). Only when TK_App
+  // asks for it (rail layout) and the gate is on; otherwise the list below.
+  if (props.variant === "icons" && plusOn && typeof TKR_Rail === "function") {
+    return (
+      <TKR_Rail
+        route={route}
+        onNavigate={nav}
+        isAdmin={isAdmin}
+        staffUser={props.staffUser}
+        projects={projects}
+        visibleProjects={visibleProjects}
+        clients={pickedClients}
+        clientCount={clients.length}
+        people={people}
+        staffLoading={staff == null}
+        reviewCount={reviewCount}
+        waitCount={waitCount}
+        noTeam={noTeam}
+      />
+    );
+  }
 
   return (
     <nav className="tk-sidebar" aria-label="Task lists" data-tour="tk-sidebar">
@@ -316,6 +346,11 @@ function TK_Sidebar(props) {
             {staff == null ? <li className="tk-nav-empty">Loading…</li> : null}
             {people.map(function (s) {
               var r = { view: "person", staffId: s.id };
+              var pr = plusOn && typeof TKP_peopleRowRoute === "function" ? TKP_peopleRowRoute(s.email, true) : null;
+              if (pr) {
+                // Real link to #/tasks/person/<key>; modifier-click opens a new tab.
+                return <TK_vNavItem key={s.id} route={pr} label={s.name || "Staff member"} avatarName={s.name || "Staff member"} avatarEmail={s.email} active={TKP_isProfileRoute(route, pr.key)} onNavigate={nav} />;
+              }
               return <TK_vNavItem key={s.id} route={r} label={s.name || "Staff member"} avatarName={s.name || "Staff member"} avatarEmail={s.email} active={TK_vSameRoute(route, r)} onNavigate={nav} />;
             })}
           </ul>
@@ -348,7 +383,7 @@ function TK_Sidebar(props) {
                 route={r}
                 label={p.name || "Project"}
                 dot={TK_projectColorOf(p)}
-                tag={p.kind === "onboarding" ? "Onboarding" : null}
+                tag={typeof TKP_projectTag === "function" ? TKP_projectTag(p, plusOn) : p.kind === "onboarding" ? "Onboarding" : null}
                 active={TK_vSameRoute(route, r)}
                 onNavigate={nav}
               />
@@ -368,6 +403,14 @@ function TK_Sidebar(props) {
         {isAdmin && props.staffUser && props.staffUser.role === "admin" ? (
           <ul className="tk-nav">
             <TK_vNavItem route={{ view: "manage" }} label="Manage projects" icon="folder" tour="tk-manage-nav" active={route.view === "manage"} onNavigate={nav} />
+            {plusOn && typeof TK_Rules === "function" ? (
+              <TK_vNavItem route={{ view: "rules" }} label="Rules" icon="gear" tour="tk-rules-nav" active={route.view === "rules"} onNavigate={nav} />
+            ) : null}
+          </ul>
+        ) : null}
+        {plusOn && typeof TKPU_Portfolio === "function" ? (
+          <ul className="tk-nav">
+            <TK_vNavItem route={{ view: "portfolio" }} label="Portfolio" icon="list" tour="tk-portfolio-nav" active={route.view === "portfolio"} onNavigate={nav} />
           </ul>
         ) : null}
       </div>
@@ -426,6 +469,8 @@ function TK_Sidebar(props) {
         <TK_NewProjectModal
           isAdmin={isAdmin}
           kind="internal"
+          clients={pickedClients}
+          staffUser={props.staffUser}
           onClose={function () {
             setNewOpen(false);
           }}

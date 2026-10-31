@@ -2,16 +2,71 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [slate start to finish, slate settings, slate gear, take the slate tour, chapters, change bookkeeper, reassign bookkeeper, bookkeeper chip, new look, left sidebar, brand colors, hover menus, lato, classic colors, classic menus, roll-forward, balance tie out, reveal comparison, review meeting, both sides complete, ready to reveal, month rhythm, month rhythm setting, monthly dates, slate view bar, sort chips, quick chips, mine today, part of month, group by status, reset view, new today, do next, today redesign, clients needing attention, waiting on others, this week card, recent clients, count line, also needs you, right now, right now card, desk follows the page, waiting counts, slate link, plus on the rail, today tiles hidden, tasks open in the desk, task in the desk, back to desk, desk back button, f6, esc goes back, desk client tab, t opens the desk, desk on the right, desk rail, desk info bar, desk width, account menu, avatar menu, top right menu, settings moved, sign out moved, one avatar, final scores, review final email, compared with last quarter, quarter over quarter, review locked email, task details fields, fields at the top, field grid, task details placeholders, task rows, edit tasks in the list, add task row, assignee badge, due chip, priority, three dot menu, sidebar starts as icons, icon rail, expand sidebar, smarter duplicate checks, possible duplicates, smart mode, strict mode, client tab, workbench client tab, look up a client, pin a client, pinned clients, select many tasks, bulk actions, bulk complete, multi-select tasks, reassign many, move many tasks, undo, ctrl z, cmd z, n skipped, clear several flags, select all flags, bulk clear, clear multiple flags, reply from the workbench, open file from the workbench, reply without leaving the page, close steps can be tasks, create month-end tasks from the close checklist, month-end tasks, looks done, close checklist tasks, my tasks tab, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, workbench, the workbench, press w, drawer, open a task from the workbench, esc closes one layer, snooze, no reply needed, mark checked, classic today, workbench preview, subtasks, subtasks inline, subtasks open in place, open subtasks, expand subtasks, subtask arrow, project color, project colors, color dot, change color, change project color, manage projects, move to trash, restore project, trash, group by client, group by, by client, asana import, imported from asana, asana tasks, your asana tasks, asana copied, draft templates, help for this page tasks, unassigned, unassigned tasks, claim, claim a task, unassigned group, assign to, named person, leave unassigned, from asana, no team yet, assign team, profile photo, profile photos, photo, headshot, photo background, needs edit, time off hand-off, hand my tasks to backups, hand off tasks, hand back now, covering for, out of office tasks, ooo, recurring, recurring tasks, task templates, #/tasks/templates, missed periods, standard set, standard close set, make due tasks now, recurring tag, skip for this client, change for this client, task review, review queue, approve, send back, take back, reviewer, on time, on-time, sign off, ready for sign-off, admin sign-off, reopen reason, launches, launch notice, new feature tour, new tour, announcements, fix sign-in, can't sign in, sign-in account, signup disabled, client list failed, couldn't load the client list, error code, copy details, something went wrong, new bookkeeper first sign in, reason line, sign-in diagnostics, admins and bookkeepers cards, staff roster, staff page, staff sign in page, /staff, sign-in failed, couldn't sign you in, google sign-in, mgb internal, internal, show test clients, test tag, test clients hidden, pull from, ledger pull range, quickbooks keys, sandbox, test client connect, production keys, connect failed, error id, ledger review, review a file, ledger reviewed, greeting name, contact email, budget approval, approve budget, full access contact, approved by, submitted by, done by, deleted notes, soft delete, delete note, note names, budget comment names, variance note names, contact name change, rename contact, publish policy version, publish new version, handbook grid, signatures by bookkeeper, retry filing, message names, message sender, fake name, month end balance sheet, balance sheet from quickbooks, change my name, rename, name, install, get the app, desktop app, install tip, app, staff handbook, handbook, sign policy, countersign, policies, review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, balance sheet, reports sent, tab row fade, client task panel, up next, t, for this page, follow my client, ask client, client requests, waiting on client, #/tasks/waiting, client contacts, what we need from you, clients answer, answer link, /respond, test copy, ask client emails live, pilot list, desk, glass, frosted glass, desk glass, slate, the desk, renamed, workbench is now desk, tasks is now slate, press d, d key, resize the desk, drag to resize, desk height, page stays usable, reference policy, reference policies, new policy, policy drafts, policies to sign, search policies, employee records, emergency contact, month swing, swing flag, hr, hr place, moved from team, team split, old links, approve handbook drafts, policy approver, needs your approval, request changes, employee handbook chapters, handbook drafts to approve, change approver, co-ceo, handbook drafts sent back to me, changes requested email, slate app, open slate app, install slate app, sliver, slate sizes, saved views, manual order, board view, classic tasks page, month rhythm tasks, draft email, close order, month view, preliminary reports, waiting is never late, pre-fill by client type, client rhythm, organization profile, client gifts, anniversary gifts, anniversary to follow, founding date]
+keywords: [organization tabs, hidden tabs, hide a tab for everyone, slate plus, slate plus tour, one search, filters, saved filters, calendar, icon sidebar, profiles, reassign, team load, teams, blocked by, custom fields, clearer mentions, hours against budget, new project form, project status, portfolio, rules, agreements, client agreements, service agreement, engagement letter, signed agreement, renewal date, expires in, paste several links, search slate, slate search box, search the list, find a task, celebrations a month ahead, gift lead time, birthdays month ahead, slate start to finish, slate settings, slate gear, take the slate tour, chapters, change bookkeeper, reassign bookkeeper, bookkeeper chip, new look, left sidebar, brand colors, hover menus, lato, classic colors, classic menus, roll-forward, balance tie out, reveal comparison, review meeting, both sides complete, ready to reveal, month rhythm, month rhythm setting, monthly dates, slate view bar, sort chips, quick chips, mine today, part of month, group by status, reset view, new today, do next, today redesign, clients needing attention, waiting on others, this week card, recent clients, count line, also needs you, right now, right now card, desk follows the page, waiting counts, slate link, plus on the rail, today tiles hidden, tasks open in the desk, task in the desk, back to desk, desk back button, f6, esc goes back, desk client tab, t opens the desk, desk on the right, desk rail, desk info bar, desk width, account menu, avatar menu, top right menu, settings moved, sign out moved, one avatar, final scores, review final email, compared with last quarter, quarter over quarter, review locked email, task details fields, fields at the top, field grid, task details placeholders, task rows, edit tasks in the list, add task row, assignee badge, due chip, priority, three dot menu, sidebar starts as icons, icon rail, expand sidebar, smarter duplicate checks, possible duplicates, smart mode, strict mode, client tab, desk client tab, look up a client, pin a client, pinned clients, select many tasks, bulk actions, bulk complete, multi-select tasks, reassign many, move many tasks, undo, ctrl z, cmd z, n skipped, clear several flags, select all flags, bulk clear, clear multiple flags, reply from the desk, open file from the desk, reply without leaving the page, close steps can be tasks, create month-end tasks from the close checklist, month-end tasks, looks done, close checklist tasks, my tasks tab, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, desk, the desk, press w, drawer, open a task from the desk, esc closes one layer, snooze, no reply needed, mark checked, classic today, desk preview, subtasks, subtasks inline, subtasks open in place, open subtasks, expand subtasks, subtask arrow, project color, project colors, color dot, change color, change project color, manage projects, move to trash, restore project, trash, group by client, group by, by client, asana import, imported from asana, asana tasks, your asana tasks, asana copied, draft templates, help for this page tasks, unassigned, unassigned tasks, claim, claim a task, unassigned group, assign to, named person, leave unassigned, from asana, no team yet, assign team, profile photo, profile photos, photo, headshot, photo background, needs edit, time off hand-off, hand my tasks to backups, hand off tasks, hand back now, covering for, out of office tasks, ooo, recurring, recurring tasks, task templates, #/tasks/templates, missed periods, standard set, standard close set, make due tasks now, recurring tag, skip for this client, change for this client, task review, review queue, approve, send back, take back, reviewer, on time, on-time, sign off, ready for sign-off, admin sign-off, reopen reason, launches, launch notice, new feature tour, new tour, announcements, fix sign-in, can't sign in, sign-in account, signup disabled, client list failed, couldn't load the client list, error code, copy details, something went wrong, new bookkeeper first sign in, reason line, sign-in diagnostics, admins and bookkeepers cards, staff roster, staff page, staff sign in page, /staff, sign-in failed, couldn't sign you in, google sign-in, mgb internal, internal, show test clients, test tag, test clients hidden, pull from, ledger pull range, quickbooks keys, sandbox, test client connect, production keys, connect failed, error id, ledger review, review a file, ledger reviewed, greeting name, contact email, budget approval, approve budget, full access contact, approved by, submitted by, done by, deleted notes, soft delete, delete note, note names, budget comment names, variance note names, contact name change, rename contact, publish policy version, publish new version, handbook grid, signatures by bookkeeper, retry filing, message names, message sender, fake name, month end balance sheet, balance sheet from quickbooks, change my name, rename, name, install, get the app, desktop app, install tip, app, staff handbook, handbook, sign policy, countersign, policies, review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, balance sheet, reports sent, tab row fade, client task panel, up next, t, for this page, follow my client, ask client, client requests, waiting on client, #/tasks/waiting, client contacts, what we need from you, clients answer, answer link, /respond, test copy, ask client emails live, pilot list, desk, glass, frosted glass, desk glass, slate, the desk, renamed, desk is now desk, tasks is now slate, press d, d key, resize the desk, drag to resize, desk height, page stays usable, reference policy, reference policies, new policy, policy drafts, policies to sign, search policies, employee records, emergency contact, month swing, swing flag, hr, hr place, moved from team, team split, old links, approve handbook drafts, policy approver, needs your approval, request changes, employee handbook chapters, handbook drafts to approve, change approver, co-ceo, handbook drafts sent back to me, changes requested email, slate app, open slate app, install slate app, sliver, slate sizes, saved views, manual order, board view, classic tasks page, month rhythm tasks, draft email, close order, month view, preliminary reports, waiting is never late, pre-fill by client type, client rhythm, organization profile, client gifts, anniversary gifts, anniversary to follow, founding date]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
-### 2026-10-25: Custom repeats in Slate
-- **A Repeat menu like Asana's.** In a task, **Repeat** → **Custom…** lets you repeat daily, weekly on chosen weekdays, monthly (a day, the 2nd Tuesday, or the last day), quarterly, yearly, or every 2 weeks, every 3 months and so on. Add a time of day, skip weekends and firm holidays, and set an end (never, on a date, or after some times). It lists the next five dates before you save.
-- **Recurring templates** have a new **Custom schedule** option with the same menu (date only, no time of day). The old choices work as before.
+### 2026-10-31: Team › Hours is clearer about lag
+Hours in the portal come from QuickBooks Online, which gets them from QuickBooks Time only when a pay period is approved, so the newest days can be missing. To stop that looking like zero hours: the **Capacity** card no longer has a **This week** column, its weekly average uses only the last 4 complete weeks that have fully synced, and **Avg / mo** on the Clients table uses only fully synced months. **Team › Hours** now says **Hours synced through** the newest day it has, and people paid monthly show **Paid monthly, hours post at month end**. A live connection to QuickBooks Time is not part of this. See [How do I check team capacity?](#/help/capacity).
+
+### 2026-10-31: Clients can drop files anywhere
+- **Clients drop a file on any page** of their portal (or tap **+ Add a file** on a phone), then pick a folder, a name, and who at their organization can see it: everyone, only some people, or everyone except some people. MyGoodBooks staff always see every file. Uploads show on the Desk's Inbox like any client file.
+- **On a client's Documents page**, each file's **⋯** has **Rename**, **Who can see it**, **Replace with a new version**, **Copy link** and **History**. Tick several files to move them together, and **✎** renames a folder. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).
+
+### 2026-10-30: Organization tabs reach the client
+Turning a tab off in **Client setup › Manage access › Organization tabs** now hides it for everyone at that client, on their own devices too (before, it only changed what your browser showed). Only admins can change these switches; other staff see them grayed out. If your browser had tabs turned off for a client the old way, they're saved for everyone the first time an admin opens Organization tabs for that client.
+
+### 2026-10-28: Slate plus
+A batch of additions to Slate, for all staff. Nothing you use went away; a few things moved. Take the **Slate plus tour** from **?** (about two minutes, it only looks). The full list is in [What's in Slate plus?](#/help/slate-plus).
+- **One search.** The top-bar search (**Ctrl+K** / **⌘K**) finds people, clients, projects, tasks, SOPs and help in one place. On the Slate page, **Filter this Slate list** narrows your Slate instead; it replaces the search box next to **Add task**. The open client's transactions, documents and messages are no longer in this search.
+- **Filters and saved filters.** A filter row on the Slate page (Assignee, Client, Project, Due, Status). Save a mix under **Saved filters › Save this view…** and set one as your default. The client menu in the toolbar moved into this row.
+- **Calendar.** **Calendar** above a list shows its tasks by due date on a month grid; drag a task to another day to move it.
+- **Icon sidebar.** Slate's sidebar is a slim row of icons in wide windows. Point at People, Projects or Clients for a quick menu, or click for the full panel with your pins first.
+- **Profiles.** Click a person's name or badge to see their week, tasks and clients. The small **Reassign** button next to a badge changes who has the task. Make your own profile yours: status, local time, pins, goals, About me, favorites, out of office and section order.
+- **Team load moved** to **Team › People**: open, due this week, late, Unassigned and the next 4 weeks. Admins make **Teams** there, and managers come from **HR › Employee records**.
+- **Blocked by.** Make a task wait for another one; it sits in a **Blocked** group and its assignee gets **Ready to start** when it's free.
+- **Custom fields.** Projects and client lists can have their own fields, like Fund or Grant (**Fields** in the list header).
+- **Clearer @mentions.** The **@** list grays out anyone who can't see the task, and a line after you post says who was notified.
+- **Hours against budget** next to a client's name and at the top of the **Assign** menu, amber at 80% and red at 100%.
+- **Projects.** **New project** takes a description, client, due date, starter sections and people. Owners post status updates (On track, At risk, Off track, Done), and **Portfolio** shows every project's status in one table.
+- **Rules (admins).** Small repeat steps on one project or client, with **Dry run** and **Recent runs**. Every rule starts off, and only the owner switches one on.
+- Staff only: clients never see any of it, and it's not in **View as**.
+
+### 2026-10-28: client agreements on Documents
+- **An Agreements card on every client's Documents tab.** Keep the signed service agreement, engagement letter and any changes in one place, each with its type, status, signed and renewal dates, and an **Open** link to the Drive file. An **Expires in N days** pill shows when the renewal date is within 60 days.
+- **Who can change them.** Admins and the client's account manager add, edit, **Mark signed**, show or hide, and move agreements to the trash; **Paste several links** adds a batch of old signed documents at once. Bookkeepers can read them. Only an admin can restore from the trash.
+- **Clients don't see them yet.** New agreements start **Staff only**, and clients see nothing until the owner turns client agreements on. The staff note is never shown to clients. See [Client agreements](#/help/client-agreements).
+
+### 2026-10-28: Slate app size buttons come back
+
+In the Slate app, if clicking **Sliver**, **List** or **Full page** did not resize the window, the size buttons used to disappear for a while. Now they come back as soon as you drag the window larger.
+
+### 2026-10-27: search your Slate list
+- **A search box on the Slate page.** Next to **Add task**, type part of a task's title, its client's name or a word from its notes, and the list narrows as you type. Every word you type has to match. Groups, counts and the board show only the matches. **Esc** or the **×** clears it. It's in the Slate app's list too; the **Search tasks** box at the top of the Slate app still searches every task you can see. See [How do I use my Slate?](#/help/my-tasks).
+
+### 2026-10-27: small fixes
+- **Custom repeats keep their schedule.** Opening a repeating task's **Repeat** menu and saving again no longer shifts the schedule when the due date had moved off a weekend or holiday. It still counts from the first date.
+- **Wording.** The profile prompt, **Settings › Profile** and the celebrations article now say admins celebrate with you, since celebrations are admin only for now. The client profile form now says **Founding date** and "celebrate your anniversaries" (the Staff card matches), and its fiscal year end day list fits the month.
+- **Smaller fixes.** The Inbox uses your local date for "overdue", the Team upcoming card loads when it becomes visible, and a client signing in with the emailed code now lands in their portal without a reload.
+
+### 2026-10-27: Work › Slate is now a short summary
+- **One full Slate.** The Slate page is now the only full Slate. **Work › Slate** shows a short summary instead: what's **Late**, what's **Due today**, and your **Next** five tasks, with an **Open Slate** button. Click a row to open the task, just as you would on the Slate page; if there are more, a line says so and links to Slate.
+- **Nothing else moved.** Notes & SOPs, Close, Deadlines and Ledger review are unchanged. The Desk keeps its compact **Slate** tab, now with an **Open in Slate** link. With the Slate app switch off, **Work › Slate** is unchanged. See [What's on the Work page?](#/help/work-page).
+
+### 2026-10-27: celebrations are for admins only (for now)
+- **Birthdays and work anniversaries are admin only.** Only admins see them now, 30 days ahead on **Today**, in **Team › People › Celebrations** and in the weekly digest. Bookkeepers, temporary admins and account managers no longer see celebration lines, the Celebrations card or a celebration shout-out button, and the short-lived 7-day heads-up for them is withdrawn. Shout-outs themselves are unchanged: anyone can still thank a teammate from **Team › People › Shout-outs** or a profile. See [Birthdays, work anniversaries and gift reminders](#/help/celebrations).
+
+### 2026-10-27: client gifts follow the founding date (admins)
+- **Founding date is now the default.** On **Team › Client gifts**, **Anniversary to follow** now starts on the **Founding date**, the client's own birthday, instead of **Client since**. A client with no founding date yet (blank or **Not sure**) still shows on their Client since date, so nobody drops off. Admins can switch back to **Client since** at any time. **Client since** stays on file and now has its own column in the list, and the Organization profile card on a client's Overview still shows both dates. See [How client gifts work](#/help/client-org-profile).
+
+### 2026-10-27: celebrations a month ahead (admins)
+- **Time to plan gifts.** Admins now see staff birthdays and work anniversaries **30 days ahead** (it was 7) on **Today** (the **This week** card, with **Gift sent** and **Dismiss** under each line), in **Team › People › Celebrations**, and in the weekly digest's **Coming up** section (it was 14 days). Each line gives the date, how many days away, and years on the team, for example "Debra Ruffin's birthday, May 27 · in 30 days · 3 years on the team". No birth year or age is shown. Client anniversaries already looked 30 days ahead in **Team › Client gifts** and the digest. Nothing changes for non-admins. See [Birthdays, work anniversaries and gift reminders](#/help/celebrations).
+
+### 2026-10-27: birthdays are just a month and day
+- **No more birth year.** **Settings › Profile** and **HR › Members** now ask for the **month** and **day** of a birthday, nothing else. The portal never shows or works out an age, and a year entered earlier is no longer shown anywhere. Celebrations, Today and the weekly digest work the same as before. See [Birthdays, work anniversaries and gift reminders](#/help/celebrations).
 
 ### 2026-10-26: Slate, start to finish tour and Slate settings
 - **A tour of all of Slate.** **?** → **Slate, start to finish** walks through Slate in seven short chapters: your day, client lists, working a task, speed, team flow, automation and your setup. It uses big cards you can present to the team, a **Chapters** list to jump around and an **Exit** button. The tour only looks: it never changes a task. On a computer it runs in the Slate app.
@@ -19,13 +74,6 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 - **Replay it any time.** The Slate app's avatar menu has **Take the Slate tour**, and **Settings › Help** has **Replay the Slate tour**.
 
 See [How do I take the Slate tour?](#/help/slate-tour) and [How do I change my Slate settings?](#/help/slate-settings).
-### 2026-10-25: Customize button has a new icon
-
-- **Sliders icon.** The **Customize** button at the bottom of the left sidebar now shows a sliders icon instead of a gear, so it is not mistaken for Settings. It works the same.
-
-### 2026-10-25: Slate app: Back, Forward, Refresh and deeper Undo
-- **Back, Forward and Refresh.** The Slate app window and the installed MyGoodBooks app have no browser buttons, so three round buttons now sit in the top bar (beside the Slate logo in the Slate app). In a normal browser tab they stay hidden; use the browser's own.
-- **Undo goes back 5 steps.** In the Slate app, **Cmd+Z** (Ctrl+Z) undoes your last 5 changes, newest first, each for 9 minutes. A change someone edited since is still left alone and says so.
 
 ### 2026-10-26: Slate is now its own app
 
@@ -49,19 +97,31 @@ See [How do I use the Slate app?](#/help/tasks-own-window) and [How do I install
 
 See [How do recurring tasks from templates work?](#/help/task-templates), [What's in a task's details?](#/help/task-details) and [How do client task lists and projects work?](#/help/task-lists-and-projects).
 
+### 2026-10-25: Custom repeats in Slate
+- **A Repeat menu like Asana's.** In a task, **Repeat** → **Custom…** lets you repeat daily, weekly on chosen weekdays, monthly (a day, the 2nd Tuesday, or the last day), quarterly, yearly, or every 2 weeks, every 3 months and so on. Add a time of day, skip weekends and firm holidays, and set an end (never, on a date, or after some times). It lists the next five dates before you save.
+- **Recurring templates** have a new **Custom schedule** option with the same menu (date only, no time of day). The old choices work as before.
+
+### 2026-10-25: Customize button has a new icon
+
+- **Sliders icon.** The **Customize** button at the bottom of the left sidebar now shows a sliders icon instead of a gear, so it is not mistaken for Settings. It works the same.
+
+### 2026-10-25: Slate app: Back, Forward, Refresh and deeper Undo
+- **Back, Forward and Refresh.** The Slate app window and the installed MyGoodBooks app have no browser buttons, so three round buttons now sit in the top bar (beside the Slate logo in the Slate app). In a normal browser tab they stay hidden; use the browser's own.
+- **Undo goes back 5 steps.** In the Slate app, **Cmd+Z** (Ctrl+Z) undoes your last 5 changes, newest first, each for 9 minutes. A change someone edited since is still left alone and says so.
+
 ### 2026-10-25: Client organization profiles and anniversary gifts
 
 - **Clients fill in a short profile.** When they sign in, clients are asked for the name for cards, organization type, established date, gift address, who receives deliveries, a main contact and their fiscal year end. **Later** puts it off until the next sign-in. Optional get-to-know questions too.
 - **Organization profile card.** On a client's Overview, under Key dates: their answers, a note when their fiscal year end differs from Key dates (Key dates is not changed), and **Client since**, which you can set by hand.
 - **Onboarding step.** **Client finished organization profile** ticks itself.
-- **Team › Client gifts (admins).** Anniversaries in the next 30 days with **Plan**, **Mark sent** and **Skip**, past gifts, and the line the weekly digest shows. **Anniversary to follow** picks **Client since** (the default) or the **Founding date** for the whole firm. Nothing emails clients or orders gifts.
+- **Team › Client gifts (admins).** Anniversaries in the next 30 days with **Plan**, **Mark sent** and **Skip**, past gifts, and the line the weekly digest shows. **Anniversary to follow** picks the **Founding date** (the default) or **Client since** for the whole firm. Nothing emails clients or orders gifts.
 
 See [What is a client's organization profile, and how do client gifts work?](#/help/client-org-profile).
 
 ### 2026-10-23: View as covers the whole app, and Last seen (admins)
 
 - **View as covers the whole app.** On **HR › Members**, **View as** now shows a bookkeeper's Today (in its classic form), Clients and each client's pages, Work (with a read-only snapshot of their Slate), Team and HR. Their Inbox, Reviews and Handbook show a private placeholder, and private tasks stay hidden. See [How do I add staff and manage their access?](#/help/staff-management).
-- **It's read-only.** The bar says "Read-only. Nothing you do here is saved." Anything that would save or send is refused with a note, and each blocked attempt is recorded in the [Audit log](#/help/audit-log) as *View as: blocked change*. Budgets show **Approve** greyed out, with a link to exit View as and approve.
+- **It's read-only.** The bar says "Read-only. Nothing you do here is saved." Anything that would save or send is refused with a note, and each blocked attempt is recorded in the [Audit log](#/help/audit-log) as *View as: blocked change*. Budgets show **Approve** grayed out, with a link to exit View as and approve.
 - **Last seen.** A new **Last seen** button next to **View as** shows a person's last page and time, device, browser, app version, last sign-in and last error, with a link to **Recent errors**. Admins only. See [Usage stats and Developer tools](#/help/admin-insight).
 - **Usage stats ignore View as.** Time you spend in View as no longer counts as the bookkeeper's activity.
 
@@ -219,17 +279,17 @@ Admins now see the anonymous answers to survey questions 7 and 10 as soon as one
 - **Look only.** The Desk panel and its bar at the bottom are now see-through frosted glass, centered about 640 pixels wide beside the left menu, so you can still make out the page behind them. Rows sit on a lighter layer so the text stays easy to read.
 - Menus, windows, tours and the task drawer stay solid. On a phone the Desk is still a full sheet. If your device is set to reduce transparency, the Desk is solid.
 
-### 2026-10-17: The Workbench is now the Desk, and Tasks is now Slate
+### 2026-10-17: Tasks is now Slate
 
-- **Only the names changed.** The panel at the bottom of every page is the **Desk** (it was the Workbench), and the whole Tasks area is **Slate** (the **Tasks** tab under Work, the top-bar button, and **My tasks** are now just **Slate**). Nothing moved and your settings, pins and tasks are untouched.
+- **Only the name changed.** The whole Tasks area is **Slate** (the **Tasks** tab under Work, the top-bar button, and **My tasks** are now just **Slate**). Nothing moved and your settings, pins and tasks are untouched.
 - **Today keeps its name.** Its list is still called **Needs you**; the Desk's old *Full page* link is gone (Today is in the left menu), and the button that added a task is **Add to your Slate**.
-- A launch notice and tour come with it; rerun it from **?** → **New: Workbench is now Desk, Tasks is now Slate tour**. See [How do I use the Desk?](#/help/workbench) and [How do I use my Slate?](#/help/my-tasks). Older entries below keep the old names.
+- A launch notice and tour come with it; rerun it from **?** → **New: Tasks is now Slate tour**. See [How do I use the Desk?](#/help/workbench) and [How do I use my Slate?](#/help/my-tasks). Older entries below keep the old names for Tasks.
 
-### 2026-10-17: A Client tab in the Workbench (the Workbench is still off until the owner turns it on)
+### 2026-10-17: A Client tab in the Desk (the Desk is still off until the owner turns it on)
 
-- The Workbench panel has a third tab, **Client**: one client's open tasks and contacts without leaving the page. On a client's page it starts on that client; type in the box to pick another.
+- The Desk panel has a third tab, **Client**: one client's open tasks and contacts without leaving the page. On a client's page it starts on that client; type in the box to pick another.
 - **☆** pins a client to the top of the list (up to 8, on this browser). **+ Task** adds a task for the client; **Open client** goes to their page.
-- See [How do I use the Workbench?](#/help/workbench).
+- See [How do I use the Desk?](#/help/workbench).
 
 ### 2026-10-16: Select many tasks at once, with Undo
 
@@ -242,12 +302,12 @@ Admins now see the anonymous answers to survey questions 7 and 10 as soon as one
 
 - On **Ledger review**, tick the box on each open or asked flag (or **Select all**) and press **Clear N selected**. One reason and note go on all of them. The selection resets when you change tab, check chip or month.
 
-### 2026-10-16: Reply and Open file in the Workbench without leaving the page (the Workbench is still off until the owner turns it on)
+### 2026-10-16: Reply and Open file in the Desk without leaving the page (the Desk is still off until the owner turns it on)
 
-- **Reply** on a client message opens the Messages chat drawer on top of the Workbench, on that person's thread. **Esc** closes it and puts you back on the row. The Workbench keeps its filter, tab and scroll.
-- **Open file** on a new client file opens or downloads it in a new tab (a PDF or image shows, a spreadsheet or Word file downloads); the Workbench stays open. **Mark checked** is still in the **⋯** menu.
+- **Reply** on a client message opens the Messages chat drawer on top of the Desk, on that person's thread. **Esc** closes it and puts you back on the row. The Desk keeps its filter, tab and scroll.
+- **Open file** on a new client file opens or downloads it in a new tab (a PDF or image shows, a spreadsheet or Word file downloads); the Desk stays open. **Mark checked** is still in the **⋯** menu.
 - **Open full page** is now in the **⋯** menu of messages and files for the old behavior.
-- See [How do I use the Workbench?](#/help/workbench).
+- See [How do I use the Desk?](#/help/workbench).
 
 ### 2026-10-16: Close steps can be tasks (one client at a time)
 
@@ -257,11 +317,11 @@ Admins now see the anonymous answers to survey questions 7 and 10 as soon as one
 - **Duplicates warning** when the client already has recurring templates that look like month-end work.
 - A launch notice and tour come with it; rerun it from **?** → **New: Close steps can be tasks tour**. See [How do Close checklist steps become tasks?](#/help/close-checklist-tasks).
 
-### 2026-10-16: My tasks tab in the Workbench (the Workbench is still off until the owner turns it on)
+### 2026-10-16: My tasks tab in the Desk (the Desk is still off until the owner turns it on)
 
 - **A second tab, My tasks**, lists every open task assigned to you in groups: **Overdue**, **Today**, **This week**, **Later**, **Waiting on client**. Click a row to open it in the task drawer on top; tick the circle to finish it from the list; **+ Add task** is at the bottom.
 - The panel remembers your filter and open tab for you only, so a shared computer starts clean for the next person, and it won't reopen on a different page or a link that points at one item.
-- See [How do I use the Workbench?](#/help/workbench).
+- See [How do I use the Desk?](#/help/workbench).
 
 ### 2026-10-16: Quick add understands plain words
 
@@ -271,16 +331,16 @@ Admins now see the anonymous answers to survey questions 7 and 10 as soon as one
 - The symbols (**@name**, **#client**, **!high**) still work. The small add box on a project or client list reads only those symbols and dates.
 - A launch notice and tour come with it; rerun it from **?** → **New: Quick add understands plain words tour**. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
 
-### 2026-10-16: The Workbench (off until the owner turns it on)
+### 2026-10-16: The Desk (off until the owner turns it on)
 
-- **Today becomes one list of everything that needs you**: tasks, reviews, client messages with no reply, Ledger flags, new client files and the rest of Today's rows, grouped **Overdue**, **Today** and **This week**. Tiles at the top count **Needs reply**, **Due today**, **Overdue** and **Reviews**; chips filter by source. See [How do I use the Workbench?](#/help/workbench).
+- **Today becomes one list of everything that needs you**: tasks, reviews, client messages with no reply, Ledger flags, new client files and the rest of Today's rows, grouped **Overdue**, **Today** and **This week**. Tiles at the top count **Needs reply**, **Due today**, **Overdue** and **Reviews**; chips filter by source. See [How do I use the Desk?](#/help/workbench).
 - **One button per row** does the next thing (**Reply**, **Start**, **Open**, **Review**, **File**). The **⋯** menu has **Snooze**, **No reply needed** for a message and **Mark checked** for a client file, each with **Undo**.
 - **A drawer on every staff page**: a bar across the bottom of the page shows your count, the next item and **Press D**. Click it or press **D**; **Esc** closes it.
-- **Open a task without leaving the page**: **Open** on a task or review in the drawer opens the task drawer on top, and the page behind it does not change. **Esc** closes one layer at a time (menu, task drawer, then the Workbench), and closing the task drawer puts you back on the row. The panel remembers your filter and scroll, and reopens where you left it if you reload within a few minutes.
+- **Open a task without leaving the page**: **Open** on a task or review in the drawer opens the task drawer on top, and the page behind it does not change. **Esc** closes one layer at a time (menu, task drawer, then the Desk), and closing the task drawer puts you back on the row. The panel remembers your filter and scroll, and reopens where you left it if you reload within a few minutes.
 - **No reply needed** is also in the Inbox thread header. See [How do I message a client or a teammate?](#/help/inbox).
-- **Prefer the old Today?** **?** on the Workbench → **Use classic Today in this browser**; Today then offers the way back.
-- **Admins** get **Mine** or **Everyone**. Dev Tools has **Workbench preview** and **Classic Today** (your browser only), and **Tasks switches** shows `wb_enabled`.
-- It stays off for everyone until the owner turns it on. A launch notice and tour come with it; rerun it from **?** → **New: The Workbench tour**.
+- **Prefer the old Today?** **?** on the Desk → **Use classic Today in this browser**; Today then offers the way back.
+- **Admins** get **Mine** or **Everyone**. Dev Tools has **Desk preview** and **Classic Today** (your browser only), and **Tasks switches** shows `wb_enabled`.
+- It stays off for everyone until the owner turns it on. A launch notice and tour come with it; rerun it from **?** → **New: The Desk tour**.
 
 ### 2026-10-16: Subtasks open in place, and project colors
 

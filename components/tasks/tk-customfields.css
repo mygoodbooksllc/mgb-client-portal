@@ -1,0 +1,166 @@
+/* ---- Slate plus custom fields (hidden preview, TK_customFields.js / TK_CustomFields.jsx) ---- */
+
+/* Row chips: "Fund: Building", "Reviewed" (tick), then "+N". */
+.tk-meta-cf {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 180px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 18px;
+}
+
+.tk-meta-cf-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.tk-meta-cf-more {
+  font-weight: 600;
+}
+
+/* Drawer rows */
+.tk-cf-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-cf-value {
+  min-width: 0;
+}
+
+.tk-cf-err {
+  color: var(--bad);
+}
+
+/* Header button */
+.tk-cf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Panel */
+.tk-cf-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tk-cf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tk-cf-item {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.tk-cf-item-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tk-cf-name {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.tk-cf-name-ro {
+  flex: 1 1 160px;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-cf-type {
+  flex: none;
+}
+
+.tk-cf-optlist {
+  flex: 1 1 100%;
+  font-size: 12.5px;
+}
+
+.tk-cf-item-btns {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.tk-cf-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tk-cf-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tk-cf-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.tk-cf-type-pick {
+  flex: none;
+}
+
+.tk-cf-newopts {
+  flex: 1 1 100%;
+  resize: vertical;
+}
+
+.tk-cf-typenote {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.tk-cf-empty {
+  margin: 0;
+}
+
+.tk-cf-list-archived {
+  margin-top: 6px;
+}
+
+.tk-cf-list-archived .tk-cf-item {
+  background: var(--surface-2);
+}
+
+@media (max-width: 560px) {
+  .tk-cf-item-btns {
+    margin-left: 0;
+  }
+  .tk-meta-cf {
+    max-width: 140px;
+  }
+}

@@ -2,7 +2,7 @@
 title: How do I take the Slate tour?
 section: Daily work
 audience: staff
-keywords: [slate tour, slate start to finish, start to finish, tour, walkthrough, presenter, present, demo, training, chapters, chapter, replay, replay the slate tour, take the slate tour, exit tour, skip tour, your day, client lists, working a task, speed, team flow, automation, your setup, pro test client, read only, only looks, ?tour=slate]
+keywords: [slate tour, slate start to finish, start to finish, tour, walkthrough, presenter, present, demo, training, chapters, chapter, replay, replay the slate tour, take the slate tour, exit tour, skip tour, your day, client lists, working a task, speed, team flow, automation, your setup, pro test client, read only, only looks, ?tour=slate, slate plus tour]
 sort: 119
 ---
 **Slate, start to finish** is a guided tour of all of Slate in seven short chapters. It is built to present to the team as well as to take on your own: big cards, one or two sentences each, and a **Chapters** list to jump around.
@@ -34,5 +34,9 @@ The tour **only looks**. It opens pages, lists and a sample task, and points at 
 - If a step points at something that isn't on screen for you (for example an admin-only button, or a client with no team), the card shows in the middle of the screen with the same words.
 
 While the tour is open, Slate's single-letter keys are off so a key press can't change a task.
+
+### The Slate plus tour
+
+**?** → **Slate plus tour** is a shorter tour of the October 2026 additions: one search, the icon sidebar, filters, the calendar, profiles, Blocked by, custom fields, projects and Team load (and Rules, for admins). It only looks, like the main tour. The **Slate plus is here** notice starts it too. See [What's in Slate plus?](#/help/slate-plus).
 
 See also [How do I change my Slate settings?](#/help/slate-settings) and [How do I use the Slate app?](#/help/tasks-own-window).

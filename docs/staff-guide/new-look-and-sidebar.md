@@ -21,5 +21,5 @@ On a computer, menus in the left rail open as soon as you point at them, and hov
 
 ### Going back to the old look
 - **Today:** **?** on the **Do next** card → **Use classic Today in this browser**.
-- **Fonts, colors and menus** (admins and temporary admins): **Settings › Firm settings › Developer tools › Feature flags** has **Classic fonts**, **Classic colors** and **Classic menus**. Each one only changes the computer and browser you are using. Everyone else: tell us with **Send feedback** if something is hard to read or use.
+- **Fonts, colors and menus:** these are the same for everyone now (the Classic fonts, colors, menus and sidebar choices in Developer tools were removed on October 28, 2026). Tell us with **Send feedback** if something is hard to read or use.
 - The sidebar has no switch back; use the Customize button to hide what you don't want.

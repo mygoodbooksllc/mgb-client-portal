@@ -382,6 +382,9 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   const panelRef = React.useRef(null);
   const barRef = React.useRef(null);
   const railRef = React.useRef(null);
+  // Slate plus dependencies (TKP_on): re-render when the deps load (Next up
+  // skips blocked tasks). No network and nothing changes while off.
+  if (typeof TKD_useDeps === "function") TKD_useDeps();
   const live = on && s.status !== "missing" && !!me;
   const mode = WB_useDeskMode();
   const sheet = mode === "sheet";
@@ -965,7 +968,8 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
     }),
   );
   const progress = WB_barProgress({ late: lateRows.length, dueOpen: todayRows.length, doneToday });
-  const next = taskRows[0] || null;
+  // Slate plus dependencies: Next up skips blocked tasks (late counts don't change). Off: the same list.
+  const next = (typeof TKD_skipBlocked === "function" ? TKD_skipBlocked(taskRows, (r) => r.source_id) : taskRows)[0] || null;
   const cc = clientCounts || {};
   const ago = pageClient && pageClient.lastSyncedAt && typeof relTime === "function" ? relTime(pageClient.lastSyncedAt) : "";
   const clientLine = pageClient

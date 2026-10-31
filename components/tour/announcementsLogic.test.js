@@ -469,9 +469,37 @@ t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view
   // The newest by date among ungated entries, so it is picked first for a person with
   // nothing answered. (Entries with visible(), such as the hidden draft
   // client-org-profile-launch, do not compete while their switch is off. The
-  // admins-only view-as-whole-app notice is newer but no bookkeeper gets it.)
-  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
+  // admins-only view-as-whole-app notice is newer but no bookkeeper gets it. custom-repeat, 2026-10-25, is a
+  // newer ungated notice and is excluded here: it is its own check above.)
+  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.id !== "celebration-heads-up" && x.id !== "slate-single-home" && x.id !== "custom-repeat" && x.id !== "client-agreements" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
   assert.strictEqual(a.date, newest);
+});
+
+t("registry: client-agreements waits for the card and tours it", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "client-agreements");
+  assert.ok(a);
+  assert.strictEqual(a.visible, undefined);
+  assert.strictEqual(typeof a.ready, "function");
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-card", "ann-done"]);
+  assert.deepStrictEqual(steps[1].targets, ["staff-agreements"]);
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
+  assert.ok(!/colour|!/i.test(text));
+});
+
+t("registry: celebration-heads-up is withdrawn (admin-only celebrations); for non-admins, 3 steps, no admin-only wording when re-enabled", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "celebration-heads-up");
+  assert.ok(a);
+  // CEL_STAFF_VISIBLE is not defined in this node run (and is false in the app): hidden everywhere.
+  assert.strictEqual(typeof a.visible, "function");
+  assert.strictEqual(a.visible(), false);
+  assert.deepStrictEqual(a.roles, ["tempAdmin", "bookkeeper", "accountManager"]);
+  assert.strictEqual(a.date, "2026-10-27");
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-today-week", "team-people"]);
+  assert.deepStrictEqual(steps[1].targets, ["today-week"]);
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
+  assert.ok(!/colour|gift sent|dismiss|\b(19|20)\d\d\b/i.test(text), text);
 });
 
 t("registry: view-as-whole-app is an admins-only notice that tours HR > Members", () => {
@@ -504,19 +532,17 @@ t("registry: new-look-and-layout is one combined staff notice for the five launc
   assert.deepStrictEqual(steps[4].targets, ["staff-nav"]);
   const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body()), a.steps({}).map((x) => x.body())));
   assert.ok(!/colour|grey|slate app|month rhythm/i.test(text), "US spelling; nothing about the held Slate app or Month rhythm");
-  assert.ok(/Classic Today/.test(text) && /Classic fonts/.test(text) && /Customize/.test(text) && /press D/i.test(text));
+  assert.ok(/Classic Today/.test(text) && !/Classic fonts/.test(text) && /Customize/.test(text) && /press D/i.test(text));
 });
 
-t("registry: new-look-and-layout ready check (caches, Classic opt-outs, no Lato)", () => {
+t("registry: new-look-and-layout ready check (caches, no Lato)", () => {
   const a = ANN_REGISTRY.find((x) => x.id === "new-look-and-layout");
   const setWin = (m) => {
     global.window = { localStorage: { getItem: (k) => (k in m ? m[k] : null) } };
   };
   try {
     setWin({ mgb_brand_classic: "1", mgb_hovernav_classic: "1" });
-    assert.strictEqual(a.ready(), true, "Classic on both is ready");
-    setWin({ mgb_brand_classic: "1", mgb_hovernav_cache: "1" });
-    assert.strictEqual(a.ready(), true, "Classic brand plus hover cache is ready");
+    assert.strictEqual(a.ready(), false, "the retired Classic keys no longer count");
     setWin({ mgb_brand_cache: "1" });
     assert.strictEqual(a.ready(), false, "hover cache missing is not ready");
     setWin({ mgb_hovernav_cache: "1" });
@@ -560,9 +586,8 @@ t("registry: slate-app-launch shape, roles, steps and wording", () => {
   assert.ok(/sliver/i.test(sizes) && /compact/i.test(sizes) && /detail pane/i.test(sizes) && /Full page/.test(sizes), "window-size step");
   const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body()), a.steps({}).map((x) => x.body())));
   assert.ok(!/colour|grey|month rhythm|interaction|template editor|touch drag/i.test(text), "US spelling; nothing held back is promised");
-  assert.ok(/Classic tasks page/.test(JSON.stringify(a.steps({ isAdmin: true }).map((x) => x.body()))));
+  assert.ok(!/Classic tasks page/.test(JSON.stringify(a.steps({ isAdmin: true }).map((x) => x.body()))), "the opt-out is retired");
   assert.strictEqual(a.date, "2026-10-26", "launched for Monday 2026-10-26");
-  assert.ok(!/Classic tasks page/.test(JSON.stringify(a.steps({ isBookkeeper: true }).map((x) => x.body()))), "non-admins are not sent to Developer tools");
 });
 
 t("slate-app-launch gate: off means nothing shows anywhere", () => {
@@ -574,11 +599,6 @@ t("slate-app-launch gate: off means nothing shows anywhere", () => {
       assert.strictEqual(L.ANN_listed(a, ctx), false);
       assert.deepStrictEqual(L.ANN_audience(reg, ctx), [], "no Launches row, no ? menu tour");
       assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null, "no notice");
-    });
-    // A person's preview alone is not the launch.
-    withWin({ mgb_slate_app_preview: "1" }, false, () => {
-      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
-      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
     });
     // The cache cleared again (switch turned back off).
     withWin({ mgb_slate_cache: "0" }, false, () => assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null));
@@ -616,19 +636,8 @@ t("slate-app-launch gate: on shows the notice once, for staff only", () => {
   });
 });
 
-t("slate-app-launch gate: Classic tasks page suppresses it, even with the switch on", () => {
+t("slate-app-launch gate: blocked storage reads as off", () => {
   const a = slateEntry();
-  const reg = [a];
-  [admin, bk, tempAdmin, am].forEach((ctx) => {
-    withWin({ mgb_slate_cache: "1", mgb_slate_classic: "1" }, false, () => {
-      assert.strictEqual(L.ANN_listed(a, ctx), false);
-      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
-      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
-    });
-    // Classic wins over the person's preview as well.
-    withWin({ mgb_slate_cache: "1", mgb_slate_classic: "1", mgb_slate_app_preview: "1" }, false, () =>
-      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null));
-  });
   // Blocked storage reads as off.
   global.window = { localStorage: { getItem: () => { throw new Error("blocked"); } } };
   try {
@@ -646,6 +655,41 @@ t("slate-app-launch gate: an entry with a throwing visible() is hidden", () => {
 
 // ---- Client org profile launch: draft, invisible until the firm switch is on -----
 const opEntry = () => ANN_REGISTRY.find((x) => x.id === "client-org-profile-launch");
+
+t("registry: slate-single-home is gated like the Slate app launch and tours the Work > Slate summary", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "slate-single-home");
+  assert.ok(a);
+  assert.strictEqual(a.date, "2026-10-27");
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  assert.strictEqual(a.hash, "#/work/tasks");
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-summary", "ann-open-slate"]);
+  assert.deepStrictEqual(steps[2].targets, ["tk-summary-open"]);
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
+  assert.ok(!/colour/i.test(text), text);
+  // Off with the firm switch off.
+  withWin({}, false, () => assert.strictEqual(a.visible(), false));
+  withWin({ mgb_slate_cache: "1" }, false, () => assert.strictEqual(a.visible(), true));
+});
+
+t("registry: slate-search tours the Slate page search box, staff only, gated like Slate", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "slate-search");
+  assert.ok(a);
+  assert.strictEqual(a.date, "2026-10-27");
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  assert.strictEqual(a.hash, "#/tasks/my");
+  const steps = a.steps({});
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-search", "ann-done"]);
+  assert.deepStrictEqual(steps[1].targets, ["tk-search"]);
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
+  assert.ok(!/colour|!/i.test(text), text);
+  withWin({}, false, () => assert.strictEqual(a.visible(), false));
+  withWin({ mgb_slate_cache: "1" }, false, () => assert.strictEqual(a.visible(), true));
+  withWin({ mgb_slate_cache: "1" }, false, () => {
+    assert.strictEqual(L.ANN_pickNext([a], state(), Object.assign({ impersonating: true }, admin), SLATE_NOW), null, "View as");
+    assert.strictEqual(L.ANN_pickNext([a], state(), { role: "client" }, SLATE_NOW), null, "clients never");
+  });
+});
 
 t("registry: client-org-profile-launch shape, roles, steps and wording", () => {
   const a = opEntry();
@@ -667,11 +711,6 @@ t("client-org-profile-launch gate: off means nothing shows anywhere", () => {
   [admin, bk, tempAdmin, am].forEach((ctx) => {
     withWin({}, false, () => {
       assert.strictEqual(L.ANN_listed(a, ctx), false);
-      assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
-      assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
-    });
-    // The person's preview flag is not the launch.
-    withWin({ mgb_orgprofile_preview: "1" }, false, () => {
       assert.deepStrictEqual(L.ANN_audience(reg, ctx), []);
       assert.strictEqual(L.ANN_pickNext(reg, state(), ctx, SLATE_NOW), null);
     });
@@ -718,7 +757,7 @@ t("client-org-profile-launch: live date, gifts step names the anniversary basis"
   const a = opEntry();
   assert.strictEqual(a.date, "2026-10-25");
   const gifts = a.steps({ isAdmin: true }).find((s) => s.id === "team-gifts");
-  assert.ok(/Anniversary to follow/.test(gifts.body()) && /Client since \(the default\)/.test(gifts.body()));
+  assert.ok(/Anniversary to follow/.test(gifts.body()) && /founding date \(the default\)/.test(gifts.body()));
 });
 
 t("order: with Slate, Month rhythm and the org profile all on: Slate, the Slate tour, Month rhythm, then the org profile", () => {
@@ -733,7 +772,7 @@ t("order: with Slate, Month rhythm and the org profile all on: Slate, the Slate 
         rows[pick.id] = { status: "dismissed", later_count: 0 };
       }
     });
-    const s = seq.filter((id) => id !== "view-as-whole-app");
+    const s = seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up" && id !== "slate-single-home" && id !== "slate-search");
     assert.deepStrictEqual(s.slice(0, 4), ["slate-app-launch", "slate-start-to-finish", "month-rhythm-launch", "client-org-profile-launch"]);
   });
 });
@@ -760,7 +799,7 @@ function walk(ctx, store, narrow, first) {
     }
   });
   // The admins-only View as notice (2026-10-23) is newer than these; leave it out of the order checks.
-  return seq.filter((id) => id !== "view-as-whole-app");
+  return seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up" && id !== "slate-single-home" && id !== "slate-search");
 }
 
 t("order: with all three eligible, slate-app-launch comes first and supersedes the view bar", () => {
@@ -966,6 +1005,19 @@ t("thread-menu gate: hidden until the thread menu switch is cached, never in Vie
   assert.deepStrictEqual(steps.map((x) => x.id), ["ann-welcome", "ann-thread-menu", "ann-desk"]);
   assert.deepStrictEqual(steps[1].targets, ["inbox-list"]);
   assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
+});
+
+t("registry: custom-repeat is a plain staff notice for the four task roles, dated when it shipped", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "custom-repeat");
+  assert.ok(a);
+  assert.strictEqual(a.date, "2026-10-25");
+  assert.deepStrictEqual(a.roles, ["admin", "tempAdmin", "bookkeeper", "accountManager"]);
+  assert.strictEqual(a.visible, undefined, "not behind a switch: Repeat > Custom is live for everyone");
+  const admin = a.steps({ isAdmin: true });
+  const bk = a.steps({});
+  assert.deepStrictEqual(admin.map((x) => x.id), ["ann-welcome", "ann-where", "ann-templates"]);
+  assert.ok(/Slate > Recurring/.test(admin[2].body()) && !/Slate > Recurring/.test(bk[2].body()), "templates step differs by audience");
+  assert.ok(!/colour/i.test(JSON.stringify(admin.map((x) => x.body()))));
 });
 
 console.log("announcementsLogic: " + n + " checks passed");

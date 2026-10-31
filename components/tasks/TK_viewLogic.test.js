@@ -1153,30 +1153,15 @@ t("bulkDuePatch", () => {
 
 // ---- Slate app (S1): flag helper ----------------------------------------------------
 t("slateAppIsOn: firm switch values", () => {
-  [true, "true", 1, { on: true }].forEach((v) => assert.strictEqual(L.TK_slateAppIsOn(v, null, false), true, JSON.stringify(v)));
+  [true, "true", 1, { on: true }].forEach((v) => assert.strictEqual(L.TK_slateAppIsOn(v), true, JSON.stringify(v)));
   [undefined, null, false, "false", 0, "", "on", "1", "yes", { on: false }, {}].forEach((v) =>
-    assert.strictEqual(L.TK_slateAppIsOn(v, null, false), false, JSON.stringify(v)),
+    assert.strictEqual(L.TK_slateAppIsOn(v), false, JSON.stringify(v)),
   );
 });
 t("slateAppIsOn: the string on is not on", () => {
-  assert.strictEqual(L.TK_slateAppIsOn("on", undefined, undefined), false);
-  assert.strictEqual(L.TK_slateAppIsOn("on", "on", false), false);
-});
-t("slateAppIsOn: preview turns it on when the firm switch is off", () => {
-  assert.strictEqual(L.TK_slateAppIsOn(undefined, "1", false), true);
-  assert.strictEqual(L.TK_slateAppIsOn(false, true, false), true);
-  assert.strictEqual(L.TK_slateAppIsOn(undefined, "0", false), false);
-  assert.strictEqual(L.TK_slateAppIsOn(undefined, null, false), false);
-});
-t("slateAppIsOn: classic wins over the switch and the preview", () => {
-  assert.strictEqual(L.TK_slateAppIsOn(true, "1", "1"), false);
-  assert.strictEqual(L.TK_slateAppIsOn(true, "1", true), false);
-  // classic counts only as "1" or true
-  [1, "true", "0", "yes", "on", {}, 0, "", null, undefined, false].forEach((c) => assert.strictEqual(L.TK_slateAppIsOn(true, null, c), true, JSON.stringify(c)));
+  assert.strictEqual(L.TK_slateAppIsOn("on"), false);
 });
 t("slate flag names", () => {
-  assert.strictEqual(L.TK_SLATE_APP_PREVIEW, "mgb_slate_app_preview");
-  assert.strictEqual(L.TK_SLATE_APP_CLASSIC, "mgb_slate_classic");
   assert.strictEqual(L.TK_SLATE_APP_SETTING, "slate_app_enabled");
 });
 
@@ -1548,6 +1533,29 @@ t("slateSizeHit: within 4px both ways", () => {
   assert.strictEqual(L.TK_slateSizeHit(null, { w: 1, h: 1 }), false);
   assert.strictEqual(L.TK_slateSizeHit(want, { w: NaN, h: 800 }), false);
   assert.strictEqual(L.TK_slateSizeHit(want, null), false);
+});
+t("slateMissHides: growing the window clears the hide", () => {
+  const now = 1800000000000;
+  const raw = now - 1000 + "|600|400";
+  assert.strictEqual(L.TK_slateMissHides(raw, now, { w: 600, h: 400 }), true);
+  assert.strictEqual(L.TK_slateMissHides(raw, now, { w: 500, h: 300 }), true); // smaller stays hidden
+  assert.strictEqual(L.TK_slateMissHides(raw, now, { w: 700, h: 400 }), false); // wider
+  assert.strictEqual(L.TK_slateMissHides(raw, now, { w: 600, h: 500 }), false); // taller
+  assert.strictEqual(L.TK_slateMissHides(raw, now, { w: 605, h: 405 }), true); // within jitter
+  assert.strictEqual(L.TK_slateMissHides(now - 130000 + "|600|400", now, { w: 600, h: 400 }), false); // expired
+  assert.strictEqual(L.TK_slateMissHides(String(now - 1000), now, { w: 900, h: 900 }), true); // old format: timer only
+  assert.strictEqual(L.TK_slateMissHides("1", now, null), false);
+  assert.strictEqual(L.TK_slateMissHides(null, now, null), false);
+});
+t("slateMissActive", () => {
+  const now = 1800000000000;
+  assert.strictEqual(L.TK_slateMissActive(String(now - 1000), now), true);
+  assert.strictEqual(L.TK_slateMissActive(now - 119000, now), true);
+  assert.strictEqual(L.TK_slateMissActive(now - 121000, now), false);
+  assert.strictEqual(L.TK_slateMissActive("1", now), false); // old session value heals
+  assert.strictEqual(L.TK_slateMissActive(null, now), false);
+  assert.strictEqual(L.TK_slateMissActive("x", now), false);
+  assert.strictEqual(L.TK_slateMissActive(now, NaN), false);
 });
 t("slatePresetPlace", () => {
   assert.strictEqual(L.TK_slatePresetPlace("full"), "bar");
@@ -2365,6 +2373,27 @@ t("ix: undo check sorts changed and gone; unstamped ids are not checked", () => 
   assert.deepStrictEqual(L.TK_ixUndoCheck(st, rows), { changed: ["b"], gone: ["c", "d"] });
   assert.deepStrictEqual(L.TK_ixUndoCheck(null, rows), { changed: [], gone: [] });
   assert.deepStrictEqual(L.TK_ixUndoCheck({ a: "2026-10-23T14:00:00Z" }, null), { changed: [], gone: ["a"] });
+});
+
+// ---- Work > Slate summary -------------------------------------------------------
+t("slateSummary: late, today and next, each capped at 5 with a more count", () => {
+  const mk = (p, n) => Array.from({ length: n }, (_, i) => tk(p + i));
+  const s = L.TK_slateSummary({ overdue: mk("o", 7), today: mk("t", 2), week: mk("w", 4), later: mk("l", 3), waiting: mk("x", 2), unassigned: mk("u", 2), done: mk("d", 2) });
+  assert.strictEqual(s.late.length, 5);
+  assert.strictEqual(s.lateMore, 2);
+  assert.strictEqual(s.today.length, 2);
+  assert.strictEqual(s.todayMore, 0);
+  assert.deepStrictEqual(s.next.map((x) => x.id), ["w0", "w1", "w2", "w3", "l0"]);
+  assert.strictEqual(s.nextMore, 2);
+});
+t("slateSummary: empty or missing groups give empty lists", () => {
+  assert.deepStrictEqual(L.TK_slateSummary(null), { late: [], today: [], next: [], lateMore: 0, todayMore: 0, nextMore: 0 });
+  assert.deepStrictEqual(L.TK_slateSummary({ waiting: [tk("w")], unassigned: [tk("u")], done: [tk("d")] }), { late: [], today: [], next: [], lateMore: 0, todayMore: 0, nextMore: 0 });
+});
+t("slateSummary: a custom cap is honored and a bad one falls back to 5", () => {
+  const rows = [tk("a"), tk("b"), tk("c")];
+  assert.strictEqual(L.TK_slateSummary({ overdue: rows }, { cap: 2 }).lateMore, 1);
+  assert.strictEqual(L.TK_slateSummary({ overdue: rows }, { cap: 0 }).late.length, 3);
 });
 
 console.log(n + " checks passed");

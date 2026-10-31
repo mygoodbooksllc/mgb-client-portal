@@ -86,6 +86,12 @@ function TK_App(props) {
     TK_navigate(r);
   };
 
+  // Slate plus (hidden): the icon rail replaces the text sidebar in the rail
+  // layout only (TK_SlateRail.jsx). Off: railPlus false, markup unchanged.
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  var railPlus = !!(rail && plusOn && typeof TKR_Rail === "function");
+  var rp = typeof TKR_usePrefs === "function" ? TKR_usePrefs(staffUser.email, railPlus) : null;
+
   if (schema === "missing") {
     return (
       <div className={"tk-app" + (shell ? " is-shell" : "") + (slm ? " " + TK_slateModeClasses(slm) : "") + (slm && prefs && TK_prefsDensityClass(prefs) ? " " + TK_prefsDensityClass(prefs) : "")} ref={obsRef || undefined}>
@@ -112,8 +118,18 @@ function TK_App(props) {
     );
   }
   else if (route.view === "manage") main = <TK_ManageProjects staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  else if (route.view === "rules" && typeof TK_Rules === "function" && typeof TKP_on === "function" && TKP_on()) {
+    // Slate plus rules (hidden; TK_parseRoute only returns it while the gate is on).
+    main = <TK_Rules staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  }
   else if (route.view === "client" || route.view === "project" || route.view === "person") {
     main = <TK_List route={route} staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  } else if (route.view === "profile" && typeof TK_Profile === "function" && typeof TKP_on === "function" && TKP_on()) {
+    // Slate plus person profile (hidden; TK_parseRoute only returns it while the gate is on).
+    main = <TK_Profile route={route} staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  } else if (route.view === "portfolio" && typeof TKPU_Portfolio === "function" && TKP_on()) {
+    // Slate plus Portfolio (hidden; TK_parseRoute only returns it while the gate is on).
+    main = <TKPU_Portfolio staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   } else {
     main = (
       <div className="tk-state" role="status">
@@ -133,7 +149,7 @@ function TK_App(props) {
     );
   }
   // Compact in the app: Templates and Manage are read-only with a note.
-  if (slm && (route.view === "templates" || route.view === "manage") && typeof TK_SlateReadOnly === "function") {
+  if (slm && (route.view === "templates" || route.view === "manage" || route.view === "rules") && typeof TK_SlateReadOnly === "function") {
     main = <TK_SlateReadOnly>{main}</TK_SlateReadOnly>;
   }
 
@@ -141,12 +157,12 @@ function TK_App(props) {
   return (
     <div
       className={
-        "tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (compactNow ? " is-compact" : "") + (slm ? " " + TK_slateModeClasses(slm) : "") + (slm && prefs && TK_prefsDensityClass(prefs) ? " " + TK_prefsDensityClass(prefs) : "")
+        "tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (compactNow ? " is-compact" : "") + (slm ? " " + TK_slateModeClasses(slm) : "") + (slm && prefs && TK_prefsDensityClass(prefs) ? " " + TK_prefsDensityClass(prefs) : "") + (railPlus ? " has-tkr" + (rp && rp.pinned && rp.section ? " tkr-pinned" : "") : "")
       }
       ref={obsRef || undefined}
     >
       <h1 className="tk-sr">Slate</h1>
-      {rail ? <aside className="tk-app-rail">{sidebar}</aside> : null}
+      {rail ? <aside className={"tk-app-rail" + (railPlus ? " tkr-host" : "")}>{railPlus ? <TK_Sidebar route={route} clients={clients} isAdmin={isAdmin} staffUser={staffUser} onNavigate={navigate} variant="icons" /> : sidebar}</aside> : null}
       <div className="tk-app-main" tabIndex={slm ? -1 : undefined}>
         {needBar || showPopOut ? (
           <div className="tk-app-bar">
@@ -244,7 +260,7 @@ function TK_App(props) {
           </a>
           <button
             type="button"
-            className={"tk-bb-item" + (route.view === "client" || route.view === "project" || route.view === "person" ? " is-active" : "")}
+            className={"tk-bb-item" + (route.view === "client" || route.view === "project" || route.view === "person" || route.view === "profile" ? " is-active" : "")}
             aria-haspopup="dialog"
             onClick={function () {
               setListsOpen(true);

@@ -21,7 +21,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | Where | What it's for | More |
 |---|---|---|
 | **HR › Members** | Add staff, set roles, assign clients, give temporary admin access, **View as** a bookkeeper (their whole app, read-only) and check **Last seen** to see exactly what they see and when they were last on | [Staff and access](#/help/staff-management), [Temporary access](#/help/temporary-access) |
-| **Team › Hours** | Hours and tasks by person and by client, monthly hours budgets, capacity, and fees, cost and margin | [Hours budget](#/help/hours-budget), [Capacity](#/help/capacity), [Profitability](#/help/profitability) |
+| **Team › Hours** | Hours and tasks by person and by client, monthly hours budgets and capacity | [Hours budget](#/help/hours-budget), [Capacity](#/help/capacity) |
 | **Team › Reply times** | How fast clients hear back, against the 24-hour goal | [Reply times](#/help/reply-times) |
 | **Team › Performance** | Every bookkeeper's score out of 100, as a ranking (bookkeepers see only their own) | [Performance](#/help/performance) |
 | **Manage projects** in the Slate sidebar | Rename, archive, trash or restore any project | [Manage projects](#/help/manage-projects) |
@@ -37,7 +37,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Bookkeeper** on a client's Slate list | Click it to change the client's bookkeeper; the old bookkeeper's open tasks there can move too (in-review and private ones stay; no email) | [Task lists and projects](#/help/task-lists-and-projects) |
 | **Slate › Recurring** | Recurring task templates: drafts, **Turn on**, previews, **Make due tasks now**, **Missed periods** and the standard close set | [Recurring tasks](#/help/task-templates) |
 | **Settings › Firm settings** | **Task templates** (a link to Slate › Recurring), **Client roster** (where new clients are added), **Emails**, **QuickBooks usage**, **Usage stats**, **Audit log** and **Developer tools**, plus the **Late tasks** and **Month rhythm** cards (the three monthly Slate dates, 4th, 14th and 24th by default) | [Settings](#/help/staff-settings), [Usage stats and Developer tools](#/help/admin-insight), [Audit log](#/help/audit-log) |
-| **Today** | Every client you can open, which for an admin is all of them, plus birthdays and work anniversaries a week ahead; once the Desk is on, **Mine** or **Everyone** to see every staff member's items | [Today](#/help/home-page), [Desk](#/help/workbench), [Celebrations](#/help/celebrations) |
+| **Today** | Every client you can open, which for an admin is all of them, plus birthdays and work anniversaries a month ahead; once the Desk is on, **Mine** or **Everyone** to see every staff member's items | [Today](#/help/home-page), [Desk](#/help/workbench), [Celebrations](#/help/celebrations) |
 | **Email** to admin@mygoodbooks.org | Health-check alerts and the weekly digest | [Alerts](#/help/health-alerts), [Weekly digest](#/help/weekly-digest) |
 
 ### A routine
@@ -63,7 +63,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 
 1. **Work › Close**: is every client's month closed? See [Month-end close](#/help/month-end-close).
 2. On **Today**, open the **This week** card and confirm pricing milestones. See [Pricing milestones](#/help/pricing-milestones).
-3. **Team › Hours**: check margin by client. See [Profitability](#/help/profitability).
+3. **Team › Hours**: check each client's hours against its budget. See [Hours budget](#/help/hours-budget).
 4. **Settings › Usage stats**: what's used and who's gone quiet.
 
 **Every quarter**

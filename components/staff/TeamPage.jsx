@@ -78,21 +78,6 @@ function TP_periodRange(key, customFrom, customTo) {
   return { from: TP_ymd(new Date(y, m, 1)), to: TP_ymd(new Date(y, m + 1, 0)) };
 }
 
-// The three full calendar months before this one, for the per-client
-// monthly average that sits next to the current period.
-function TP_avgRange() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const from = new Date(y, m - 3, 1);
-  const to = new Date(y, m, 0);
-  const label =
-    from.toLocaleDateString("en-US", { month: "short" }) +
-    " to " +
-    to.toLocaleDateString("en-US", { month: "short" });
-  return { from: TP_ymd(from), to: TP_ymd(to), label };
-}
-
 // Minutes as h:mm ("12:05").
 function TP_fmtHM(minutes) {
   const total = Math.round(minutes || 0);
@@ -799,11 +784,16 @@ function TP_TeamHub({ place, tab, staffUser, isAdmin, isRealAdmin, clients, rend
 // Shout-outs (Shoutouts.jsx) are for everyone.
 // ---------------------------------------------------------------------------
 // Birthdays and work anniversaries in the next 30 days, from rpc
-// staff_celebrations (everyone sees the day; only admins the birth year).
-function TP_UpcomingCard() {
+// staff_celebrations. Everyone sees the day (month and day, never a year).
+// Admins get the month-ahead list instead (celebrationLead.js): date, how many
+// days away and years on the team, with a tag once a gift is sent or dismissed.
+function TP_UpcomingCard({ admin, me }) {
   const [st, setSt] = useState({ loading: true, rows: [] });
+  // Admin only for now (CEL_STAFF_VISIBLE in celebrationLead.js).
+  const canSee = CEL_canSee(admin);
   useEffect(() => {
     const sb = window.mgbSupabase;
+    if (!canSee) return;
     if (!sb || typeof sb.rpc !== "function") {
       setSt({ loading: false, rows: [] });
       return;
@@ -820,26 +810,42 @@ function TP_UpcomingCard() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [canSee]);
+  if (!canSee) return null;
   const today = todayLocal();
   const items = [];
-  st.rows.forEach((r) => {
-    const add = (on, what, key) => {
-      if (!on) return;
-      const d = daysUntil(on, today);
-      if (d < 0 || d > 30) return;
-      items.push({ key: key + r.email, d, on, name: r.name, what });
-    };
-    add(r.next_birthday, "birthday", "b-");
-    add(r.next_anniversary, `${r.years} year${r.years === 1 ? "" : "s"} with the firm`, "a-");
-  });
+  const mine = String(me || "").trim().toLowerCase();
+  // View as is read-only: no shout-out button.
+  const ro = typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly();
+  if (admin && typeof CEL_items === "function") {
+    CEL_items(st.rows, today, CEL_ADMIN_LEAD_DAYS, true).forEach((it) => {
+      items.push({ key: it.key, d: it.days, on: it.on, name: it.name, what: it.what, admin: true, away: it.away, tenure: it.tenure, handled: it.handled });
+    });
+  } else {
+    st.rows.forEach((r) => {
+      const add = (on, what, key) => {
+        if (!on) return;
+        const d = daysUntil(on, today);
+        if (d < 0 || d > 30) return;
+        // Within 7 days (the staff heads-up) and not you: offer a shout-out.
+        const shout = d <= 7 && !ro && !!mine && String(r.email || "").trim().toLowerCase() !== mine;
+        items.push({ key: key + r.email, d, on, name: r.name, what, email: r.email, shout });
+      };
+      add(r.next_birthday, "birthday", "b-");
+      add(r.next_anniversary, `${r.years} year${r.years === 1 ? "" : "s"} with the firm`, "a-");
+    });
+  }
   items.sort((a, b) => a.d - b.d || a.name.localeCompare(b.name));
   return (
     <section className="card tp-people-card" aria-labelledby="tp-upcoming-title">
       <h3 className="card-title" id="tp-upcoming-title">
         Celebrations
       </h3>
-      <p className="card-subtitle">Birthdays and work anniversaries in the next 30 days. Add yours in Settings › Profile.</p>
+      <p className="card-subtitle">
+        {admin
+          ? "Birthdays and work anniversaries in the next 30 days, so there is time to send a gift. Mark them on Today. Add yours in Settings › Profile."
+          : "Birthdays and work anniversaries in the next 30 days. Anything in the next 7 days has a Give a shout out button. Add yours in Settings › Profile."}
+      </p>
       {st.loading ? (
         <p className="card-subtitle">Loading…</p>
       ) : items.length === 0 ? (
@@ -848,9 +854,18 @@ function TP_UpcomingCard() {
         <ul className="tp-upcoming">
           {items.map((it) => (
             <li key={it.key}>
-              <span className="tp-upcoming-when">{it.d === 0 ? "Today" : it.d === 1 ? "Tomorrow" : fmtDate(it.on)}</span>
+              <span className="tp-upcoming-when">{it.admin ? CEL_dateLabel(it.on) : it.d === 0 ? "Today" : it.d === 1 ? "Tomorrow" : fmtDate(it.on)}</span>
               <span className="tp-upcoming-who">
                 <b>{it.name}</b> · {it.what}
+                {it.shout && typeof SO_openCompose === "function" && (
+                  <>
+                    {" · "}
+                    <button type="button" className="link-btn" onClick={() => SO_openCompose(it.email)}>
+                      Give a shout out
+                    </button>
+                  </>
+                )}
+                {it.admin && " · " + it.away + (it.tenure ? " · " + it.tenure : "") + (it.handled ? (it.handled === "gift" ? " · gift sent" : " · dismissed") : "")}
               </span>
             </li>
           ))}
@@ -869,17 +884,39 @@ function TP_PeopleTab({ staffUser, isAdmin, clients }) {
       <SO_ShoutoutsBody clients={clients} staffUser={staffUser} />
     </section>
   );
-  const upcoming = <TP_UpcomingCard />;
+  const upcoming = <TP_UpcomingCard admin={isAdmin} me={staffUser && staffUser.email} />;
+  // Slate plus Profile 2 (hidden preview): Team load moved here from Slate,
+  // with the Unassigned chip and the 4-week bars. Off: nothing, same DOM.
+  const loadGate = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  const me = String((staffUser && staffUser.email) || "").toLowerCase();
+  const load =
+    loadGate && typeof TK_WorkloadStrip === "function" ? (
+      <div className="tkw-people" data-tour="tp-team-load">
+        <TK_WorkloadStrip
+          isAdmin={isAdmin}
+          bump={0}
+          email={me}
+          listId="tkw-list-team"
+          before={typeof TK_WorkloadUnassigned === "function" ? <TK_WorkloadUnassigned email={me} /> : null}
+        />
+        {typeof TK_WorkloadWeeks === "function" ? <TK_WorkloadWeeks isAdmin={isAdmin} email={me} /> : null}
+      </div>
+    ) : null;
+  // Slate plus Profile 2: the Teams card (real admins only, never in View as).
+  const teams =
+    loadGate && isAdmin && !(typeof CV_ro === "function" && CV_ro()) && typeof TKP2_TeamsCard === "function" ? <TKP2_TeamsCard staffUser={staffUser} /> : null;
   if (coverage) {
     return (
       <div className="tp-people">
+        {load}
+        {teams}
         <CV_CoverageTab />
         {upcoming}
         {shoutouts}
       </div>
     );
   }
-  return (
+  const grid = (
     <div className="tp-people tp-people-grid">
       <div className="tp-people-col">
         <TP_WhosOutCard staffUser={staffUser} />
@@ -900,6 +937,14 @@ function TP_PeopleTab({ staffUser, isAdmin, clients }) {
       </div>
     </div>
   );
+  if (!load && !teams) return grid;
+  return (
+    <div className="tkw-people-wrap">
+      {load}
+      {teams}
+      {grid}
+    </div>
+  );
 }
 
 // Everyone's time off, today and the next 30 days (staff_time_off, which
@@ -918,7 +963,7 @@ function TP_WhosOutCard({ staffUser }) {
     <ul className="tp-out-list">
       {items.map((r) => (
         <li key={r.id}>
-          <span className="tp-out-name">{name(r.staff_email)}</span>
+          <span className="tp-out-name">{typeof TKP_who === "function" ? TKP_who(r.staff_email, name(r.staff_email)) : name(r.staff_email)}</span>
           <span className="tp-out-when">{CV_range(r)}</span>
           {r.note && <span className="tp-out-note">{r.note}</span>}
         </li>
@@ -1001,7 +1046,7 @@ function TP_MyBackupsCard({ staffUser, clients }) {
                 </a>
                 {b ? (
                   <span className="tp-backup-who">
-                    {CV_nameOf(dir, b)}
+                    {typeof TKP_who === "function" ? TKP_who(b, CV_nameOf(dir, b)) : CV_nameOf(dir, b)}
                     {typeof CV_OutTag === "function" && <CV_OutTag email={b} />}
                   </span>
                 ) : (
@@ -1039,16 +1084,25 @@ function TP_TeamPage({ clients }) {
     () => TP_periodRange(period, customFrom, customTo),
     [period, customFrom, customTo],
   );
-  const avg = useMemo(() => TP_avgRange(), []);
   const today = TP_ymd(new Date());
-  const qHours = TP_useQboHours(qboOn, range, avg, qboVersion);
-  // Fees, pay rates, cost and margin are admin-only (TeamProfit.jsx). A
-  // bookkeeper with temporary admin-page access, or an admin in "View as",
-  // never loads or sees them.
+  // Interim stale-data fix (teamHoursLogic.js): averages use only fully
+  // synced months, and pace stops at the last synced day.
+  const syncedThrough = TP_useSyncedThrough(qboOn, qboVersion);
+  const avg = useMemo(() => TH_avgRange(today, syncedThrough), [today, syncedThrough]);
+  const qHoursRaw = TP_useQboHours(qboOn, range, avg, qboVersion);
+  const qHours = useMemo(
+    () => ({ ...qHoursRaw, syncedThrough }),
+    [qHoursRaw, syncedThrough],
+  );
+  // Fees, pay rates, cost and margin are internal-only (TeamProfit.jsx): an
+  // admin with the owner's MGB (internal) grant. Any other admin, a bookkeeper
+  // with temporary admin-page access, or an admin in "View as" never loads
+  // them and sees no trace of them. Hours budgets stay for every admin.
   const { staffUser } = useContext(StaffToolsContext);
   const isAdmin = !!(staffUser && staffUser.role === "admin");
-  const profit = TP_PF_useProfit(isAdmin, range, qboVersion);
-  const money = isAdmin ? profit : null;
+  const canMoney = TP_PF_canSee(staffUser);
+  const profit = TP_PF_useProfit(canMoney, range, qboVersion);
+  const money = canMoney ? profit : null;
   const rangeLabel =
     range.from === range.to
       ? fmtDate(range.from)
@@ -1275,6 +1329,15 @@ function TP_TeamPage({ clients }) {
           " · Loading…"
         )}
       </p>
+      {qboOn && syncedThrough && (
+        <p
+          className="card-subtitle tp-synced"
+          style={{ margin: "4px 0 0" }}
+          title="QuickBooks Time hands hours to QuickBooks Online at pay-period approval, so the newest days can be missing. Averages use only fully synced months and weeks."
+        >
+          {TH_syncedLine(syncedThrough)}
+        </p>
+      )}
       {qboOn && qHours.error && (
         <div className="mock-banner" style={{ marginTop: 16, marginBottom: 0 }}>
           <WarningIcon />
@@ -1484,6 +1547,7 @@ function TP_TeamPage({ clients }) {
         people={data ? data.people : null}
         hours={qHours}
         qboOn={qboOn}
+        range={range}
         onOpenPerson={(email) => setView({ type: "person", key: email })}
         onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
         onOpenMapping={openMapping}
@@ -1496,6 +1560,7 @@ function TP_TeamPage({ clients }) {
         today={today}
         avg={avg}
         profit={money}
+        showBudget={isAdmin}
         onOpenClient={(id) => setView({ type: "client", key: id })}
         onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
         onOpenMapping={openMapping}

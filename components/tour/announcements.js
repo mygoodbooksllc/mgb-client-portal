@@ -70,30 +70,27 @@ function ANN_deskDocked() {
 // True once the owner has switched the look and layout launch on for everyone:
 // the Brand colors and Hover menus firm switches (the last ones to go live) are
 // cached by index.html's inline script after its first read. Lato is already
-// live, so it is not checked. Someone on a Classic option never refreshes that
-// option's cache, so their Classic opt-out key (mgb_brand_classic or
-// mgb_hovernav_classic) counts as satisfying its own part; they hear about it too.
+// live, so it is not checked. (The Classic colors and Classic menus opt-outs were
+// retired 2026-10-28, so only the two caches count.)
 function ANN_launchOn() {
   try {
     var ls = window.localStorage;
-    var brand = ls.getItem("mgb_brand_classic") === "1" || ls.getItem("mgb_brand_cache") === "1";
-    var hover = ls.getItem("mgb_hovernav_classic") === "1" || ls.getItem("mgb_hovernav_cache") === "1";
+    var brand = ls.getItem("mgb_brand_cache") === "1";
+    var hover = ls.getItem("mgb_hovernav_cache") === "1";
     return brand && hover;
   } catch (e) {
     return false;
   }
 }
 
-// True once the owner has switched the Slate app on for everyone AND this
-// person has not chosen Classic tasks page. index.html's inline script caches
-// tk_settings.slate_app_enabled in mgb_slate_cache after its first read (the
-// same single read as Brand colors and Hover menus). Deliberately not the
-// per-person Slate app preview: a preview person sees no launch text. Classic
-// (mgb_slate_classic) wins, as it does in TK_slateAppIsOn.
+// True once the owner has switched the Slate app on for everyone.
+// index.html's inline script caches tk_settings.slate_app_enabled in
+// mgb_slate_cache after its first read (the same single read as Brand colors and
+// Hover menus). (The Slate app preview and Classic tasks page boxes were retired
+// 2026-10-28.)
 function ANN_slateLaunchOn() {
   try {
     var ls = window.localStorage;
-    if (ls.getItem("mgb_slate_classic") === "1") return false;
     return ls.getItem("mgb_slate_cache") === "1";
   } catch (e) {
     return false;
@@ -102,9 +99,8 @@ function ANN_slateLaunchOn() {
 
 // True once the owner has switched the client org profile on for the firm
 // (tk_settings.org_profile_enabled, cached as mgb_orgprofile_cache by
-// OP_readSwitch in components/client/OP_store.js). Deliberately not the
-// per-person preview flag mgb_orgprofile_preview: a preview person sees no
-// launch text.
+// OP_readSwitch in components/client/OP_store.js). (The per-person preview flag
+// mgb_orgprofile_preview was retired 2026-10-28.)
 function ANN_orgProfileLaunchOn() {
   try {
     return window.localStorage.getItem("mgb_orgprofile_cache") === "1";
@@ -149,6 +145,38 @@ function ANN_threadMenuLaunchOn() {
   try {
     if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
     return window.localStorage.getItem("mgb_threadmenu_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+// True once the owner has switched Slate plus on for the firm
+// (tk_settings.slateplus_enabled, cached as mgb_slateplus_cache by TKP_readSwitch
+// in components/tasks/TK_slatePlus.js), and never during View as. Deliberately
+// not the per-person preview mgb_slateplus_preview: a preview person sees no
+// launch text.
+function ANN_slatePlusLaunchOn() {
+  try {
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
+    return window.localStorage.getItem("mgb_slateplus_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+// True once the owner has switched the client page drop on for the whole
+// firm (tk_settings.client_page_drop_enabled true AND
+// client_page_drop_pilot "all"; cached as mgb_clientdrop_cache by
+// CPD_readSwitch in components/client/CPD_gate.js, which the staff app calls
+// once at boot; the cache is only written while the switch is on), and never
+// during View as. A pilot list of a few clients is not a launch. Deliberately
+// not the per-person preview mgb_clientdrop_preview: a preview person sees no
+// launch text.
+function ANN_clientDropLaunchOn() {
+  try {
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
+    var v = JSON.parse(window.localStorage.getItem("mgb_clientdrop_cache") || "null");
+    return !!(v && v.enabled === true && v.pilot === "all");
   } catch (e) {
     return false;
   }
@@ -589,7 +617,7 @@ var ANN_REGISTRY = [
         id: "ann-welcome",
         title: "Your Desk, updated",
         body: () =>
-          "The Workbench is now called the Desk, it has a new glass look, you can make it taller or shorter, and the page stays usable while it is open. The shortcut is now D. About a minute.",
+          "The Desk has a new glass look, you can make it taller or shorter, and the page stays usable while it is open. The shortcut is now D. About a minute.",
       },
       {
         id: "ann-bar",
@@ -625,23 +653,21 @@ var ANN_REGISTRY = [
     id: "desk-rename",
     date: "2026-10-17",
     // Wording follows whether the Desk is on for this person: someone who
-    // never had the Workbench only hears about Slate.
+    // never had the Desk only hears about Slate.
     get title() {
-      return ANN_deskOn() ? "Workbench is now Desk, Tasks is now Slate" : "Tasks is now Slate";
+      return "Tasks is now Slate";
     },
     get summary() {
-      return ANN_deskOn()
-        ? "Two names changed and nothing else: the Workbench is now the Desk, and Tasks is now Slate. Your tasks, lists and shortcuts are all where they were."
-        : "One name changed and nothing else: Tasks is now Slate. Your tasks, lists and shortcuts are all where they were.";
+      return "One name changed and nothing else: Tasks is now Slate. Your tasks, lists and shortcuts are all where they were.";
     },
     roles: ["admin", "bookkeeper"],
     hash: "#/tasks/my",
     steps: (ctx) => [
       {
         id: "ann-welcome",
-        title: ANN_deskOn() ? "Two new names" : "Tasks is now Slate",
+        title: "Tasks is now Slate",
         body: () =>
-          (ANN_deskOn() ? "The Workbench is now the Desk, and Tasks is now Slate." : "Tasks is now Slate.") +
+          "Tasks is now Slate." +
           " Only the names changed: your tasks, lists, projects and keyboard shortcuts work the same. About a minute.",
       },
       {
@@ -775,11 +801,11 @@ var ANN_REGISTRY = [
   {
     id: "workbench-launch",
     date: "2026-10-16",
-    title: "The Workbench",
+    title: "The Desk",
     summary: "Today is now one ordered list of everything that needs you (tasks, reviews, client messages, Ledger flags and new client files), and a drawer at the bottom of every page shows it too. Press D.",
     roles: ["admin", "bookkeeper"],
     hash: "#/today",
-    // Only once the Workbench is on for this person (the owner's wb_enabled
+    // Only once the Desk is on for this person (the owner's wb_enabled
     // switch and no Classic Today), so nobody is toured through
     // tiles they can't see. Classic Today keeps it waiting.
     ready: () => typeof WB_store !== "undefined" && !!WB_store.getState().on,
@@ -817,7 +843,7 @@ var ANN_REGISTRY = [
           id: "ann-done",
           title: "That's it",
           body: () =>
-            "Messages you've answered, tasks you've finished and files you've checked drop off by themselves. To see this again, press ? and pick New: The Workbench tour, or read Use the Workbench in the guide.",
+            "Messages you've answered, tasks you've finished and files you've checked drop off by themselves. To see this again, press ? and pick New: The Desk tour, or read Use the Desk in the guide.",
         },
       ];
     },
@@ -1468,7 +1494,7 @@ var ANN_REGISTRY = [
               "team",
               "gifts",
               "Team › Client gifts",
-              "Admins see anniversaries in the next 30 days and Plan, Mark sent or Skip a gift for each. Anniversary to follow, at the top, picks Client since (the default) or the founding date. The usual budget is $30-45. Nothing here emails anyone or orders anything.",
+              "Admins see anniversaries in the next 30 days and Plan, Mark sent or Skip a gift for each. Anniversary to follow, at the top, picks the founding date (the default) or Client since. Client since stays on file and shows in the list. The usual budget is $30-45. Nothing here emails anyone or orders anything.",
             )
           : null,
         {
@@ -1483,7 +1509,7 @@ var ANN_REGISTRY = [
   {
     // Slate app launch, LIVE: the owner turned tk_settings.slate_app_enabled on 2026-10-25 for the
     // Monday 2026-10-26 launch. Still gated (visible: ANN_slateLaunchOn), so it stays hidden for
-    // anyone on Classic tasks page, and the first load after the switch flips may miss it (the
+    // anyone with the firm switch off, and the first load after the switch flips may miss it (the
     // cache fills on that load; the notice shows on the next one). The notice also waits for a
     // computer-width window (ready).
     // It supersedes only slate-view-bar (the launch tour covers the view bar); the other earlier
@@ -1500,7 +1526,6 @@ var ANN_REGISTRY = [
     visible: () => ANN_slateLaunchOn(),
     ready: () => ANN_deskDocked(),
     steps: (ctx) => {
-      const canDev = !!(ctx && (ctx.isAdmin || ctx.tempAdmin));
       return [
         {
           id: "ann-welcome",
@@ -1542,10 +1567,7 @@ var ANN_REGISTRY = [
           title: "That's the Slate app",
           body: () =>
             "Slate in the portal works as before. " +
-            (canDev
-              ? "Classic tasks page, in Settings › Firm settings › Developer tools › Feature flags, keeps the old Slate window for you only, in this browser."
-              : "If you would rather keep the old Slate window, tell us through Send feedback.") +
-            " To see this again, press ? and pick New: Slate is now its own app, or read How do I use the Slate app? in Help.",
+            "To see this again, press ? and pick New: Slate is now its own app, or read How do I use the Slate app? in Help.",
         },
       ];
     },
@@ -1677,7 +1699,8 @@ var ANN_REGISTRY = [
   },
   {
     // Desk additions launch (S1-S4), HELD: visible only once the owner flips tk_settings.deskplus_enabled
-    // (cached as mgb_deskplus_cache) and the person is not on Classic Today. A separate small notice
+    // (cached as mgb_deskplus_cache) and the person is not on Classic Today. RE-DATE `date` to the launch
+    // day when the switch goes on: the notice stops showing 60 days after `date`. A separate small notice
     // because the Desk itself (new-look-and-layout, ann-desk) is already live. Drafts and guide SQL:
     // docs/staff-guide/drafts/staff-guide-desk-additions.md, supabase/staff-guide-desk-additions.sql.
     id: "desk-client-actions",
@@ -1749,8 +1772,51 @@ var ANN_REGISTRY = [
     },
   },
   {
+    // Client page drop + Documents upgrades launch, LAUNCHED 2026-10-31: visible only once
+    // tk_settings.client_page_drop_enabled is on with client_page_drop_pilot "all" (cached as
+    // mgb_clientdrop_cache), never in View as, never for the per-person preview alone. `date` is the
+    // launch day, because the notice stops showing 60 days after `date`.
+    // Guide text: docs/staff-guide/drafts/staff-guide-client-page-drop.md (published 2026-10-31) and
+    // supabase/staff-guide-client-page-drop.sql (applied at launch).
+    id: "client-page-drop",
+    date: "2026-10-31",
+    title: "Clients can drop files anywhere",
+    summary:
+      "Clients can now drop a file anywhere in the portal and choose its folder, name and who at their organization can see it. On a client's Documents page, each file's ⋯ renames it, sets who can see it, replaces it, copies a link or shows its history.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/clients",
+    visible: () => ANN_clientDropLaunchOn(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Clients can drop files anywhere",
+        body: () =>
+          "Clients no longer need the Documents page to send a file: they drop it on any page, or tap Add a file on a phone. About half a minute.",
+      },
+      {
+        id: "ann-client-drop",
+        title: "What the client chooses",
+        body: () =>
+          "A folder, a name, and who can see it: everyone at their organization, only some people, or everyone except some people. MyGoodBooks staff always see every file.",
+      },
+      {
+        id: "ann-docs-menu",
+        title: "Your Documents page",
+        body: () =>
+          "Open a client's Documents. Each file's ⋯ has Rename, Who can see it, Replace with a new version, Copy link and History. Tick several files to move them to a folder or the Trash together, and ✎ renames a folder.",
+      },
+      {
+        id: "ann-done",
+        title: "See it again",
+        body: () =>
+          "A lock on a file means only some people at the client can see it. To see this again, press ? and pick the launch, or read How do I add, file, hide or delete a client's documents? in Help.",
+      },
+    ],
+  },
+  {
     // Thread menu launch, HELD: visible only once the owner flips tk_settings.threadmenu_enabled
-    // (cached as mgb_threadmenu_cache), never in View as. Set `date` to the launch day.
+    // (cached as mgb_threadmenu_cache), never in View as. Set `date` to the launch day: RE-DATE it when
+    // the switch goes on, because the notice stops showing 60 days after `date`.
     // Drafts and guide SQL: docs/staff-guide/drafts/staff-guide-thread-menu.md, supabase/staff-guide-thread-menu.sql.
     id: "thread-menu",
     date: "2026-10-25",
@@ -1786,6 +1852,39 @@ var ANN_REGISTRY = [
             ? "On the Desk, a message row's ⋯ has Thread actions… with the same Rename, Mark done, Reassign, Create task, Copy link and Hide. "
             : "") +
           "To see this again, press ? and pick the launch, or read How do I message a client or a teammate? in Help.",
+      },
+    ],
+  },
+  {
+    // Custom repeats (commit f1e5afa): not gated by a switch, the Repeat menu is in every task's details.
+    id: "custom-repeat",
+    date: "2026-10-25",
+    title: "Custom repeats in Slate",
+    summary:
+      "In a task, Repeat > Custom… repeats it daily, on chosen weekdays, monthly, quarterly, yearly or every few weeks, with a time of day, skipped weekends and holidays, an end and the next five dates.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Custom repeats",
+        body: () =>
+          "A task can now repeat on a schedule you set yourself, like every 2 weeks on Monday or the 2nd Tuesday of each month. About a minute.",
+      },
+      {
+        id: "ann-where",
+        title: "Repeat, then Custom…",
+        body: () =>
+          "Open a task's details, set a due date, then open Repeat and pick Custom…. Choose the pattern, add a time of day if you want one, skip weekends and firm holidays, and set when it ends. It lists the next five dates before you save. Repeat needs a due date.",
+      },
+      {
+        id: "ann-templates",
+        title: "Recurring templates too",
+        body: () =>
+          (ctx && (ctx.isAdmin || ctx.tempAdmin)
+            ? "In Slate > Recurring, a template's Repeats list now has Custom schedule with the same menu (date only, no time of day). The old choices work as before."
+            : "Admins can use the same menu for recurring templates, as a Custom schedule (date only, no time of day). The old choices work as before.") +
+          " To see this again, press ? and pick the launch, or read What's in a task's details? in Help.",
       },
     ],
   },
@@ -1843,13 +1942,12 @@ var ANN_REGISTRY = [
     date: "2026-10-21",
     title: "The Desk, a left sidebar and a new look",
     summary:
-      "The Desk (press D) and the new Today, Pinned and Recent clients in the left sidebar, the Lato font, the brand colors, and menus that open when you point at an icon are now on for the whole team. You can customize the sidebar, and most of it has a Classic option.",
+      "The Desk (press D) and the new Today, Pinned and Recent clients in the left sidebar, the Lato font, the brand colors, and menus that open when you point at an icon are now on for the whole team. You can customize the sidebar.",
     roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
     hash: "#/today",
     supersedes: ["desk-launch", "desk-right-now", "desk-task-view", "desk-right-launch", "workbench-launch"],
     ready: () => ANN_launchOn(),
     steps: (ctx) => {
-      const canDev = !!(ctx && (ctx.isAdmin || ctx.tempAdmin));
       return [
         {
           id: "ann-welcome",
@@ -1896,11 +1994,8 @@ var ANN_REGISTRY = [
           id: "ann-done",
           title: "Prefer the old way?",
           body: () =>
-            "Classic Today is on the ? of Today's Do next card. " +
-            (canDev
-              ? "Classic fonts, Classic colors and Classic menus are in Settings › Firm settings › Developer tools › Feature flags, for this browser only."
-              : "Classic fonts, colors and menus are in Feature flags, a page only admins open, so tell us through Send feedback if one bothers you.") +
-            " To see this again, press ? and pick New: The Desk, a left sidebar and a new look, or read the staff guide.",
+            "Classic Today is on the ? of Today's Do next card. If the fonts, colors, menus or sidebar bother you, tell us through Send feedback. " +
+            "To see this again, press ? and pick New: The Desk, a left sidebar and a new look, or read the staff guide.",
         },
       ];
     },
@@ -1939,6 +2034,220 @@ var ANN_REGISTRY = [
         title: "Last seen",
         body: () =>
           "Next to View as. It shows the page they were last on and when, their browser and app version, their last sign-in and their last error. Check it first when someone says something is broken.",
+      },
+    ],
+  },
+  {
+    // A 7-day heads-up on coworkers' birthdays and work anniversaries for
+    // everyone who is not an admin (admins already have the 30-day view), with a
+    // Give a shout out button that opens the existing shout-out composer.
+    id: "celebration-heads-up",
+    date: "2026-10-27",
+    title: "Birthday and anniversary heads-up",
+    summary: "See coworkers' birthdays and work anniversaries 7 days ahead on Today and in Team › People, and give them a shout out.",
+    roles: ["tempAdmin", "bookkeeper", "accountManager"],
+    // WITHDRAWN 2026-10-27: celebrations are admin only for now. Hidden while
+    // CEL_STAFF_VISIBLE (components/staff/celebrationLead.js) is false; flip it
+    // to true to bring this notice and tour back.
+    visible: () => typeof CEL_STAFF_VISIBLE !== "undefined" && CEL_STAFF_VISIBLE === true,
+    hash: "#/today",
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "A heads-up on birthdays and anniversaries",
+        body: () =>
+          "You now see coworkers' birthdays and work anniversaries a week ahead, with a button to give them a shout out. No birth year or age is ever shown. About a minute.",
+      },
+      {
+        id: "ann-today-week",
+        go: () => {
+          if (!/^#\/today(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/today";
+        },
+        targets: ["today-week"],
+        wait: true,
+        title: "On Today",
+        body: () =>
+          "The This week card lists them, for example \"Debra Ruffin's birthday, May 27, in 5 days\". Click Give a shout out to open the shout-out form with that person already picked. Your own day shows too, with no button. If you hid this card, turn it back on from Today's card menu.",
+      },
+      TOUR_tabStep(
+        "team",
+        "people",
+        "Team › People",
+        "Celebrations here lists the next 30 days, and anything in the next 7 days has Give a shout out. Nothing is sent until you write a note and send it, and then the person gets the usual notice in their bell.",
+      ),
+    ],
+  },
+  {
+    // Slate single home (2026-10-27): with the Slate app on, Work > Slate is a short
+    // summary (late, due today, next few, Open Slate) and the Slate page is the one
+    // full Slate. Gated like the Slate app launch (ANN_slateLaunchOn): anyone with
+    // the firm switch off still has the full list on the Work tab, so there is nothing to announce to them.
+    id: "slate-single-home",
+    date: "2026-10-27",
+    title: "Work › Slate is now a summary",
+    summary: "Work › Slate shows what's late, due today and next, with Open Slate for the full list. The Slate page is the one full Slate.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/work/tasks",
+    visible: () => ANN_slateLaunchOn(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Work › Slate is shorter now",
+        body: () =>
+          "Slate used to show up twice: as a full list on the Slate page and again under Work. Now the Slate page is the one full Slate, and Work › Slate is a quick look. Nothing about your tasks changed. About a minute.",
+      },
+      {
+        id: "ann-summary",
+        go: TOUR_go("work", "tasks"),
+        targets: ["tk-summary-groups", "tk-summary"],
+        wait: true,
+        title: "A quick look",
+        body: () =>
+          "Late tasks, what is due today and your next few, five at most in each. Click a task to open its details, the same as on the Slate page. If there are more, a link under the list says how many.",
+      },
+      {
+        id: "ann-open-slate",
+        go: TOUR_go("work", "tasks"),
+        targets: ["tk-summary-open"],
+        wait: true,
+        title: "Open Slate",
+        body: () =>
+          "This opens the Slate page, where the full list lives: every group, views, filters and the rest. The Desk's Slate tab stays compact and has Open in Slate at the bottom too.",
+      },
+    ],
+  },
+  {
+    // Slate page search box (docs/slateplus-filters-spec.md part A), LIVE for all staff from
+    // 2026-10-27: no switch of its own. Gated like the other Slate notices (visible:
+    // ANN_slateLaunchOn), so nobody is toured to it while the firm switch is off.
+    id: "slate-search",
+    date: "2026-10-27",
+    title: "Search your Slate list",
+    summary:
+      "The Slate page has a search box next to Add task. Type part of a task's title, its client's name or a word from its notes, and the list narrows as you type. Esc clears it.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    // Slate plus Profile 2 swaps this box for the unified search, so no tour to it then.
+    visible: () => ANN_slateLaunchOn() && !(typeof TKP_on === "function" && TKP_on()),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Search your Slate list",
+        body: () =>
+          "The Slate page now has a search box, so you can find a task without scrolling. About 20 seconds.",
+      },
+      {
+        id: "ann-search",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tk-search"],
+        wait: true,
+        title: "Type to narrow the list",
+        body: () =>
+          "Type part of a title (recon finds Reconcile), a client's name or a word from the notes. Every word you type has to match. Groups, counts and the board show only the matches. Esc or the × clears it; nothing is saved.",
+      },
+      {
+        id: "ann-done",
+        title: "Two kinds of search",
+        body: () =>
+          "This box searches the Slate list in front of you. In the Slate app, the Search tasks box at the top still looks through every task you can see, by whole words. To read more, open How do I use my Slate? in Help.",
+      },
+    ],
+  },
+  {
+    // Staff side of Client agreements (docs/agreements-spec.md). The client
+    // side is behind tk_settings.agreements_client_enabled and has no notice
+    // yet (drafts in the spec, §10). The notice waits until the person has met
+    // the card on a client's Documents tab (Agreements.jsx sets the key).
+    id: "client-agreements",
+    date: "2026-10-28",
+    title: "Agreements on Documents",
+    summary:
+      "Each client's Documents tab has an Agreements card: service agreements, engagement letters and changes, with signed and renewal dates and an Expires in N days pill. Admins and the client's account manager add and edit them; bookkeepers can read them. Clients don't see them yet.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/clients",
+    ready: () => {
+      try {
+        return window.localStorage.getItem("mgb_ag_seen_card_v1") === "1";
+      } catch (e) {
+        return false;
+      }
+    },
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Agreements, one place per client",
+        body: () =>
+          "Every client now has an Agreements card on their Documents tab, for the signed service agreement, engagement letter and any changes. About 30 seconds.",
+      },
+      {
+        id: "ann-card",
+        targets: ["staff-agreements"],
+        wait: true,
+        title: "The Agreements card",
+        body: () =>
+          "Each agreement shows its type, status, signed and renewal dates, and whether the client can see it. An Expires in N days pill shows when the renewal date is within 60 days. Open goes to the Drive link or file.",
+      },
+      {
+        id: "ann-done",
+        title: "Who can change them",
+        body: () =>
+          "Admins and the client's account manager add, edit, mark signed and move agreements to the trash; Paste several links adds a batch of old signed documents at once. New ones start Staff only, and clients see nothing until the owner turns client agreements on. Only an admin can restore from the trash. Read more in Help: Client agreements.",
+      },
+    ],
+  },
+  {
+    // Slate plus launch (2026-10-28w): one combined notice for the whole batch (one search and
+    // profiles, the icon rail and hover menus, filters and saved filters, Calendar, hours vs
+    // budget, Blocked by, custom fields, @mentions, New project form, project status and
+    // Portfolio, Rules for admins, Team load on Team › People). Gated on the firm switch only
+    // (visible: ANN_slatePlusLaunchOn), so nothing shows until the owner sets
+    // tk_settings.slateplus_enabled; the first load after the flip may miss it (the cache fills
+    // on that load). Take the tour runs the staff tour "slateplus" (tourKey); `steps` is only the
+    // short pointer tour the registry needs ("ann:slate-plus"). RE-DATE `date` to the flip day if
+    // the owner sets slateplus_enabled after 2026-10-28 (README Slate plus launch checklist, step 0).
+    id: "slate-plus",
+    date: "2026-10-28",
+    title: "Slate plus is here",
+    summary:
+      "One search for clients, tasks, projects and people (Ctrl or Cmd+K), an icon sidebar, filters you can save, a Calendar, people's profiles, Blocked by, custom fields, project status updates and Portfolio. Team load moved to Team › People.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    tourKey: "slateplus",
+    tourLabel: "Take the 2-minute tour",
+    visible: () => ANN_slatePlusLaunchOn(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Slate plus is here",
+        body: () =>
+          "Slate has new pieces for finding, planning and sharing work. This short tour points at where they live. It never changes a task.",
+      },
+      {
+        id: "ann-search",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tb-search", "tks-search"],
+        wait: true,
+        title: "One search",
+        body: () =>
+          "Search clients, tasks, projects, people, SOPs and help from here. Press Ctrl+K (Cmd+K on a Mac) from any page.",
+      },
+      {
+        id: "ann-filters",
+        targets: ["tk-filter-bar"],
+        wait: true,
+        title: "Filters and Calendar",
+        body: () =>
+          "Narrow your Slate by assignee, client, project, due date or status, and save the mixes you use. Calendar shows the same tasks on a month grid.",
+      },
+      {
+        id: "ann-done",
+        title: "The rest",
+        body: () =>
+          "Click a name to open a profile, and use the small button beside it to reassign. To see everything, pick Slate plus tour in the ? menu, or read What's in Slate plus? in Help.",
       },
     ],
   },

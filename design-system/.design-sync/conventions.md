@@ -43,9 +43,9 @@ Core design tokens (`var(--*)`, defined in `:root`, dark-mode aware via
 tokens rather than hardcoded colors when composing new layout around these
 components.
 
-**Fonts load from `styles.css`** — its import closure pulls Bitter (headings),
-IBM Plex Sans (body text *and* large figures) and IBM Plex Mono (columns of
-numbers) from Google Fonts, and sets `body` to `var(--font-body)`. Don't add
+**Fonts load from `styles.css`** — its import closure pulls Montserrat
+(headings), Lato (body text) and IBM Plex Mono (columns of numbers and large
+figures) from Google Fonts, and sets `body` to `var(--font-body)`. Don't add
 another font or a second font `<link>`.
 
 **Where the truth lives**: `styles.css` (imports `_ds_bundle.css`, the real

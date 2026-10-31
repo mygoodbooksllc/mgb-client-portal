@@ -151,7 +151,13 @@ async function DRV_useStorage() {
  * Returns { file, path }: path is set for request and message uploads (the
  * "/drive:<id>" path to store in the old column).
  */
-async function DRV_upload({ file, clientId, visibility, docType, year, requestId, participant, internal }) {
+// displayName / accessMode / accessEmails: client page drop (docs/
+// client-page-drop.md). Only sent when set, so every older caller posts
+// exactly what it did before. A non-"everyone" mode is refused by the
+// function (feature_off) unless the firm switch is on for that client.
+// replacesId (staff Replace with a new version): the old file's id, so the
+// new row keeps its uploader and Desk check, and its history says so.
+async function DRV_upload({ file, clientId, visibility, docType, year, requestId, participant, internal, displayName, accessMode, accessEmails, replacesId }) {
   const fd = new FormData();
   fd.append("file", file, file.name);
   fd.append("client_id", clientId);
@@ -161,6 +167,12 @@ async function DRV_upload({ file, clientId, visibility, docType, year, requestId
   if (requestId) fd.append("request_id", requestId);
   if (participant) fd.append("participant", participant);
   if (internal) fd.append("internal", "true");
+  if (displayName && String(displayName).trim()) fd.append("display_name", String(displayName).trim());
+  if (accessMode && accessMode !== "everyone") {
+    fd.append("access_mode", accessMode);
+    fd.append("access_emails", JSON.stringify(accessEmails || []));
+  }
+  if (replacesId) fd.append("replaces", String(replacesId));
   return DRV_fetch({ method: "POST", body: fd });
 }
 

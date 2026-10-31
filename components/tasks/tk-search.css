@@ -1,0 +1,405 @@
+/* Slate plus Profile 2 (hidden preview): unified search (TK_UnifiedSearch.jsx),
+   the reassign control, profile links, the 4-week workload bars and the
+   profile load section. Every rule targets a class that only renders with
+   the Slate plus gate on. */
+
+/* ---- Unified search ---- */
+/* The Slate shell bar has no .tb-bar, so give the box the same dark tokens. */
+.tks-sbar {
+  --tb-chip: rgba(255, 255, 255, 0.08);
+  --tb-chip-hover: rgba(255, 255, 255, 0.13);
+  --tb-chip-border: rgba(255, 255, 255, 0.1);
+  --tb-fg-strong: var(--sidebar-text-active);
+  --tb-muted: var(--sidebar-text-muted);
+  --tb-focus: var(--gold);
+}
+.tks-search.tks-sbar:not(.is-compact) {
+  width: min(380px, 40vw);
+}
+.tks-clear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--tb-muted, var(--text-muted));
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tks-clear:hover {
+  color: var(--tb-fg-strong, var(--text));
+}
+.tks-clear:focus-visible,
+.tks-icon-btn:focus-visible,
+.tks-sheet-close:focus-visible {
+  outline: 2px solid var(--gold, var(--accent));
+  outline-offset: 2px;
+}
+.tks-panel .tb-panel-head {
+  padding-top: 10px;
+}
+.tks-group:first-child .tb-panel-head {
+  padding-top: 6px;
+}
+.tks-foot-row .tb-result-title,
+.tks-filter-row .tb-result-title {
+  font-weight: 500;
+  color: var(--accent, var(--ink-strong));
+}
+.tks-filter-row {
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 2px;
+}
+.tks-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Phone: the search opens as a sheet from the top. */
+.tks-sheet-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+.tks-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+.tks-sheet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  max-height: 75vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  /* Light surface: point the box tokens back at the normal ones. */
+  --tb-chip: var(--surface-2, var(--surface));
+  --tb-chip-hover: var(--surface-2, var(--surface));
+  --tb-chip-border: var(--border);
+  --tb-fg-strong: var(--text);
+  --tb-muted: var(--text-muted);
+  --tb-focus: var(--accent);
+}
+.tks-sheet-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tks-sheet-top .tks-box {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+}
+.tks-sheet-top .tks-input {
+  font-size: 16px; /* no iOS zoom on focus */
+}
+.tks-sheet-close {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tks-panel-sheet {
+  position: static;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  max-height: none;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.tks-panel-sheet .tks-list {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tks-panel-sheet .tb-result {
+  min-height: 44px;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Text filter chip in the Slate filter bar (from "Filter this list"). */
+.tks-text-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 260px;
+  padding: 2px 4px 2px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--surface);
+}
+.tks-text-chip-label {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tks-text-chip-x {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+.tks-text-chip-x:hover {
+  color: var(--text);
+}
+.tks-text-chip-x:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* ---- Name opens the profile; a separate reassign control ---- */
+.tkp-asg-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tkp-reassign {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+/* 32px hit area without a bigger box. */
+.tkp-reassign::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+}
+.tkp-reassign:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+.tkp-reassign:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.tkp-dw-person,
+.tkp-dw-follower,
+.tkp-head-person {
+  color: inherit;
+  text-decoration: none;
+}
+.tkp-head-person {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+  min-width: 0;
+}
+.tkp-head-person:hover h2,
+.tkp-head-person:focus-visible h2 {
+  text-decoration: underline;
+}
+
+/* ---- Team › People: load first, then the people ---- */
+.tkw-people {
+  margin-bottom: 14px;
+}
+.tkw-people .tkw-strip {
+  margin-top: 0;
+}
+.tkw-unassigned {
+  display: inline-flex;
+  align-items: center;
+  margin: 4px 0 2px;
+  text-decoration: none;
+  color: var(--text);
+}
+.tkw-unassigned:hover {
+  text-decoration: underline;
+}
+.tkw-unassigned:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tkw-item.is-focus .tkw-person {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.tkw-static {
+  cursor: default;
+}
+
+/* ---- Four-week bars (no red: these are counts, not warnings) ---- */
+.tkw-weeks {
+  margin: 8px 0 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.tkw-weeks-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.tkw-weeks-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.tkw-weeks-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.tkw-weeks-table th,
+.tkw-weeks-table td {
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: middle;
+}
+.tkw-weeks-table thead th {
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.tkw-wk-name {
+  width: 28%;
+  min-width: 90px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.tkw-wk-name a {
+  color: var(--text);
+  text-decoration: none;
+}
+.tkw-wk-name a:hover {
+  text-decoration: underline;
+}
+.tkw-wk-name a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.tkw-wk-row + .tkw-wk-row th,
+.tkw-wk-row + .tkw-wk-row td {
+  border-top: 1px solid var(--border);
+}
+.tkw-wk-row.is-unassigned .tkw-fill {
+  background: var(--text-muted);
+}
+.tkw-wk-row.is-me .tkw-wk-name a,
+.tkw-wk-row.is-focus .tkw-wk-name a {
+  color: var(--accent);
+}
+.tkw-wk-row.is-focus {
+  background: var(--warm-bg, transparent);
+}
+.tkw-wk-cell {
+  min-width: 56px;
+}
+.tkw-wk-cell .tkw-bar {
+  margin-bottom: 2px;
+}
+.tkw-wk-num b {
+  color: var(--text);
+}
+.tkw-wk-hours {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ---- Profile: load section ---- */
+.tkp-load {
+  margin: 12px 0;
+}
+.tkp-load .tkw-strip,
+.tkp-load .tkw-weeks {
+  margin: 0 0 10px;
+}
+
+@media (max-width: 760px) {
+  .tks-search.tks-sbar:not(.is-compact) {
+    width: auto;
+    flex: 1;
+  }
+}
+
+@media (max-width: 420px) {
+  .tkw-weeks {
+    padding: 6px 8px;
+  }
+  .tkw-weeks-table th,
+  .tkw-weeks-table td {
+    padding: 4px 3px;
+  }
+  .tkw-wk-name {
+    min-width: 70px;
+    max-width: 96px;
+  }
+  .tkw-wk-cell {
+    min-width: 44px;
+  }
+  .tkw-wk-hours {
+    display: none;
+  }
+  .tks-text-chip {
+    max-width: 180px;
+  }
+}

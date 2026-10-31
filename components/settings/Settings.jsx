@@ -839,6 +839,89 @@ function ST_DateInput({ value, disabled, min, max, onSave, ariaLabel }) {
   );
 }
 
+// Birthday field: month and day only, never a year (owner request
+// 2026-10-27; rules in components/staff/birthdayLogic.js). Saves as soon as
+// both are picked; "Clear" saves an empty birthday. A year already stored on
+// the row is kept out of sight and never shown. Also used by HR › Members.
+function ST_MonthDayInput({ value, disabled, onSave, ariaLabel }) {
+  const parsed = typeof BDAY_parse === "function" ? BDAY_parse(value) : null;
+  const [month, setMonth] = React.useState(parsed ? String(parsed.month) : "");
+  const [day, setDay] = React.useState(parsed ? String(parsed.day) : "");
+  const [err, setErr] = React.useState("");
+  React.useEffect(() => {
+    const p = typeof BDAY_parse === "function" ? BDAY_parse(value) : null;
+    setMonth(p ? String(p.month) : "");
+    setDay(p ? String(p.day) : "");
+    setErr("");
+  }, [value]);
+  const months = typeof BDAY_MONTHS !== "undefined" ? BDAY_MONTHS : [];
+  const maxDay = typeof BDAY_daysIn === "function" && month ? BDAY_daysIn(month) : 31;
+  const commit = (m, d) => {
+    if (typeof BDAY_fromForm !== "function") return;
+    if (m === "" || d === "") {
+      // Nothing to save until both are picked (the hint below says so).
+      setErr(m === "" && d === "" ? "" : "Pick both a month and a day.");
+      return;
+    }
+    const r = BDAY_fromForm(m, d, value);
+    setErr(r.error);
+    if (r.value === undefined) return;
+    if (BDAY_sameDay(r.value, value)) return;
+    onSave(r.value);
+  };
+  const pickMonth = (m) => {
+    // Keep the day if the new month has it; otherwise pick the month's last day.
+    let d = day;
+    if (m && d && Number(d) > BDAY_daysIn(m)) d = String(BDAY_daysIn(m));
+    setMonth(m);
+    setDay(d);
+    commit(m, d);
+  };
+  const pickDay = (d) => {
+    setDay(d);
+    commit(month, d);
+  };
+  return (
+    <div className="st-monthday" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <select className="st-input" style={{ width: "auto" }} value={month} disabled={disabled} aria-label={(ariaLabel || "Birthday") + " month"} onChange={(e) => pickMonth(e.target.value)}>
+        <option value="">Month</option>
+        {months.map((name, i) => (
+          <option key={name} value={String(i + 1)}>
+            {name}
+          </option>
+        ))}
+      </select>
+      <select className="st-input" style={{ width: "auto" }} value={day} disabled={disabled} aria-label={(ariaLabel || "Birthday") + " day"} onChange={(e) => pickDay(e.target.value)}>
+        <option value="">Day</option>
+        {Array.from({ length: maxDay }, (_, i) => (
+          <option key={i + 1} value={String(i + 1)}>
+            {i + 1}
+          </option>
+        ))}
+      </select>
+      {(month || day) && !disabled && (
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => {
+            setMonth("");
+            setDay("");
+            setErr("");
+            if (value) onSave(null);
+          }}
+        >
+          Clear
+        </button>
+      )}
+      {err && (
+        <span className="st-muted" role="alert">
+          {err}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // Profile photo block (docs/staff-photo-spec.md, G2). The photo is required:
 // there is no Remove, only Add / Change, which opens the same picker the
 // first-sign-in gate uses (components/staff/StaffPhotoGate.jsx). The server
@@ -956,8 +1039,8 @@ function ST_StaffProfileCard({ staffUser, readOnly }) {
         <ST_Field label="Phone">
           <ST_AutoInput value={row.phone} maxLength={40} disabled={!!readOnly} onSave={(v) => save({ phone: v.trim() || null })} autoComplete="tel" inputMode="tel" />
         </ST_Field>
-        <ST_Field label="Birthday" hint="So the team can celebrate with you. Teammates see the day; only admins see the year.">
-          <ST_DateInput value={row.birthday} max={new Date().toISOString().slice(0, 10)} disabled={!!readOnly} onSave={(v) => save({ birthday: v }, v ? "Birthday saved" : "Birthday cleared")} />
+        <ST_Field label="Birthday" hint="Just the month and day, so admins can celebrate with you. We never ask for the year.">
+          <ST_MonthDayInput value={row.birthday} disabled={!!readOnly} ariaLabel="Birthday" onSave={(v) => save({ birthday: v }, v ? "Birthday saved" : "Birthday cleared")} />
         </ST_Field>
         <ST_Field label="Start date" hint="Your first day with the firm, for work anniversaries.">
           <ST_DateInput value={row.start_date} disabled={!!readOnly} onSave={(v) => save({ start_date: v }, v ? "Start date saved" : "Start date cleared")} />
@@ -1019,7 +1102,7 @@ function ST_firmGroups(isAdmin, hasTempAdminAccess) {
       title: "Insight and records",
       rows: [
         { key: "usage", page: "usage-stats", label: "Usage stats", sub: "Which pages and features actually get used, most to least.", icon: icon("BarChartIcon"), show: anyAdmin },
-        { key: "audit", page: "audit-log", label: "Audit log", sub: "Every change to access, fees, rates, mappings and clients.", icon: icon("DocumentIcon"), show: !!isAdmin && typeof AL_AuditLogPage === "function" },
+        { key: "audit", page: "audit-log", label: "Audit log", sub: "Every change to access, staff, mappings and clients.", icon: icon("DocumentIcon"), show: !!isAdmin && typeof AL_AuditLogPage === "function" },
         { key: "dev", page: "developer-tools", label: "Developer tools", sub: "Per-browser testing aids. Nothing here is shared or written to Supabase.", icon: icon("WrenchIcon"), show: anyAdmin },
       ],
     },

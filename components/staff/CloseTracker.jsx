@@ -902,7 +902,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
             {sorted.length === 0 ? "No clients to show." : "No clients match these filters."}
           </p>
         ) : (
-          <div className="ct-scroll" tabIndex={0} aria-label="Close status grid, scrolls sideways" data-tour="close-grid">
+          <div className="ct-scroll mgb-sticky-wrap" tabIndex={0} aria-label="Close status grid, scrolls sideways" data-tour="close-grid">
             <table className="ct-grid">
               <thead>
                 <tr>

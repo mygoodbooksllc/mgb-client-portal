@@ -11,7 +11,7 @@
 // resolveAccess() already expects from client.users mock data, so nothing
 // downstream of it needs to change.
 (function () {
-  const { useEffect, useState } = React;
+  const { useEffect, useRef, useState } = React;
 
   function ClientAuthGate({ children }) {
     // "loading" -> "signed-out" -> "link-sent" -> "checking-row" -> "authorized" | "denied"
@@ -27,8 +27,26 @@
     const [notice, setNotice] = useState("");
 
     const supabase = window.mgbSupabase;
+    // { key: "<user id>:<client id>", promise } of the last roster reload this gate attempted, so a
+    // client missing from window.CLIENTS gets the splash and the reload once,
+    // not on every TOKEN_REFRESHED or repeat SIGNED_IN event. Cleared when the
+    // signed-in person changes or signs out (noteUser).
+    const rosterTried = useRef("");
+
+    // The organization-profile state (OP_store.js) is one object per page
+    // load. When the signed-in person changes or signs out, drop it so the
+    // next client never sees the previous client's answers.
+    function noteUser(session) {
+      const uid = session && session.user ? session.user.id : null;
+      if (window.__mgbClientUid !== undefined && window.__mgbClientUid !== uid) {
+        if (typeof OP_mine !== "undefined" && OP_mine.reset) OP_mine.reset();
+      }
+      if (window.__mgbClientUid !== uid) rosterTried.current = "";
+      window.__mgbClientUid = uid;
+    }
 
     async function checkClientRow(session) {
+      noteUser(session);
       const sessionEmail = session.user.email;
       // The mirror of AuthGate's check: a staff session (from the staff app
       // in another tab) belongs in the staff gate, so hand it to RootGate
@@ -86,6 +104,36 @@
       // row breaks.
       // Clients never get the install links (staff-only for now).
       if (window.mgbInstallApp) window.mgbInstallApp.set(false);
+      // The client roster is read once at boot. Typing the emailed 6-digit
+      // code signs in with no reload, after a boot that had no session, so
+      // the roster is still empty and the portal would say the account isn't
+      // linked. Reload it now (and the QuickBooks numbers with it) before
+      // rendering. A link sign-in boots with the session and skips this.
+      const rosterKey = session.user.id + ":" + data.client_id;
+      const tried = rosterTried.current;
+      if (
+        window.mgbReloadRoster &&
+        !(window.CLIENTS || []).some((c) => c.id === data.client_id) &&
+        (!tried || tried.key !== rosterKey)
+      ) {
+        setStatus("checking-row");
+        const reload = Promise.resolve()
+          .then(() => window.mgbReloadRoster())
+          .catch(() => {
+            // The guard in app.jsx still explains an unlinked account.
+          });
+        rosterTried.current = { key: rosterKey, promise: reload };
+        await reload;
+        // Signed out (or a different person) while the roster reloaded: the
+        // newer event owns the state now.
+        if (window.__mgbClientUid !== session.user.id) return;
+      } else if (tried && tried.key === rosterKey && tried.promise) {
+        // A reload for this person is already in flight (a second SIGNED_IN
+        // on tab refocus): wait for it so the roster is filled before we
+        // render, then check the person is unchanged.
+        await tried.promise;
+        if (window.__mgbClientUid !== session.user.id) return;
+      }
       setClientUser({ ...data, premiumThrottled: data.premium_throttled });
       setStatus("authorized");
     }
@@ -111,6 +159,7 @@
         (_event, session) => {
           if (session) checkClientRow(session);
           else {
+            noteUser(null);
             setClientUser(null);
             setStatus("signed-out");
           }

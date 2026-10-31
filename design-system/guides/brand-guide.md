@@ -6,7 +6,7 @@ that artifact is the source of truth for this text. -->
 
 MyGoodBooks is bookkeeping for churches and small nonprofits. The people reading this product are not accountants — they are a treasurer, an executive pastor, a board member who was handed the finance folder. The design has one job: make a set of numbers they are anxious about feel legible and calm.
 
-That is where the whole visual language comes from. Deep navy and warm gold on a cream ground, a serif for headings and a humanist sans for figures — the register of a well-kept ledger, not a fintech dashboard. Surfaces are flat and opaque, separated by a hairline border, over a ground ruled like ledger paper. The warmth is doing real work: it is what keeps a page of variance figures from reading as a bill.
+That is where the whole visual language comes from. Deep navy and warm gold on a cream ground, Montserrat for headings and Lato for text, with a mono face for figures — the register of a well-kept ledger, not a fintech dashboard. Surfaces are flat and opaque, separated by a hairline border, over a ground ruled like ledger paper. The warmth is doing real work: it is what keeps a page of variance figures from reading as a bill.
 
 **This is the product after the calm redesign.** An earlier version of this interface floated frosted-glass cards over a mesh of slowly drifting color blobs, lifted them on hover and swept a shimmer across them. All of that is retired. What is written below is the current system; where a retired treatment left a token or a class behind, it is marked.
 
@@ -20,7 +20,7 @@ That is where the whole visual language comes from. Deep navy and warm gold on a
 
 **Say when the number is not real.** Sample, prototype or projected figures get a MockBanner. In a product about someone's actual ledger, an unlabeled fake number is a correctness bug.
 
-**Serif heads, sans figures.** Bitter carries headings and status words; IBM Plex Sans carries body copy *and* large numbers; IBM Plex Mono carries anything that has to line up in a column. The KPI value being sans, not serif, is deliberate — figures read cleaner in the body face.
+**Montserrat heads, Lato body.** Montserrat carries headings and status words; Lato carries body copy *and* large numbers; IBM Plex Mono carries anything that has to line up in a column. The KPI value being sans, not serif, is deliberate — figures read cleaner in the body face.
 
 ## Foundations
 
@@ -28,13 +28,13 @@ That is where the whole visual language comes from. Deep navy and warm gold on a
 
 The palette has three layers, and mixing them up is the fastest way to break a screen.
 
-- **Chrome** — `navy`, `navy-deep`, `sidebar-bg`. Dark furniture: the sidebar, primary buttons, toasts. White ink sits on it in both themes, so chrome does not flip. Light-mode `navy` is a near-black `#05080d`, not the mid navy the brand started on: `#243746` was the original mygoodbooks.org value and was darkened on 2026-09-15. That older hue is still in the product on purpose — as `chart-income`, and inside the `shadow` and `tint-on-surface` alphas — but it is no longer `navy`.
+- **Chrome** — `navy`, `navy-deep`, `sidebar-bg`. Dark furniture: the sidebar, primary buttons, toasts. White ink sits on it in both themes, so chrome does not flip. Light-mode `navy` is the brand navy `#243746` (Pantone 7546 C) and `navy-deep` is the dark teal `#06262d` (5463 C); the app's sidebar still fades from near-black `#05080d` into that teal and was darkened on 2026-09-15. That older hue is still in the product on purpose — as `chart-income`, and inside the `shadow` and `tint-on-surface` alphas — but it is no longer `navy`.
 - **Ink** — `ink-strong`, `text`, `text-muted`. `ink-strong` exists because navy plays two opposite roles: dark chrome and dark ink on a light surface. Only the ink role may flip in dark mode. **Use `ink-strong` for headings; never `navy`.**
 - **Signal** — `good`/`good-soft`, `bad`/`bad-soft`, `warm-*`, and the two chart series. Each is a soft ground plus an ink that clears 4.5:1 on it in both themes.
 
 `accent` aliases `gold` — reach for `accent` in product code so a rebrand moves one value. Gold itself is the one color identical in both themes.
 
-Dark mode is a genuine re-pitch, not an inversion: the navy shifts to a deeper blue-navy (`#243746`, taken from mygoodbooks.org), the ground goes near-black (`#101920`), shadows drop their tint for long black spreads, and `chart-income` becomes a light blue because a navy series is invisible on a dark card. Two tokens change meaning rather than value — `selected-outline` rings in gold instead of near-white, and the referral panel tints *lighter* than the page instead of darker. Both are noted in their `usage`.
+Dark mode is a genuine re-pitch, not an inversion: the ground goes dark teal (`#0d1c22`, surface `#132a32`), shadows drop their tint for long black spreads, and `chart-income` becomes a light blue because a navy series is invisible on a dark card. Two tokens change meaning rather than value — `selected-outline` rings in gold instead of near-white, and the referral panel tints *lighter* than the page instead of darker. Both are noted in their `usage`.
 
 The ground is flat `bg` with one thing on it: a faint spreadsheet ruling, `grid-line`, on a `grid-cell-w` x `grid-cell-h` cell (92x30px). Wider than tall on purpose — square cells read as a table someone might try to click into, ledger proportions read as paper. It is texture, not furniture, and dark mode needs a warm *light* line rather than the same alpha, since a dark line at 3% is invisible on a near-black ground.
 
@@ -44,7 +44,7 @@ The one ink pair the calm pass added is `on-gold` / `on-gold-deep` — for text 
 
 ### Type
 
-Bitter for display, IBM Plex Sans for everything else, IBM Plex Mono for tabular figures — all three from Google Fonts, so there are no font files to ship. Page titles run 32px/800 at −0.02em tracking; the italic serif subtitle beneath them is the house voice and should survive any redesign. Muted ink has a floor of 12.5px.
+Montserrat for display, Lato for everything else, IBM Plex Mono for tabular figures — all three from Google Fonts, so there are no font files to ship. Page titles run 32px/800 at −0.02em tracking; the italic subtitle beneath them is the house voice and should survive any redesign. Muted ink has a floor of 12.5px.
 
 ### Space, radius, elevation
 

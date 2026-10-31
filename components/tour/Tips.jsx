@@ -172,6 +172,14 @@ function TIPS_tab(id) {
   return !!el && el.getAttribute("aria-selected") === "true";
 }
 
+// Slate single home (2026-10-27): with the Slate app on, Work > Slate is a short
+// summary (TK_vSummaryBody), so the tips about the full list (Add task, group
+// headings, status, select, claim, draft email) wait for the Slate page. With the
+// app off the tab is the full list and they show there as before.
+function TIPS_workSummary() {
+  return typeof TK_slateAppOn === "function" && TK_slateAppOn() && !!document.querySelector('[data-tour="tk-summary"]');
+}
+
 function TIPS_touch() {
   return typeof TOUR_touchOnly === "function" && TOUR_touchOnly();
 }
@@ -292,6 +300,34 @@ const TIPS_CATALOG = [
     slug: "document-requests",
   },
   {
+    // Staff Documents upgrades (docs/client-page-drop.md). The ⋯ only renders
+    // with the preview mgb_clientdrop_preview or the owner's switch on, so the
+    // tip waits for it and nobody else sees it.
+    id: "docs-row-menu",
+    roles: "all",
+    match: (r) => r.client && r.page === "documents",
+    target: "doc-row-menu",
+    snug: true,
+    // While the switch is off for this client, Rename and Who can see it
+    // open read-only (DP_RowMenu marks itself data-cpd-off).
+    text: () =>
+      document.querySelector('[data-tour="doc-row-menu"][data-cpd-off]')
+        ? "Each file's ⋯ replaces it with a new version, copies a link or shows its history. Renaming and choosing who can see it turn on for this client at launch. Tick files to move several at once."
+        : "Each file's ⋯ renames it, sets who at the client can see it, replaces it with a new version, copies a link or shows its history. Tick files to move several at once.",
+    slug: "add-documents",
+    ready: () => !!document.querySelector('[data-tour="doc-row-menu"]'),
+  },
+  {
+    id: "docs-agreements",
+    roles: "all",
+    match: (r) => r.client && r.page === "documents",
+    target: "staff-agreements",
+    part: "h3",
+    text: "Signed agreements live here, with their renewal dates. New ones start Staff only; clients see nothing until the owner turns client agreements on.",
+    slug: "client-agreements",
+    ready: () => !!document.querySelector('[data-tour="staff-agreements"]'),
+  },
+  {
     id: "ov-coverage",
     roles: "all",
     match: (r) => r.client && r.page === "client-overview",
@@ -384,9 +420,20 @@ const TIPS_CATALOG = [
   // Not in the /tasks shell, where tips aren't mounted. While the task
   // drawer (aria-modal) or a menu is open, TIPS_BUSY holds them.
   {
+    // Slate single home (2026-10-27): Work > Slate is a summary while the Slate app is on.
+    id: "tk-summary-open",
+    roles: "all",
+    match: (r) => r.page === "work" && TIPS_tab("wk-tab-tasks"),
+    target: "tk-summary-open",
+    snug: true,
+    text: "This tab shows what's late, due today and coming up next. Open Slate has the full list.",
+    slug: "my-tasks",
+    ready: () => !!document.querySelector('[data-tour="tk-summary-open"]'),
+  },
+  {
     id: "tk-add",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-add",
     snug: true,
     text: (env) =>
@@ -398,7 +445,7 @@ const TIPS_CATALOG = [
   {
     id: "tk-groups",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-groups",
     part: ".tk-group-head",
     snug: true,
@@ -408,7 +455,7 @@ const TIPS_CATALOG = [
   {
     id: "tk-status",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-status",
     snug: true,
     text: "Click a status to change it (the person, due date and priority change in place too). On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note.",
@@ -469,7 +516,7 @@ const TIPS_CATALOG = [
   {
     id: "tk-email-draft",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-email-draft",
     snug: true,
     text: "Draft email builds from the latest data each time you open it. Start over rebuilds it. Slate never sends it: you copy it.",
@@ -492,7 +539,11 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "tasks",
     target: "tk-manage-nav",
     snug: true,
-    text: "Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there.",
+    // Slate plus icon rail (launched 2026-10-28): the Projects icon while its panel is closed.
+    text: () =>
+      document.querySelector('.tkr-item[data-tour="tk-manage-nav"]')
+        ? "Projects › Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there."
+        : "Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there.",
     slug: "manage-projects",
     ready: () => !!document.querySelector('[data-tour="tk-manage-nav"]'),
   },
@@ -509,7 +560,7 @@ const TIPS_CATALOG = [
   {
     id: "tk-select",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-select",
     snug: true,
     text: (env) =>
@@ -552,7 +603,7 @@ const TIPS_CATALOG = [
   {
     id: "tk-claim",
     roles: "all",
-    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks") && !TIPS_workSummary()),
     target: "tk-claim",
     snug: true,
     text: "Nobody is on this task yet. Assign opens a list of people: pick yourself and it moves into your groups, or pick a teammate to hand it to them.",
@@ -564,9 +615,14 @@ const TIPS_CATALOG = [
     roles: "admin",
     match: (r) => r.page === "tasks",
     target: "tk-no-team",
-    part: ".tk-nav-head",
+    // Slate plus icon rail (launched 2026-10-28): while the Clients panel is closed
+    // the target is the Clients icon (.tkr-ico) and the text says where to look.
+    part: [".tk-nav-head", ".tkr-ico"],
     snug: true,
-    text: "No team yet lists clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent.",
+    text: () =>
+      document.querySelector('.tkr-item[data-tour="tk-no-team"]')
+        ? "Clients opens No team yet: clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent."
+        : "No team yet lists clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent.",
     slug: "task-lists-and-projects",
     ready: () => !!document.querySelector('[data-tour="tk-no-team"]'),
   },
@@ -575,9 +631,14 @@ const TIPS_CATALOG = [
     roles: "all",
     match: (r) => r.page === "tasks",
     target: "tk-sidebar",
-    part: ".tk-nav-section .tk-nav-head",
+    // .tkr-item-projects: the Slate plus icon rail's Projects button
+    // (launched 2026-10-28); never in the old sidebar, so it still lands on its heading.
+    part: [".tkr-item-projects", ".tk-nav-section .tk-nav-head"],
     snug: true,
-    text: "Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too.",
+    text: () =>
+      document.querySelector(".tkr-item-projects")
+        ? "Projects opens the shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Clients, below it, has a list for each client you can see."
+        : "Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too.",
     slug: "task-lists-and-projects",
   },
   {
@@ -593,6 +654,95 @@ const TIPS_CATALOG = [
         : "Open in own window keeps Slate in a slim window beside your work. Dock in portal brings it back.",
     slug: "tasks-own-window",
     ready: () => !TIPS_touch(),
+  },
+  {
+    // Slate page search box (2026-10-27, live for all staff): only on the full Slate list.
+    id: "tk-search",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-search",
+    snug: true,
+    text: "Type here to narrow this list: part of a title, a client's name or a word from the notes. Esc clears it.",
+    slug: "my-tasks",
+    // Slate plus Profile 2 replaces this box with the unified search; skip it then.
+    ready: () => !!document.querySelector('[data-tour="tk-search"]') && !(typeof TKP_on === "function" && TKP_on()),
+  },
+  // Slate plus (launch 2026-10-28w, firm switch slateplus_enabled). Each one
+  // waits for its own target, which only renders while the Slate plus gate is
+  // on (TKP_on), so none can show before the switch (or the preview flag).
+  {
+    id: "tk-filter-bar",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-filter-bar",
+    snug: true,
+    text: "Narrow your list by assignee, client, project, due date or status. Save a mix you use often under Saved filters, and set one as your default.",
+    slug: "my-tasks",
+    ready: () => !!document.querySelector('[data-tour="tk-filter-bar"]'),
+  },
+  {
+    id: "tb-search-slate",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tb-search",
+    text: (env) =>
+      (env.touch ? "Search" : `Search (or ${env.kbd})`) +
+      " finds clients, tasks, projects, people, SOPs and help in one place. On the Slate page, Filter this Slate list narrows your list instead.",
+    slug: "slate-profiles",
+    ready: () => typeof TKP_on === "function" && !!TKP_on() && !!document.querySelector('[data-tour="tb-search"]'),
+  },
+  {
+    id: "tkp-reassign",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tkp-reassign",
+    snug: true,
+    text: "Click a name to see that person's profile. The small button next to it reassigns the task, or assigns someone if nobody has it.",
+    slug: "slate-profiles",
+    ready: () => !!document.querySelector('[data-tour="tkp-reassign"]'),
+  },
+  {
+    id: "tk-calendar-switch",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-calendar-switch",
+    snug: true,
+    text: (env) =>
+      env.touch
+        ? "Calendar shows this list on a month grid by due date. Open a task to change its date."
+        : "Calendar shows this list on a month grid by due date. Drag a task to another day to change its due date; Undo is on the message.",
+    slug: "my-tasks",
+    ready: () => !!document.querySelector('[data-tour="tk-calendar-switch"]'),
+  },
+  {
+    id: "tkcf-chips",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tkcf-chips",
+    snug: true,
+    text: "Filled custom fields show as chips on the row. Fields in the list's header shows them all; fill them in on the task.",
+    slug: "custom-fields",
+    ready: () => !!document.querySelector('[data-tour="tkcf-chips"]'),
+  },
+  {
+    id: "tk-projstatus",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-projstatus",
+    snug: true,
+    text: "The project's latest status. Its owners post updates here; nobody is emailed. Portfolio, under Projects, shows every project's status.",
+    slug: "task-lists-and-projects",
+    ready: () => !!document.querySelector('[data-tour="tk-projstatus"]'),
+  },
+  {
+    id: "tk-rules-dry",
+    roles: "admin",
+    match: (r) => r.page === "tasks",
+    target: "tk-rules-dry",
+    snug: true,
+    text: "Dry run shows which tasks a rule would change, and how. It changes nothing. New rules start off; only the owner switches one on.",
+    slug: "slate-rules",
+    ready: () => !!document.querySelector('[data-tour="tk-rules-dry"]'),
   },
   {
     // "Slate, start to finish" (2026-10-26): the presenter tour, in the ? menu.
@@ -644,6 +794,17 @@ const TIPS_CATALOG = [
     slug: "time-off-coverage",
   },
   {
+    // Slate plus (2026-10-28w): Team load moved here from the Slate page.
+    id: "tp-team-load",
+    roles: "all",
+    match: (r) => r.page === "team" && TIPS_tab("tp-tab-people"),
+    target: "tp-team-load",
+    snug: true,
+    text: "Team load: open tasks, due this week and late for each person, plus the next 4 weeks. Click a name to open that person's profile.",
+    slug: "slate-profiles",
+    ready: () => !!document.querySelector('[data-tour="tp-team-load"]'),
+  },
+  {
     id: "am-reviews-giving",
     roles: "am",
     match: (r) => r.page === "hr" && TIPS_tab("tp-tab-reviews"),
@@ -676,7 +837,7 @@ const TIPS_CATALOG = [
     roles: "admin",
     match: (r) => r.page === "team" && TIPS_tab("tp-tab-gifts"),
     target: "op-gifts-basis",
-    text: "Anniversary to follow is one choice for the whole firm: Client since (the default) or the founding date. It changes this list and the weekly digest count.",
+    text: "Anniversary to follow is one choice for the whole firm: the founding date (the default) or Client since. Client since stays on file and shows in the list either way. It changes the date we follow and the weekly digest count.",
     slug: "client-org-profile",
     adminDoc: true,
     ready: () => !!document.querySelector('[data-tour="op-gifts-basis"]'),
@@ -727,6 +888,9 @@ const TIPS_CATALOG = [
       (env.touch ? "Search" : `Search (or ${env.kbd})`) +
       " also looks inside the open client: transactions, budget lines, documents and messages, as well as clients, SOPs and help.",
     slug: "top-bar",
+    // Slate plus (launched 2026-10-28) swaps in the one search, which has no
+    // "In <client>" results, so this tip would be wrong while it is on.
+    ready: () => !(typeof TKP_on === "function" && TKP_on()) && !!document.querySelector('[data-tour="tb-search"]'),
   },
 ];
 

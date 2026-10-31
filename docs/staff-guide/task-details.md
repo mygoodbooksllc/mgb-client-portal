@@ -2,7 +2,7 @@
 title: What's in a task's details?
 section: Daily work
 audience: staff
-keywords: [draft email, copy email, request for information, reports email, mid-month update, preliminary, full reports, send reports, nothing outstanding, set all to full, month rhythm, task details, details panel, drawer, task in the desk, back to desk, open task, fields at the top, field grid, placeholder, unassigned, no due date, no client, no project, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted, client requests, ask client, record answer, accept answer]
+keywords: [draft email, copy email, request for information, reports email, mid-month update, preliminary, full reports, send reports, nothing outstanding, set all to full, month rhythm, task details, details panel, drawer, task in the desk, back to desk, open task, fields at the top, field grid, placeholder, unassigned, no due date, no client, no project, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted, client requests, ask client, record answer, accept answer, who was notified, can't see this task, mention list, mentioned me, mention email, blocked by, custom fields]
 sort: 112
 ---
 Click a task anywhere (Slate, a client or project list, Today, a client's Overview, the bell or search) and its details slide in from the right. On a phone they fill the screen. Press **Esc** or click **Close** to put them away. Changes save as you make them.
@@ -46,6 +46,8 @@ On a narrow window or a phone, each value drops under its name.
 - **Sharing** (only the task's owner, the person who made it, can change it): **Share with the client's team** lets the other staff on that client see and work on it. On a project task it reads **Share with project members**. Unshared tasks are private: only you, the assignee, followers and admins see them.
 - **SOP section** (client tasks): link the task to a part of the client's SOP. **View SOP section** shows it right there, and **Open full SOP** opens the client's SOP tab.
 - **Description**: details, steps or links.
+- **Blocked by**: other tasks this one waits for. See [How does Blocked by work?](#/help/task-dependencies).
+- **Custom fields**: when the task's project or client list has its own fields (such as Fund or Grant), they sit under **Blocked by**. See [How do custom fields work?](#/help/custom-fields).
 
 The people line under the title shows who made the task and who has it. Only the task's owner, its assignee, people on a shared task's team and admins can change it. Everyone else sees it read-only.
 
@@ -56,7 +58,12 @@ The people line under the title shows who made the task and who has it. Only the
 
 ### Comments and @mentions
 
-Type in **Add a comment. Type @ to mention someone.** and click **Post** (or press **Ctrl+Enter** / **⌘+Enter**). Type **@** and pick a teammate to bring them in: they get a **mentioned you** item in their bell (no email for now) and start following the task. You can edit or delete your own comments. Admins can edit any comment; when someone other than the author changes one, the comment shows who edited it, for example **(edited by** and their name**)**, instead of just **(edited)**.
+Type in **Add a comment. Type @ to mention someone.** and click **Post** (or press **Ctrl+Enter** / **⌘+Enter**). Type **@** and pick a teammate to bring them in: they get a **mentioned you** item in their bell and start following the task. They also get an email unless they turned off **Someone @mentions me on a task** in **Settings › Notifications**. You can edit or delete your own comments. Admins can edit any comment; when someone other than the author changes one, the comment shows who edited it, for example **(edited by** and their name**)**, instead of just **(edited)**.
+
+- The **@** list shows only people who will see the mention. Someone who can't see the task (not on the client, a private task, or an MGB (internal) task without internal access) shows grayed out with **can't see this task**, and you can't pick them.
+- After you post, a short line under the box says who was notified, who couldn't see the task, and that you don't get a notice for mentioning yourself.
+- A mention of you is shown in a stronger color, so you can spot where you were tagged.
+- Inactive staff never show in the list and never get a notice.
 
 The tabs above the comments show **All**, just **Comments**, or the **Activity**: a history of every change to the task, who made it and when.
 

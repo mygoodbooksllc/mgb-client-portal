@@ -6,8 +6,9 @@
 // Nothing here emails anyone or orders a gift.
 // Tour targets: data-tour="op-gifts-upcoming", "op-gifts-basis", "op-gifts-import".
 // Gift basis (firm-wide, admin_gift_basis / admin_set_gift_basis): which
-// anniversary the list and the digest follow, Client since (default) or the
-// founding date (Client since when the founding date isn't known).
+// anniversary the list and the digest follow, the founding date (default; Client
+// since when the founding date isn't known) or Client since. The list always
+// shows Client since and the founding date on file (admin_gift_dates).
 // Styles: components/client/op.css.
 
 const OP_GIFTS_SETUP_MSG = "This needs supabase/client-org-profile.sql, which hasn't been run here.";
@@ -28,6 +29,7 @@ function OP_giftsErr(e) {
 function OP_GiftsBody({ clients }) {
   const [up, setUp] = React.useState({ status: "loading", rows: [], error: "" });
   const [past, setPast] = React.useState({ status: "loading", rows: [], error: "" });
+  const [dates, setDates] = React.useState({}); // client_id -> { client_since, established_date, established_unknown }
   const [planFor, setPlanFor] = React.useState(null); // row key
   const [busy, setBusy] = React.useState(null);
   const [msg, setMsg] = React.useState("");
@@ -35,7 +37,21 @@ function OP_GiftsBody({ clients }) {
   const load = React.useCallback(() => {
     OP_api.upcoming(30).then((res) => {
       if (res.error) setUp({ status: "error", rows: [], error: OP_giftsErr(res.error) });
-      else setUp({ status: "ready", rows: res.data || [], error: "" });
+      else {
+        const rows = res.data || [];
+        setUp({ status: "ready", rows: rows, error: "" });
+        const ids = Array.from(new Set(rows.map((r) => r.client_id)));
+        if (ids.length && OP_api.giftDates) {
+          Promise.resolve(OP_api.giftDates(ids)).then(
+            (d) => {
+              const m = {};
+              ((d && d.data) || []).forEach((x) => (m[x.client_id] = x));
+              setDates(m);
+            },
+            () => {},
+          );
+        }
+      }
     });
     Promise.resolve(OP_api.gifts()).then(
       (res) => {
@@ -85,7 +101,7 @@ function OP_GiftsBody({ clients }) {
           {up.status === "ready" ? " (sent only while the firm switch is on)." : ""}
         </p>
         <p className="op-hint" style={{ marginTop: 0 }}>
-          Gift budget: ${OP_BUDGET_MIN}-{OP_BUDGET_MAX}. Client since comes from the client's launch date unless staff set it on the client's Overview. Nothing here emails anyone or orders anything.
+          Gift budget: ${OP_BUDGET_MIN}-{OP_BUDGET_MAX}. Client since stays on file for every client (it comes from the launch date unless staff set it on the client's Overview); the gift follows the founding date unless you pick Client since above or the founding date isn't known. Nothing here emails anyone or orders anything.
         </p>
         {msg && (
           <p className="op-err" role="alert">
@@ -102,6 +118,7 @@ function OP_GiftsBody({ clients }) {
                 <th>Client</th>
                 <th>Occasion</th>
                 <th>Date</th>
+                <th>Client since</th>
                 <th>Years</th>
                 <th>Gift</th>
                 <th></th>
@@ -123,6 +140,12 @@ function OP_GiftsBody({ clients }) {
                     </td>
                     <td>{OP_occasionLabel(r.occasion)}</td>
                     <td>{OP_fmtDate(r.occasion_date)}</td>
+                    <td>
+                      {dates[r.client_id] && dates[r.client_id].client_since ? OP_fmtDate(dates[r.client_id].client_since) : "Not set"}
+                      {dates[r.client_id] && dates[r.client_id].established_date && !dates[r.client_id].established_unknown ? (
+                        <div className="op-hint">{"Founded " + OP_fmtDate(dates[r.client_id].established_date)}</div>
+                      ) : null}
+                    </td>
                     <td>{OP_yearsLabel(r.years)}</td>
                     <td>
                       <span className={"pill " + tone}>{s.label}</span>

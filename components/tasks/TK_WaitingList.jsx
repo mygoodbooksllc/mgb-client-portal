@@ -4,7 +4,7 @@
 // Every open Ask client request, grouped by client with the longest wait
 // first (rpc tk_waiting_on_client; the server only returns clients you
 // cover). Each row opens its task and offers Send reminder and Email again
-// (both dry runs until S6) and Cancel. "Just mine" keeps the tasks you own.
+// (dry runs for clients not switched on) and Cancel. "Just mine" keeps the tasks you own.
 // ----------------------------------------------------------------------------
 
 function TK_WaitingList(props) {
@@ -19,6 +19,15 @@ function TK_WaitingList(props) {
   var errPair = React.useState(null);
   var minePair = React.useState(!isAdmin);
   var cancelPair = React.useState(null);
+  // The Desk's "See all" leaves a one-shot client id: show only that client until "Show all clients".
+  var onlyPair = React.useState(function () {
+    var h = null;
+    try {
+      h = window.TK_waitingClientHint || null;
+      window.TK_waitingClientHint = null;
+    } catch (e) {}
+    return h;
+  });
   var seq = React.useRef(0);
 
   var load = React.useCallback(function () {
@@ -64,6 +73,7 @@ function TK_WaitingList(props) {
 
   var all = rows || [];
   var shown = minePair[0] ? all.filter(function (r) { return String(r.assignee_email || "").toLowerCase() === me; }) : all;
+  if (onlyPair[0]) shown = shown.filter(function (r) { return String(r.client_id) === String(onlyPair[0]); });
   var groups = TK_waitingGroups(shown);
 
   var send = function (r, action) {
@@ -132,12 +142,18 @@ function TK_WaitingList(props) {
       <div className="tk-view-head" data-tour="tk-waiting-head">
         <h2 className="tk-view-title">Waiting on client</h2>
         <p className="tk-muted tk-view-sub">
-          Everything you've asked a client for and they haven't answered yet, longest wait first. Reminders and emails are a dry run for now: nothing is sent.
+          Everything you've asked a client for and they haven't answered yet, longest wait first. Reminders and emails only go to clients the owner has switched on; for any other client nothing is sent.
         </p>
         <label className="tk-wt-mine">
           <input type="checkbox" checked={minePair[0]} onChange={function (e) { minePair[1](e.target.checked); }} />
           Just my tasks
         </label>
+        {onlyPair[0] ? (
+          <p className="tk-muted tk-view-sub">
+            {"Showing one client. "}
+            <button type="button" className="link-btn" onClick={function () { onlyPair[1](null); }}>Show all clients</button>
+          </p>
+        ) : null}
       </div>
       {!online ? <TK_vOfflineBanner /> : null}
       {body}

@@ -406,6 +406,10 @@ function WB_HubClientExtras(props) {
   // Tasks › Waiting on client starts on "Just my tasks" for everyone but
   // admins, which hides requests on other people's tasks: say how to see them.
   var leaveToWaiting = function () {
+    // One-shot hint: Waiting on client opens filtered to this client (TK_WaitingList reads and clears it).
+    try {
+      window.TK_waitingClientHint = String(cid);
+    } catch (e) {}
     leave({ place: "tasks", tab: "waiting" });
     if (!isAdmin && typeof WB_toast === "function") WB_toast("Opened Waiting on client. Untick Just my tasks to see requests on tasks that aren't yours.");
   };

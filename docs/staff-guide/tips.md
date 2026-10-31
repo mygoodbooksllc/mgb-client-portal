@@ -39,7 +39,7 @@ Under the switch it says where you stand: **On, 23 days left**, **Off**, or **Yo
 - **Turning off** stops tips right away. Nothing is lost: the tips you've seen stay marked as seen.
 - **Turning on again** (from Off, or after your 30 days ended) starts a fresh 30 days and shows every tip again, including ones you dismissed before.
 
-While an admin uses **View as**, nothing can be saved, so the switch is greyed out in Settings and the **?** menu row is hidden. Stop viewing as first.
+While an admin uses **View as**, nothing can be saved, so the switch is grayed out in Settings and the **?** menu row is hidden. Stop viewing as first.
 
 ### All tips
 
@@ -57,6 +57,8 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | A client's Close | Tick each close step as you finish it; it records who and when. Your first tick sets the month to In progress. When your part is done, mark it Ready for sign-off; an admin signs it off, and that emails the client. | [What's on a client's Close tab?](#/help/client-close) |
 | A client's Ledger review | Clear a flag with a reason, or Ask client when only they can say. Stop flagging this keeps a known pattern quiet for this client only. | [How does Ledger review work?](#/help/ledger-review) |
 | A client's Documents | The client sees these on their Documents page and uploads straight into them. Files go to the firm's Google Drive; Mark received closes one. | [How do I request a document from a client?](#/help/document-requests) |
+| A client's Documents | Signed agreements live here, with their renewal dates. New ones start Staff only; clients see nothing until the owner turns client agreements on. | [Client agreements](#/help/client-agreements) |
+| A client's Documents | Each file's ⋯ renames it, sets who at the client can see it, replaces it with a new version, copies a link or shows its history. Tick files to move several at once. | [How do I add, file, hide or delete a client's documents?](#/help/add-documents) |
 | A client's Overview | Set this client's backup under Edit dates and coverage. A backup doesn't get in automatically; they can request access, or an admin can give it. | [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage) |
 | A client's SOP | After 180 days an SOP shows as stale. Read it through; if it's still right, Mark as still accurate resets the clock. | [How do I write or update a client's SOP?](#/help/client-sops) |
 | Inbox, or a client's Messages | Loop in emails the assigned bookkeeper and adds a staff-only note. @name in a Note does the same; in a Reply the client sees the @name. | [How do I message a client or a teammate?](#/help/inbox) |
@@ -64,20 +66,28 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | A client's Messages | Click i for this client's portal logins, open requests, pinned notes, SOP and recent portal visits, right beside the thread. | [How do I message a client or a teammate?](#/help/inbox) |
 | Any client page | The sync pill: QuickBooks syncs on the plan's schedule (Basic monthly, Pro every hour). Staff can click it to Sync now on any plan after changing something in QuickBooks. | [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection) |
 | Any client page | Client view shows the client's own pages. View as client, at the bottom of it, shows them exactly as one of the client's people sees them. Nothing changes for them; Exit preview brings you back. | [How do I see the portal the way a client sees it?](#/help/preview-as) |
-| Work › Slate | Pick a client and tick Share with this client's team so other staff on it can see and tick off the task. Repeat needs a Due date; Custom… sets weekdays, an end and more. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate | Pick a client and tick Share with this client's team so other staff on it can see and tick off the task. Repeat needs a Due date; Custom… sets weekdays, an end and more. | [How do I use my Slate?](#/help/my-tasks) |
 | Work › Close | Click a cell to set the month's status and add a note, like waiting on a bank statement. The cell shows who changed it and when. | [How do I track month-end close?](#/help/month-end-close) |
 | Work › Deadlines | Weekend due dates move to Monday, but holidays don't, so verify each date before filing. Mark filed shows the team who filed it. | [How do I track filing deadlines?](#/help/deadlines) |
 | HR › Reviews | Your self-review saves as a draft as you go. Once both forms are in, set up a time with your reviewer; you see the comparison together in that meeting. Other admins can follow along. | [How do quarterly reviews work?](#/help/quarterly-reviews) |
 | Today | On a computer you can install MyGoodBooks as an app. In Chrome or Edge, click the install icon at the right end of the address bar. | [How do I install MyGoodBooks as an app?](#/help/get-the-app) |
 | Settings | Choose where you land after signing in: Today, Work › Slate or the last client you opened. It's under Appearance & start page. | [How do I change my settings (profile, notifications, theme, signature)?](#/help/staff-settings) |
-| Any client page | Search (or Ctrl+K, ⌘K on a Mac) also looks inside the open client: transactions, budget lines, documents and messages, as well as clients, SOPs and help. | [What's on the bar at the top of the page?](#/help/top-bar) |
+| Team › People (Slate plus, new) | Team load: open tasks, due this week and late for each person, plus the next 4 weeks. Click a name to open that person's profile. | [Profiles, one search and Team load](#/help/slate-profiles) |
+| Any client page (not while Slate plus is on) | Search (or Ctrl+K, ⌘K on a Mac) also looks inside the open client: transactions, budget lines, documents and messages, as well as clients, SOPs and help. | [What's on the bar at the top of the page?](#/help/top-bar) |
 
 #### Everyone: Slate
 
-These show on **Work › Slate** (the Slate pages), after the tips above. The newest are **Select many tasks**, **Month-end tasks from the Close checklist**, **Quick add in plain words**, **Subtasks**, **project colors**, **Group by** and **Manage projects**.
+These show on the Slate pages, after the tips above. **Work › Slate** is a short summary with its own tip. The newest are the **Slate plus** tips (**Filter and save**, **One search**, **Profiles and Reassign**, **Calendar**, **Custom field chips**, **Project status** and, for admins, **Rules Dry run**), **Search the list**, **Select many tasks**, **Month-end tasks from the Close checklist**, **Quick add in plain words**, **Subtasks**, **project colors**, **Group by** and **Manage projects**.
 
 | Page | Tip | Learn more |
 |---|---|---|
+| Work › Slate | This tab shows what's late, due today and coming up next. Open Slate has the full list. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate (Slate plus, new) | Narrow your list by assignee, client, project, due date or status. Save a mix you use often under Saved filters, and set one as your default. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate (Slate plus, new) | Search (or Ctrl+K, ⌘K on a Mac) finds clients, tasks, projects, people, SOPs and help in one place. On the Slate page, Filter this Slate list narrows your list instead. | [Profiles, one search and Team load](#/help/slate-profiles) |
+| Slate (Slate plus, new) | Click a name to see that person's profile. The small button next to it reassigns the task, or assigns someone if nobody has it. | [Profiles, one search and Team load](#/help/slate-profiles) |
+| Slate (Slate plus, new) | Calendar shows this list on a month grid by due date. Drag a task to another day to change its due date; Undo is on the message. On a touch screen it says to open a task to change its date. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate (Slate plus, new) | Filled custom fields show as chips on the row. Fields in the list's header shows them all; fill them in on the task. | [How do custom fields work?](#/help/custom-fields) |
+| Slate, a project (Slate plus, new) | The project's latest status. Its owners post updates here; nobody is emailed. Portfolio, under Projects, shows every project's status. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
 | Slate | Press q on any staff page to add a task (on a touch screen, tap Add task). Type it in one line: @name assigns it, #client files it, fri or 10/31 sets the date, and !high marks it urgent. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate | Click a group's heading to fold it; it stays that way next time. Done starts folded, and View can turn the Today group off. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate | Click a status to change it. On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note. | [What's in a task's details?](#/help/task-details) |
@@ -95,6 +105,7 @@ These show on **Work › Slate** (the Slate pages), after the tips above. The ne
 | Slate | Nobody is on this task yet. Assign opens a list of people: pick yourself and it moves into your groups, or pick a teammate to hand it to them. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate | Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
 | Slate (not on a touch screen) | Open Slate app opens Slate as its own app beside your work. Links you click there open in this portal window. | [How do I use the Slate app?](#/help/tasks-own-window) |
+| Slate (new) | Type here to narrow this list: part of a title, a client's name or a word from the notes. Esc clears it. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate, the ? menu (not on a touch screen, new) | New to Slate? Pick Slate, start to finish in this ? menu: seven short chapters that only look, never change a task. The Slate app's gear opens your Slate settings. | [What's in the Slate, start to finish tour?](#/help/slate-tour) |
 | Any client page (Desk off) | Your next task for this client. Click All tasks, or press t, to see them all without leaving the page. | [How do I see a client's tasks without leaving the page?](#/help/client-tasks-drawer) |
 
@@ -102,6 +113,7 @@ These show on **Work › Slate** (the Slate pages), after the tips above. The ne
 
 | Page | Tip | Learn more |
 |---|---|---|
+| Slate › Rules (Slate plus, new) | Dry run shows which tasks a rule would change, and how. It changes nothing. New rules start off; only the owner switches one on. | [How do Slate rules work?](#/help/slate-rules) |
 | Slate | Review lists the work waiting for an admin's approval, oldest first. The number is what you can approve now. | [How does task review work?](#/help/task-review) |
 | Slate (new) | Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there. | [How do I rename, archive or trash a project?](#/help/manage-projects) |
 | Slate | No team yet lists clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
@@ -118,7 +130,7 @@ These show on **Work › Slate** (the Slate pages), after the tips above. The ne
 |---|---|---|
 | HR › Members | Give a bookkeeper the admin pages for 1 hour, 1 day or 1 week, say while you're away. It ends by itself; Revoke ends it early. | [How do I add staff and manage their access?](#/help/staff-management) |
 | HR › Members | Last seen shows when someone last used the app: their page, browser, app version and last error. Check it first when someone says something's broken. | [How do I add staff and manage their access?](#/help/staff-management) |
-| Team › Client gifts | Anniversary to follow is one choice for the whole firm: Client since (the default) or the founding date. It changes this list and the weekly digest count. | [What is a client's organization profile, and how do client gifts work?](#/help/client-org-profile) |
+| Team › Client gifts | Anniversary to follow is one choice for the whole firm: the founding date (the default) or Client since. Client since stays on file and shows in the list either way. It changes the date we follow and the weekly digest count. | [What is a client's organization profile, and how do client gifts work?](#/help/client-org-profile) |
 
 #### Admins and anyone with temporary admin access
 

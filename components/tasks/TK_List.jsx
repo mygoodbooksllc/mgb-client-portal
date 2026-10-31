@@ -675,9 +675,13 @@ function TK_vProjectHeader(props) {
   var cPair = React.useState(null);
   var counts = cPair[0];
   var setCounts = cPair[1];
+  // Slate plus (hidden): the project's description and due date under the title.
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
 
   if (!project) return null;
   var archived = !!project.archived_at;
+  var plusDue = plusOn && typeof TKPF_dueInfo === "function" ? TKPF_dueInfo(project, TK_vToday()) : null;
+  var plusDesc = plusOn && typeof project.description === "string" ? project.description.trim() : "";
   var canManage = !archived && TK_canManageProjectHint(project, { email: email, isAdmin: isAdmin, members: members });
 
   var saveName = function (e) {
@@ -812,10 +816,11 @@ function TK_vProjectHeader(props) {
               <h2 className="tk-head-name">{project.name || "Project"}</h2>
             </React.Fragment>
           )}
-          {project.kind === "onboarding" ? <span className="pill neutral">Onboarding</span> : null}
+          {project.kind === "onboarding" ? <span className="pill neutral">{typeof TKP_projectTag === "function" ? TKP_projectTag(project, typeof TKP_on === "function" && TKP_on()) : "Onboarding"}</span> : null}
           {project.open_to_staff ? <span className="pill good tk-open-chip">{TK_vCopy("openToStaff", "Open to all staff")}</span> : null}
         </div>
         <div className="tk-head-actions">
+          {typeof TK_CFHeaderButton === "function" && project.id ? <TK_CFHeaderButton scope="project" target={project.id} canManage={canManage} listName={project.name} /> : null}
           {shown.length ? (
             <button
               type="button"
@@ -946,6 +951,15 @@ function TK_vProjectHeader(props) {
           ) : null}
         </div>
       </div>
+      {plusDue || plusDesc ? (
+        <div className="tkpf-head-meta">
+          {plusDue ? <span className={"pill tkpf-due " + (plusDue.late ? "bad is-late" : "neutral")}>{plusDue.text}</span> : null}
+          {plusDesc ? <p className="tkpf-head-desc">{plusDesc}</p> : null}
+        </div>
+      ) : null}
+      {plusOn && typeof TKPU_ProjectStatus === "function" ? (
+        <TKPU_ProjectStatus project={project} canManage={canManage} email={email} staff={staff} />
+      ) : null}
       {err ? (
         <p className="tk-field-error" role="alert">
           {err}
@@ -1013,6 +1027,33 @@ function TK_vProjectHeader(props) {
 
 function TK_vPersonHeader(props) {
   var s = props.person || {};
+  // Slate plus: the name and face are the profile link (no separate button).
+  if (s.email && typeof TKP_on === "function" && TKP_on() && typeof TKP_PersonLink === "function") {
+    return (
+      <header className="tk-head tk-person-head">
+        <div className="tk-head-row">
+          <div className="tk-head-title">
+            <TKP_PersonLink email={s.email} className="tkp-head-person" title={s.name ? "Open " + s.name + "'s profile" : "Open profile"}>
+              <TK_vAvatar name={s.name || ""} decorative />
+              <h2 className="tk-head-name">{s.name || "Staff member"}</h2>
+            </TKP_PersonLink>
+            <span className="pill neutral">{TK_vRoleLabel(s.role)}</span>
+            <a
+              className="tk-link tkp-head-profile"
+              href={typeof TKP_personHref === "function" ? TKP_personHref(s.email) : "#/tasks/my"}
+              onClick={function (e) {
+                if (!TK_vPlainClick(e)) return;
+                e.preventDefault();
+                if (typeof TKP_openPerson === "function") TKP_openPerson(s.email);
+              }}
+            >
+              Profile
+            </a>
+          </div>
+        </div>
+      </header>
+    );
+  }
   return (
     <header className="tk-head tk-person-head">
       <div className="tk-head-row">
@@ -1234,8 +1275,25 @@ function TK_vListBody(props) {
           ixLongPress: manualInApp ? function (id, x, y) { if (ixRef.current && ixRef.current.onLongPress) ixRef.current.onLongPress(id, x, y); } : undefined,
         })
       : { ids: [], el: null };
+  // Slate plus Calendar (hidden preview, TK_Calendar.jsx): a month grid of this
+  // list's tasks under the same filters (done shown, dimmed). Off: nothing.
+  var cal = typeof TK_useCalendar === "function"
+    ? TK_useCalendar({
+        enabled: !!listKey && (route.view === "project" || route.view === "client" || route.view === "person"),
+        tasks: function () {
+          return TK_applyFilters(all, { assignee: filters.assignee, statuses: filters.statuses, showDone: true, showOlder: filters.showOlder, today: today });
+        },
+        today: today,
+        clientNames: clientNames,
+        readOnly: archived || !online,
+        isAdmin: isAdmin,
+        email: email,
+        label: route.view === "project" ? (project && project.name) || "Project" : route.view === "client" ? (client && client.name) || "Client" : "List",
+      })
+    : { on: false, switchEl: null, el: null };
   var ids = [];
-  if (boardOn) ids = board.ids;
+  if (cal.on) ids = [];
+  else if (boardOn) ids = board.ids;
   else
     groups.forEach(function (g) {
       if (collapsed[g.key]) return;
@@ -1293,7 +1351,7 @@ function TK_vListBody(props) {
   var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
   var bulk = TK_useBulkSelect({
     ids: ids,
-    enabled: !readOnly && slateWide && !boardOn,
+    enabled: !readOnly && slateWide && !boardOn && !cal.on,
     keys: keysOn,
   });
 
@@ -1462,10 +1520,11 @@ function TK_vListBody(props) {
       ) : (
         <TK_vFilters value={filters} onChange={patchFilters} people={people} hideAssignee={route.view === "person"} />
       )}
-      {closeOrder && closeOrder.on && !boardOn && typeof TK_CloseOrderSwitch === "function" ? <TK_CloseOrderSwitch value={closeOrder.choice} onChange={closeOrder.setChoice} /> : null}
-      {route.view === "person" && !boardOn ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
-      {boardCan && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardBy} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
-      {manualCan && !boardOn && !closePills ? (
+      {closeOrder && closeOrder.on && !boardOn && !cal.on && typeof TK_CloseOrderSwitch === "function" ? <TK_CloseOrderSwitch value={closeOrder.choice} onChange={closeOrder.setChoice} /> : null}
+      {route.view === "person" && !boardOn && !cal.on ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
+      {cal.switchEl}
+      {boardCan && !cal.on && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardBy} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
+      {manualCan && !boardOn && !cal.on && !closePills ? (
         <button
           type="button"
           className={"tk-tool-btn tk-manual-btn" + (manualOn ? " is-on" : "")}
@@ -1545,6 +1604,7 @@ function TK_vListBody(props) {
   var body;
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (list.error && !all.length) body = <TK_vErrorState onRetry={list.reload} />;
+  else if (cal.on) body = cal.el;
   else if (boardOn) body = board.el;
   else {
     var rowFor = function (t) {
@@ -1778,7 +1838,10 @@ function TK_vSearchBody(props) {
       setRes({ q: t, rows: [], loading: false, error: "tk_error" });
       return;
     }
-    TK_api.search(t, 50).then(
+    // Slate plus Profile 2: the word-prefix search (tk_search_prefix, max 25)
+    // that the unified box uses, so "See all task matches" shows the same hits.
+    var prefixOn = typeof TKP_on === "function" && TKP_on() && typeof TK_api.searchPrefix === "function";
+    (prefixOn ? TK_api.searchPrefix(t, 25) : TK_api.search(t, 50)).then(
       function (rows) {
         if (n !== seq.current) return;
         setRes({ q: t, rows: Array.isArray(rows) ? rows : [], loading: false, error: null });

@@ -99,7 +99,7 @@ function OP_StaffCardBody({ client }) {
             <dl className="op-card-grid">
               {row("Card name", p.card_name)}
               {row("Type", p.org_type)}
-              {row("Established", p.established_unknown ? "Not sure" : OP_fmtDate(p.established_date))}
+              {row("Founding date", p.established_unknown ? "Not sure" : OP_fmtDate(p.established_date))}
               {row("Gift address", p.gift_address ? p.gift_address + (p.gift_same_as_org ? "\n(same as organization address)" : "") : "")}
               {row("Receives deliveries", p.receiver_name)}
               {row("Courier phone", p.courier_phone)}

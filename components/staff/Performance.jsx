@@ -228,7 +228,7 @@ function PF_PerformanceTab({ staffUser, isAdmin }) {
         (st.rows.length === 0 ? (
           <p className="card-subtitle">No bookkeepers to score yet. Assign clients to a bookkeeper and scores start from their work.</p>
         ) : (
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled pf-table">
               <thead>
                 <tr>

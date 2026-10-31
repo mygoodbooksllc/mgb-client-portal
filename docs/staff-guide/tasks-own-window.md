@@ -28,7 +28,7 @@ The app changes what it shows to fit the window, so you can shrink it to a slive
 - **Regular** (about 720 to 1100 wide): the full list with a left rail of lists and projects. A task opens in a drawer over the list.
 - **Full** (about 1100 wide and up): the rail, the list and a **detail pane** side by side. Click a task, or move with **j** and **k**, and its details show in the pane; **Esc** clears it.
 
-Drag the window's edge to any size, or click **Sliver**, **List** or **Full page** (in the bar, or in the menu in a compact window) to jump to one. The size buttons need the app window, so they do not show in an ordinary browser tab; there, drag the edge.
+Drag the window's edge to any size, or click **Sliver**, **List** or **Full page** (in the bar, or in the menu in a compact window) to jump to one. The size buttons need the app window, so they do not show in an ordinary browser tab; there, drag the edge. If a size click does not land and the buttons disappear, drag the window larger and they come back at once (or wait 2 minutes).
 
 ### The sliver: your current task
 
@@ -59,7 +59,7 @@ These work in the Slate app only, on My tasks and on project, client and person 
 - **Swipes on a touch screen.** Swipe a task right to mark it done, or left to snooze it a day. Press and hold to pick a task up and drag it.
 - **Swipe back.** Swipe two fingers right on a trackpad (or from the left edge of a touch screen) to close the open menu, then the open task, then go to the previous page. In Safari, the trackpad swipe is Safari's own Back.
 - **Undo.** In the app, **Undo** (or **Cmd+Z**) works for 9 minutes after a change, instead of 10 seconds, and **Cmd+Z** steps back through your last 5 changes, newest first (the Undo button on the message always undoes the newest). Undoing a duplicate or a paste deletes the copies, the same way **Delete** does. If someone changed the task since (you or a teammate), a late **Undo** leaves it alone and says so, so it never wipes out newer work.
-- **Back, Forward and Refresh.** The app has no browser buttons, so three round buttons sit beside the Slate logo (not in the sliver or compact sizes). **Back** and **Forward** walk the pages you have opened (greyed out when there is nowhere to go), and **Refresh** reloads the window where you are.
+- **Back, Forward and Refresh.** The app has no browser buttons, so three round buttons sit beside the Slate logo (not in the sliver or compact sizes). **Back** and **Forward** walk the pages you have opened (grayed out when there is nowhere to go), and **Refresh** reloads the window where you are.
 
 ### Settings and the tour
 
@@ -83,7 +83,7 @@ Click **Dock in portal**. Your portal window opens Slate on the same list and th
 ### Troubleshooting
 
 - **"Your browser blocked the new window. Allow pop-ups for this site and try again."** Allow pop-ups for the portal's address in your browser's settings, then click **Open Slate app** again.
-- **I don't see Open Slate app.** Use a computer; on a phone or tablet, use Slate inside the portal. If you still see **Open in own window**, an admin has put your browser on **Classic tasks page**.
-- **I'd rather use the old window.** Ask an admin to tick **Classic tasks page** on your computer, in Settings › Firm settings › Developer tools › Feature flags. It is per browser, and the Slate page in the portal is the same either way.
+- **I don't see Open Slate app.** Use a computer; on a phone or tablet, use Slate inside the portal. If you still see **Open in own window** on a computer, tell an admin: the Slate app switch may have been turned off.
+- **I'd rather use the old window.** The old slim window is gone (the Classic tasks page choice was removed on October 28, 2026). Use **Compact** or **Sliver** in the Slate app for a smaller window; the Slate page in the portal is the same either way.
 - **Templates, projects or bulk edits are grayed out.** Make the window wider (Regular or Full) or click **Full page**.
 - **The size buttons are missing.** They only work in the app window. In a normal browser tab, drag the window's edge instead.

@@ -106,7 +106,7 @@ function TK_rqStats(props) {
   else if (!data.rows.length) body = <p className="tk-muted">No finished or reviewed tasks in the last 30 days.</p>;
   else {
     body = (
-      <div className="tk-rq-table-wrap">
+      <div className="tk-rq-table-wrap mgb-sticky-wrap">
         <table className="tk-rq-table">
           <thead>
             <tr>

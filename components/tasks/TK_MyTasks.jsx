@@ -2,7 +2,9 @@
 // TK_MyTasks.jsx — My Tasks, grouped (Row 3.1), at #/tasks/my and embedded
 // under Work › Tasks.
 //
-// TK_MyTasks({ staffUser, clients, isAdmin, embedded=false })
+// TK_MyTasks({ staffUser, clients, isAdmin, embedded=false, summary=false })
+//   summary: Work > Slate with the Slate app on, a short summary (TK_vSummaryBody)
+//   instead of the full list; snapshotFor (View as) still wins over it.
 //   Groups: Overdue, Today (the view option; off merges it into This week),
 //   This week, Later, Waiting on client, Done (collapsed by default). Empty
 //   groups hide. Collapsed groups live in mgb_tk_groups_v1, the view options
@@ -13,6 +15,8 @@
 //   Client, 4/14/24th or Status; Sort chips; quick chips Mine today and
 //   Waiting on client; Reset view), saved per person in mgb_tk_slate_view_v1
 //   (TK_vUseSlateView). The Desk's Slate tab uses the same bar.
+//   Search box (2026-10-27, live): TK_SlateListSearch in the toolbar on the full
+//   list only (not embedded); TK_applySearch narrows the tasks before grouping.
 // ----------------------------------------------------------------------------
 
 var TK_vGROUPS_KEY = "mgb_tk_groups_v1";
@@ -347,7 +351,147 @@ function TK_MyTasks(props) {
     );
   }
   if (props.snapshotFor) return <TK_vSnapshotBody {...props} />;
+  if (props.summary) return <TK_vSummaryBody {...props} />;
   return <TK_vMyTasksBody {...props} />;
+}
+
+// Work > Slate with the Slate app on (Slate single home, 2026-10-27): not a second
+// full Slate, a short summary. Late, due today and the next few tasks (the rules
+// are TK_slateSummary), each row a plain link that opens the task the way a row on
+// the Slate page does (same drawer, same link), then Open Slate. No Done tick, no
+// status menu, no drag, no select: those live on the Slate page only. Reads the
+// same "mine" list as the Slate page, so a change shows here at once.
+// Slate plus dependencies (components/tasks/TK_deps.js, hidden preview): the
+// hook re-renders when the deps load (no network and returns 0 while off) and
+// the opt is TK_groupMyTasks' isBlocked (undefined while off).
+function TK_vUseDepsVer() {
+  return typeof TKD_useDeps === "function" ? TKD_useDeps() : 0;
+}
+function TK_vDepsOpt() {
+  return typeof TKD_groupOpt === "function" ? TKD_groupOpt() : undefined;
+}
+
+function TK_vSummaryBody(props) {
+  var staffUser = props.staffUser || {};
+  var email = TK_vLower(staffUser.email);
+  var today = TK_vToday();
+  var loader = function () {
+    if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.listMine !== "function") return Promise.resolve([]);
+    return TK_api.listMine(email, { showOlder: typeof TK_prefsGet === "function" ? TK_prefsGet().showOlder === true : false });
+  };
+  var list = TK_vUseList(email ? "mine" : null, loader);
+  var projects = TK_vUseProjects();
+  var clientNames = React.useMemo(
+    function () {
+      return TK_vNameMap(props.clients, "id", "name");
+    },
+    [props.clients],
+  );
+  var projectNames = React.useMemo(
+    function () {
+      return TK_vNameMap(projects, "id", "name");
+    },
+    [projects],
+  );
+  var all = Array.isArray(list.tasks) ? list.tasks : [];
+  // Slate plus dependencies (TKP_on): blocked tasks leave Due today / Next up.
+  // isBlocked is undefined while off, so the groups are built as before.
+  TK_vUseDepsVer();
+  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(all, today, { email: email, todayGroup: true, isAdmin: !!props.isAdmin, isBlocked: TK_vDepsOpt() }) : {};
+  var sum = typeof TK_slateSummary === "function" ? TK_slateSummary(groups) : { late: [], today: [], next: [], lateMore: 0, todayMore: 0, nextMore: 0 };
+  var slateHref = typeof LK_href === "function" ? LK_href({ place: "tasks", tab: "my" }) : "#/tasks/my";
+  var loading = !!list.loading && !all.length;
+  var err = list.error && !all.length ? list.error : null;
+  var empty = !sum.late.length && !sum.today.length && !sum.next.length;
+
+  var sections = [
+    { key: "late", label: "Late", rows: sum.late, more: sum.lateMore },
+    { key: "today", label: "Due today", rows: sum.today, more: sum.todayMore },
+    { key: "next", label: "Next up", rows: sum.next, more: sum.nextMore },
+  ];
+  var body;
+  if (loading) body = <TK_vSkeletonRows count={4} />;
+  else if (err) body = <TK_vErrorState onRetry={list.reload} />;
+  else if (empty) {
+    body = (
+      <div className="tk-empty">
+        <p>Nothing late, due today or coming up.</p>
+      </div>
+    );
+  } else {
+    body = (
+      <div className="tk-groups tk-sum-groups" data-tour="tk-summary-groups">
+        {sections.map(function (sec) {
+          if (!sec.rows.length) return null;
+          var gid = "tk-sum-" + sec.key;
+          return (
+            <section key={sec.key} className={"tk-group tk-sum-group tk-group-" + (sec.key === "late" ? "overdue" : sec.key === "today" ? "today" : "week")} aria-labelledby={gid}>
+              <h3 className="tk-group-head" id={gid}>
+                <span className="tk-group-btn tk-sum-head">
+                  <span className="tk-group-name">{sec.label}</span>
+                  <span className="tk-count">{sec.rows.length + sec.more}</span>
+                </span>
+              </h3>
+              <ul className="tk-rows tk-sum-rows" aria-label={sec.label}>
+                {sec.rows.map(function (t) {
+                  var href = typeof TK_vTaskHref === "function" ? TK_vTaskHref(t.id) : slateHref;
+                  var client = t.client_id != null ? clientNames[String(t.client_id)] || "" : "";
+                  var due = typeof TK_dueLabel === "function" ? TK_dueLabel(t, today) : "";
+                  var late = sec.key === "late";
+                  var project = t.project_id ? projectNames[t.project_id] || "" : "";
+                  var status = TK_vStatusOf(t);
+                  return (
+                    <li key={t.id}>
+                      <a
+                        className="tk-sum-row"
+                        href={href}
+                        onClick={function (e) {
+                          if (typeof TK_openTaskClick === "function") {
+                            TK_openTaskClick(t.id)(e);
+                            return;
+                          }
+                          if (!TK_vPlainClick(e)) return;
+                          e.preventDefault();
+                          TK_vOpenTask(t.id, { from: "list" });
+                        }}
+                      >
+                        <span className={"tk-dot tk-st-" + status} aria-hidden="true" />
+                        <span className="tk-sum-main">
+                          <span className="tk-row-title">{t.text || "Untitled task"}</span>
+                          <span className="tk-row-meta">
+                            {client ? <span className="tk-meta-client">{client}</span> : null}
+                            {project ? <span>{project}</span> : null}
+                          </span>
+                        </span>
+                        {due ? <span className={"tk-sum-due" + (late ? " is-late" : "")}>{due}</span> : null}
+                        {status !== "todo" ? <span className="tk-sum-status">{TK_vStatusLabel(status)}</span> : null}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+              {sec.more > 0 ? (
+                <p className="tk-sum-more">
+                  {sec.more} more · <a href={slateHref}>See all in Slate</a>
+                </p>
+              ) : null}
+            </section>
+          );
+        })}
+      </div>
+    );
+  }
+  return (
+    <div className="tk-view tk-my tk-embedded tk-summary" data-tour="tk-summary">
+      <div className="tk-view-head">
+        <p className="tk-sum-lede">Your Slate at a glance. The full list lives on the Slate page.</p>
+        <a className="btn-primary tk-sum-open" href={slateHref} data-tour="tk-summary-open">
+          Open Slate
+        </a>
+      </div>
+      {body}
+    </div>
+  );
 }
 
 // View as (snapshotFor = the viewed person's email): their open tasks loaded
@@ -396,7 +540,8 @@ function TK_vSnapshotBody(props) {
     },
     [projects],
   );
-  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(st.tasks, today, { email: email, todayGroup: true }) : {};
+  TK_vUseDepsVer();
+  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(st.tasks, today, { email: email, todayGroup: true, isBlocked: TK_vDepsOpt() }) : {};
   var view = TK_myGroupsView(groups, { collapsed: {}, showDone: false });
   // Links and buttons inside the rows would open the drawer or a menu.
   var stopClicks = function (e) {
@@ -508,12 +653,45 @@ function TK_vMyTasksBody(props) {
   var fPair = React.useState("");
   var clientFilter = fPair[0];
   var setClientFilter = fPair[1];
+  // Slate search box (live for all staff; TK_FilterBar.jsx): every word must
+  // appear in the title, client name or notes. Empty = the old list exactly.
+  var qPair = React.useState("");
+  var searchText = qPair[0];
+  var setSearchText = qPair[1];
+  // Slate plus (hidden preview, TKP_on): the filter bar and saved filters
+  // (TK_FilterBar.jsx). Off (the default, and always in View as or embedded)
+  // nothing below reads plusF, so the list is built exactly as before.
+  var plusGate = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  var plusOn = !!plusGate && !embedded && typeof TK_SlateFilterBar === "function" && typeof TK_applySlateFilters === "function";
+  var pfPair = React.useState(null);
+  var plusF = plusOn ? pfPair[0] : null;
   var focusPair = React.useState(null);
   var focusedId = focusPair[0];
   var setFocusedId = focusPair[1];
   var sigPair = React.useState({ id: null, n: 0 });
   var sig = sigPair[0];
   var setSig = sigPair[1];
+  // Slate plus Profile 2: the unified search (TK_UnifiedSearch.jsx) replaces
+  // the in-list box. While this full list is mounted it offers "Filter this
+  // Slate list" and sends tks:filter-list {q}. Off: no listener, no flag.
+  var unifiedOn = plusOn && typeof TKS_SearchBox === "function";
+  React.useEffect(
+    function () {
+      if (!unifiedOn) return undefined;
+      TKS__listMounted = true;
+      var onFilter = function (e) {
+        var q = e && e.detail && typeof e.detail.q === "string" ? e.detail.q : "";
+        setSearchText(q.slice(0, 200));
+        setFocusedId(null);
+      };
+      window.addEventListener("tks:filter-list", onFilter);
+      return function () {
+        TKS__listMounted = false;
+        window.removeEventListener("tks:filter-list", onFilter);
+      };
+    },
+    [unifiedOn],
+  );
 
   var loader = function () {
     if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.listMine !== "function") return Promise.resolve([]);
@@ -578,6 +756,18 @@ function TK_vMyTasksBody(props) {
         return t && String(t.client_id) === clientFilter;
       })
     : all;
+  if (plusF) tasks = TK_applySlateFilters(tasks, Object.assign({}, plusF, { client: "" }), { email: email, today: today });
+  var searchOn = !embedded && typeof TK_applySearch === "function" && !!searchText.trim();
+  if (searchOn) {
+    tasks = TK_applySearch(tasks, searchText, {
+      clientNameOf: function (id) {
+        return clientNames[String(id)] || "";
+      },
+    });
+  }
+  // Slate plus dependencies (TKP_on): a Blocked group after Later. Off: as before.
+  TK_vUseDepsVer();
+  groupOpts.isBlocked = TK_vDepsOpt();
   var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(tasks, today, groupOpts) : {};
   // Rhythm slice 0: Group by (Due date, Client, 4/14/24th, Status), Sort
   // chips and quick chips, saved per person. Nothing chosen builds the groups
@@ -633,6 +823,12 @@ function TK_vMyTasksBody(props) {
   var boardReorder = boardOn && manualCan && !(sv.sort && sv.sort.col);
   var manualKeys = typeof TK_useManualOrder === "function" ? TK_useManualOrder("my", manualOn || boardReorder) : {};
   if (manualOn && typeof TK_manualSortGroups === "function") view = TK_manualSortGroups(view, manualKeys);
+  var searchCount = 0;
+  if (searchOn) {
+    view.forEach(function (g) {
+      searchCount += g && Array.isArray(g.tasks) ? g.tasks.length : 0;
+    });
+  }
   // Only a quick chip can empty a list that has tasks (the client filter has
   // its own empty copy), so "No tasks match this view" shows only then.
   var chipEmptied = !!(sv && sv.chip) && TK_myGroupsView(groups, { showDone: prefs.showDone }).length > 0;
@@ -658,6 +854,40 @@ function TK_vMyTasksBody(props) {
       });
     });
   }
+  // Slate plus Calendar (hidden preview, TK_Calendar.jsx): a month grid of the
+  // same filtered tasks by due date. Off (gate off, View as, embedded): nothing.
+  var cal = typeof TK_useCalendar === "function"
+    ? TK_useCalendar({
+        enabled: plusOn && !embedded,
+        tasks: function () {
+          // the same chips and sort as the list; done tasks shown (dimmed)
+          if (boardOn) return boardTasks;
+          var out = [];
+          if (typeof TK_slateBuildView !== "function") return out;
+          TK_slateBuildView(groups, { groupBy: "status", sort: sv.sort, chip: sv.chip }, {
+            collapsed: {},
+            showDone: true,
+            email: email,
+            today: today,
+            clients: props.clients || [],
+            flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
+            emailTemplates: emailTemplates,
+            emailsLoading: !emailTemplates && typeof TK_rhythmEnabled === "function" && TK_rhythmEnabled(),
+          }).groups.forEach(function (g) {
+            (g.tasks || []).forEach(function (t) {
+              out.push(t);
+            });
+          });
+          return out;
+        },
+        today: today,
+        clientNames: clientNames,
+        readOnly: !online,
+        isAdmin: isAdmin,
+        email: email,
+        label: "Slate",
+      })
+    : { on: false, switchEl: null, el: null };
   var addStaff = TK_vUseStaff(false) || []; // for the group add rows and board names: the store's list, no extra fetch
   var board =
     typeof TK_useBoard === "function"
@@ -686,7 +916,7 @@ function TK_vMyTasksBody(props) {
           ixLongPress: slateApp ? function (id, x, y) { if (ixRef.current && ixRef.current.onLongPress) ixRef.current.onLongPress(id, x, y); } : undefined,
         })
       : { ids: [], el: null };
-  var ids = boardOn ? board.ids : TK_focusIds(view);
+  var ids = cal.on ? [] : boardOn ? board.ids : TK_focusIds(view);
   var manualBoxRef = React.useRef(null);
   var manualSay = typeof TK_useManualAnnouncer === "function" ? TK_useManualAnnouncer() : null;
   var manualRun = function (plan) {
@@ -740,7 +970,7 @@ function TK_vMyTasksBody(props) {
   // Slate app full mode: the task sits in the pane, so the list keeps its keys.
   var keysOn = typeof TK_useListKeysOn === "function" ? TK_useListKeysOn(drawerId) : !drawerId;
   var slateWide = typeof TK_useSlateWide === "function" ? TK_useSlateWide() : true;
-  var bulk = TK_useBulkSelect({ ids: ids, enabled: online && slateWide && !boardOn, keys: keysOn });
+  var bulk = TK_useBulkSelect({ ids: ids, enabled: online && slateWide && !boardOn && !cal.on, keys: keysOn });
   var bulkStaff = TK_vUseStaff(bulk.count > 0);
 
   var keys = TK_useKeys({
@@ -825,8 +1055,41 @@ function TK_vMyTasksBody(props) {
   var body;
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (err) body = <TK_vErrorState onRetry={list.reload} />;
+  else if (cal.on) body = cal.el;
   else if (boardOn) body = board.el;
-  else if (!view.length && chipEmptied) {
+  else if (!view.length && plusOn && TK_slateFiltersActive(Object.assign({}, plusF, { client: clientFilter }))) {
+    body = (
+      <div className="tk-empty">
+        <p>No tasks match these filters.</p>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={function () {
+            setSearchText("");
+            setClientFilter("");
+            pfPair[1](null);
+          }}
+        >
+          Clear filters
+        </button>
+      </div>
+    );
+  } else if (!view.length && searchOn) {
+    body = (
+      <div className="tk-empty">
+        <p>{"No tasks match \u201c" + searchText.trim() + "\u201d."}</p>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={function () {
+            setSearchText("");
+          }}
+        >
+          Clear search
+        </button>
+      </div>
+    );
+  } else if (!view.length && chipEmptied) {
     body = (
       <div className="tk-empty">
         <p>No tasks match this view.</p>
@@ -869,6 +1132,8 @@ function TK_vMyTasksBody(props) {
                 </button>
                 {!g.collapsed && typeof TK_BulkGroupBox === "function" ? <TK_BulkGroupBox select={bulk} tasks={g.tasks} label={g.label} /> : null}
               </h3>
+              {/* Slate plus (hidden preview): team load before you claim. Renders nothing when off. */}
+              {g.key === "unassigned" && !embedded && !g.collapsed && !plusGate && typeof TK_WorkloadLine === "function" ? <TK_WorkloadLine bump={loading ? null : all.length} email={email} /> : null}
               {g.collapsed ? null : (
                 <ul className="tk-rows" role="grid" aria-label={g.label} data-tk-group={manualOn ? String(gi) : undefined}>
                   {g.tasks.map(function (t) {
@@ -953,7 +1218,16 @@ function TK_vMyTasksBody(props) {
             <TK_vIcon name="plus" size={15} />
             <span>Add task</span>
           </button>
-          {myClients.length ? (
+          {!embedded && !unifiedOn && typeof TK_SlateListSearch === "function" ? (
+            <TK_SlateListSearch
+              value={searchText}
+              count={searchCount}
+              onChange={function (v) {
+                setSearchText(v);
+              }}
+            />
+          ) : null}
+          {!plusOn && myClients.length ? (
             <label className="tk-select-wrap">
               <span className="tk-sr">Client</span>
               <select
@@ -1005,7 +1279,8 @@ function TK_vMyTasksBody(props) {
               );
             }}
           </TK_vMenuButton>
-          {boardCan && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardLay.by} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
+          {cal.switchEl}
+          {boardCan && !cal.on && typeof TK_BoardSwitch === "function" ? <TK_BoardSwitch layout={boardLay.layout} onLayout={boardLay.setLayout} by={boardLay.by} choices={boardLay.choices} onBy={boardLay.setBy} /> : null}
           {touch ? null : (
             <button type="button" className="tk-icon-btn tk-keys-btn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={keys.openHelp}>
               <TK_vIcon name="keyboard" size={16} />
@@ -1033,9 +1308,9 @@ function TK_vMyTasksBody(props) {
             />
           ) : null
         }
-        noGroupBy={boardOn}
+        noGroupBy={boardOn || cal.on}
         manual={
-          manualCan && !boardOn
+          manualCan && !boardOn && !cal.on
             ? {
                 on: manualOn,
                 onToggle: function (on) {
@@ -1046,6 +1321,26 @@ function TK_vMyTasksBody(props) {
             : undefined
         }
       />
+      {/* Slate plus (hidden preview): Team load strip. Renders nothing when off.
+          Profile 2: gate on, it lives on Team › People and the profile instead. */}
+      {!embedded && !plusGate && typeof TK_WorkloadStrip === "function" ? <TK_WorkloadStrip isAdmin={isAdmin} bump={loading ? null : all.length} email={email} /> : null}
+      {plusOn ? (
+        <TK_SlateFilterBar
+          value={Object.assign({}, plusF || {}, { q: searchText, client: clientFilter })}
+          onChange={function (n) {
+            var f = n || {};
+            setSearchText(typeof f.q === "string" ? f.q : "");
+            setClientFilter(f.client ? String(f.client) : "");
+            setFocusedId(null);
+            pfPair[1]({ assignee: f.assignee, project: f.project, due: f.due, from: f.from, to: f.to, status: f.status });
+          }}
+          clients={myClients}
+          clientNames={clientNames}
+          tasks={all}
+          projectNames={projectNames}
+          email={email}
+        />
+      ) : null}
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
       {manualOn && manualSay ? manualSay.el : null}

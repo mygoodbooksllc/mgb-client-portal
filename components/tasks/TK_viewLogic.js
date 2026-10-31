@@ -358,6 +358,8 @@ var TK_MY_GROUPS = [
   { key: "today", label: "Today" },
   { key: "week", label: "This week" },
   { key: "later", label: "Later" },
+  // Slate plus dependencies: only filled when TK_groupMyTasks gets opts.isBlocked.
+  { key: "blocked", label: "Blocked" },
   { key: "waiting", label: "Waiting on client" },
   { key: "unassigned", label: "Unassigned" },
   { key: "done", label: "Done" },
@@ -1157,6 +1159,8 @@ var TK_BULK_REASONS = {
   changed_since: "It changed after your action.",
   // Slate app P3 (tk_bulk_set)
   done_use_reopen: "It's done. Reopen it first.",
+  // Slate plus dependencies (only for tasks with a blocker)
+  blocked: "It's waiting on another task to finish.",
   no_project: "It isn't in a project.",
   section_missing: "Its project has no section by that name.",
   error: "Something went wrong with this one.",
@@ -1832,8 +1836,9 @@ function TK_slateBuildView(groups, view, ctx) {
 // ---- Slate app (preview; spec-desk-fullpage.md sections 3.3 to 3.5, 4) --------------
 // Nothing here runs unless TK_slateAppIsOn is true; S1 only adds the pure rules.
 
-var TK_SLATE_APP_PREVIEW = "mgb_slate_app_preview"; // localStorage "1": this browser only
-var TK_SLATE_APP_CLASSIC = "mgb_slate_classic"; // localStorage "1": opt out, wins over everything (added at launch)
+// (The personal Slate app preview box mgb_slate_app_preview and the Classic tasks
+// page opt-out mgb_slate_classic were retired 2026-10-28: the firm switch has been
+// on for everyone since 2026-10-25.)
 var TK_SLATE_APP_SETTING = "slate_app_enabled"; // tk_settings key: the firm switch, owner-only, code never writes it
 
 // Same reading rule as WB_flagValueOn: true, "true", 1 or {on:true}. The
@@ -1843,13 +1848,8 @@ function TK_slateFlagValueOn(v) {
   return v === true || v === "true" || v === 1 || (!!v && typeof v === "object" && v.on === true);
 }
 
-// Three layers, one helper. setting: the tk_settings.slate_app_enabled value;
-// preview: the localStorage mgb_slate_app_preview value ("1" or true counts);
-// classic: the mgb_slate_classic opt-out; counts only when "1" or true.
-// Classic wins, then the person's preview or the firm switch turns it on.
-function TK_slateAppIsOn(setting, preview, classic) {
-  if (classic === "1" || classic === true) return false;
-  if (preview === "1" || preview === true) return true;
+// One helper. setting: the tk_settings.slate_app_enabled value (the firm switch).
+function TK_slateAppIsOn(setting) {
   return TK_slateFlagValueOn(setting);
 }
 
@@ -2162,6 +2162,34 @@ function TK_slateSizeHit(want, got, tol) {
   return Math.abs(got.w - want.innerW) <= t && Math.abs(got.h - want.innerH) <= t;
 }
 
+// A failed preset hides the size buttons only for a short while. missAt: the
+// time (ms) stored when a resize missed (a number or numeric string; the old
+// stored "1" and junk count as expired so a stale session value heals at once).
+// Returns true while the miss is under 2 minutes old.
+var TK_SLATE_MISS_MS = 120000;
+function TK_slateMissActive(missAt, now) {
+  var m = typeof missAt === "number" ? missAt : parseInt(missAt, 10);
+  var n = typeof now === "number" ? now : NaN;
+  if (!isFinite(m) || !isFinite(n) || m < 1000000000000) return false;
+  return n >= m && n - m < TK_SLATE_MISS_MS;
+}
+
+// Should a recorded miss still hide the size buttons? raw: the stored value,
+// "<ms>" or "<ms>|<innerW>|<innerH>" (the window size when the resize missed);
+// cur: { w, h } now. Hidden only while the miss is under 2 minutes old AND the
+// window has not grown since (by more than 8px either way), so dragging the
+// window larger brings the buttons back at once. A miss with no recorded size
+// falls back to the timer alone.
+function TK_slateMissHides(raw, now, cur) {
+  var parts = String(raw == null ? "" : raw).split("|");
+  if (!TK_slateMissActive(parts[0], now)) return false;
+  var mw = parseFloat(parts[1]);
+  var mh = parseFloat(parts[2]);
+  if (!isFinite(mw) || !isFinite(mh) || !cur) return true;
+  if (typeof cur.w !== "number" || typeof cur.h !== "number" || !isFinite(cur.w) || !isFinite(cur.h)) return true;
+  return !(cur.w > mw + 8 || cur.h > mh + 8);
+}
+
 // The size preset buttons in the bar: in regular and full (the menu holds
 // them in compact). Never in a sliver.
 function TK_slatePresetPlace(mode) {
@@ -2274,6 +2302,8 @@ if (typeof module !== "undefined" && module.exports) {
     TK_slatePresetsAllowed: TK_slatePresetsAllowed,
     TK_slateSizeHit: TK_slateSizeHit,
     TK_slatePresetPlace: TK_slatePresetPlace,
+    TK_slateMissActive: TK_slateMissActive,
+    TK_slateMissHides: TK_slateMissHides,
     TK_slateSliverFit: TK_slateSliverFit,
     TK_slateSliverPick: TK_slateSliverPick,
     TK_slateSliverRest: TK_slateSliverRest,
@@ -2396,8 +2426,6 @@ if (typeof module !== "undefined" && module.exports) {
     TK_slateSortWithin: TK_slateSortWithin,
     TK_slateBuildView: TK_slateBuildView,
     TK_POPOUT_MIN_APP: TK_POPOUT_MIN_APP,
-    TK_SLATE_APP_PREVIEW: TK_SLATE_APP_PREVIEW,
-    TK_SLATE_APP_CLASSIC: TK_SLATE_APP_CLASSIC,
     TK_SLATE_APP_SETTING: TK_SLATE_APP_SETTING,
     TK_slateFlagValueOn: TK_slateFlagValueOn,
     TK_slateAppIsOn: TK_slateAppIsOn,
@@ -3257,8 +3285,43 @@ function TK_ixDockPeople(me, people, staff) {
   return out;
 }
 
+// ---- Work > Slate summary (Slate single home, 2026-10-27) ---------------------------
+// With the Slate app on, Work > Slate is a short summary, not a second full list:
+// the late tasks, what is due today and the next few after that, then an Open
+// Slate button. groups: TK_groupMyTasks output (built with todayGroup on).
+// Returns { late, today, next, lateMore, todayMore, nextMore }: every list is
+// capped at opts.cap (default 5) and the *More counts say how many were left
+// out. "Next" is the open tasks after today (this week, then later), in the
+// order Slate sorts them; waiting on client, unassigned and done never show.
+var TK_SUMMARY_CAP = 5;
+
+function TK_slateSummary(groups, opts) {
+  var g = groups || {};
+  var o = opts || {};
+  var cap = typeof o.cap === "number" && o.cap > 0 ? Math.floor(o.cap) : TK_SUMMARY_CAP;
+  var list = function (k) {
+    return Array.isArray(g[k]) ? g[k] : [];
+  };
+  var cut = function (rows) {
+    return { shown: rows.slice(0, cap), more: Math.max(0, rows.length - cap) };
+  };
+  var late = cut(list("overdue"));
+  var today = cut(list("today"));
+  var next = cut(list("week").concat(list("later")));
+  return {
+    late: late.shown,
+    today: today.shown,
+    next: next.shown,
+    lateMore: late.more,
+    todayMore: today.more,
+    nextMore: next.more,
+  };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   Object.assign(module.exports, {
+    TK_slateSummary: TK_slateSummary,
+    TK_SUMMARY_CAP: TK_SUMMARY_CAP,
     TK_copySkipText: TK_copySkipText,
     TK_manualUndoPlan: TK_manualUndoPlan,
     TK_ixDueFor: TK_ixDueFor,

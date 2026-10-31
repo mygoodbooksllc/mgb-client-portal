@@ -38,7 +38,7 @@ Every stop is left out when that person can't see it. The step count shown (**St
 | **Finances**: Budget, Bank accounts, Cash flow, Giving & funds | Yes, the tabs they have | No (Basic has no Finances) | Only the tabs they have | Only the budget lines for their areas |
 | **Payroll** | With the add-on | With the add-on | With the add-on and the tab | No |
 | **Reports** | **Downloads** and **Board packet** | **Downloads**; Board packet comes with Pro | If they have Reports | No |
-| **Documents**: upload what you ask for | If they have it | If they have it | If they have it | If they have it |
+| **Documents**: upload what you ask for, and (once page drop is on for them) drop a file anywhere and choose who can see it | If they have it | If they have it | If they have it | If they have it |
 | **Messages**: ask the bookkeeper anything, and **Requests** | If they have it | If they have it | If they have it | If they have it |
 | **Settings**: their profile and which emails they get | Yes | Yes | Yes | Yes |
 | **Organization**: details, monthly summary recipients, team, **Ask us to add someone** | Yes | Yes | No | No |

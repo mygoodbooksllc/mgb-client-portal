@@ -2,7 +2,7 @@
 title: What does the client portal look like?
 section: Working with a client
 audience: staff
-keywords: [client portal, client view, client sidebar, client navigation, home, needs you, finances, reports, board packet, presentation view, report builder, downloads, requests, bottom bar, phone, what the client sees, places, top bar, help menu, question mark menu, ? menu, take the tour, contact support, what we need from you, answer a request, /login?next]
+keywords: [client portal, client view, client sidebar, client navigation, home, needs you, finances, reports, board packet, presentation view, report builder, downloads, requests, bottom bar, phone, what the client sees, places, top bar, help menu, question mark menu, ? menu, take the tour, contact support, what we need from you, answer a request, /login?next, who can see it, only some people, add a file]
 sort: 261
 ---
 Clients get five places in their left rail, with **Settings** at the bottom. Use **Client view › View as client…** on any client to see exactly what they see.
@@ -11,7 +11,7 @@ Clients get five places in their left rail, with **Settings** at the bottom. Use
 - **Messages** has two tabs: **Conversation** (the thread with you) and **Requests**, headed **What we need from you**: every question, document or approval you've asked for (from **Ask client** or the Documents tab), with due dates and what's overdue. They answer right there: type a reply, attach a file and **Send**, or **Upload** for a document request. **Show answered** lists what they've already sent. When you preview as a client the answer boxes are read-only. `#/client/<id>/needs` opens it, and the portal link in a request email signs them in and lands on the request.
 - **Finances** holds **Budget**, **Bank accounts**, **Cash flow**, **Giving & funds** and **Payroll** (when they have the add-on) as one row of tabs. It reopens the tab they used last. The tab order follows **Manage access › Organization tabs**, where you can drag ⠿ to reorder.
 - **Reports** has **Downloads** (their statement PDFs: Profit & Loss, Balance Sheet, Budget vs. Actual and Contribution Statement, plus Payroll, year to date, with the payroll add-on) and **Board packet**. Board packet is part of Pro; Basic clients see one card explaining it, with **See plans**. Someone at a Pro organization whose Pro pages are turned off (or whose access is limited to certain categories) sees a short note to ask their bookkeeper instead, with no upgrade button.
-- **Documents** is where they upload what you ask for. On Basic they can also drop files on Home and say where they go.
+- **Documents** is where they upload what you ask for. They can also drop a file on any page (or tap **+ Add a file** on a phone), name it, pick a folder and choose who at their organization can see it; see [How do I add, file, hide or delete a client's documents?](#/help/add-documents). On Basic, Home's own drop box still asks where the file goes.
 
 Basic and Pro clients both land on **Home**. On Basic, Home has **Needs you** and the organization card, then **Home at a glance**: a **Choose files** box (and the whole page takes dropped files; see below), **Latest from your bookkeeper** with **Reply**, **Latest statements** (opens Reports), **Your files** (the newest Documents, opens Documents) and one slim row saying what Pro adds, with **See plans** and **Take the Pro tour**. There's no financial snapshot on Basic. Turning a tab off under **Manage access › Organization tabs** hides it everywhere; a place with nothing left in it disappears from the rail.
 
@@ -41,7 +41,7 @@ Next to the bell in the client's top bar is a **?**. It's for the client, and it
 
 When you use **Preview as** or **View as client**, the first two read **Preview the tour** and **Preview the Pro tour**, and nothing is saved or counted. Arrow keys move through the items, **Esc** closes the menu, and on a phone the items are larger so they're easy to tap. Admins see how often it's used under **Settings › Firm settings › Usage stats › Actions** as **Client ? menu clicks** (real clients only, not previews).
 
-On a phone the QuickBooks sync pill in the top bar is shortened to "Synced 5 minutes ago" so the bell, **?** and search all fit on one row. The full wording ("Every hour · synced 5 minutes ago") shows on larger screens. Before QuickBooks is connected, the grey **Setting up — connecting QuickBooks** pill likewise says just **Setting up** on a phone.
+On a phone the QuickBooks sync pill in the top bar is shortened to "Synced 5 minutes ago" so the bell, **?** and search all fit on one row. The full wording ("Every hour · synced 5 minutes ago") shows on larger screens. Before QuickBooks is connected, the gray **Setting up — connecting QuickBooks** pill likewise says just **Setting up** on a phone.
 
 ### On a phone
 

@@ -64,6 +64,9 @@ const TD_CARDS = [
 const TD_CARD_DEFAULTS = { attention: true, waiting: true, reminders: true, milestones: true, recent: true };
 // Clients shown per "needing attention" / "waiting" card.
 const TD_CARD_ROWS = 4;
+// Admins see celebrations a month ahead (celebrationLead.js), so the This
+// week card shows more of them than the 4 rows other cards use.
+const TD_CEL_CARD_ROWS = 10;
 // The word shown beside each row's icon. Color never carries the meaning
 // on its own: the band heading and this label say it in words.
 const TD_KIND_LABEL = {
@@ -372,7 +375,9 @@ function TD_tkErr(e, fallback) {
   try {
     console.warn("[Today]", code || (e && e.message) || e);
   } catch (x) {}
-  if (/^tk_/.test(code) && typeof TK_vErrText === "function") return TK_vErrText(e);
+  const why = e && e.reason ? String(e.reason) : "";
+  // Slate plus: a dependency block reads in plain words (other errors as before).
+  if ((/^tk_/.test(code) || why === "tk_blocked" || /tk_blocked/.test(String((e && e.message) || ""))) && typeof TK_vErrText === "function") return TK_vErrText(e);
   return fallback;
 }
 function TD_toast(text) {
@@ -461,9 +466,12 @@ function TD_buildRows(x) {
   // for review with one toast. The link stays work/tasks: LK_go hands it to
   // the task drawer when that's ready.
   if (typeof TK_groupMyTasks === "function") {
+    // Slate plus dependencies: blocked tasks that aren't late leave Now and
+    // This week (isBlocked is undefined while off: the groups are as before).
+    const isBlocked = typeof TKD_groupOpt === "function" ? TKD_groupOpt() : undefined;
     const g = TK_groupMyTasks(
       (x.items || []).filter((t) => t.kind !== "note"),
-      { today, email: me },
+      isBlocked ? { today, email: me, isBlocked } : { today, email: me },
     );
     const complete = (t) => {
       if (typeof TK_api !== "undefined" && TK_api && typeof TK_api.complete === "function") {
@@ -700,31 +708,48 @@ function TD_buildRows(x) {
   // SOPs not edited or marked accurate in 180 days (SopFreshness.jsx).
   (x.staleSops || []).forEach((r) => week.push({ ...r, kind: "sop", rank: 9 }));
 
-  // Birthdays and work anniversaries within 7 days (admins). Today's sit in
-  // "now", the rest in "this week". "Gift sent" or "Dismiss" hides one.
-  (x.celebrations || []).forEach((r) => {
-    const push = (kind, on, action, title, what) => {
-      if (!on || action) return;
-      const d = daysUntil(on, x.today);
-      if (d < 0 || d > 7) return;
-      const when = d === 0 ? "Today" : d === 1 ? "Tomorrow" : fmtDate(on);
-      (d === 0 ? now : week).push({
-        key: "cel-" + kind + "-" + r.email,
+  // Birthdays and work anniversaries within 30 days (admins only; the rows
+  // are empty for everyone else), so there is time to send a gift. The first
+  // 7 days behave as before: today's sit in "now", the rest in "this week",
+  // ranked at the top. Days 8-30 are "far": ranked low and never Do next.
+  // "Gift sent" or "Dismiss" hides one. Pure rules: celebrationLead.js.
+  if (!x.celAdmin && CEL_canSee(false)) {
+    // Everyone else (only while CEL_STAFF_VISIBLE is on; off = admin only): coworkers' birthdays and anniversaries in the next 7
+    // days, each with "Give a shout out" (hidden in View as, which is
+    // read-only). Always in "this week", never Do next. Your own day shows
+    // with no action. No gift marks, no birth year, no age.
+    CEL_peerItems(x.celebrations || [], x.today, x.me).forEach((it) => {
+      week.push({
+        key: it.key,
         kind: "celebrate",
-        rank: 0,
-        sort: d,
-        title,
-        detail: `${when} · ${what}`,
-        onClick: () => x.openShoutout(r.email),
-        actions: [
-          { label: "Send shout-out", primary: true, onClick: () => x.openShoutout(r.email) },
-          { label: "Gift sent", onClick: () => x.celebrate(r, kind, "gift") },
-          { label: "Dismiss", onClick: () => x.celebrate(r, kind, "dismissed") },
-        ],
+        rank: 8,
+        far: true,
+        sort: it.days,
+        title: it.title,
+        detail: it.detail,
+        onClick: it.shout && !x.readOnly ? () => x.openShoutout(it.email) : undefined,
+        actions: it.shout && !x.readOnly ? [{ label: "Give a shout out", primary: true, onClick: () => x.openShoutout(it.email) }] : [],
       });
-    };
-    push("birthday", r.next_birthday, r.birthday_action, `${r.name}'s birthday`, "send a gift or a shout-out");
-    push("anniversary", r.next_anniversary, r.anniversary_action, `${r.name}: ${r.years} year${r.years === 1 ? "" : "s"} with the firm`, "work anniversary");
+    });
+  }
+  (x.celAdmin ? CEL_items(x.celebrations || [], x.today) : []).forEach((it) => {
+    const r = it.row;
+    const kind = it.kind;
+    (it.days === 0 ? now : week).push({
+      key: it.key,
+      kind: "celebrate",
+      rank: it.near ? 0 : 8,
+      far: !it.near,
+      sort: it.days,
+      title: it.title,
+      detail: it.detail,
+      onClick: () => x.openShoutout(r.email),
+      actions: [
+        { label: "Send shout-out", primary: true, onClick: () => x.openShoutout(r.email) },
+        { label: "Gift sent", onClick: () => x.celebrate(r, kind, "gift") },
+        { label: "Dismiss", onClick: () => x.celebrate(r, kind, "dismissed") },
+      ],
+    });
   });
 
   // My own profile is missing its birthday or start date. Stays until done.
@@ -735,7 +760,7 @@ function TD_buildRows(x) {
       rank: 10,
       sort: 0,
       title: "Complete your profile",
-      detail: "Add your birthday and start date so the team can celebrate with you.",
+      detail: "Add your birthday and start date so admins can celebrate with you.",
       onClick: x.goProfile,
       actions: [{ label: "Open my profile", primary: true, onClick: x.goProfile }],
     });
@@ -1031,16 +1056,25 @@ function TD_MilestonesCard({ clients, onOpenClientMilestone, celebrations }) {
       <h3 className="card-title" id="td-milestones-title">
         This week
       </h3>
-      <p className="card-subtitle">Birthdays and anniversaries, and milestones to review: numbers pointing to a different milestone, not confirmed yet, or close to the next one.</p>
+      <p className="card-subtitle">Birthdays and anniversaries (the next 7 days; admins see the next 30, so there is time to send a gift), and milestones to review: numbers pointing to a different milestone, not confirmed yet, or close to the next one.</p>
       <div className="td-card-scroll">
       {cel.length > 0 && (
         <ul className="td-mini-list">
-          {cel.slice(0, TD_CARD_ROWS).map((r) => (
+          {cel.slice(0, TD_CEL_CARD_ROWS).map((r) => (
             <li key={r.key}>
               <button type="button" className="td-mini-row" onClick={r.onClick}>
                 <span className="td-mini-title">{r.title}</span>
                 <span className="td-mini-sub">{r.detail}</span>
               </button>
+              {(r.actions || []).filter((a) => !a.primary).length > 0 && (
+                <div className="td-mini-actions">
+                  {r.actions.filter((a) => !a.primary).map((a) => (
+                    <button type="button" className="link-btn" key={a.label} onClick={a.onClick}>
+                      {a.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -1250,12 +1284,14 @@ function TD_ListCard({ id, title, subtitle, lines, extra, emptyText, loaded, tou
 // staff_celebrations) plus the "gift sent" / "dismiss" actions that clear
 // an occurrence. Rows re-fetch after each action.
 function TD_useCelebrations(admin, today) {
+  // Admins act on the month ahead; everyone else gets the 7-day heads-up.
   const [rows, setRows] = React.useState([]);
   const [tick, setTick] = React.useState(0);
   React.useEffect(() => {
-    if (!admin) return;
     const sb = window.mgbSupabase;
     if (!sb || typeof sb.rpc !== "function") return;
+    // Admin only for now (CEL_STAFF_VISIBLE): do not even load the rows for others.
+    if (!CEL_canSee(admin)) return;
     let alive = true;
     sb.rpc("staff_celebrations").then(({ data, error }) => {
       let rows = Array.isArray(data) ? data : [];
@@ -1277,7 +1313,7 @@ function TD_useCelebrations(admin, today) {
     if (!error) setTick((t) => t + 1);
     return error;
   }, []);
-  return { rows: admin ? rows : [], act };
+  return { rows, act };
 }
 
 function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMilestone, isAdmin, impersonating, deskOn }) {
@@ -1341,7 +1377,10 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const st = typeof ST_useSettings === "function" ? ST_useSettings() : null;
   // Celebrations to act on (admins) and whether my own profile still needs
   // its birthday and start date (everyone; stays on the list until done).
-  const cel = TD_useCelebrations(admin, today);
+  // Celebrations are for real admins only (not temporary admins, not View as);
+  // CEL_STAFF_VISIBLE in celebrationLead.js is the one switch for everyone else.
+  const celAdmin = admin && !impersonating && !!staffUser && staffUser.role === "admin";
+  const cel = TD_useCelebrations(celAdmin, today);
   // View as: no profile load and no "finish your profile" prompt (its Save is
   // a write and its seen-key is per person).
   const myProfile = typeof ST_useMyProfile === "function" ? ST_useMyProfile(ro ? null : me) : null;
@@ -1518,6 +1557,8 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // returns every client's), and the admin's own approvals queue is left out.
   const vaIds = React.useMemo(() => new Set(openableClients.map((c) => c && c.id)), [openableClients]);
   const inScope = (r) => !ro || (r && vaIds.has(r.client_id));
+  // Slate plus dependencies (TKP_on): re-build when the deps load; 0 while off.
+  const depsVer = typeof TKD_useDeps === "function" ? TKD_useDeps() : 0;
   const rowsAll = React.useMemo(
     () =>
       TD_buildRows({
@@ -1527,6 +1568,8 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         me,
         nowMs,
         celebrations: cel.rows,
+        celAdmin,
+        readOnly: ro,
         celebrate,
         openShoutout,
         profileIncomplete,
@@ -1584,6 +1627,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       admin,
       ro,
       vaIds,
+      depsVer,
     ],
   );
   // View as: every row action is disabled (the guard would refuse it anyway).
@@ -1731,7 +1775,8 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const errors = [waiting.error, mine.error, access.error, upgrades.error, grantError, dl && dl.error ? dl.error : ""].filter(Boolean);
   // Do next from Today's own order (classic, and the Desk's fallback while
   // wb_inbox isn't live): first row of Now, then This week.
-  const ranked = rows.now.concat(rows.week);
+  // A month-ahead celebration (days 8-30) is never the one top item.
+  const ranked = rows.now.concat(rows.week).filter((r) => !r.far);
   const topRow = ranked[0] || null;
   const topDo = TD_doNext(topRow);
   // "N more tasks in Slate": only what Slate holds; the rest is in the fold.
@@ -1765,7 +1810,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
             </button>
           </div>
           <div className="modal-body">
-            <p>Add your birthday and start date so the team can celebrate with you. Your name, title and photo show on your clients' dashboards too.</p>
+            <p>Add your birthday (just the month and day) and start date so admins can celebrate with you. Your name, title and photo show on your clients' dashboards too.</p>
             <p className="card-subtitle">This stays on your Today list until it's done.</p>
           </div>
           <div className="modal-footer">

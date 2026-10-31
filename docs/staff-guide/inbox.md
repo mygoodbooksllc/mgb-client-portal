@@ -2,7 +2,7 @@
 title: How do I message a client or a teammate?
 section: Daily work
 audience: staff
-keywords: [no reply needed, workbench, inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, deleted message, unsend, 24 hours, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email, desk]
+keywords: [no reply needed, desk, inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, deleted message, unsend, 24 hours, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email, desk]
 sort: 140
 ---
 The **Inbox** (in the left rail) holds client conversations and team chat in one place. The bell in the top bar also lists client messages waiting for a reply.
@@ -82,7 +82,7 @@ The chat button at the bottom right (once the Desk is on, the messages icon on t
 - They can delete their own message for 24 hours after sending it (**Delete** under it, then **Delete** to confirm). It disappears for everyone, including you.
 - The title says **Conversation with your MyGoodBooks team**, with the account manager and bookkeeper named under it.
 - Each reply shows who wrote it: the name and **Title** from that person's **Settings → Profile**. With no title set, it says **Account manager** or **Bookkeeper** if that's their role for the client, otherwise just the name.
-- The **Send** button stays greyed out until they type something or attach a file.
+- The **Send** button stays grayed out until they type something or attach a file.
 
 ### Team chat
 

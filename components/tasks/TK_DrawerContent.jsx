@@ -298,7 +298,17 @@ function TK_dwReview(props) {
     <div className="tk-dw-review is-waiting" role="status" data-tour="tk-review-strip">
       <div className="tk-dw-review-text">
         <strong>Waiting for review</strong>
-        <span>{" · Reviewer: " + reviewerName}</span>
+        {task.reviewer_email && typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on() ? (
+          // Slate plus: the reviewer's name opens their profile.
+          <span>
+            {" · Reviewer: "}
+            <TKP_PersonLink email={task.reviewer_email} title={"Open " + reviewerName + "'s profile"}>
+              {reviewerName}
+            </TKP_PersonLink>
+          </span>
+        ) : (
+          <span>{" · Reviewer: " + reviewerName}</span>
+        )}
         {wait ? <span>{" · " + wait}</span> : null}
         {task.send_back_count > 0 ? (
           <span>{" · Sent back " + task.send_back_count + (task.send_back_count === 1 ? " time" : " times")}</span>
@@ -707,6 +717,17 @@ function TK_dwFollowers(props) {
         {stack.shown.map(function (r) {
           var name = p.nameOf(r.staff_email);
           var staffRow = (p.staff || []).filter(function (s) { return TK_dwLower(s.email) === TK_dwLower(r.staff_email); })[0];
+          if (typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on()) {
+            // Slate plus: each follower opens their profile (the initials stay decorative).
+            return (
+              <TKP_PersonLink key={r.staff_email} email={r.staff_email} className="tkp-dw-follower" title={"Open " + name + "'s profile"}>
+                <span className="tk-dw-avatar" aria-hidden="true">
+                  {TK_dlInitials(staffRow ? staffRow.name : "", r.staff_email)}
+                </span>
+                <span className="tk-sr">{"Open " + name + "'s profile"}</span>
+              </TKP_PersonLink>
+            );
+          }
           return (
             <span key={r.staff_email} className="tk-dw-avatar" title={name} aria-hidden="true">
               {TK_dlInitials(staffRow ? staffRow.name : "", r.staff_email)}
@@ -814,7 +835,7 @@ var TK_DW_RECURRENCES = [
 function TK_DwRepeatRow(props) {
   var task = props.task;
   var open = React.useState(false);
-  var holidaysState = React.useState([]);
+  var holidaysState = React.useState(null); // null until the fetch finishes (any array means exact holiday mode)
   var isCustom = task.recurrence === "custom" && task.recurrence_rule;
   React.useEffect(function () {
     if (!open[0] || typeof TK_api === "undefined" || !TK_api.holidays) return;
@@ -825,7 +846,11 @@ function TK_DwRepeatRow(props) {
   var timeOf = typeof TK_dlTimeOf === "function" ? TK_dlTimeOf(task.due_at) : "";
   var summary = isCustom ? TK_repeatText(task.recurrence_rule, task.due_date) : "";
   var saveRule = function (rule) {
-    rule = Object.assign({}, rule, { start: task.due_date });
+    // Keep the series' own first date when the schedule is unchanged: a due
+    // date pushed by skip weekends / holidays must not move the schedule.
+    rule = Object.assign({}, rule, {
+      start: TK_repeatSaveStart(isCustom ? task.recurrence_rule : null, rule, task.due_date, holidaysState[0] || undefined),
+    });
     var patch = { recurrence: "custom", recurrence_rule: rule };
     if (rule.time && task.due_date) {
       patch.due_at = TK_repeatDueAt(task.due_date, rule.time, rule.tz || "America/Chicago");
@@ -876,7 +901,8 @@ function TK_DwRepeatRow(props) {
           value={isCustom ? task.recurrence_rule : null}
           start={task.due_date}
           today={props.today}
-          holidays={holidaysState[0]}
+          holidays={holidaysState[0] || []}
+          holidaysLoaded={!!holidaysState[0]}
           onSave={saveRule}
           onCancel={function () { open[1](false); }}
         />
@@ -1412,11 +1438,21 @@ function TK_DrawerContent(props) {
     : {
         assignee: (
           <div className="tk-dw-value">
+            {curAssignee && typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on() ? (
+              // Slate plus: the assignee's name opens their profile; the select
+              // below is the separate Reassign control (same id, so key `a` and
+              // the field label still land on it).
+              <TKP_PersonLink email={curAssignee} className="tkp-dw-person" title={"Open " + nameOf(curAssignee) + "'s profile"}>
+                <TK_vAvatar name={nameOf(curAssignee)} email={curAssignee} size="sm" title="" decorative />
+                <span className="tkp-dw-person-name">{nameOf(curAssignee)}</span>
+              </TKP_PersonLink>
+            ) : null}
             <select
               id="tk-dw-assignee"
               ref={assigneeRef}
               className="tk-dw-select"
               value={curAssignee}
+              aria-label={curAssignee && typeof TKP_on === "function" && TKP_on() ? "Assignee, reassign. Assigned to " + nameOf(curAssignee) : undefined}
               disabled={!gf.assignee.editable}
               title={
                 gf.assignee.hint === "inReview"
@@ -1777,6 +1813,9 @@ function TK_DrawerContent(props) {
             {!!task.review_required && !isAdmin && <p className="tk-dw-hint">Only an admin can turn this off.</p>}
           </div>
 
+          {typeof TK_DwDepsRow === "function" ? <TK_DwDepsRow task={task} readOnly={readOnly} isAdmin={isAdmin} /> : null}
+          {typeof TK_DwFieldRows === "function" ? <TK_DwFieldRows task={task} readOnly={readOnly} /> : null}
+
           {task.client_id && (
             <React.Fragment>
               <label className="tk-dw-label" htmlFor="tk-dw-sop">
@@ -1900,7 +1939,7 @@ function TK_DrawerContent(props) {
           </div>
           <div id="tk-dw-tabpanel" role="tabpanel" aria-labelledby={"tk-dw-tab-" + tab}>
             {tab === "activity"
-              ? typeof TK_Activity === "function" && <TK_Activity taskId={task.id} nameOf={nameOf} stamp={task.updated_at} />
+              ? typeof TK_Activity === "function" && <TK_Activity taskId={task.id} nameOf={nameOf} stamp={task.updated_at} staff={staff} />
               : typeof TK_Comments === "function" && (
                   <TK_Comments
                     task={task}
@@ -1987,7 +2026,15 @@ function TK_DrawerContent(props) {
                 if (/late$/.test(dl)) return " · " + dl;
                 return " · Due " + (dl === "Today" || dl === "Tomorrow" || dl === "Yesterday" ? dl.toLowerCase() : dl);
               })()}
-              {task.assignee_email ? " · " + nameOf(task.assignee_email) : " · Unassigned"}
+              {task.assignee_email && typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on() ? (
+                // Slate plus: the assignee's name opens their profile.
+                <React.Fragment>
+                  {" · "}
+                  <TKP_PersonLink email={task.assignee_email} title={"Open " + nameOf(task.assignee_email) + "'s profile"}>
+                    {nameOf(task.assignee_email)}
+                  </TKP_PersonLink>
+                </React.Fragment>
+              ) : task.assignee_email ? " · " + nameOf(task.assignee_email) : " · Unassigned"}
               {task.source === "template" ? <span className="tk-dw-recurring" title="Made by a recurring template. See Slate › Recurring."> · Recurring</span> : null}
             </p>
           )}

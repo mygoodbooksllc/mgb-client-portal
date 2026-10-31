@@ -70,7 +70,8 @@ t("copy strings are final", () => {
   assert.strictEqual(L.TK_COPY.taskAdded, "Task added.");
   assert.ok(/Work › Slate\.$/.test(L.TK_COPY.setupBody));
   Object.keys(L.TK_COPY).forEach((k) => assert.ok(!/!/.test(L.TK_COPY[k]), k + " has no exclamation mark"));
-  assert.strictEqual(Object.keys(L.TK_COPY).length, 39);
+  assert.strictEqual(Object.keys(L.TK_COPY).length, 40);
+  assert.strictEqual(L.TK_COPY.blockedByTask, "This task is waiting on another task to finish.");
   assert.strictEqual(L.TK_COPY.selfReview, "You can't approve your own work. Another admin will review it.");
 });
 
@@ -1256,6 +1257,28 @@ t("the file is pure: no React, DOM writes, Supabase or lookbehind", () => {
   assert.ok(!/^(const|let|class) /m.test(src), "top level uses var and function only");
   const tops = src.match(/^(?:var|function) ([A-Za-z_$][\w$]*)/gm) || [];
   tops.forEach((d) => assert.ok(/ (TK_|SLATE_NAME$)/.test(d), d)); // SLATE_NAME is the one shared constant
+});
+
+t("groupMyTasks isBlocked (Slate plus deps): blocked group, late stays late", () => {
+  const list = [
+    task({ text: "b-today", due_date: TODAY }),
+    task({ text: "b-late", due_date: "2026-10-01" }),
+    task({ text: "b-none" }),
+    task({ text: "b-review", status: "ready_for_review" }),
+    task({ text: "b-wait", status: "waiting_client" }),
+    task({ text: "free", due_date: TODAY }),
+  ];
+  const blocked = (t) => /^b-/.test(t.text);
+  const g = L.TK_groupMyTasks(list, TODAY, { email: ME, isBlocked: blocked });
+  assert.deepStrictEqual(ids(g.blocked).sort(), ["b-none", "b-today"]);
+  assert.deepStrictEqual(ids(g.overdue), ["b-late"]);
+  assert.deepStrictEqual(ids(g.today), ["free"]);
+  assert.deepStrictEqual(ids(g.waiting), ["b-wait"]);
+  assert.ok(ids(g.later).indexOf("b-review") >= 0 || ids(g.week).indexOf("b-review") >= 0 || ids(g.today).indexOf("b-review") >= 0 || ids(g.overdue).indexOf("b-review") >= 0);
+  // Without the option: no blocked key and the old groups.
+  const g0 = L.TK_groupMyTasks(list, TODAY, { email: ME });
+  assert.strictEqual("blocked" in g0, false);
+  assert.deepStrictEqual(ids(g0.today).sort(), ["b-today", "free"]);
 });
 
 console.log(n + " checks passed");

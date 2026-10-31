@@ -260,20 +260,24 @@ t("gift status pills", () => {
   assert.strictEqual(L.OP_giftStatus({}).key, "none");
 });
 
-t("gift basis: two choices, client_since is the default, same values as the server", () => {
-  assert.deepStrictEqual(L.OP_GIFT_BASES.map((b) => b.value), ["client_since", "established"]);
+t("gift basis: two choices, established (founding date) is the default, same values as the server", () => {
+  assert.deepStrictEqual(L.OP_GIFT_BASES.map((b) => b.value), ["established", "client_since"]);
   assert.ok(/default/i.test(L.OP_GIFT_BASES[0].label));
   assert.strictEqual(L.OP_giftBasisValid("client_since"), true);
   assert.strictEqual(L.OP_giftBasisValid("established"), true);
   ["both", "", null, undefined, "Established", true].forEach((v) => assert.strictEqual(L.OP_giftBasisValid(v), false));
-  assert.strictEqual(L.OP_giftBasisNorm("established"), "established");
-  ["client_since", "x", null, undefined].forEach((v) => assert.strictEqual(L.OP_giftBasisNorm(v), "client_since"));
-  assert.strictEqual(L.OP_giftBasisLabel("established"), "Founding date");
-  assert.strictEqual(L.OP_giftBasisLabel(null), "Client since");
+  assert.strictEqual(L.OP_giftBasisNorm("client_since"), "client_since");
+  ["established", "x", null, undefined].forEach((v) => assert.strictEqual(L.OP_giftBasisNorm(v), "established"));
+  assert.strictEqual(L.OP_giftBasisLabel("client_since"), "Client since");
+  assert.strictEqual(L.OP_giftBasisLabel(null), "Founding date");
   const sql = fs.readFileSync(path.join(__dirname, "../../supabase/client-org-gift-basis.sql"), "utf8");
   assert.ok(sql.includes("not in ('client_since', 'established')"), "server accepts the same two values");
   assert.ok(sql.includes("'org_gift_basis'"), "server key name");
   assert.ok(!/\bdelete\b/i.test(sql.replace(/--.*$/gm, "")), "migration deletes nothing");
+  const def = fs.readFileSync(path.join(__dirname, "../../supabase/client-org-gift-basis-default.sql"), "utf8");
+  assert.ok(/= 'client_since'\s+then 'client_since' else 'established'/.test(def), "server default flipped: no row reads as established");
+  assert.ok(def.includes("admin_gift_dates"), "admin_gift_dates ships with the default flip");
+  assert.ok(!/\bdelete\b|\bdrop\b/i.test(def.replace(/--.*$/gm, "")), "default migration deletes and drops nothing");
 });
 t("gift basis: Client gifts tab wires the admin RPCs", () => {
   const store = fs.readFileSync(path.join(__dirname, "OP_store.js"), "utf8");
@@ -282,6 +286,8 @@ t("gift basis: Client gifts tab wires the admin RPCs", () => {
   const tab = fs.readFileSync(path.join(__dirname, "../staff/OP_GiftsTab.jsx"), "utf8");
   assert.ok(tab.includes('data-tour="op-gifts-basis"'));
   assert.ok(tab.includes("OP_api.setGiftBasis"));
+  assert.ok(store.includes('OP__rpc("admin_gift_dates"'), "list loads both dates");
+  assert.ok(tab.includes("OP_api.giftDates") && tab.includes("<th>Client since</th>"), "list shows Client since next to the date followed");
 });
 
 console.log("OP_logic: " + n + " checks passed");

@@ -21,7 +21,7 @@
 //
 // Secrets (set by the owner; never logged or returned):
 //   GOOGLE_SERVICE_ACCOUNT_JSON     shared with drive-files
-//   GOOGLE_DRIVE_REVIEWS_DRIVE_ID   the admin-only "~ MGB: Staff Reviews" Shared Drive
+//   GOOGLE_DRIVE_REVIEWS_DRIVE_ID   the admin-only "~ MGB: Personelle (Portal Connected)" Shared Drive
 //   RESEND_API_KEY                  via ../_shared/email.ts
 //
 // Deploy with ../drive-files/logic.ts, ../_shared/email.ts, ../_shared/layout.ts, ./pdf.ts,

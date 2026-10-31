@@ -28,7 +28,7 @@ A client only has a **Payroll** tab if **Payroll add-on** is ticked for them on 
 
 Until every step is done, admins see an **Onboarding 3/5**-style badge on the client in the client picker. Other staff don't see the badge.
 
-- **Hover** over the badge (or Tab to it) to see the checklist: done steps are ticked and greyed out, so what's left stands out.
+- **Hover** over the badge (or Tab to it) to see the checklist: done steps are ticked and grayed out, so what's left stands out.
 - **Click** the badge (or press Enter on it) to open that client's **Client overview**. The page opens **Billing and time** if it was closed, scrolls to the Onboarding card and briefly outlines it in gold.
 
 ### Change the default steps (admins)

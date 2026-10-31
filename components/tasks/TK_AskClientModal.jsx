@@ -153,20 +153,20 @@ function TK_AskClientModal(props) {
         TK_crTrack("tasks-ask-client", { kind: form.kind, recipients: form.emails.length + form.contactIds.length, again: !!again });
         if (!sendNowPair[0]) {
           busyPair[1](false);
-          TK_crToast("Asked. The task is waiting on the client. Nothing was emailed.");
+          TK_crToast(TK_askedToastText("noemail"));
           if (p.onAsked) p.onAsked(id);
           return;
         }
         TK_api.sendClientRequest(id, "send", p.taskId).then(
           function (res) {
             busyPair[1](false);
-            TK_crToast("Asked. " + TK_sendResultText(res, "send"));
+            TK_crToast(TK_askedToastText("sent", res));
             if (p.onAsked) p.onAsked(id);
           },
           function (e) {
             busyPair[1](false);
-            // The request exists; only the (dry-run) send was refused.
-            TK_crToast("Asked. The task is waiting on the client. " + TK_requestErrorText(e));
+            // The request exists; only the send was refused.
+            TK_crToast(TK_askedToastText("sendfailed", e));
             if (p.onAsked) p.onAsked(id);
           },
         );
@@ -273,7 +273,7 @@ function TK_AskClientModal(props) {
           Email them now
         </label>
         <p className="tk-dw-hint">
-          Client emails for requests aren't switched on yet, so this is a dry run: nothing is sent, and the request is logged as if it had been.
+          Emails go only to clients the owner has switched on. For any other client this is a dry run: nothing is sent, and the request is logged as if it had been.
         </p>
       </div>
       <div className="modal-footer">

@@ -162,7 +162,9 @@ function WB_HubTasksBody(props) {
     [projects],
   );
 
-  var groups = TK_groupMyTasks(all, today, { email: email, showOlder: false, todayGroup: true, isAdmin: isAdmin });
+  // Slate plus dependencies (TKP_on): a Blocked group after Later; undefined while off.
+  if (typeof TKD_useDeps === "function") TKD_useDeps(); // re-render when the deps load
+  var groups = TK_groupMyTasks(all, today, { email: email, showOlder: false, todayGroup: true, isAdmin: isAdmin, isBlocked: typeof TKD_groupOpt === "function" ? TKD_groupOpt() : undefined });
   var view = TK_myGroupsView(groups, { collapsed: props.collapsed || {}, showDone: false });
   var subs = TK_vUseSubtasks(all);
   if (typeof TK_subNestGroups === "function") view = TK_subNestGroups(view, subs.kidsOf);
@@ -406,8 +408,8 @@ function WB_HubTasksBody(props) {
         <button type="button" className="btn-secondary wb-hub-add" onClick={addTask}>
           Add to your {WB_SLATE}
         </button>
-        <a className="wb-hub-link" href="#/tasks/my">
-          Slate page
+        <a className="wb-hub-link" href="#/tasks/my" data-tour="wb-hub-open-slate">
+          Open in Slate
         </a>
       </div>
     </div>

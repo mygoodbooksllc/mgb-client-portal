@@ -375,11 +375,41 @@ function TP_QboPanel({ qbo, onOpenMapping, onSynced }) {
 // ---------------------------------------------------------------------------
 // Hours (for the People and Clients tables)
 // ---------------------------------------------------------------------------
+// The newest day with any QuickBooks time (null until loaded or if the read
+// fails). Days after it have not synced yet; they are not zero hours.
+function TP_useSyncedThrough(enabled, version) {
+  const [day, setDay] = useState(null);
+  useEffect(() => {
+    const supabase = window.mgbSupabase;
+    if (!enabled || !supabase) {
+      setDay(null);
+      return undefined;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const res = await supabase
+          .from("qbo_time_activities")
+          .select("txn_date")
+          .order("txn_date", { ascending: false })
+          .limit(1);
+        if (alive) setDay(!res.error && res.data && res.data[0] ? String(res.data[0].txn_date).slice(0, 10) : null);
+      } catch (e) {
+        if (alive) setDay(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [enabled, version]);
+  return day;
+}
+
 function TP_useQboHours(enabled, range, avg, version) {
-  const [state, setState] = useState({ loading: !!enabled, byClient: [], avgByClient: [], byStaff: [], tiers: {}, error: null });
+  const [state, setState] = useState({ loading: !!enabled, byClient: [], avgByClient: [], byStaff: [], tiers: {}, avgMonths: 3, error: null });
   useEffect(() => {
     if (!enabled) {
-      setState({ loading: false, byClient: [], avgByClient: [], byStaff: [], tiers: {}, error: null });
+      setState({ loading: false, byClient: [], avgByClient: [], byStaff: [], tiers: {}, avgMonths: 3, error: null });
       return undefined;
     }
     let alive = true;
@@ -388,7 +418,7 @@ function TP_useQboHours(enabled, range, avg, version) {
       const supabase = window.mgbSupabase;
       const [c, a, s, m] = await Promise.all([
         TP_qRpc("qbo_hours_by_client", { p_from: range.from, p_to: range.to }),
-        TP_qRpc("qbo_hours_by_client", { p_from: avg.from, p_to: avg.to }),
+        avg.from ? TP_qRpc("qbo_hours_by_client", { p_from: avg.from, p_to: avg.to }) : Promise.resolve({ data: [], error: null }),
         TP_qRpc("qbo_hours_by_staff", { p_from: range.from, p_to: range.to }),
         supabase
           ? supabase.from("client_milestones").select("client_id, confirmed_tier").then(
@@ -410,6 +440,7 @@ function TP_useQboHours(enabled, range, avg, version) {
         loading: false,
         byClient: c.data || [],
         avgByClient: a.data || [],
+        avgMonths: avg.months || 3,
         byStaff: s.data || [],
         tiers,
         error: errs.length ? [...new Set(errs)].join(" ") : null,
@@ -491,7 +522,7 @@ function TP_QBucketTag({ bucket }) {
   );
 }
 
-function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, onOpenMapping }) {
+function TP_QboPeopleTable({ people, hours, qboOn, range, onOpenPerson, onOpenBucket, onOpenMapping }) {
   const lateOn = TK_useLateCounts();   // grace period: no per-person overdue until the owner turns it on
   const loadingPeople = people == null;
   const { rows, bucketRows, total } = useMemo(
@@ -520,7 +551,7 @@ function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, o
         In app is automatic active time in the app{appTotal ? ` (${TP_qHours(appTotal)} in all)` : ""}, not billed
         hours. Open{lateOn ? " and overdue" : ""} are as of today; completed is within the period. Select a row for details.
       </p>
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled tp-table">
           <thead>
             <tr>
@@ -560,7 +591,13 @@ function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, o
                         <span className="tp-name">{p.name}</span>
                         {p.role && <span className="tp-muted tp-role">{TP_roleLabel(p.role)}</span>}
                       </td>
-                      <td className="num" data-label="QB hours">{q ? TP_qHours(mins) : dash}</td>
+                      <td className="num" data-label="QB hours">
+                        {qboOn && TH_monthlyNote(p.email, mins, range, hours.syncedThrough) ? (
+                          <span className="tp-muted tp-q-monthly" title="Paid monthly: QuickBooks gets this person's hours at month end.">
+                            {TH_MONTHLY_NOTE}
+                          </span>
+                        ) : q ? TP_qHours(mins) : dash}
+                      </td>
                       <td className="num tp-app-col" data-label="In app" title={TP_APP_TIP}>
                         {p.appMinutes ? TP_qHours(p.appMinutes) : dash}
                       </td>
@@ -645,9 +682,10 @@ function TP_qClientRows({ clientRows, hours, range, today }) {
     } else buckets.push(r);
   });
   (hours.avgByClient || []).forEach((r) => {
-    if (r.bucket === "client") avgById[r.client_id] = TP_qNum(r.total_minutes) / 3;
+    if (r.bucket === "client") avgById[r.client_id] = TP_qNum(r.total_minutes) / (hours.avgMonths || 3);
   });
-  const elapsed = TP_qElapsedDays(range, today);
+  // Pace counts only days that have synced (teamHoursLogic.js).
+  const elapsed = TP_qElapsedDays(range, TH_paceDay(today, hours.syncedThrough));
   const decorate = (base, q) => {
     const minutes = TP_qNum(q && q.total_minutes);
     const avgMinutes = avgById[base.id] || 0;
@@ -711,14 +749,24 @@ function TP_QTrend({ trend }) {
   return <span className="task-chip tp-q-trend">New hours</span>;
 }
 
-// profit: TP_PF_useProfit() state, passed only for admins. Without it the
-// fee, rate, cost, profit and margin columns are not rendered at all.
-function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping, profit }) {
+// profit: TP_PF_useProfit() state, passed only for an admin with the MGB
+// (internal) grant (TP_PF_canSee). Without it the fee, rate, cost, profit and
+// margin columns are not rendered at all.
+// showBudget: every admin sees the hours-budget column (hours only, no money).
+function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping, profit, showBudget: showBudgetProp }) {
   const lateOn = TK_useLateCounts();
   const showMoney = !!profit;
+  const showBudget = showMoney || !!showBudgetProp;
   const pv = (id) => TP_PF_rowView(profit, qboOn, id);
+  // Actual fee minus the confirmed pricing milestone's fee (null when either is missing).
+  const msGap = (id) => {
+    const m = pv(id);
+    const tier = profit && profit.tierFees ? profit.tierFees[id] : null;
+    if (m.fee == null || tier == null) return null;
+    return { gap: m.fee - tier, tier, same: m.feeSource === "tier_default" };
+  };
   // Hours budget (HoursBudget.jsx): admins only, always this calendar month.
-  const budgets = HB_useBudgets(showMoney);
+  const budgets = HB_useBudgets(showBudget);
   const budgetRatio = (id) => {
     const st = budgets && budgets.byClient[id];
     return st ? st.ratio : null;
@@ -746,10 +794,11 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
       name: (r) => r.name.toLowerCase(),
       // Rows with no figure sort last whichever way.
       fee: (r) => TP_PF_orLast(showMoney ? pv(r.id).fee : null, sort.dir),
+      milestone: (r) => TP_PF_orLast(showMoney && msGap(r.id) ? msGap(r.id).gap : null, sort.dir),
       cost: (r) => TP_PF_orLast(showMoney ? pv(r.id).cost : null, sort.dir),
       profit: (r) => TP_PF_orLast(showMoney ? pv(r.id).profit : null, sort.dir),
       margin: (r) => TP_PF_orLast(showMoney ? pv(r.id).margin : null, sort.dir),
-      budget: (r) => TP_PF_orLast(showMoney ? budgetRatio(r.id) : null, sort.dir),
+      budget: (r) => TP_PF_orLast(showBudget ? budgetRatio(r.id) : null, sort.dir),
     }[sort.key] || ((r) => r.qMinutes);
     return [...list].sort((a, b) => {
       const x = val(a);
@@ -761,7 +810,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
   }, [built, sort, showIdle, profit, qboOn, budgets]);
   const toggle = (key) =>
     setSort(() =>
-      sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" || key === "rate" || key === "margin" ? "asc" : "desc" },
+      sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" || key === "rate" || key === "margin" || key === "milestone" ? "asc" : "desc" },
     );
   const mark = (key) => (sort.key === key ? (sort.dir === "asc" ? " ↑" : " ↓") : "");
   const keyed = (fn) => (e) => {
@@ -776,7 +825,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
   const clientMin = built.rows.reduce((n, r) => n + r.qMinutes, 0);
   const otherMin = built.total - clientMin - unmappedMin;
   const appTotal = built.rows.reduce((n, r) => n + TP_qNum(r.appMinutes), 0);
-  const cols = (showMoney ? 15 : 9) - (lateOn ? 0 : 1);
+  const cols = 9 + (showMoney ? 6 : 0) + (showBudget ? 1 : 0) - (lateOn ? 0 : 1);
   const dash = <span className="tp-muted">–</span>;
   const leastFirst = sort.key === "margin" && sort.dir === "asc";
 
@@ -811,6 +860,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
         </div>
       </div>
       {showMoney && <TP_PF_SummaryStrip profit={profit} qboOn={qboOn} />}
+      {showMoney && <TP_PF_SheetSyncStrip profit={profit} />}
       {built.total > 0 && (
         <p className="tp-q-recon">
           <b>{TP_qHours(built.total)}</b> logged = {TP_qHours(clientMin)} on clients
@@ -832,12 +882,13 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
           ["avg", "Avg / mo"],
           ...(showMoney
             ? [
+                ["milestone", "Milestone"],
                 ["rate", "Rate"],
                 ["profit", "Profit"],
                 ["margin", "Margin"],
-                ["budget", "Budget"],
               ]
             : []),
+          ...(showBudget ? [["budget", "Budget"]] : []),
           ["name", "Name"],
         ].map(([k, l]) => (
           <button
@@ -851,7 +902,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
           </button>
         ))}
       </div>
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled tp-table">
           <thead>
             <tr>
@@ -877,6 +928,9 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                   <th className="num" title="Actual monthly fee, or the pricing tier's fee when none is set">
                     <button type="button" className="tp-sort" onClick={() => toggle("fee")}>Fee / mo{mark("fee")}</button>
                   </th>
+                  <th className="num" title="Actual monthly fee minus the fee for the client's confirmed pricing milestone. Plus means they pay more than their milestone; minus means less.">
+                    <button type="button" className="tp-sort" onClick={() => toggle("milestone")}>vs milestone{mark("milestone")}</button>
+                  </th>
                   <th className="num">
                     <button type="button" className="tp-sort" onClick={() => toggle("rate")}>Eff. rate{mark("rate")}</button>
                   </th>
@@ -889,6 +943,10 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                   <th className="num">
                     <button type="button" className="tp-sort" onClick={() => toggle("margin")}>Margin %{mark("margin")}</button>
                   </th>
+                </>
+              )}
+              {showBudget && (
+                <>
                   <th className="num" title="QuickBooks Time hours this calendar month against the client's monthly hours budget (set on the client overview). Amber from 80%, red at 100%.">
                     <button type="button" className="tp-sort" onClick={() => toggle("budget")}>Budget (this month){mark("budget")}</button>
                   </th>
@@ -938,8 +996,19 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                           {m.fee != null ? (
                             <span>
                               {fmtMoney(m.fee)}
-                              <TP_PF_FeeTag source={m.feeSource} />
+                              <TP_PF_FeeTag source={m.feeSource} review={m.feeReview} sheet={m.feeSheet} />
                             </span>
+                          ) : (
+                            "–"
+                          )}
+                        </td>
+                        <td
+                          className={"num" + (msGap(r.id) && msGap(r.id).gap < 0 ? " tp-bad" : "")}
+                          data-label="vs milestone"
+                          title={msGap(r.id) ? `Milestone fee ${fmtMoney(msGap(r.id).tier)}` : "No confirmed milestone or no fee"}
+                        >
+                          {msGap(r.id) ? (
+                            msGap(r.id).gap === 0 ? "on milestone" : `${msGap(r.id).gap > 0 ? "+" : "−"}${fmtMoney(Math.abs(msGap(r.id).gap))}`
                           ) : (
                             "–"
                           )}
@@ -959,6 +1028,10 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                         <td className="num" data-label="Margin %">
                           <TP_PF_MarginChip margin={m.margin} target={profit.target} />
                         </td>
+                      </>
+                    )}
+                    {showBudget && (
+                      <>
                         <td className="num" data-label="Budget (this month)">
                           <HB_Cell data={budgets} clientId={r.id} />
                         </td>
@@ -995,10 +1068,15 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                     {showMoney && (
                       <>
                         <td className="num tp-muted" data-label="Fee / mo">–</td>
+                        <td className="num tp-muted" data-label="vs milestone">–</td>
                         <td className="num tp-muted" data-label="Effective rate">–</td>
                         <td className="num tp-muted" data-label="Cost">–</td>
                         <td className="num tp-muted" data-label="Profit">–</td>
                         <td className="num tp-muted" data-label="Margin %">–</td>
+                      </>
+                    )}
+                    {showBudget && (
+                      <>
                         <td className="num tp-muted" data-label="Budget (this month)">–</td>
                       </>
                     )}
@@ -1225,7 +1303,7 @@ function TP_QboDrill({ spec, range, groupBy, emptyText }) {
         <p className="card-subtitle">
           {rows.length} entr{rows.length === 1 ? "y" : "ies"} in the period, as synced from QuickBooks.
         </p>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>

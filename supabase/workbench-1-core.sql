@@ -417,7 +417,7 @@ begin
   docs as (
     select 'doc:doc_upload:' || f.id::text, 'doc', 'doc_upload', f.id::text, f.id::text,
            f.client_id, a.name, null::text,
-           'New file: ' || left(coalesce(f.name, 'file'), 160),
+           'New file: ' || left(coalesce(f.display_name, f.name, 'file'), 160), -- display_name: client-page-drop-2-staff.sql
            f.doc_type,
            a.bk, (a.bk is null),
            public.tk_add_business_days((f.uploaded_at at time zone 'America/Chicago')::date, 2),

@@ -1,11 +1,10 @@
 // Client org profile + anniversary gifts: the gate, the client's shared
 // state and the API wrappers. Loads after OP_logic.js, before the OP_ .jsx.
 //
-// The gate (spec §1, preview-flag pattern): ONE resolver, OP_isOn().
-//   - a person's own preview: localStorage mgb_orgprofile_preview === "1"
-//     (Developer tools › Feature flags, "Client org profile + gifts (preview)")
-//   - OR the firm switch tk_settings.org_profile_enabled (owner-only; code never
-//     writes it). Staff read it from tk_settings here, and the last answer is
+// The gate (spec §1): ONE resolver, OP_isOn().
+//   - the firm switch tk_settings.org_profile_enabled (owner-only; code never
+//     writes it). (The personal preview box mgb_orgprofile_preview was retired
+//     2026-10-28: the switch has been on for everyone since 2026-10-25.) Staff read it from tk_settings here, and the last answer is
 //     remembered per browser in mgb_orgprofile_cache. Clients cannot read
 //     tk_settings: client_org_profile_mine() returns `enabled`, passed in as
 //     OP_isOn(enabled).
@@ -44,10 +43,6 @@ function OP__emit(name) {
   try {
     window.dispatchEvent(new Event(name));
   } catch (e) {}
-}
-
-function OP_previewOn() {
-  return OP__ls("mgb_orgprofile_preview") === "1";
 }
 
 function OP__switchValue(v) {
@@ -92,14 +87,12 @@ function OP_readSwitch(force) {
 // The one resolver. `serverEnabled` (a boolean) is the client RPC's answer;
 // staff call it with nothing and get the cached tk_settings answer.
 function OP_isOn(serverEnabled) {
-  if (OP_previewOn()) return true;
   if (typeof serverEnabled === "boolean") return serverEnabled;
   if (OP__switch.state === "idle") OP_readSwitch();
   return OP__ls("mgb_orgprofile_cache") === "1";
 }
 
-// Re-render hook for staff UI: bumps when the switch cache or the preview
-// flag changes.
+// Re-render hook for staff UI: bumps when the switch cache changes.
 function OP_useGate() {
   var s = React.useState(0);
   var bump = s[1];
@@ -156,6 +149,11 @@ var OP_api = {
   // Admin: anniversaries in the next `days` days.
   upcoming: function (days) {
     return OP__rpc("admin_upcoming_anniversaries", { p_days: days || 30 });
+  },
+  // Admin: Client since and the founding date for these clients (the gift list
+  // shows both whichever date it follows).
+  giftDates: function (clientIds) {
+    return OP__rpc("admin_gift_dates", { p_client_ids: clientIds || [] });
   },
   // Admin: which anniversary the gift list follows ("client_since" | "established").
   giftBasis: function () {
@@ -242,6 +240,10 @@ var OP_mine = (function () {
         else set({ status: "error", data: null });
       });
     },
+    // Sign-out or a different person signing in: forget the last answer.
+    reset: function () {
+      set({ status: "idle", data: null });
+    },
     // After a save: the RPC returns the fresh mine() shape.
     setData: function (data) {
       set({ status: "ready", data: data });
@@ -298,7 +300,7 @@ function OP_useNeedsItem(active) {
   return {
     key: "op-profile",
     text: "Finish your organization profile",
-    sub: "A few details so we can mark your milestones with you.",
+    sub: "A few details so we can celebrate your anniversaries with you.",
     action: "Finish",
     onClick: OP_openForm,
   };
@@ -314,14 +316,14 @@ function OP_useHelpItem(active) {
 
 // For the client tour (Tour.jsx): hold the auto-start while the prompt is
 // open, or may be about to open (mine() still loading for someone whose gate
-// is known to be on: their preview flag, or the last answer this browser saw).
+// is known to be on: the last answer this browser saw).
 function OP_promptPending() {
   try {
     if (document.getElementById("op-prompt")) return true;
   } catch (e) {}
   var st = OP_mine.get();
   if (st.status === "loading" || st.status === "idle") {
-    return OP_previewOn() || OP__ls("mgb_orgprofile_client_cache") === "1";
+    return OP__ls("mgb_orgprofile_client_cache") === "1";
   }
   return false;
 }

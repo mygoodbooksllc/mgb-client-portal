@@ -21,6 +21,12 @@ Each client gets their own folder, then a year, then a document type:
 - Renaming a client in the portal renames their Drive folder. It never makes a second folder.
 - Staff see **Open in Drive** on each Drive file's row. Clients don't.
 
+### Names and who can see a file
+
+- A file can have a portal name that differs from its Google Drive name (a client names it when they upload it, or staff **Rename** it). Drive keeps the original name; staff see it in gray under the portal name.
+- A file can be limited to some of the client's logins (**Only these people** or **Everyone except these people**). The rule lives in the portal, not in Drive: nobody gets Google access either way, and MyGoodBooks staff always see every file.
+- Download links the portal makes last 10 minutes.
+
 ### Trash and restore
 
 - The trash can on a Drive file moves it to the portal's **Trash** folder **and** to Google Drive's trash. **Restore** brings it back in both places.

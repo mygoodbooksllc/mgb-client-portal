@@ -540,8 +540,10 @@ function TK_DrawerHost(props) {
     };
     // Moving to another page closes the drawer. An arrival opens it right
     // after its own hash change, so a fresh open is left alone.
-    var onNav = function () {
+    var onNav = function (e) {
       if (!drawerIdRef.current) return;
+      // The unified search sheet's own history entry (Back closes the sheet).
+      if (e && e.type === "popstate" && window.TKS_sheetEntryLive === true) return;
       if (Date.now() - openedAt.current < 500) return;
       close();
     };

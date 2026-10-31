@@ -220,27 +220,25 @@ t("diff keeps unchanged fields out so role default changes still reach people", 
   assert.strictEqual(p.width, 250);
 });
 
-t("SS_navIsOn truth table: classic wins, then the firm switch (no personal preview)", () => {
+t("SS_navIsOn truth table: the firm switch only (no personal preview, no Classic opt-out)", () => {
   const on = L.SS_navIsOn;
-  // [setting, classic] -> result
-  assert.strictEqual(on(undefined, false), false);
-  assert.strictEqual(on(true, false), true);
+  assert.strictEqual(on(undefined), false);
+  assert.strictEqual(on(true), true);
+  // Extra arguments (the retired preview and Classic opt-out) are ignored.
   assert.strictEqual(on(undefined, true), false);
-  assert.strictEqual(on(true, true), false);
-  // A third argument (the retired preview) is ignored: the switch off stays off.
-  assert.strictEqual(on(undefined, false, true), false);
+  assert.strictEqual(on(true, true), true);
 });
 
 t("SS_navIsOn reads the setting with the Desk's value rules, and never accepts 'on'", () => {
   const on = L.SS_navIsOn;
-  assert.strictEqual(on("true", false), true);
-  assert.strictEqual(on(1, false), true);
-  assert.strictEqual(on({ on: true }, false), true);
-  assert.strictEqual(on("on", false), false);
-  assert.strictEqual(on("false", false), false);
-  assert.strictEqual(on(false, false), false);
-  assert.strictEqual(on(null, false), false);
-  assert.strictEqual(on({ on: "yes" }, false), false);
+  assert.strictEqual(on("true"), true);
+  assert.strictEqual(on(1), true);
+  assert.strictEqual(on({ on: true }), true);
+  assert.strictEqual(on("on"), false);
+  assert.strictEqual(on("false"), false);
+  assert.strictEqual(on(false), false);
+  assert.strictEqual(on(null), false);
+  assert.strictEqual(on({ on: "yes" }), false);
 });
 
 t("recents filter: excludes pins and the current client", () => {

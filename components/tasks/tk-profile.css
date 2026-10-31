@@ -1,0 +1,691 @@
+/* Slate plus person profile (TK_Profile.jsx, docs/slateplus-profile-spec.md).
+   Every rule is scoped to .tkp-* classes that only render while the Slate plus
+   gate is on, so nothing here changes the app with the preview off. */
+
+.tkp-profile {
+  max-width: 1180px;
+}
+
+.tkp-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tkp-id {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.tkp-id .tkp-avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 20px;
+  flex: 0 0 auto;
+}
+
+.tkp-id-text {
+  min-width: 0;
+}
+
+.tkp-name {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tkp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 4px;
+}
+
+.tkp-title {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.tkp-out {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.tkp-out.is-now {
+  font-weight: 600;
+}
+
+.tkp-line {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.tkp-muted {
+  color: var(--text-muted);
+}
+
+.tkp-note {
+  margin: 0 0 8px;
+  font-size: 12px;
+}
+
+/* This week at a glance: four tiles, 2x2 on phones. Late is not red (grace
+   period: late tasks do not count against anyone). */
+.tkp-glance {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.tkp-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.tkp-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  line-height: 1.1;
+}
+
+.tkp-lbl {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tkp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.tkp-main {
+  min-width: 0;
+}
+
+.tkp-h {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: var(--ink-strong);
+}
+
+/* Group heads here are labels, not toggles. */
+.tkp-profile .tkp-group .tk-group-btn {
+  cursor: default;
+}
+.tkp-profile .tkp-group .tk-group-btn::after {
+  content: none;
+}
+.tkp-profile .tkp-group .tk-group-btn:hover {
+  background: transparent;
+}
+
+.tkp-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tkp-card {
+  padding: 14px 16px;
+}
+
+.tkp-card .card-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.tkp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.tkp-list li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tkp-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+.tkp-shout-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.tkp-when {
+  font-size: 12px;
+}
+
+.tkp-shout-body {
+  margin: 2px 0 0;
+  color: var(--text);
+}
+
+/* Profile links elsewhere (row assignee, Team, shout-outs). */
+.tkp-plink {
+  color: inherit;
+  text-decoration: none;
+}
+.tkp-plink:hover,
+.tkp-plink:focus-visible {
+  text-decoration: underline;
+}
+.tkp-asg-link {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+}
+
+@media (max-width: 900px) {
+  .tkp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .tkp-glance {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tkp-id .tkp-avatar {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+  .tkp-head .tk-head-actions {
+    width: 100%;
+  }
+}
+
+/* ---- Profile 2 (TK_ProfileEdit.jsx): customization, org, teams ----------
+   Same rule as above: these render only with the Slate plus gate on. */
+
+.tkp-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.tkp-profile > .tkp2-pins {
+  margin: 12px 0 0;
+}
+.tkp-head .tk-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tkp2-header-extras {
+  margin-top: 2px;
+}
+.tkp2-status-text {
+  font-style: italic;
+}
+.tkp2-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.tkp2-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 8px;
+}
+.tkp2-head .card-title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tkp2-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.tkp2-share select,
+.tkp2-form select,
+.tkp2-form input[type="text"],
+.tkp2-form input[type="url"],
+.tkp2-form textarea,
+.tkp2-add-row select {
+  max-width: 100%;
+  min-height: 32px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  box-sizing: border-box;
+}
+.tkp2-form textarea {
+  width: 100%;
+  resize: vertical;
+}
+.tkp2-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.tkp2-status-form,
+.tkp2-zone-form {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.tkp2-status-form input[type="text"] {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.tkp2-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.tkp2-field input[type="text"],
+.tkp2-field input[type="url"],
+.tkp2-field select {
+  width: 100%;
+}
+.tkp2-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.tkp2-counter {
+  font-size: 12px;
+  color: var(--text-muted);
+  align-self: flex-end;
+}
+.tkp2-counter.is-over {
+  color: var(--warm-text);
+  font-weight: 600;
+}
+.tkp2-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.tkp2-inline input[type="text"] {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.tkp2-chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tkp2-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+a.tkp2-chip:hover,
+a.tkp2-chip:focus-visible {
+  border-color: var(--gold);
+}
+.tkp2-chip-x {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+}
+
+.tkp2-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+.tkp2-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tkp2-move {
+  display: inline-flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.tkp2-edit-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tkp2-edit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.tkp2-edit-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.tkp2-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+.tkp2-add-row select {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.tkp2-goals {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.tkp2-goals li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.tkp2-goals li input {
+  margin-top: 3px;
+}
+.tkp2-goals li.is-done label {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.tkp2-bio {
+  margin: 0 0 8px;
+  font-size: 13px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.tkp2-fav-list a {
+  color: var(--gold-deep);
+}
+
+.tkp2-sub {
+  margin: 8px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: none;
+}
+.tkp2-org-block + .tkp2-org-block {
+  margin-top: 6px;
+}
+.tkp2-only-you {
+  font-size: 12px;
+}
+
+.tkp2-backups {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.tkp2-backup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.tkp2-backup-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+.tkp2-backup-list li label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tkp2-backup-list select {
+  max-width: 100%;
+}
+
+/* Arrange sections dialog */
+.tkp2-arrange-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tkp2-arrange-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.tkp2-arrange-list li.is-hidden .tkp2-arrange-name {
+  color: var(--text-muted);
+}
+.tkp2-arrange-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.tkp2-arrange-show {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+.tkp2-arrange-hint {
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+/* Team chips. No team palette exists elsewhere, so the six colors live here
+   (dot plus a soft border; text stays --text for contrast). */
+.tkp2-teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.tkp2-team {
+  --tkp2-team: #8a8f98;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px 10px;
+  border: 1px solid var(--tkp2-team);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.tkp2-team-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tkp2-team);
+  flex: 0 0 auto;
+}
+.tkp2-team-gold { --tkp2-team: #b8892c; }
+.tkp2-team-sage { --tkp2-team: #6f8f6a; }
+.tkp2-team-sky { --tkp2-team: #4f86b5; }
+.tkp2-team-plum { --tkp2-team: #84609a; }
+.tkp2-team-rose { --tkp2-team: #b5677a; }
+.tkp2-team-slate { --tkp2-team: #6b7380; }
+.tkp2-team-more {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tkp2-team-gold { --tkp2-team: #d9ad57; }
+  :root:not([data-theme="light"]) .tkp2-team-sage { --tkp2-team: #97b892; }
+  :root:not([data-theme="light"]) .tkp2-team-sky { --tkp2-team: #82b2db; }
+  :root:not([data-theme="light"]) .tkp2-team-plum { --tkp2-team: #b592c9; }
+  :root:not([data-theme="light"]) .tkp2-team-rose { --tkp2-team: #db95a6; }
+  :root:not([data-theme="light"]) .tkp2-team-slate { --tkp2-team: #9aa2ae; }
+}
+:root[data-theme="dark"] .tkp2-team-gold { --tkp2-team: #d9ad57; }
+:root[data-theme="dark"] .tkp2-team-sage { --tkp2-team: #97b892; }
+:root[data-theme="dark"] .tkp2-team-sky { --tkp2-team: #82b2db; }
+:root[data-theme="dark"] .tkp2-team-plum { --tkp2-team: #b592c9; }
+:root[data-theme="dark"] .tkp2-team-rose { --tkp2-team: #db95a6; }
+:root[data-theme="dark"] .tkp2-team-slate { --tkp2-team: #9aa2ae; }
+
+/* Teams card on Team › People (admins) */
+.tkp2-teams-card {
+  margin-bottom: 12px;
+}
+.tkp2-team-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tkp2-teamrow {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+.tkp2-teamrow-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.tkp2-teamrow-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 10px;
+}
+.tkp2-members {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tkp2-members li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+.tkp2-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tkp2-confirm {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--warm-border);
+  background: var(--warm-bg);
+  color: var(--warm-text);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.tkp2-confirm p {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .tkp2-status-form,
+  .tkp2-zone-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tkp2-zone-form select {
+    width: 100%;
+  }
+  .tkp2-teamrow-actions {
+    margin-left: 0;
+  }
+  .tkp2-backup-list li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

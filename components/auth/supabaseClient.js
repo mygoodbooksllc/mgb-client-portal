@@ -30,6 +30,8 @@ window.MGB_VIEW_AS_READ_RPCS = new Set([
   "client_org_settings",
   "client_org_team",
   "staff_client_org_profile", // STABLE; get-to-know answers hidden in View as (OP_StaffCard)
+  "client_agreements_mine", // STABLE; client-safe columns only (Agreements.jsx)
+  "agreements_staff_perms", // STABLE; answers for the admin JWT, the card is read-only in View as
   "client_sop_status",
   "client_requests_for_client",
   "tk_client_report_state",
@@ -75,6 +77,18 @@ window.MGB_VIEW_AS_SILENT_RPCS = new Set([
   "wb_inbox",
   "sp_my_photo_status",
   "tk_project_task_counts",
+  // Slate plus "Blocked by" (STABLE, answers for the admin's own JWT). The
+  // preview is off in View as (TKP_on), so these normally never run there.
+  "tk_dep_list",
+  "tk_dep_my_notices",
+  // Slate plus profile 2 (unified search, profile card, 4-week bars): JWT "me"
+  // reads; the preview is off in View as, so these normally never run there.
+  "tk_search_prefix",
+  "tk_profile_card",
+  "tk_slateplus_workload_weeks",
+  // Slate plus custom fields (STABLE, answers for the admin's own JWT); the
+  // preview is off in View as, so this normally never runs there.
+  "tk_cf_values",
 ]);
 // The admin's own telemetry (JWT-bound server-side).
 window.MGB_VIEW_AS_WRITE_OK = new Set(["usage_events", "client_errors"]);

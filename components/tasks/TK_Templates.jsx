@@ -755,6 +755,8 @@ function TK_tplEditor(props) {
             />
           </div>
 
+          {typeof TK_tplDepStepField === "function" ? <TK_tplDepStepField templateId={d.id} /> : null}
+
           <fieldset className="tk-field tk-tpl-applies">
             <legend className="tk-field-label">Which clients</legend>
             <div className="tk-tpl-tiers">
@@ -959,7 +961,7 @@ function TK_tplResultTables(props) {
     return (
       <div className="tk-tpl-result" key={key}>
         <h4 className="tk-tpl-result-title">{caption + " (" + rows.length + ")"}</h4>
-        <div className="tk-rq-table-wrap">
+        <div className="tk-rq-table-wrap mgb-sticky-wrap">
           <table className="tk-rq-table">
             <thead>
               <tr>
@@ -2287,7 +2289,7 @@ function TK_vTemplatesBody(props) {
           <h3 className="tk-group-head" id="tk-tpl-runs-title">
             <span className="tk-group-name">Recent runs</span>
           </h3>
-          <div className="tk-rq-table-wrap">
+          <div className="tk-rq-table-wrap mgb-sticky-wrap">
             <table className="tk-rq-table">
               <thead>
                 <tr>

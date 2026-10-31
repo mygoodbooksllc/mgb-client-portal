@@ -19,6 +19,7 @@
 // ----------------------------------------------------------------------------
 
 function TK_mpKindLabel(r) {
+  if (r && r.kind === "onboarding" && typeof TKP_projectTag === "function" && typeof TKP_on === "function" && TKP_projectTag(r, TKP_on()) === "Client") return r.client_name ? "Client project for " + r.client_name : "Client";
   if (r && r.kind === "onboarding") return r.client_name ? "Onboarding for " + r.client_name : "Onboarding";
   return "Internal";
 }
@@ -189,6 +190,13 @@ function TK_mpRow(props) {
           {Number(r.open_requests) > 0 ? " · " + r.open_requests + (Number(r.open_requests) === 1 ? " client request open" : " client requests open") : ""}
         </p>
         {note ? <p className="tk-muted tk-mp-sub">{note}</p> : null}
+        {props.plus && (props.plus.desc || props.plus.due) ? (
+          <p className="tk-muted tk-mp-sub tkpf-mp-sub">
+            {props.plus.due ? <span className={"tkpf-due-text" + (props.plus.due.late ? " is-late" : "")}>{props.plus.due.text}</span> : null}
+            {props.plus.due && props.plus.desc ? " · " : ""}
+            {props.plus.desc || ""}
+          </p>
+        ) : null}
         {colorOpen && !trashed ? (
           <TK_vColorPicker
             label={"Color for " + (r.name || "project")}
@@ -250,6 +258,21 @@ function TK_vManageBody(props) {
   var tickPair = React.useState(0);
   var tick = tickPair[0];
   var setTick = tickPair[1];
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  // Store rows only while the gate is on: with it off this reads nothing and
+  // never loads projects, so Manage projects behaves exactly as before.
+  var storeProjects = TK_vUseStore(function (s) {
+    return plusOn && s ? s.projects : null;
+  });
+  React.useEffect(
+    function () {
+      if (plusOn && storeProjects == null && typeof TK_api !== "undefined" && TK_api && typeof TK_api.listProjects === "function") {
+        TK_api.listProjects().catch(function () {});
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [plusOn, storeProjects == null],
+  );
 
   React.useEffect(
     function () {
@@ -339,6 +362,22 @@ function TK_vManageBody(props) {
 
   var counts = TK_manageCounts(data.rows);
   var shown = TK_manageFilterRows(data.rows, { filter: filter, query: query });
+  // Slate plus (hidden): description and due date from the project rows the
+  // store already holds (the admin list RPC does not return them; a trashed
+  // project is not in the store, so it shows neither).
+  var plusFor = function (r) {
+    if (!plusOn || !r || typeof TKPF_dueInfo !== "function") return null;
+    var list = Array.isArray(storeProjects) ? storeProjects : [];
+    for (var i = 0; i < list.length; i++) {
+      var p = list[i];
+      if (p && p.id === r.id) {
+        var desc = typeof p.description === "string" ? p.description.trim() : "";
+        var due = TKPF_dueInfo({ due_on: p.due_on, archived_at: r.archived_at || p.archived_at }, TK_vToday());
+        return desc || due ? { desc: desc, due: due } : null;
+      }
+    }
+    return null;
+  };
   var chips = TK_MANAGE_FILTERS;
 
   var body;
@@ -362,7 +401,7 @@ function TK_vManageBody(props) {
     body = (
       <ul className="tk-mp-rows">
         {shown.map(function (r) {
-          return <TK_mpRow key={r.id} row={r} busy={busy || !online} onRename={onRename} onColor={onColor} onArchive={onArchive} onTrash={setTrashRow} onRestore={onRestore} />;
+          return <TK_mpRow key={r.id} row={r} plus={plusFor(r)} busy={busy || !online} onRename={onRename} onColor={onColor} onArchive={onArchive} onTrash={setTrashRow} onRestore={onRestore} />;
         })}
       </ul>
     );

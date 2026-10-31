@@ -1,0 +1,204 @@
+/* Slate plus Rules page (#/tasks/rules), hidden behind the Slate plus gate.
+   TK_Rules.jsx / TK_rulesLogic.js. Colors come from the shared variables
+   only, so dark mode follows. Lists reuse .tk-mp-rows / .tk-mp-row. */
+
+.tkru-gate {
+  margin: 4px 0 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--warm-border);
+  border-radius: var(--radius);
+  background: var(--warm-bg);
+  color: var(--warm-text);
+  font-size: 14px;
+}
+
+.tkru-gate.is-live {
+  border-color: var(--border);
+  background: var(--accent-soft);
+  color: var(--ink-strong);
+}
+
+.tkru-intro {
+  margin: 0 0 12px;
+  max-width: 70ch;
+}
+
+.tkru-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.tkru-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.tkru-form {
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tkru-h {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tkru-set {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tkru-row-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tkru-row-fields > .tk-select,
+.tkru-row-fields > .tk-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  max-width: 360px;
+}
+
+.tkru-row-fields > .tkru-num {
+  flex: 0 0 88px;
+}
+
+.tkru-sentence {
+  margin: 0;
+  font-style: italic;
+}
+
+.tkru-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tkru-row .tk-mp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.tkru-dry {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--hover-bg);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.tkru-dry-head {
+  margin: 0 0 6px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.tkru-dry-list,
+.tkru-run-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tkru-dry-item,
+.tkru-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 4px 0;
+  border-top: 1px solid var(--muted-line);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.tkru-dry-item:first-child,
+.tkru-run:first-child {
+  border-top: 0;
+}
+
+.tkru-dry-text,
+.tkru-run-main {
+  flex: 1 1 240px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tkru-dry-would,
+.tkru-run-detail {
+  flex: 1 1 100%;
+  font-size: 13px;
+}
+
+.tkru-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.tkru-pill.is-do,
+.tkru-pill.is-ok {
+  color: var(--good);
+  border-color: var(--good);
+}
+
+.tkru-pill.is-error {
+  color: var(--bad);
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.tkru-runs {
+  margin-top: 24px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.tkru-runs .tkru-h {
+  margin-bottom: 8px;
+}
+
+.tkru-run-when {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .tkru-row-fields > .tk-select,
+  .tkru-row-fields > .tk-input {
+    max-width: none;
+  }
+}

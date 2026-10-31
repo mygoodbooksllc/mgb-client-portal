@@ -37,12 +37,11 @@ Every client starts at 100. Points come off for each problem, and the score neve
 | Overdue document requests | 5 each, up to 15 |
 | Client waiting on a reply for over 24 hours | 10 |
 | SOP not edited or marked accurate in 180 days ("SOP not reviewed in N days"), or under half its sections filled | 5 |
-| Margin below target (admins only) | 15 |
 | Over the monthly hours budget (admins only) | 10 |
 
 **Grace period:** until the owner turns late-task counting on (**Settings › Firm settings › Late tasks**), overdue tasks take no points off, and "overdue tasks" is left out of the explanation. Overdue document requests and filing deadlines still count.
 
-Bookkeepers never see the margin or hours budget reasons, and those points aren't taken off in their view.
+Bookkeepers never see the hours budget reason, and those points aren't taken off in their view.
 
 The explanation reads: "Score out of 100 from overdue tasks, QuickBooks connection, staff activity in the last 30 days, month-end close, overdue document requests, client replies waiting, and the SOP."
 
@@ -52,7 +51,7 @@ Click **Refresh** on the card to recalculate after you've fixed something.
 
 ### Manual status override
 
-An admin can store a manual status (green, yellow or red) with a reason for a client, for example *needs follow-up on missing August bank statement*. While one is set it's shown instead of the calculated score: on **Work › Slate → By client** the card shows the note and who set it, and the client's status dot everywhere uses the override's color.
+An admin can store a manual status (green, yellow or red) with a reason for a client, for example *needs follow-up on missing August bank statement*. While one is set it's shown instead of the calculated score: the client's status dot uses the override's color, and the note shows as the dot's hover text where a client's status dot appears.
 
 There is no button for setting or clearing one in the app right now (it used to live on the old Home page). Ask an admin if a client's status looks wrong and a note needs to go with it.
 

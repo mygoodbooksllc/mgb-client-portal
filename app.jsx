@@ -636,7 +636,7 @@ function CLIENT_HomeTop({ client, access, needs: baseNeeds, onOpenMilestone, onS
           </button>
           <div className="client-org-plan">
             <span className="client-org-label">Plan</span>
-            <span>{planLabel(access.plan)}</span>
+            <span>{planLabel(access && access.plan)}</span>
           </div>
           <button type="button" className="btn-secondary btn-sm" onClick={onSeePlans}>
             See plans
@@ -650,6 +650,30 @@ function CLIENT_HomeTop({ client, access, needs: baseNeeds, onOpenMilestone, onS
 // Messages, Finances, Reports, and More → Documents, Settings.
 function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const navRef = useRef(null);
+  const moreBtnRef = useRef(null);
+  // The More menu closes on Esc (focus returns to the More button) and on a
+  // click or tap anywhere outside the bar.
+  useEffect(() => {
+    if (!moreOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setMoreOpen(false);
+        if (moreBtnRef.current) moreBtnRef.current.focus();
+      }
+    };
+    const onDown = (e) => {
+      if (navRef.current && !navRef.current.contains(e.target)) setMoreOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+    };
+  }, [moreOpen]);
   const placeOf = CLIENT_PLACE_OF_PAGE[page];
   const pagesOf = (place) =>
     place.tabs ? place.tabs.filter((k) => visibleKeys.has(k)) : visibleKeys.has(place.page) ? [place.page] : [];
@@ -658,7 +682,7 @@ function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) 
   const showDocs = pagesOf(docs).length > 0;
   const moreActive = placeOf === "documents" || placeOf === "settings";
   return (
-    <nav className="client-tabbar" aria-label="Main">
+    <nav className="client-tabbar" aria-label="Main" ref={navRef}>
       {main.map((place) => {
         const pages = pagesOf(place);
         const active = placeOf === place.key;
@@ -681,6 +705,7 @@ function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) 
       })}
       <button
         type="button"
+        ref={moreBtnRef}
         className={"client-tabbar-item" + (moreActive ? " active" : "")}
         aria-expanded={moreOpen}
         onClick={() => setMoreOpen((o) => !o)}
@@ -991,19 +1016,12 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
-    // Read by OP_previewOn / OP_isOn (components/client/OP_store.js).
-    key: "mgb_orgprofile_preview",
-    label: "Client org profile + gifts (preview)",
+    // Read by TKP_previewOn / TKP_isOn (components/tasks/TK_slatePlus.js), the one
+    // gate for the Slate plus batch (@mentions, Team load strip and siblings).
+    key: "mgb_slateplus_preview",
+    label: "Slate plus preview",
     description:
-      "Only matters while the firm-wide org_profile_enabled switch is off; it has been on for everyone since 2026-10-25, so this changes nothing today. Turns the client org profile build on for you only, in this browser, while the switch is off: the Organization profile card on a client's Overview, Team › Client gifts (real admins), the onboarding step, and the client prompt if you sign in as a test client here. Nothing emails anyone or orders gifts. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
-    // Read by TK_slateAppIsOn (components/tasks/TK_viewLogic.js) through TK_slateFlag (TK_store.js).
-    key: "mgb_slate_app_preview",
-    label: "Slate app preview",
-    description:
-      "Slate opens as its own app: full page with a detail pane, shrinks to a sliver with the current task, Open Slate app replaces Open in own window. For you only. Only matters while the firm-wide slate_app_enabled switch is off; it has been on for everyone since 2026-10-25, so this box changes nothing now.",
+      "Launched 2026-10-28: once slateplus_enabled is on, this box does nothing. Until then, for you only, in this browser, the Slate plus additions: @mentions in task comments (only people who can see the task); Slate filters and Saved filters; one search box in the top bar (Ctrl or Cmd+K); person profiles (click a name) you can customize; manager, direct reports and Teams; Team load and 4-week bars; Blocked by (a task waits on others; admin override); an icon sidebar with hover menus (wide windows); a fuller New project form; an hours vs budget chip; a Calendar view; project status updates and Portfolio; admin Rules; and custom fields (Fields on project and client headers). Staff only; clients never see it; no new emails. Off in View as. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -1011,39 +1029,15 @@ const FEATURE_FLAGS = [
     key: "mgb_rhythm_preview",
     label: "Month rhythm preview",
     description:
-      "Only matters while the firm-wide month_rhythm_enabled switch is off; it has been on for everyone since 2026-10-25, so today this changes nothing. With the switch off it turns on the Slate month rhythm work for you only, in this browser. Today it shows the MGB Month Rhythm templates and the A month rhythm date due rule on Slate › Recurring (admins can edit them there), the Full or Preliminary question when you mark a Send reports task done in the task details, the Second month in a row notices in the bell, and the Month rhythm row on a client's Settings tab (Access and details), where admins can give that client its own three days. It never makes tasks for real clients: that waits for the firm switch. The page reloads when you toggle it.",
+      "For testing while the firm-wide month_rhythm_enabled switch is off, which it has been since the owner turned it off on 2026-10-26 (held on purpose until real clients' monthly work runs in Slate). With the switch off it turns on the Slate month rhythm work for you only, in this browser. Today it shows the MGB Month Rhythm templates and the A month rhythm date due rule on Slate › Recurring (admins can edit them there), the Full or Preliminary question when you mark a Send reports task done in the task details, the Second month in a row notices in the bell, and the Month rhythm row on a client's Settings tab (Access and details), where admins can give that client its own three days. It never makes tasks for real clients: that waits for the firm switch. The page reloads when you toggle it.",
     reloads: true,
   },
   {
-    key: "mgb_lato_classic",
-    label: "Classic fonts",
+    // Read by CPD_previewOn / CPD_useStaffGate (components/client/CPD_gate.js).
+    key: "mgb_clientdrop_preview",
+    label: "Client page drop + Documents upgrades preview",
     description:
-      "Keeps the old fonts (Bitter headings, IBM Plex Sans body) for you only, in this browser, even after the owner switches Lato on for everyone. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
-    // Read by the inline script in index.html (wins over the firm switch).
-    key: "mgb_brand_classic",
-    label: "Classic colors",
-    description:
-      "Keeps the old colors and headings for you only, in this browser, even after the owner switches the brand colors on for everyone. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
-    // Read by HN_on (components/staff/HoverNav.jsx).
-    key: "mgb_hovernav_classic",
-    label: "Classic menus",
-    description:
-      "Turns the hover menus off for you only, in this browser, even after the owner switches them on for everyone: pointing at a sidebar icon opens nothing and the gray browser tooltips come back. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
-    // Read by TK_slateAppIsOn (components/tasks/TK_viewLogic.js) through TK_slateFlag (TK_store.js);
-    // wins over Slate app preview and the firm switch. Also hides the Slate app launch notice and tour.
-    key: "mgb_slate_classic",
-    label: "Classic tasks page",
-    description:
-      "Keeps Slate the way it was for you only, in this browser, even after the owner switches the Slate app on for everyone: Open in own window opens the old slim window and nothing about the Slate app shows. Wins over Slate app preview. The page reloads when you toggle it.",
+      "Launched 2026-10-31 for all clients, so this is only for trying changes early. For you only, in this browser, while the owner-only client_page_drop_enabled switch is off. On a client's Documents tab: rename files and folders, tick several rows to move, trash or restore them together, a file type tag, Who can see it on each file (read only until the switch is on for that client), Replace with a new version, Copy link and History. In View as a client login: the client page drop (drop a file anywhere, or Add a file on a phone) in a demo that never uploads, and Documents hides the files that login can't see. Staff only; clients see it when the switch is on (launched 2026-10-31, pilot all). The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -1110,6 +1104,11 @@ const INFRA_LINKS = [
     note: "tk-client-requests (staff sends, JWT on) · tk-request-respond (the public /respond answer page, JWT off; token in a header, hashed, rate-limited) · client-emails runs the client-request-nudge cron · drive-files takes portal uploads to a request · no extra secrets (RESEND_API_KEY, Google service account)",
   },
   {
+    name: "Supabase (client page drop)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/functions",
+    note: "drive-files v8 takes display_name, access_mode and access_emails (refused unless client_page_drop_enabled is on for that client) · table client_file_access (who can or can't see a file) · RPCs client_page_drop_state, client_org_logins, client_file_set_access, client_file_rename, client_file_access_history · SQL in supabase/client-page-drop-1-core.sql and client-page-drop-2-staff.sql; plan in docs/client-page-drop.md",
+  },
+  {
     name: "Supabase cron (Tasks: recurring + time-off hand-off)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/integrations/cron/jobs",
     note: "task-templates-daily (10:15 UTC) makes due tasks from active recurring templates (Asana templates stay draft/off until an admin turns one on) · tk-ooo-daily (11:00 UTC) runs tk_ooo_daily(): hands tasks back after time off; hands them off on the first day only if ooo_auto_apply = true (off by default) · logs in tk_ooo_runs (admins) · ledger tk_ooo_reassignments · switch ooo_auto_apply in tk_settings · no edge function",
@@ -1120,69 +1119,14 @@ const INFRA_LINKS = [
     note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs, signed Staff Handbook PDFs under Handbook, and Inventory exports) · service account in Supabase secrets",
   },
   {
-    name: "Supabase SQL (Tasks bulk actions + undo)",
+    name: "Supabase SQL files: see supabase/*.sql and the README",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p4-3-bulk-undo.sql (self-test: tasks-p4-3-bulk-undo-tests.sql, rolls back): table tk_undo_ops (one row per undoable action, 10 minutes, the caller's own rows older than a day are cleared on the next bulk call; RLS on, no grants) · RPCs tk_bulk_complete, tk_bulk_reopen, tk_bulk_delete, tk_bulk_update (assignee, project, due date or a due shift), up to 100 tasks, per-task skips with a reason (in review and waiting on the client are never completed) · tk_undo (same person, once, within 10 minutes; tasks changed since are left alone; unsent assignment emails are cancelled) · single ticks, deletes and reassigns use the same calls so they get an Undo too · notify_enqueue_task_assigned stays quiet for bulk, roll-forward and undo · tk_schema_version 12 · no edge function",
+    note: "Finished migrations (Tasks bulk actions + undo, close checklist, late-task grace period, Desk, manage projects, project colors, unassigned + Asana import, client org profile + gifts) are all applied; each file in supabase/ has its own -tests.sql and the README describes them. Asana import undo recipe: docs/asana-daily-import.md. Hidden or unlaunched features keep their own rows below.",
   },
   {
-    name: "Supabase SQL (Tasks close checklist)",
+    name: "Slate month rhythm SQL (slate-rhythm-1..5)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p4-2-close-checklist.sql (self-test: tasks-p4-2-close-checklist-tests.sql, rolls back): table tk_client_close_optin (per-client Create month-end tasks from the Close checklist; off by default; soft off) · staff_reminders.close_key (stamped from the template; uq_close_task, one live task per client, month and step) · tk__generate makes the five linked standard-set members (bank_feed, bank_rec, card_rec, entries, review) for opted-in clients while standard_set_live stays off, from the first close month after opt-in (or this month with Also this month) · tk_close_tick (checklist tick moves the task), sync trigger (task status ticks the item), guard client_close_items_guard_linked (raises tk_use_close_tick on a direct write to a linked item) · tk_close_optin_status, tk_set_close_optin (admin or that client's account manager) · tk_schema_version 11 · no email, no edge function",
-  },
-  {
-    name: "Supabase SQL (Late-task grace period)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-grace-period.sql (self-test: tasks-grace-period-tests.sql, rolls back): owner-only switches late_tasks_count_against_staff (default false) and late_tasks_effective_from in tk_settings · RPCs tk_late_count_from, tk_set_late_tasks_count · patches staff_performance, client_health, digest_weekly_data and tk_on_time_stats to leave late tasks out while the switch is off · weekly-admin-digest edge function redeployed to hide the overdue figure",
-  },
-  {
-    name: "Supabase SQL (Slate month rhythm setting)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/slate-rhythm-1-settings.sql (self-test: slate-rhythm-1-settings-tests.sql, rolls back): tk_settings key month_rhythm (the 4th, 14th, 24th rhythm; admin write, audited in tk_settings_audit; no row = the default) · functions tk_month_rhythm_default, tk_month_rhythm_problem (same rules as TK_rhythmLogic.js; shared vectors in TK_rhythm.fixtures.js), tk_month_rhythm (stored, default when missing, null when invalid) · trigger tk_settings_check_month_rhythm refuses an invalid value · month_rhythm_enabled added to the owner-only keys (tk__owner_only_key) · slate-rhythm-1b-label-parity.sql: label blank set and code-point length matched to JS (re-run after the first file) · no email, no edge function",
-  },
-  {
-    name: "Supabase SQL (Slate month rhythm due rule)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/slate-rhythm-2-firm-part.sql (self-test: slate-rhythm-2-firm-part-tests.sql, rolls back): new due rule type firm_part ({type, part: check_in | reports | follow_up, month_offset}) resolved as day_of_month with that part's day and the rhythm's roll · tk_due_rule_valid accepts it (every other rule gets the same answer as before; it backs the task_templates CHECK) · new tk_resolve_due(rule, start, end, rhythm) and tk__rhythm_for_client(client) (the firm rhythm today; the client override comes later) · tk__generate and tk__issue_period patched: firm_part templates make nothing until month_rhythm_enabled is on, and with no usable rhythm they are skipped with one warning · slate-rhythm-2b-issue-gate.sql (self-test slate-rhythm-2b-issue-gate-tests.sql): tk__issue_period applies the same gate for every caller, including tk_issue_missed (skip reasons rhythm_off, no_rhythm) · JS twin TK_resolveDue(rule, start, end, holidays, rhythm); shared vectors in TK_recurrence.fixtures.js · no table, no email, no edge function",
-  },
-  {
-    name: "Supabase SQL (Slate month rhythm templates)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/slate-rhythm-3-templates.sql (self-test: slate-rhythm-3-templates-tests.sql, rolls back): new columns task_templates.email_kind (request | reports | maintenance, for the email drafts that come later) and task_templates.description (copied onto each task), tk_template_sets.gate_key (standard_set_live by default; the new MGB Month Rhythm set uses month_rhythm_enabled) · seeds the eight monthly firm_part templates (source_ref month_rhythm:1_check_in to month_rhythm:8_follow_up, unique per set, so a re-run adds nothing) · tk__generate gates each set by its own gate_key (named test and internal clients pass) · tk__issue_period writes the part label to tasks.section and the template description · tk_save_template saves description · tk_settings_set_live_since stamps only the sets with that key · tk_close_optin_status leaves rhythm templates out of the close overlap count while the switch is off · nothing visible and no tasks for real clients until month_rhythm_enabled is on",
-  },
-  {
-    name: "Supabase SQL (Slate month rhythm reports + late rule)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/slate-rhythm-4-report-state.sql: table tk_report_state (client, month, none | preliminary | full, missing labels; audit tk_report_state_audit; staff write via tk_set_report_state, clients read only tk_client_report_state) · supabase/slate-rhythm-4b-daily.sql: tk_rhythm_daily() run by the pg_cron job month-rhythm-daily (10:40 UTC) closes Follow up rows with Nothing outstanding and writes tk_rhythm_notices (Second month in a row; bell plus task_batch email only with month_rhythm_enabled on) · supabase/slate-rhythm-4c-late-exclusion.sql (live for everyone): tk_late_excused keeps waiting-on-client tasks and preliminary months out of staff_performance, client_health, digest_weekly_data and tk_on_time_stats · each file has a -tests.sql self-test that rolls back",
-  },
-  {
-    name: "Supabase SQL (Slate month rhythm per-client days)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/slate-rhythm-5-client-override.sql (self-test: slate-rhythm-5-client-override-tests.sql, rolls back): column client_profile.rhythm (null = the firm rhythm; else three {key, day}) checked by tk_client_rhythm_problem · tk_month_rhythm_merge and tk__rhythm_for_client resolve client, then firm, then nothing (fail closed) for the task run and tk__issue_period · admin-only write: trigger client_profile_rhythm_guard refuses anyone else, RPC tk_set_client_rhythm · every change in client_rhythm_audit (admins read) · clients never read client_profile · no email, no edge function",
-  },
-  {
-    name: "Supabase SQL (Workbench)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/workbench-1-core.sql (self-test: workbench-1-core-tests.sql, rolls back): tables wb_item_state (snooze, per person), wb_thread_noreply (No reply needed on a client thread) and client_file_checks (Mark checked on a client upload) · RPCs wb_inbox (one ordered list: tasks, reviews, Ask client answers, client messages, Ledger flags, new client files; Mine or Everyone for admins), wb_snooze, wb_unsnooze, wb_mark_no_reply, wb_undo_no_reply, wb_mark_file_checked, wb_undo_file_checked, wb_schema_version · switches wb_enabled, wb_gl_due_bday, wb_doc_check_from in tk_settings (Tasks switches below) · client_messages and staff_reminders are in the realtime publication · no email, no edge function",
-  },
-  {
-    name: "Supabase SQL (Tasks manage projects)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p3-manage-projects.sql + tasks-p3-manage-projects-fixes.sql (task-in-trash guard, tk_project_task_counts, tk_restore_name_taken, import skips trashed projects) (self-test: tasks-p3-manage-projects-tests.sql, rolls back): tk_projects trashed_at / trashed_by / trash_expired_at and staff_reminders.trashed_with_project; RPCs tk_project_rename, tk_project_archive, tk_project_trash, tk_project_restore and admin-only tk_admin_list_projects (the Manage projects screen) · trash reuses staff_reminders.deleted_at so every list, digest and score already hides it; restore revives only the tasks the trash hid · 30 days only marks a project expired (an admin can still restore); nothing is purged · trash is refused while a task has an open Ask client request (tk_has_open_requests) · audit actions tk_project.renamed / archived / unarchived / trashed / restored / trash_expired",
-  },
-  {
-    name: "Supabase SQL (Tasks project colors)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p3-project-colors.sql (self-test: tasks-p3-project-colors-tests.sql, rolls back): tk_projects.color (ten palette keys, NOT NULL + check, backfilled round robin), guard trigger tk_projects_color_guard (assigns the least-used live color on insert, ignores a direct UPDATE), RPC tk_project_set_color (admin or project manager, refused on a trashed project, audit action tk_project.color_set), tk_admin_list_projects now returns color. The palette also lives in components/tasks/TK_viewLogic.js (TK_PROJECT_COLORS); a node test fails if the two drift. Subtasks opening in place is client-side only (store list key subtasks, localStorage mgb_tk_subs_open_v1)",
-  },
-  {
-    name: "Supabase SQL (Tasks unassigned + Asana import)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p2-10-asana-import-v2.sql: tasks can have no assignee (is_unassigned); tk_claim_task (Claim; only way a non-admin sets the assignee on an unassigned task) · tk_save_template takes assignee_email and leave_unassigned · tk_import_no_team_clients and tk_import_assign_team (admins: No team yet, Assign team; no email sent) · the import apply stays behind asana_import_apply_enabled (Tasks switches below) · ran once 2026-10-16: run 49b3186a (1132 tasks, 16 projects, 749 draft templates; roster clients from supabase/asana-import-roster-clients.sql); undo: select tk_import_asana_undo('<run id>', 'UNDO 49b3186a') · no edge function",
-  },
-  {
-    name: "Supabase SQL (Client org profile + gifts)",
-    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "Client org profile (live 2026-10-25): supabase/client-org-profile.sql and client-org-gift-basis.sql (+ -tests.sql each). RPCs client_org_profile_mine/save, staff_client_org_profile, staff_set_client_since, admin_upcoming_anniversaries, admin_gift_basis/admin_set_gift_basis, org_anniversaries_digest_count (service_role, weekly digest). Firm switch tk_settings.org_profile_enabled (owner-only, on). No email, no gift orders.",
+    note: "All applied; the feature is still switched off (tk_settings.month_rhythm_enabled is false, owner-only). Files in supabase/, each with a -tests.sql self-test that rolls back: slate-rhythm-1-settings (+ 1b label parity): tk_settings key month_rhythm, the 4th, 14th and 24th days, validated by trigger, audited · slate-rhythm-2-firm-part (+ 2b issue gate): due rule type firm_part, tk_resolve_due, tk__rhythm_for_client; firm_part templates make nothing while the switch is off · slate-rhythm-3-templates: task_templates.email_kind and description, tk_template_sets.gate_key, eight monthly templates (source_ref month_rhythm:1_check_in to 8_follow_up) · slate-rhythm-4-report-state (+ 4b daily, 4c late exclusion): tk_report_state, pg_cron job month-rhythm-daily (10:40 UTC), tk_rhythm_notices (bell plus task_batch email only with the switch on); 4c is live for everyone and keeps waiting-on-client tasks and preliminary months out of staff_performance, client_health, digest_weekly_data and tk_on_time_stats · slate-rhythm-5-client-override: client_profile.rhythm (null = firm rhythm), admin-only write, audited in client_rhythm_audit · no edge function",
   },
   {
     name: "Supabase SQL (Desk additions switch)",
@@ -1190,9 +1134,39 @@ const INFRA_LINKS = [
     note: "Desk additions (preview): supabase/owner-only-deskplus-switch.sql (+ -tests.sql, rolls back) makes tk_settings.deskplus_enabled owner-only (tk__owner_only_key). No row: missing = off. Read by components/workbench/WB_plus.js, never written by the app.",
   },
   {
+    name: "Supabase SQL (Slate plus workload)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Slate plus (launched 2026-10-28; on once the owner sets slateplus_enabled): supabase/slateplus-workload.sql (+ slateplus-workload-tests.sql, rolls back) adds the read-only RPC tk_slateplus_workload() (task counts per active staff member: open, due this week, late once late tasks count; admins and account managers see everyone, others only themselves; no task or client fields) and makes tk_settings.slateplus_enabled owner-only (tk__owner_only_key). No row: missing = off. Read by components/tasks/TK_slatePlus.js, never written by the app. Spec: docs/slateplus-workload-spec.md.",
+  },
+  {
     name: "Supabase SQL (Thread menu)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "Thread menu (preview): supabase/thread-menu.sql (+ thread-menu-tests.sql, rolls back) adds client_thread_state + client_thread_audit (staff-only RLS, no client access) and the thread_* RPCs (label, hide, restore, done, snooze, pin, assign, log task; every write audited, nothing emailed). supabase/owner-only-threadmenu-switch.sql (+ -tests.sql) makes tk_settings.threadmenu_enabled owner-only. No row: missing = off. Read by components/inbox/TM_gate.js, never written by the app.",
+  },
+  {
+    name: "Supabase SQL (Slate plus filters)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Slate plus filter bar (preview): supabase/tasks-slateplus-filter-views.sql (+ tasks-slateplus-filter-views-tests.sql, rolls back) adds tk_slate_filter_views (a person's saved filter sets: name, filters JSON, is_default; RLS active staff and own rows only, owner stamped from the login, 30 per person, one default) and the RPC tk_filter_view_set_default(id or null) (security invoker). Read and written only by components/tasks/TK_FilterBar.jsx when TKP_on(). Clients and anon have no access.",
+  },
+  {
+    name: "Supabase SQL (Slate plus mentions)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Slate plus @mentions (preview): supabase/slateplus-mentions.sql (+ slateplus-mentions-tests.sql, rolls back) adds the read-only RPC tk_mention_candidates(task) (active staff who will see a mention: can read the task, internal company tasks only admins with internal access; staff only, anon has no execute). tk_settings.slateplus_enabled is owner-only (tk__owner_only_key). No row: missing = off. Read by components/tasks/TK_slatePlus.js, never written by the app. tk_parse_mentions, the comment triggers and the staff_task_mention email are unchanged.",
+  },
+  {
+    name: "Supabase SQL (Slate plus Blocked by)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Slate plus task dependencies (preview): supabase/slateplus-deps.sql (+ slateplus-deps-tests.sql, rolls back) adds tk_task_deps (task waits on blocker), tk_dep_events (add, remove, override, template_link log; admins read) and tk_dep_notices (one Ready to start row per task and assignee; own rows only), task_templates.dep_step (null = not chained, every existing template), the RPCs tk_dep_add / tk_dep_remove / tk_dep_override (admins, reason logged) / tk_dep_list / tk_dep_my_notices / tk_set_template_dep_step (admins), and three staff_reminders triggers (zdeps_guard refuses start or finish while a blocker is open, zdeps_ready writes the notice, zdeps_wire links template tasks to the step before) that do nothing while no dependency rows exist; template wiring runs only for templates with a step set (none today). tk__bulk_reason gains 'blocked'. Staff only, anon has no execute; client task lists and Ask client never read these tables. No email.",
+  },
+  {
+    name: "Supabase SQL (Slate plus Rules)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Slate plus Rules (preview): supabase/slateplus-rules.sql (applied 2026-10-28 as slateplus_rules; + slateplus-rules-tests.sql, rolls back) adds tk_rules (When/then rules per project or client; enabled defaults false, switching on is owner only) and tk_rule_runs (what each rule did; unique per rule, task and change), AFTER triggers tk_staff_reminders_zrules / _zrules_ins on staff_reminders and the daily cron tk-rules-overdue-daily (11:50 UTC). Nothing runs while tk_settings.slateplus_enabled is off. RPCs tk_rule_save, tk_rule_set_enabled, tk_rule_archive, tk_rule_dry_run (writes nothing), tk_rule_recent_runs; full admins only. Page TK_Rules.jsx, rules TK_rulesLogic.js. Spec: docs/slateplus-rules-spec.md.",
+  },
+  {
+    name: "Supabase SQL (Slate plus custom fields)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Slate plus custom fields (preview): supabase/slateplus-customfields.sql (+ slateplus-customfields-tests.sql, rolls back) adds tk_custom_fields (up to 15 active per project or client; text, number, dropdown, date, checkbox, person) and tk_custom_field_values (one per field and task, checked by a trigger), with RPCs tk_cf_field_save, tk_cf_field_archive, tk_cf_field_order, tk_cf_value_set and tk_cf_values. Read follows the task and project rules; project owners and admins manage project fields, admins client fields; anyone who can edit a task sets its values. Nothing is ever deleted (archive, retired options). Staff only, nothing for anon. Spec: docs/slateplus-customfields-spec.md.",
   },
   {
     name: "Intuit developer (QuickBooks)",
@@ -2016,6 +1990,22 @@ function Sidebar({
       {client && !NON_CLIENT_PAGES.has(page) && !(access && access.isCategoryScoped) && !collapsed && (
         <div className="sidebar-ms-row">
           <MilestoneBadge
+            client={client}
+            staff={viewingAsStaff}
+            onOpen={() => {
+              onSelectPage("milestone");
+              if (onCloseMobile) onCloseMobile();
+            }}
+          />
+        </div>
+      )}
+
+      {/* Collapsed (icon-only) sidebar: just the medal, with a gold dot when
+          there is a note to read. Opens the Milestone page like the pill. */}
+      {client && !NON_CLIENT_PAGES.has(page) && !(access && access.isCategoryScoped) && collapsed && (
+        <div className="sidebar-ms-row sidebar-ms-compact">
+          <MilestoneBadge
+            compact
             client={client}
             staff={viewingAsStaff}
             onOpen={() => {
@@ -4885,7 +4875,7 @@ function ScopedDashboardPage({
                   <p className="card-subtitle">
                     Budgeted vs. actual, current month
                   </p>
-                  <div className="table-scroll">
+                  <div className="table-scroll mgb-sticky-wrap">
                     <table className="budget-table tx-table-labeled">
                       <thead>
                         <tr>
@@ -5410,7 +5400,7 @@ function MilestoneStatusNote({ s, staff }) {
 // Opens the Milestone page. A change the numbers point to (or, for staff, an
 // unset milestone) shows as a small note on its own line under the badge, so
 // it never pushes past the sidebar.
-function MilestoneBadge({ client, staff, onOpen }) {
+function MilestoneBadge({ client, staff, onOpen, compact }) {
   const { byId } = useMilestones([client.id]);
   // Same hover label as the sidebar's (.icon-hover-tip), not the browser's
   // native title tooltip.
@@ -5463,7 +5453,11 @@ function MilestoneBadge({ client, staff, onOpen }) {
     <React.Fragment>
     <button
       type="button"
-      className={"ms-badge" + (note && note.kind !== "staff" ? " ms-badge-noted" : "")}
+      className={
+        "ms-badge" +
+        (compact ? " ms-badge-compact" : "") +
+        (note && note.kind !== "staff" ? " ms-badge-noted" : "")
+      }
       onClick={() => {
         hideTip();
         onOpen();
@@ -5486,23 +5480,26 @@ function MilestoneBadge({ client, staff, onOpen }) {
           />
         </svg>
         <span className={"ms-badge-roman" + (cur.roman.length > 2 ? " long" : "")}>{cur.roman}</span>
+        {compact && note && <span className="ms-badge-dot" aria-hidden="true" />}
       </span>
-      <span className="ms-badge-text">
-        <span className="ms-badge-kicker">Milestone</span>
-        <span className="ms-badge-name">{cur.name}</span>
-      </span>
+      {!compact && (
+        <span className="ms-badge-text">
+          <span className="ms-badge-kicker">Milestone</span>
+          <span className="ms-badge-name">{cur.name}</span>
+        </span>
+      )}
       {tipRect &&
         ReactDOM.createPortal(
           <div
             className="icon-hover-tip icon-hover-tip-wrap"
             style={{ top: tipRect.top + tipRect.height / 2, left: tipRect.right + 10 }}
           >
-            {tipText}
+            {compact ? `${cur.churchPlant ? cur.name : `${cur.roman} · ${cur.name}`}${note ? `. ${note.text}` : ""}` : tipText}
           </div>,
           document.body,
         )}
     </button>
-    {note && (
+    {note && !compact && (
       <button
         type="button"
         className={"ms-badge-note ms-badge-note-" + note.kind}
@@ -5893,7 +5890,7 @@ const CLOSE_STEPS_EVENT = "mgb:close-steps-context";
 // Fired after any sign-off RPC (and by the Ledger tab) so the Close tab,
 // checklist and counts reload.
 const GL_REVIEW_EVENT = "mgb:gl-review-changed";
-// Workbench (components/workbench/WB_store.js) refetches on this: a client
+// Desk (components/workbench/WB_store.js) refetches on this: a client
 // file was trashed or restored on Documents, so "New file" rows stay true.
 function WB_filesChanged(clientId) {
   try {
@@ -6993,7 +6990,8 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact, ch
     } catch (e) {
       const code = e && e.code;
       if (code === "tk_schema_missing" || code === "PGRST202" || code === "42883") return null;
-      showToast(code === "tk_offline" ? "You're offline. Try again when you're back." : code === "tk_forbidden" ? "You can't change this client's checklist." : "Couldn't save that.");
+      const blocked = (e && e.reason === "tk_blocked") || /tk_blocked/.test(String((e && e.message) || ""));
+      showToast(code === "tk_offline" ? "You're offline. Try again when you're back." : code === "tk_forbidden" ? "You can't change this client's checklist." : blocked ? "This task is waiting on another task to finish." : "Couldn't save that.");
       return { done: null };
     }
   }
@@ -8265,7 +8263,7 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
 
         <OV_Card
           anchor="ov-profit"
-          title="Profitability · this month"
+          title="Hourly rate · this month"
           to={{ place: "team", tab: "hours", client: cid }}
           className="ov-stat"
           noLk
@@ -8286,8 +8284,8 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
               <span>Target rate</span>
               <span>{target != null ? `${fmtMoney(target)}/h` : "Not set"}</span>
             </li>
-            {/* Fee, cost, profit, margin: admins only (TeamProfit.jsx). */}
-            {staffUser && staffUser.role === "admin" && typeof TP_PF_OverviewLines === "function" && (
+            {/* Fee, cost, profit, margin: internal-only, an admin with the MGB (internal) grant (TeamProfit.jsx). */}
+            {typeof TP_PF_canSee === "function" && TP_PF_canSee(staffUser) && typeof TP_PF_OverviewLines === "function" && (
               <TP_PF_OverviewLines clientId={client.id} qboOn={data.qbMinutes != null} from={monthStart} to={todayLocal()} />
             )}
             {/* Hours budget: admins only (HoursBudget.jsx). */}
@@ -8584,7 +8582,7 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
           </OV_Card>
 
           {/* Client org profile (components/client/OP_StaffCard.jsx). Renders
-              nothing unless OP_isOn() (firm switch or preview). */}
+              nothing unless OP_isOn() (the firm switch). */}
           {typeof OP_StaffCard === "function" && <OP_StaffCard client={client} />}
 
           <OV_Card
@@ -8886,7 +8884,8 @@ function StaffQuickActions({ client, onNavigate, only, onMessage, headless }) {
     showToast(done);
     setModal(null);
     notifyStaffTools();
-    if (modal === "task" && window.mgbRefreshStaffItems) window.mgbRefreshStaffItems();
+    // staffItemsApi.add already fired STAFF_ITEMS_CHANGED_EVENT, which reloads
+    // TB_useMyItems (search, bell, badge), so nothing else to refresh here.
   }
   const titles = { task: "Add a task", request: "Request a document", note: "Add a note" };
   const canSubmit = (f.text || "").trim().length > 0;
@@ -9508,7 +9507,7 @@ function BudgetPage({ client, searchTarget }) {
         >
           <h3 className="card-title">Spending by Category</h3>
           <p className="card-subtitle">Budgeted vs. actual, current month</p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="budget-table tx-table-labeled">
               <thead>
                 <tr>
@@ -9685,7 +9684,7 @@ function ContributionsCard({ client, subtitle, contributions, title, emptyText, 
           <p className="card-subtitle">{subtitle || "Individual gifts and grants received"}</p>
         </>
       )}
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-stack tx-stack-giving">
           <thead>
             <tr>
@@ -10243,7 +10242,7 @@ function FundAccountingProPage({ client, qbo, plan, isStaff }) {
             between funds aren&rsquo;t synced from QuickBooks, so they
             aren&rsquo;t listed here.
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -10286,7 +10285,7 @@ function FundAccountingProPage({ client, qbo, plan, isStaff }) {
           <p className="card-subtitle">
             Transfers between funds, with the reason for each move
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -10332,7 +10331,7 @@ function FundAccountingProPage({ client, qbo, plan, isStaff }) {
               ? " · every pledge is fulfilled"
               : ""}
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -10436,7 +10435,7 @@ function FundAccountingProPage({ client, qbo, plan, isStaff }) {
             </button>
             </div>
           </div>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -10647,7 +10646,7 @@ function RP_OpenItemsTable({ kind, items, today }) {
           </select>
         </div>
       )}
-      <div className="table-scroll">
+      <div className="table-scroll mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled">
           <thead>
             <tr>
@@ -11178,7 +11177,7 @@ function PayrollDetail({ client }) {
         >
           <h3 className="card-title">Tax deposits</h3>
           <p className="card-subtitle">Federal and state, current quarter</p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -11226,7 +11225,7 @@ function PayrollDetail({ client }) {
             Rate, YTD pay, and withholding are on the Payroll YTD report under
             Reports
           </p>
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -11538,7 +11537,7 @@ function ReconciliationPanel({ client, initialAccountId }) {
             Download Reconciliation Report
           </button>
         </div>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table
             className="tx-table tx-table-labeled"
             style={{ marginTop: 16 }}
@@ -11602,7 +11601,7 @@ function ReconciliationPanel({ client, initialAccountId }) {
             No prior periods closed yet for this account.
           </p>
         ) : (
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -13163,7 +13162,7 @@ function BudgetingToolPage({ client }) {
           Adjust proposed amounts for next period. This year's actual is shown
           for reference.
         </p>
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>
@@ -13639,7 +13638,7 @@ function APCommandCenterPage({ client }) {
           </div>
         </div>
 
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>
@@ -14094,25 +14093,31 @@ function resettableLocalStorageKeys() {
     // sidebar choice mgb_rail_expanded:<email>, and the L1 left sidebar's
     // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
     // mgb_tk_slate_view_v1:<email> / :desk:<email>, and Slate Settings mgb_tk_prefs_v1:<email>: quick keys, density, open in, show older). Feature flags are kept on purpose, including
-    // the ones without the mygoodbooks_ff_ prefix (mgb_wb_classic,
-    // mgb_lato_classic, mgb_brand_classic, mgb_hovernav_classic, mgb_rhythm_preview,
-    // mgb_slate_app_preview, mgb_slate_classic, mgb_nav_classic). The retired personal previews
+    // the ones without the mygoodbooks_ff_ prefix (mgb_wb_classic, mgb_rhythm_preview,
+    // mgb_deskplus_preview, mgb_threadmenu_preview, mgb_slateplus_preview). The retired personal previews
     // (mgb_wb_preview, mgb_nav_preview, mgb_lato_preview, mgb_brand_preview, mgb_hovernav_preview,
-    // retired 2026-10-25 once their firm switches were on for everyone) are no longer flags and nothing
+    // retired 2026-10-25, and mgb_slate_app_preview, mgb_orgprofile_preview plus the Classic opt-outs
+    // mgb_lato_classic, mgb_brand_classic, mgb_hovernav_classic, mgb_nav_classic, mgb_slate_classic,
+    // retired 2026-10-28, all once their firm switches were on for everyone) are no longer flags and nothing
     // reads them; a stale copy in a browser is cleared by Reset local state like any other mgb_ key. The Slate app's own keys (all start with mgb_ so Reset local state
-    // clears them; none holds anything but a per-browser convenience): mgb_slate_app_preview (a flag, kept),
-    // mgb_slate_classic (opt-out, a flag, kept), mgb_slate_cache (the firm switch as last read, set by index.html, cleared by Reset), mgb_rhythm_cache (month_rhythm_enabled as last read, set by index.html in the same read; TK_rhythmEnabled and the month-rhythm-launch notice use it until TK_rhythmLoad reads the switch; cleared by Reset), mgb_slate_installed_v1 (set when the app is installed),
+    // clears them; none holds anything but a per-browser convenience): mgb_slate_cache (the firm switch as last read, set by index.html, cleared by Reset), mgb_rhythm_cache (month_rhythm_enabled as last read, set by index.html in the same read; TK_rhythmEnabled and the month-rhythm-launch notice use it until TK_rhythmLoad reads the switch; cleared by Reset), mgb_slate_installed_v1 (set when the app is installed),
     // mgb_tk_slate_base_v1 (the Default saved-view baseline), mgb_tk_manual_v1 (Manual order on or off per list),
     // mgb_tk_layout_v1 (List or Board per list, P1), and sessionStorage mgb_slate_size_miss_v1 (size presets hidden
     // this session after a resize miss; sessionStorage is not touched by Reset).
-    // Client org profile (hidden preview): mgb_orgprofile_preview (a flag, kept),
-    // mgb_orgprofile_cache (the firm switch as last read by OP_store, cleared by Reset),
+    // Client org profile (live): mgb_orgprofile_cache (the firm switch as last read by OP_store, cleared by Reset),
     // mgb_orgprofile_client_cache (a client's last-known gate, holds the client tour; cleared by Reset),
     // and sessionStorage mgb_op_later:<email> (the client's "Later" for this sign-in; not touched by Reset).
     // Desk additions (hidden preview): mgb_deskplus_preview (a flag, kept),
     // mgb_deskplus_cache (the firm switch deskplus_enabled as last read by WB_plus.js, cleared by Reset).
+    // Slate plus (hidden preview): mgb_slateplus_preview (a flag, kept),
+    // mgb_slateplus_cache (the firm switch slateplus_enabled as last read by TK_slatePlus.js, cleared by Reset),
+    // mgb_slateplus_workload_v1 (Team load strip collapsed, cleared by Reset),
+    // mgb_tkrail_v1:<person key> (icon sidebar's pinned lists panel and section, TK_SlateRail.jsx; cleared by Reset).
+    // Client agreements: mgb_ag_seen_card_v1 (set when a staff member first sees a client's Agreements card; holds the launch notice; cleared by Reset).
     // Thread menu (hidden preview): mgb_threadmenu_preview (a flag, kept),
     // mgb_threadmenu_cache (the firm switch threadmenu_enabled as last read by TM_gate.js, cleared by Reset).
+    // Client page drop (hidden preview): mgb_clientdrop_preview (a flag, kept),
+    // mgb_clientdrop_cache (client_page_drop_enabled + pilot as last read by CPD_gate.js, cleared by Reset).
     return Object.keys(localStorage).filter(
       (k) =>
         (k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_")) &&
@@ -14417,8 +14422,8 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
     }
     showToast(
       allowed
-        ? `${row.name} can now open MGB (internal).`
-        : `${row.name} can no longer open MGB (internal).`,
+        ? `${row.name} can now open MGB (internal) and see client profitability.`
+        : `${row.name} can no longer open MGB (internal) or see client profitability.`,
     );
     loadInternalGrants();
   }
@@ -14954,7 +14959,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
         </h3>
         {list.length === 0 && <p className="card-subtitle">{grp.empty}</p>}
         {list.length > 0 && (
-          <div className="table-scroll">
+          <div className="table-scroll mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
@@ -14967,7 +14972,11 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                   <th>Active</th>
                   <th>Clients</th>
                   <th>Temp admin access</th>
-                  {isInternalOwner && <th>MGB (internal)</th>}
+                  {isInternalOwner && (
+                    <th title="Opens MGB (internal) and every fee, staff cost rate, cost and margin figure (client profitability).">
+                      MGB (internal)
+                    </th>
+                  )}
                   <th></th>
                   <th></th>
                 </tr>
@@ -15014,10 +15023,9 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                       )}
                       <td data-label="Email">{row.email}</td>
                       <td data-label="Birthday">
-                        {typeof ST_DateInput === "function" ? (
-                          <ST_DateInput
+                        {typeof ST_MonthDayInput === "function" ? (
+                          <ST_MonthDayInput
                             value={(profiles[row.email] || {}).birthday}
-                            max={new Date().toISOString().slice(0, 10)}
                             disabled={readOnly}
                             ariaLabel={`Birthday for ${row.name}`}
                             onSave={(v) => updateProfile(row, { birthday: v })}
@@ -15157,7 +15165,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                                 type="checkbox"
                                 checked={!!internalGrants[String(row.email).toLowerCase()]}
                                 disabled={internalBusyId === row.id || !row.active}
-                                aria-label={`Let ${row.name} open MGB (internal)`}
+                                aria-label={`Let ${row.name} open MGB (internal) and see client profitability`}
                                 onChange={(e) => toggleInternalAccess(row, e.target.checked)}
                               />
                               <span>
@@ -15644,17 +15652,22 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply. The one-time import ran 2026-10-16. From 2026-10-25 to 2026-11-24 the daily Asana import (scripts/asana-import/dailyImport.js, runbook docs/asana-daily-import.md) turns it on only inside its own apply transaction and off again in the same transaction, so it reads Off here between runs; if a run finds it already on, the run stops without touching it. Never turn it on by hand while the daily runs continue. Undo works with it off."],
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more)."],
             ["threadmenu_enabled", "Message thread menu for all staff (owner only)", "Off = only people with the Thread menu preview flag see it. Off (or missing, the default) keeps Messages and the Desk Inbox exactly as they are: no right-click menu or ⋯ on threads, no Done, Snoozed or Hidden chips, no thread tags. Owner turns it on (true) from the SQL editor (override first; see the README Thread menu launch checklist), never from here. Never shown to clients; off in View as."],
+            ["slateplus_enabled", "Slate plus for all staff (owner only)", "Launched 2026-10-28 (label 2026-10-28w): the guide articles are already synced (they describe Slate plus on, so flip promptly); the slate-plus next-visit notice, the Slate plus tour and its tips appear for everyone once this is true. True turns Slate plus on for every staff member. Off = only people with the Slate plus preview flag see it. Off (or missing, the default) keeps Slate exactly as it is for everyone: task comment @mentions work as before (full @ list, no note after posting, no highlight of your own name), the Slate page keeps its own search box and client filter (no filter bar, no Saved filters, no top-bar search across clients, tasks, projects and people), and there is no Team load or 4-week bars anywhere (Slate, Team › People or profiles). No person profiles (#/tasks/person/<key>), no profile links on assignees, Team or shout-outs, no separate reassign button, no profile customization, manager or direct reports view, and no Teams card on Team › People (saved profile settings and teams stay stored, unseen). No Blocked by section, chip, Blocked group, Close order step or Ready to start notice (dependencies someone added with the preview still hold their task until done or removed). Slate keeps its text sidebar (no icon rail, hover menus or lists panel). No hours used / budget chip beside a client or in the Assign to menu. No Calendar button (month grid of tasks by due date) on Slate lists. No project status updates on project pages and no Portfolio page (#/tasks/portfolio); updates already posted stay stored, unseen. No Rules page (#/tasks/rules) and no rule ever runs, switched on or not; saved rules stay stored, unseen. No Fields button on project or client headers, no custom field rows in task details and no field chips on rows (fields and values already saved stay stored, unseen). The New project form stays as it is (no people, client, color, description, due date, Start from or visibility summary; descriptions and due dates already saved stay stored, unseen). Owner turns it on (true) from the SQL editor (override first; see the README Slate plus launch checklist), never from here. Never shown to clients; off in View as; Team load is read only (admins and account managers see everyone's load, others only their own)."],
             ["deskplus_enabled", "Desk additions for staff", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk exactly as it is for everyone: no Ledger chip in the Inbox, no Waiting on client, recent messages or recent files on the Client tab, no Ask client or Message buttons there, and no Ask client…, Message… or Time off in the + menu. Owner turns it on (true) from the SQL editor (override first; see the README Desk additions launch checklist), never from here, to give those to every staff member who has the Desk. Each person can try it early with Desk additions preview in Feature flags. Needs the Desk on (wb_enabled, unless the person picked Classic Today)."],
-            ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Each person can try it early with Client org profile + gifts (preview) in Feature flags. Nothing emails clients and nothing orders gifts either way."],
-            ["org_gift_basis", "Client gifts: anniversary to follow", "Which anniversary Team › Client gifts and the weekly digest follow, for the whole firm: client_since (Client since, the default; not set means this) or established (the founding date, with Client since for clients whose founding date is Not sure or blank). Admins change it on Team › Client gifts › Anniversary to follow (every change audited; the database refuses any other value)."],
-            ["slate_app_enabled", "Slate app on for staff", "On since 2026-10-25 (launched for Monday 2026-10-26): every staff member gets the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app), plus the launch notice and tour. Owner-only, set with one SQL line, never from here; read-only here. Each person can opt out with Classic tasks page in Feature flags. Off (or missing) would put Slate back the way it was for everyone (Open in own window opens the old small window) right away."],
-            ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize gear in the left sidebar, plus the Alerts section for real admins. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
-            ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). Each person can opt out with Classic fonts in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the look for every staff member right away, so do it only at launch."],
-            ["brand_enabled", "Brand colors for everyone", "Off (or missing, the default) keeps the current colors and headings for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to the brand guide's navy and dark teal with Montserrat headings. Each person can opt out with Classic colors in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the look for every staff member right away, so do it only at launch."],
-            ["hovernav_enabled", "Hover menus for everyone", "Off (or missing, the default) keeps the sidebars as they are for everyone. Owner turns it on (true) with one SQL line, never from here, to open a small menu of tabs when you point at a sidebar icon (Work, Team, HR, Finances) and to replace the gray browser tooltips with themed ones. Each person can opt out with Classic menus in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the sidebars for every staff member right away, so do it only at launch."],
+            ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Nothing emails clients and nothing orders gifts either way."],
+            ["client_page_drop_enabled", "Client page drop + who can see a file (owner only)", "Launched 2026-10-31: on (true) with the pilot set to \"all\". Off (or missing): clients drop files only on Documents and Basic Home as before, every file is seen by everyone at the client, and drive-files refuses any who-can-see rule. Staff with the Client page drop preview flag try it alone (View as is a demo that never uploads). Owner sets it with one SQL line, never from here, together with client_page_drop_pilot: when on, then those clients can drop a file anywhere in the portal (Add a file on phones), name it, pick a folder and type, and choose Everyone, Only these people or Everyone except; staff Documents get the upgrades for everyone. Off again: the rules already saved still apply, no new ones can be set."],
+            ["client_page_drop_pilot", "Client page drop: which clients", "Launched 2026-10-31 with \"all\". Owner only. \"all\" or a list of client ids. Missing or empty = no client, even with the switch on. Read by the database (cpd__on) and by the portal; code never writes it."],
+            ["client_upload_notify_enabled", "Email the account manager on a client upload", "Off (or missing, the default; not set at the 2026-10-31 launch unless the owner asked): a client's upload shows only in the Desk Inbox New file list. On (true): the client's account manager also gets the usual \"added a document\" email, only for clients the client page drop is on for, only for uploads by a client login. Owner sets it; never from here."],
+            ["agreements_client_enabled", "Client agreements on for clients", "Off (or missing, the default): clients see no Agreements card at all; staff still add and edit agreements on each client's Documents tab, and the card there says clients don't see them yet. Owner turns it on (true) with one SQL line, never from here: then each client sees, read only, the agreements staff marked Visible to client (never the staff note). Off again hides them. Nothing is emailed and nothing can be signed either way."],
+            ["org_gift_basis", "Client gifts: anniversary to follow", "Which anniversary Team › Client gifts and the weekly digest follow, for the whole firm: established (the founding date, the default; not set means this; Client since is used for clients whose founding date is Not sure or blank) or client_since (Client since, when an admin picks it). Admins change it on Team › Client gifts › Anniversary to follow (every change audited; the database refuses any other value)."],
+            ["slate_app_enabled", "Slate app on for staff", "On since 2026-10-25 (launched for Monday 2026-10-26): every staff member gets the Slate app (own page at /slate, a detail pane on wide windows, a sliver for the current task, Open Slate app), plus the launch notice and tour. Owner-only, set with one SQL line, never from here; read-only here. Off (or missing) would put Slate back the way it was for everyone (Open in own window opens the old small window) right away."],
+            ["nav_enabled", "Left sidebar for staff", "Off (or missing, the default) keeps the staff rail as it was for everyone. Owner turns it on (true) with one SQL line, never from here, to give every staff member Pinned and Recent clients and a Customize button (sliders icon) in the left sidebar, plus the Alerts section for real admins. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true turns the sidebar on for every staff member right away, so do it only at launch."],
+            ["lato_enabled", "Lato font for everyone", "Off (or missing, the default) keeps Bitter headings and IBM Plex Sans body text for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to Lato (numbers keep their monospace font). If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the look for every staff member right away, so do it only at launch."],
+            ["brand_enabled", "Brand colors for everyone", "Off (or missing, the default) keeps the current colors and headings for everyone. Owner turns it on (true) with one SQL line, never from here, to switch the whole app to the brand guide's navy and dark teal with Montserrat headings. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the look for every staff member right away, so do it only at launch."],
+            ["hovernav_enabled", "Hover menus for everyone", "Off (or missing, the default) keeps the sidebars as they are for everyone. Owner turns it on (true) with one SQL line, never from here, to open a small menu of tabs when you point at a sidebar icon (Work, Team, HR, Finances) and to replace the gray browser tooltips with themed ones. If it is ever turned off again, it is off for everyone (there is no personal preview any more). Setting it to true changes the sidebars for every staff member right away, so do it only at launch."],
             ["layout_defaults", "Sidebar defaults by role", "What each role (admin, account manager, bookkeeper, temp admin) sees in the left sidebar until they customize it. Admins edit it in Settings › Firm settings › Sidebar defaults (shown once the sidebar is on). Not set means the built-in layout."],
             ["month_rhythm", "Month rhythm (Slate)", "The three days each month when Slate's monthly tasks come due: Check in, Send reports, Follow up, and what happens on a weekend or firm holiday. Admins edit it on Settings › Firm settings › Month rhythm (every change audited; the database refuses an invalid value). Not set means 4th, 14th, 24th, next business day. A client can have its own three days (client Settings tab, admins only); labels and the weekend rule stay firm-wide."],
-            ["month_rhythm_enabled", "Month rhythm tasks on for everyone", "On since 2026-10-25 (the owner turned it on for the Monday 2026-10-26 launch; index.html caches it as mgb_rhythm_cache). Off (or missing): the daily task run makes nothing from the eight MGB Month Rhythm templates for real clients (test and internal clients still get them from Make due tasks now), the month-rhythm-daily job sends no emails, and Slate › Recurring hides them unless you have Month rhythm preview on. Turning it on stamps the set's live_since, so only dates from that day on are made. Owner-only; set with one SQL line, never from here. Each person can try the work early with Month rhythm preview in Feature flags."],
+            ["month_rhythm_enabled", "Month rhythm tasks: OFF (held on purpose)", "OFF, held on purpose: owner decision 2026-10-26 (tk_settings.month_rhythm_enabled = false; it was on at the 2026-10-25 launch, off again about three hours into 2026-10-26; see tk_settings_audit). Only test clients are working in Slate so far, and the owner did not want hundreds of unneeded tasks made for the 62 roster clients. It stays off until real clients' monthly work runs in Slate. Off (or missing): the daily task run makes nothing from the eight MGB Month Rhythm templates for real clients (test and internal clients still get them from Make due tasks now), the month-rhythm-daily job sends no emails, and Slate › Recurring hides the templates unless you have Month rhythm preview on. On: the run makes them for every client, dated from the day it is turned on (it stamps the set's live_since, so earlier months are not filled in), and the emails and bell notices start. What is live regardless: the Group by 4th/14th/24th sort in My Tasks, and the late rule. Weekend rule: a due date on a weekend or firm holiday rolls to the business day before. There is no pilot gate yet; a small one (1-2 real clients) could be built if the owner wants to pilot. index.html caches the switch as mgb_rhythm_cache. Owner-only: set with one SQL line using the mgb.tk_owner_override setting, never from here."],
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
             ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Slate › Recurring › One client; off by default. Works while the standard close set is off."],
@@ -15823,7 +15836,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             <p className="card-subtitle">No scheduled jobs found.</p>
           )}
           {jobs && jobs.length > 0 && (
-            <div className="dt-table-wrap">
+            <div className="dt-table-wrap mgb-sticky-wrap">
               <table className="dt-table">
                 <thead>
                   <tr>
@@ -15923,7 +15936,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             <p className="card-subtitle">No errors reported. Good.</p>
           )}
           {clientErrors && clientErrors.length > 0 && (
-            <div className="dt-table-wrap">
+            <div className="dt-table-wrap mgb-sticky-wrap">
               <table className="dt-table">
                 <thead>
                   <tr>
@@ -16024,20 +16037,6 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
                   {staffReadOk === false
                     ? `Failing — ${staffReadError}`
                     : staffReadOk
-                      ? "OK"
-                      : "Checking…"}
-                </dd>
-              </div>
-              <div>
-                <dt>Audit log read</dt>
-                <dd
-                  className={
-                    auditError ? "negative" : auditRows ? "positive" : ""
-                  }
-                >
-                  {auditError
-                    ? "Failing — run staff-audit-log.sql"
-                    : auditRows
                       ? "OK"
                       : "Checking…"}
                 </dd>
@@ -16961,6 +16960,7 @@ function StaffTeamThread({ chat, hideTitle }) {
   return (
     <div
       className={"card message-card" + (isDragging ? " dragging" : "")}
+      data-drop-owner="messages"
       onDragOver={(e) => {
         e.preventDefault();
         setIsDragging(true);
@@ -17495,6 +17495,12 @@ const USAGE_ACTION_LABELS = {
   "wb-filter": "Desk filters and tabs",
   "wb-scope": "Desk Mine / Everyone switches",
   "wb-drawer": "Desk opened",
+  // Client page drop (docs/client-page-drop.md); detail after the ":".
+  "client-page-drop": "Client page drop: files added from anywhere (demo: View as preview)",
+  "doc-access": "Documents: who can see a file changed",
+  "doc-bulk": "Documents: several files moved, trashed or restored together",
+  "doc-rename": "Documents: files or folders renamed",
+  "doc-replace": "Documents: a file replaced with a new version",
   // Grouped by the part before the first ":" (usage-stats-2.sql), so the
   // Desk additions clicks wb-hub:client-waiting, wb-hub:client-msg,
   // wb-hub:client-file, wb-hub:client-ask and wb-hub:client-message count here too.
@@ -17945,7 +17951,7 @@ function UsageStatsPage() {
           </div>
         )}
         {visiblePeople.length > 0 && (
-          <div className="dt-table-wrap">
+          <div className="dt-table-wrap mgb-sticky-wrap">
             <table className="dt-table">
               <thead>
                 <tr>
@@ -18541,6 +18547,8 @@ function ClientAccessPage({ readOnly }) {
         plan: data.plan,
         testOnly: data.test_only,
         payrollAddOn: data.payroll_add_on,
+        // clients.hidden_tabs defaults to none hidden for a new org.
+        hiddenTabs: [],
         assignedBookkeeper: rosterBookkeeper(data),
         accountManager: AM_fromRow(data),
       }),
@@ -18881,7 +18889,7 @@ function ClientAccessPage({ readOnly }) {
           {orgRows === null ? (
             <p className="card-subtitle">Loading…</p>
           ) : (
-            <div className="table-scroll" style={{ marginBottom: 16 }}>
+            <div className="table-scroll mgb-sticky-wrap" style={{ marginBottom: 16 }}>
               <table className="tx-table tx-table-labeled">
                 <thead>
                   <tr>
@@ -19262,7 +19270,7 @@ function ClientAccessPage({ readOnly }) {
           )}
 
           {filteredRows.length > 0 && (
-            <div className="table-scroll">
+            <div className="table-scroll mgb-sticky-wrap">
               <table className="tx-table tx-table-labeled">
                 <thead>
                   <tr>
@@ -22846,7 +22854,7 @@ const DOC_STAFF_FOLDER = "\u0000staff-only";
 // links with trashed_at set (supabase/document-trash.sql). Restorable.
 const DOC_TRASH_FOLDER = "\u0000trash";
 
-function DocumentsPage({ client, isBookkeeper, searchTarget }) {
+function DocumentsPage({ client, isBookkeeper, searchTarget, viewAsEmail }) {
   // Folders are shared per client in the database (components/client/
   // DocFolders.jsx); "local" is the per-browser fallback for prototype
   // clients and signed-out use.
@@ -22884,6 +22892,28 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const [uploadYear, setUploadYear] = useState(() => DRV_currentYear());
   const [copyingLegacy, setCopyingLegacy] = useState(false);
   const docSb = window.mgbSupabase || null;
+  // Client page drop + staff Documents upgrades (docs/client-page-drop.md;
+  // components/client/DocPlus.jsx). `plus` is staff only and false while
+  // the preview flag mgb_clientdrop_preview and the firm switch are both
+  // off; then this page renders exactly as it did before. viewAsEmail: the
+  // login a staff member is viewing as (View as), for the who-can-see filter.
+  const cpdStaff = CPD_useStaffGate(!!isBookkeeper || !!viewAsEmail);
+  const plus = !!cpdStaff.plus && (!!isBookkeeper || !!viewAsEmail);
+  const canSetAccess = !!isBookkeeper && cpdStaff.onFor(client.id);
+  // Renames (file and folder) change what the client sees, so they also wait
+  // for the switch to be on for this client; with the preview alone they
+  // open read-only with a "turns on at launch" note.
+  const canRename = !!isBookkeeper && cpdStaff.onFor(client.id);
+  const RENAME_OFF_NOTE = "Renaming turns on for this client at launch, when the owner switches on the client page drop for them.";
+  const clientCpd = CPD_useClientState(!isBookkeeper && !viewAsEmail);
+  const [accessTick, setAccessTick] = useState(0);
+  const accessRows = DP_useAccessRows(docSb, client.id, plus, accessTick);
+  const [uploadAccess, setUploadAccess] = useState({ mode: "everyone", emails: [] });
+  const [selected, setSelected] = useState(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [dpModal, setDpModal] = useState(null); // { kind: rename | folder | access | history, ... }
+  const replaceInputRef = useRef(null);
+  const replaceForRef = useRef(null);
 
   const loadRemoteDocs = useCallback(async () => {
     const fm = await DF_load(docSb, client.id);
@@ -22997,7 +23027,15 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         driveId: r.id,
         source: "drive",
         staffOnly: r.visibility === "internal",
-        name: r.name,
+        // display_name: a name set at upload or by a rename (client page
+        // drop); the Drive file keeps its own name (origName).
+        name: r.display_name || r.name,
+        origName: r.name,
+        accessMode: r.access_mode,
+        uploadedByEmail: r.uploaded_by || "",
+        mime: r.mime || "",
+        year: r.year || null,
+        docType: r.doc_type || null,
         category: r.visibility === "internal" ? "Staff only" : r.doc_type || "Uploaded",
         uploadedBy: isBookkeeper ? r.uploaded_by || "" : fromStaff(r.uploaded_by) ? "MyGoodBooks" : "Your organization",
         date: String(r.uploaded_at || "").slice(0, 10),
@@ -23101,6 +23139,15 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const newFolderInputRef = useRef(null);
   const showToast = useToast();
   const { flashCardId, jumpToCard } = useCardFlash();
+  // The client page drop files into the folder the client has open.
+  useEffect(() => {
+    if (isBookkeeper || viewAsEmail) return undefined;
+    CPD_setOpenFolder(activeFolder && activeFolder !== DOC_STAFF_FOLDER && activeFolder !== DOC_TRASH_FOLDER ? activeFolder : null);
+    return () => CPD_setOpenFolder(null);
+  }, [activeFolder, isBookkeeper, viewAsEmail]);
+  useEffect(() => {
+    setSelected((s) => (s.size ? new Set() : s));
+  }, [activeFolder]);
 
   useEffect(() => {
     if (searchTarget)
@@ -23128,19 +23175,31 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   // <client>/trash/<sub>/; links flip trashed_at. Trash never empties on
   // its own; only Delete forever (below) removes anything.
   const [trashBusy, setTrashBusy] = useState(null);
+  // One item to Trash or back; resolve to an error (or null).
+  const trashOne = async (d) => {
+    if (d.source === "link") {
+      const { error } = await docSb.from("client_documents").update({ trashed_at: new Date().toISOString() }).eq("id", d.id);
+      return error;
+    }
+    // Google Drive's own trash: nothing is deleted.
+    if (d.source === "drive") return DRV_trash(d.driveId).then(() => null, (e) => e);
+    const rel = d.path.slice(client.id.length + 1);
+    const { error } = await docSb.storage.from("client-uploads").move(d.path, `${client.id}/trash/${rel}`);
+    return error;
+  };
+  const restoreOne = async (d) => {
+    if (d.source === "link") {
+      const { error } = await docSb.from("client_documents").update({ trashed_at: null }).eq("id", d.id);
+      return error;
+    }
+    if (d.source === "drive") return DRV_restore(d.driveId).then(() => null, (e) => e);
+    const { error } = await docSb.storage.from("client-uploads").move(d.path, d.restorePath);
+    return error;
+  };
   const trashDoc = async (d) => {
     if (!docSb || trashBusy) return;
     setTrashBusy(d.key);
-    let error = null;
-    if (d.source === "link") {
-      ({ error } = await docSb.from("client_documents").update({ trashed_at: new Date().toISOString() }).eq("id", d.id));
-    } else if (d.source === "drive") {
-      // Google Drive's own trash: nothing is deleted.
-      error = await DRV_trash(d.driveId).then(() => null, (e) => e);
-    } else {
-      const rel = d.path.slice(client.id.length + 1);
-      ({ error } = await docSb.storage.from("client-uploads").move(d.path, `${client.id}/trash/${rel}`));
-    }
+    const error = await trashOne(d);
     setTrashBusy(null);
     if (error) {
       showToast(`Couldn't move ${d.name} to Trash: ${error.message}`);
@@ -23157,14 +23216,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const restoreDoc = async (d) => {
     if (!docSb || trashBusy) return;
     setTrashBusy(d.key);
-    let error = null;
-    if (d.source === "link") {
-      ({ error } = await docSb.from("client_documents").update({ trashed_at: null }).eq("id", d.id));
-    } else if (d.source === "drive") {
-      error = await DRV_restore(d.driveId).then(() => null, (e) => e);
-    } else {
-      ({ error } = await docSb.storage.from("client-uploads").move(d.path, d.restorePath));
-    }
+    const error = await restoreOne(d);
     setTrashBusy(null);
     if (error) {
       showToast(`Couldn't restore ${d.name}: ${error.message}`);
@@ -23239,6 +23291,21 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       showToast(isBookkeeper ? e.message : "Uploads are paused for a moment. Please try again later.");
       return;
     }
+    // Who can see it: a new file takes active logins only, so anyone on the
+    // chosen list whose login has gone inactive comes off it first.
+    let upAcc = { mode: "everyone", emails: [], dropped: [], error: null };
+    if (!useStorage && plus && canSetAccess && !staffView && uploadAccess.mode !== "everyone") {
+      upAcc = await DP_accessForNewFile(docSb, client.id, uploadAccess.mode, uploadAccess.emails);
+      if (upAcc.error) {
+        setUploading(false);
+        showToast(upAcc.error);
+        return;
+      }
+      if (upAcc.dropped.length) {
+        showToast(`${upAcc.dropped.join(", ")} no longer ${upAcc.dropped.length === 1 ? "has" : "have"} a login, so they were left off.`);
+        setUploadAccess({ mode: upAcc.mode, emails: upAcc.emails });
+      }
+    }
     for (const f of useStorage ? [] : files) {
       try {
         const res = await DRV_upload({
@@ -23247,6 +23314,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           visibility: staffView ? "internal" : "shared",
           docType: isBookkeeper ? uploadDocType : "Other",
           year: isBookkeeper ? uploadYear : undefined,
+          ...(upAcc.mode !== "everyone" ? { accessMode: upAcc.mode, accessEmails: upAcc.emails } : {}),
         });
         ok += 1;
         if (activeFolder && !staffView && res.file) filed.push("drive:" + res.file.id);
@@ -23358,6 +23426,158 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     if (activeFolder === name) setActiveFolder(null);
   };
 
+  // ---- Documents upgrades (plus only; components/client/DocPlus.jsx) ----
+  const bulkOn = plus && !!isBookkeeper;
+  const isRestricted = (d) => d.source === "drive" && (d.accessMode === "only" || d.accessMode === "except");
+  const pickedDocs = () => [...docs, ...trashDocs].filter((d) => selected.has(d.key));
+  const toggleSelected = (key) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
+      return n;
+    });
+  // fails: the documents that didn't go; they stay ticked to try again.
+  const afterBulk = (verb, ok, fails) => {
+    setBulkBusy(false);
+    setTrashBusy(null);
+    setSelected(new Set(fails.map((d) => d.key)));
+    showToast(fails.length ? `${verb} ${ok} of ${ok + fails.length}. Couldn't do ${fails[0].name}${fails.length > 1 ? ` and ${fails.length - 1} more` : ""}; ${fails.length === 1 ? "it's" : "they're"} still ticked.` : `${verb} ${ok} document${ok === 1 ? "" : "s"}.`);
+    WB_filesChanged(client.id);
+    loadRemoteDocs();
+  };
+  const bulkMove = async (folder) => {
+    const list = pickedDocs().filter((d) => !d.trashed);
+    if (!list.length || bulkBusy) return;
+    setBulkBusy(true);
+    const keys = list.map((d) => d.key);
+    const err = await DF_assign(docSb, client.id, folderMode, keys, folder);
+    setBulkBusy(false);
+    if (err) {
+      showToast(`Couldn't move them: ${err}`);
+      return;
+    }
+    setDocs((all) => all.map((x) => (keys.includes(x.key) ? { ...x, folder: folder || null } : x)));
+    setSelected(new Set());
+    MGB_track("doc-bulk", "move:" + keys.length);
+    showToast(`Moved ${keys.length} document${keys.length === 1 ? "" : "s"} to ${folder || "Unfiled"}.`);
+  };
+  const bulkTrash = async () => {
+    const list = pickedDocs().filter((d) => !d.trashed && d.source !== "sample");
+    if (!list.length || bulkBusy || trashBusy) return;
+    setBulkBusy(true);
+    setTrashBusy("__bulk");
+    let ok = 0;
+    const fails = [];
+    for (const d of list) {
+      const e = await trashOne(d);
+      if (e) fails.push(d);
+      else ok += 1;
+    }
+    MGB_track("doc-bulk", "trash:" + ok);
+    afterBulk("Moved to Trash:", ok, fails);
+  };
+  const bulkRestore = async () => {
+    const list = pickedDocs().filter((d) => d.trashed);
+    if (!list.length || bulkBusy || trashBusy) return;
+    setBulkBusy(true);
+    setTrashBusy("__bulk");
+    let ok = 0;
+    const fails = [];
+    for (const d of list) {
+      const e = await restoreOne(d);
+      if (e) fails.push(d);
+      else ok += 1;
+    }
+    MGB_track("doc-bulk", "restore:" + ok);
+    afterBulk("Restored", ok, fails);
+  };
+  // Rename a file: Drive files change the shown name only (client_file_rename);
+  // links rename the link.
+  const renameDoc = async (d, value) => {
+    if (!canRename) return RENAME_OFF_NOTE;
+    const c = CPD_cleanName(value);
+    if (c.error) return c.error;
+    let error = null;
+    if (d.source === "drive") {
+      ({ error } = await docSb.rpc("client_file_rename", { p_file_id: d.driveId, p_display_name: c.value }));
+    } else if (d.source === "link") {
+      ({ error } = await docSb.from("client_documents").update({ name: c.value }).eq("id", d.id));
+    } else return "This file can't be renamed.";
+    if (error) return /feature_off/.test(error.message || "") ? RENAME_OFF_NOTE : CPD_errorText({ message: error.message });
+    MGB_track("doc-rename", d.source);
+    showToast(`Renamed to “${c.value}”.`);
+    WB_filesChanged(client.id);
+    loadRemoteDocs();
+    return null;
+  };
+  const renameFolder = async (from, to) => {
+    if (!canRename) return RENAME_OFF_NOTE;
+    const err = await DF_renameFolder(docSb, client.id, folderMode, from, to);
+    if (err) return `Couldn't rename “${from}”: ${err}`;
+    setFolders((f) => f.map((x) => (x === from ? to : x)));
+    setDocs((all) => all.map((x) => (x.folder === from ? { ...x, folder: to } : x)));
+    setTrashDocs((all) => all.map((x) => (x.folder === from ? { ...x, folder: to } : x)));
+    if (activeFolder === from) setActiveFolder(to);
+    MGB_track("doc-rename", "folder");
+    showToast(`Renamed the folder to “${to}”.`);
+    return null;
+  };
+  const onReplacePicked = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    const d = replaceForRef.current;
+    replaceForRef.current = null;
+    if (!f || !d) return;
+    if (f.size > 25 * 1024 * 1024) {
+      showToast(`${f.name} is ${formatBytes(f.size)}. Files are capped at 25 MB.`);
+      return;
+    }
+    if (isRestricted(d) && !accessRows) {
+      showToast("Still loading who can see it. Try again in a moment.");
+      return;
+    }
+    setTrashBusy(d.key);
+    const { error: err, dropped } = await DP_replaceFile({
+      sb: docSb,
+      clientId: client.id,
+      folderMode,
+      d,
+      file: f,
+      accessEmails: (accessRows || {})[d.driveId] || [],
+    });
+    setTrashBusy(null);
+    if (err) showToast(`Couldn't replace ${d.name}: ${err}`);
+    else
+      showToast(
+        `Replaced ${d.name} with ${f.name}. The old version is in Trash.` +
+          (dropped && dropped.length ? ` ${dropped.join(", ")} no longer ${dropped.length === 1 ? "has" : "have"} a login, so the new version's list leaves them off.` : ""),
+      );
+    MGB_track("doc-replace", err ? "fail" : "ok");
+    WB_filesChanged(client.id);
+    setAccessTick((t) => t + 1);
+    loadRemoteDocs();
+  };
+  const rowMenu = (d) => {
+    const items = [];
+    if (!d.trashed && (d.source === "drive" || d.source === "link"))
+      items.push({ label: "Rename", onClick: () => setDpModal({ kind: "rename", d }) });
+    if (!d.trashed && d.source === "drive" && !d.staffOnly)
+      items.push({ label: "Who can see it", onClick: () => setDpModal({ kind: "access", d }) });
+    if (!d.trashed && d.source === "drive")
+      items.push({
+        label: "Replace with a new version",
+        disabled: !!trashBusy,
+        onClick: () => {
+          replaceForRef.current = d;
+          if (replaceInputRef.current) replaceInputRef.current.click();
+        },
+      });
+    if (!d.trashed) items.push({ label: "Copy link", onClick: () => DP_copyLink(client.id, d.key, showToast) });
+    if (d.source === "drive") items.push({ label: "History", onClick: () => setDpModal({ kind: "history", d }) });
+    return items.length ? <DP_RowMenu label={`More for ${d.name}`} items={items} off={!canRename} /> : null;
+  };
+
   // "Full Access Only" filters down to the visibility flag itself
   // (set on the sample documents) rather than some separate "shared with me"
   // concept — this app's documents only ever carry that one binary flag
@@ -23367,17 +23587,36 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   // documents are already filtered upstream), so this naturally stays
   // hidden for them.
   const [visFilter, setVisFilter] = useState("all");
+  // A new search or filter hides rows: untick everything so a bulk action
+  // never touches a document that isn't on screen.
+  useEffect(() => {
+    setSelected((s) => (s.size ? new Set() : s));
+  }, [docSearch, visFilter]);
   const hasRestrictedDocs = docs.some((d) => d.visibility === "full");
   const staffView = isBookkeeper && activeFolder === DOC_STAFF_FOLDER;
   const trashView = isBookkeeper && activeFolder === DOC_TRASH_FOLDER;
+  // View as (preview): hide the files this login can't see under the
+  // who-can-see rules, so staff see what the client sees.
+  const viewAsHidden =
+    plus && viewAsEmail
+      ? docs.filter(
+          (d) =>
+            // A client login never sees staff-only files; the staff session
+            // that View as runs on can still list them.
+            (d.staffOnly && !d.trashed) ||
+            // Until the lists load, every restricted file stays hidden.
+            (isRestricted(d) && (!accessRows || !CPD_loginSees(d.accessMode, accessRows[d.driveId], viewAsEmail))),
+        )
+      : [];
+  const shownDocs = viewAsHidden.length ? docs.filter((d) => !viewAsHidden.includes(d)) : docs;
   const folderFiltered =
     activeFolder === null
-      ? docs
+      ? shownDocs
       : trashView
         ? trashDocs
       : staffView
         ? docs.filter((d) => d.staffOnly)
-        : docs.filter((d) => d.folder === activeFolder);
+        : shownDocs.filter((d) => d.folder === activeFolder);
   const docQuery = docSearch.trim().toLowerCase();
   const visibleDocs = (
     visFilter === "full"
@@ -23408,6 +23647,8 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       <DocumentRequestsCard client={client} />
       {/* Moved from the Overview (TABS-SPEC 1.4); returns null for clients. */}
       <DC_DocChaserCard client={client} />
+      {/* Agreements (docs/agreements-spec.md): staff card live; the client card renders nothing until agreements_client_enabled is on. */}
+      {typeof AG_AgreementsCard === "function" && <AG_AgreementsCard client={client} staff={!!isBookkeeper} />}
 
       <div className="doc-folder-bar">
         <button
@@ -23419,7 +23660,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         >
           <FolderIcon width="14" height="14" strokeWidth="1.8" />
           All Documents
-          <span className="doc-folder-count">{docs.length}</span>
+          <span className="doc-folder-count">{shownDocs.length}</span>
         </button>
         {isBookkeeper && (
           <button
@@ -23446,7 +23687,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           </button>
         )}
         {folders.map((name) => {
-          const count = docs.filter((d) => d.folder === name).length;
+          const count = shownDocs.filter((d) => d.folder === name).length;
           return (
             <button
               type="button"
@@ -23459,6 +23700,27 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
               <FolderIcon width="14" height="14" strokeWidth="1.8" />
               {name}
               <span className="doc-folder-count">{count}</span>
+              {plus && isBookkeeper && (
+                <span
+                  className="doc-folder-rename"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Rename folder ${name}`}
+                  title="Rename folder"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDpModal({ kind: "folder", name });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.stopPropagation();
+                      setDpModal({ kind: "folder", name });
+                    }
+                  }}
+                >
+                  ✎
+                </span>
+              )}
               <span
                 className="doc-folder-remove"
                 role="button"
@@ -23518,6 +23780,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           "card upload-card dropzone" + (isDragging ? " dragging" : "")
         }
         style={{ marginBottom: 20 }}
+        data-drop-owner="documents"
         onClick={() => fileInputRef.current.click()}
         onDragOver={(e) => {
           e.preventDefault();
@@ -23579,6 +23842,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                     <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
+                {plus && canSetAccess && !staffView && (
+                  <DP_UploadAccess sb={docSb} clientId={client.id} orgName={client.name} value={uploadAccess} onChange={setUploadAccess} />
+                )}
               </React.Fragment>
             ) : driveInfo.connected === false ? (
               <span className="tp-muted" style={{ fontSize: 12.5 }}>
@@ -23622,6 +23888,11 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
               click a document to open it
               {remoteState === "loading" ? " · loading…" : ""}
             </p>
+            {viewAsHidden.length > 0 && (
+              <p className="cpd-chip dp-viewas-chip">
+                Viewing as {viewAsEmail}: {viewAsHidden.length} file{viewAsHidden.length === 1 ? "" : "s"} they can't see {viewAsHidden.length === 1 ? "is" : "are"} hidden
+              </p>
+            )}
           </div>
           <div className="doc-tools" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {isBookkeeper && driveInfo.connected && driveInfo.legacyCount > 0 && (
@@ -23679,10 +23950,39 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             </div>
           )}
         </div>
-        <div className="table-scroll">
+        {bulkOn && (
+          <DP_BulkBar
+            count={selected.size}
+            folders={folders}
+            trashView={trashView}
+            busy={bulkBusy}
+            onMove={bulkMove}
+            onTrash={bulkTrash}
+            onRestore={bulkRestore}
+            onClear={() => setSelected(new Set())}
+          />
+        )}
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>
+                {bulkOn && (
+                  <th className="dp-check-col">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all shown"
+                      checked={
+                        visibleDocs.some((d) => d.source !== "sample") &&
+                        visibleDocs.filter((d) => d.source !== "sample").every((d) => selected.has(d.key))
+                      }
+                      onChange={(e) =>
+                        setSelected(
+                          e.target.checked ? new Set(visibleDocs.filter((d) => d.source !== "sample").map((d) => d.key)) : new Set(),
+                        )
+                      }
+                    />
+                  </th>
+                )}
                 <th>Name</th>
                 <th>Category</th>
                 <th>Uploaded By</th>
@@ -23697,7 +23997,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             </thead>
             <tbody>
               {remoteState === "error" && (
-                <EmptyRow colSpan={isBookkeeper ? 8 : 6}>
+                <EmptyRow colSpan={(isBookkeeper ? 8 : 6) + (bulkOn ? 1 : 0)}>
                   Some documents couldn't be loaded.{" "}
                   <button type="button" className="btn-secondary" onClick={loadRemoteDocs}>
                     Try again
@@ -23705,7 +24005,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                 </EmptyRow>
               )}
               {visibleDocs.length === 0 && remoteState !== "loading" && (
-                <EmptyRow colSpan={isBookkeeper ? 8 : 6}>
+                <EmptyRow colSpan={(isBookkeeper ? 8 : 6) + (bulkOn ? 1 : 0)}>
                   {docQuery
                     ? "No documents match that search."
                     : trashView
@@ -23735,6 +24035,18 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                       if (e.key === "Enter") openDoc(d, i);
                     }}
                   >
+                    {bulkOn && (
+                      <td className="dp-check-col" data-label="" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                        {d.source !== "sample" && (
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${d.name}`}
+                            checked={selected.has(d.key)}
+                            onChange={() => toggleSelected(d.key)}
+                          />
+                        )}
+                      </td>
+                    )}
                     <td data-primary="">
                       <span className="doc-name-link">
                         <FileIcon
@@ -23745,6 +24057,33 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                         />
                         {d.name}
                       </span>
+                      {plus && isBookkeeper && d.origName && d.origName !== d.name && (
+                        <span className="dp-orig" title="The file's own name">
+                          {d.origName}
+                        </span>
+                      )}
+                      {!isBookkeeper && isRestricted(d) && (
+                        <span className="cpd-chip">
+                          {viewAsEmail
+                            ? CPD_accessBadge(d.accessMode, ((accessRows || {})[d.driveId] || []).length)
+                            : d.accessMode === "only"
+                              ? "Only some people"
+                              : "Hidden from some people"}
+                        </span>
+                      )}
+                      {!isBookkeeper && !viewAsEmail && clientCpd.enabled && d.source === "drive" && d.accessMode != null && !d.trashed && (
+                        <button
+                          type="button"
+                          className="cpd-row-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDpModal({ kind: "access", d, who: "client" });
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          Who can see
+                        </button>
+                      )}
                     </td>
                     <td data-label="Category">
                       <span
@@ -23753,6 +24092,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                       >
                         {d.category}
                       </span>
+                      {plus && isBookkeeper && d.source !== "link" && (
+                        <span className="dp-type-tag">{CPD_fileTypeTag(d.origName || d.name, d.mime)}</span>
+                      )}
                     </td>
                     <td data-label="Uploaded by">{d.uploadedBy}</td>
                     <td data-label="Date">{fmtDate(d.date)}</td>
@@ -23787,11 +24129,20 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                         <span
                           className={
                             "visibility-toggle" +
-                            (d.visibility === "full" || d.staffOnly ? " restricted" : "")
+                            (d.visibility === "full" || d.staffOnly || isRestricted(d) ? " restricted" : "")
                           }
                         >
                           {d.trashed ? (
                             "Staff only (in Trash)"
+                          ) : isRestricted(d) ? (
+                            <React.Fragment>
+                              <LockIcon />{" "}
+                              {plus
+                                ? CPD_accessBadge(d.accessMode, ((accessRows || {})[d.driveId] || []).length)
+                                : d.accessMode === "only"
+                                  ? "Only some people"
+                                  : "Hidden from some people"}
+                            </React.Fragment>
                           ) : d.staffOnly ? (
                             <React.Fragment>
                               <LockIcon /> Staff only
@@ -23837,6 +24188,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                             Delete forever
                           </button>
                           )}
+                          {plus && rowMenu(d)}
                           </span>
                         ) : (
                           <span className="doc-actions-row">
@@ -23865,6 +24217,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                           >
                             <TrashIcon width="15" height="15" />
                           </button>
+                          {plus && rowMenu(d)}
                           </span>
                         )}
                       </td>
@@ -23901,6 +24254,74 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           confirmLabel="Delete forever"
           onConfirm={deleteForever}
           onCancel={() => setDeletePending(null)}
+        />
+      )}
+
+      {bulkOn && (
+        <input ref={replaceInputRef} type="file" style={{ display: "none" }} aria-hidden="true" tabIndex={-1} onChange={onReplacePicked} />
+      )}
+      {dpModal && dpModal.kind === "rename" && (
+        <DP_RenameModal
+          title="Rename file"
+          label="Name"
+          initial={dpModal.d.name}
+          hint={
+            dpModal.d.source === "drive"
+              ? `Changes the name everyone sees here. The file in Google Drive keeps its own name (${dpModal.d.origName || dpModal.d.name}). Leave it blank to go back to that name.`
+              : null
+          }
+          maxLength={CPD_NAME_MAX}
+          validate={(v) => (dpModal.d.source === "drive" && !v ? null : CPD_cleanName(v).error)}
+          onSave={(v) => renameDoc(dpModal.d, v || dpModal.d.origName || dpModal.d.name)}
+          onClose={() => setDpModal(null)}
+          canSave={canRename}
+          offNote={RENAME_OFF_NOTE}
+        />
+      )}
+      {dpModal && dpModal.kind === "folder" && (
+        <DP_RenameModal
+          title="Rename folder"
+          label="Folder name"
+          initial={dpModal.name}
+          hint="Its documents stay in it. Everyone on this client's Documents page sees the new name."
+          maxLength={60}
+          validate={(v) => CPD_folderNameError(v, folders, dpModal.name)}
+          onSave={(v) => renameFolder(dpModal.name, v)}
+          onClose={() => setDpModal(null)}
+          canSave={canRename}
+          offNote={RENAME_OFF_NOTE}
+        />
+      )}
+      {dpModal && dpModal.kind === "access" && (
+        <CPD_AccessModal
+          sb={docSb}
+          clientId={client.id}
+          orgName={client.name}
+          file={{
+            id: dpModal.d.driveId,
+            name: dpModal.d.name,
+            origName: dpModal.d.origName,
+            uploadedBy: dpModal.d.uploadedByEmail,
+            accessMode: dpModal.d.accessMode,
+          }}
+          who={dpModal.who === "client" ? "client" : "staff"}
+          meEmail=""
+          canSave={dpModal.who === "client" ? clientCpd.enabled : canSetAccess}
+          offNote="Choosing who can see a file turns on for this client at launch, when the owner switches on the client page drop for them."
+          onSaved={() => {
+            setAccessTick((t) => t + 1);
+            WB_filesChanged(client.id);
+            loadRemoteDocs();
+          }}
+          onClose={() => setDpModal(null)}
+          showToast={showToast}
+        />
+      )}
+      {dpModal && dpModal.kind === "history" && (
+        <DP_HistoryModal
+          sb={docSb}
+          file={{ driveId: dpModal.d.driveId, name: dpModal.d.name, origName: dpModal.d.origName }}
+          onClose={() => setDpModal(null)}
         />
       )}
 
@@ -24443,6 +24864,7 @@ function MessagesPage({
         className={
           "card message-card msg-page-card" + (unavailable ? " msg-page-card--off" : "") + (isDragging ? " dragging" : "")
         }
+        data-drop-owner="messages"
         onDragOver={(e) => {
           if (unavailable || readOnlyNote) return;
           e.preventDefault();
@@ -25245,6 +25667,7 @@ function ConfirmModal({
   title,
   body,
   confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
   onConfirm,
   onCancel,
 }) {
@@ -25273,7 +25696,7 @@ function ConfirmModal({
       </div>
       <div className="modal-footer">
         <button className="btn-secondary" onClick={onCancel}>
-          Cancel
+          {cancelLabel}
         </button>
         <button
           className="btn-primary"
@@ -25372,6 +25795,8 @@ function TabSettingsModal({
   tabOrder,
   userAccess,
   onToggle,
+  canEditOrgTabs = false,
+  onOpenOrgTabs,
   onReorder,
   onToggleUserTab,
   onToggleUserCategory,
@@ -25409,6 +25834,14 @@ function TabSettingsModal({
   const [addingNote, setAddingNote] = useState(false);
   const [activityLog, setActivityLog] = useState(undefined); // undefined = loading
   const showToast = useToast();
+
+  // Opening Organization tabs is the one moment an admin's old per-browser
+  // setting for this client is copied to the server (App
+  // migrateLegacyHiddenTabs; once per client, never over a saved value).
+  useEffect(() => {
+    if (scope === "access" && tab === "org" && onOpenOrgTabs) onOpenOrgTabs();
+    // eslint-disable-next-line
+  }, [scope, tab, client && client.id]);
 
   const supabase = window.mgbSupabase;
 
@@ -25913,6 +26346,15 @@ function TabSettingsModal({
             Turn a tab off here and nobody at {client.name} sees it, whatever
             their individual access. Drag ⠿ to reorder the Finances tabs.
           </p>
+          {!canEditOrgTabs && (
+            <p
+              className="card-subtitle"
+              style={{ marginTop: 0 }}
+              data-testid="org-tabs-admin-only"
+            >
+              Only admins can turn tabs on or off.
+            </p>
+          )}
           {NAV_SECTIONS.map((section) => {
             const items = orderedSectionItems(section, tabOrder, client.id);
             return (
@@ -25934,6 +26376,7 @@ function TabSettingsModal({
                           : "")
                       }
                       draggable={!locked}
+                      data-drop-owner="reorder"
                       onDragStart={() => setDraggedKey(item.key)}
                       onDragOver={(e) => {
                         e.preventDefault();
@@ -25964,7 +26407,7 @@ function TabSettingsModal({
                         <input
                           type="checkbox"
                           checked={checked}
-                          disabled={locked}
+                          disabled={locked || !canEditOrgTabs}
                           onChange={() => onToggle(item.key)}
                         />
                         <span>{item.label}</span>
@@ -26619,7 +27062,19 @@ function recordClientVisit(clientId) {
   } catch (e) {}
 }
 
+// Legacy: Manage access › Organization tabs used to save each client's hidden
+// tab keys here, in the staff browser only, so a client's own browser never
+// saw them. Since 2026-10-30 (S3) the setting lives on the client row
+// (clients.hidden_tabs, client.hiddenTabs) and this key is only READ, once
+// per client, to copy an old setting up (see migrateLegacyHiddenTabs in App).
+// It is never written or cleared.
 const TAB_CONFIG_STORAGE_KEY = "mygoodbooks_tab_config_v2";
+// { [clientId]: true } once this browser's old setting for that client has
+// been dealt with (copied up, or skipped because the server already had one).
+const TAB_CONFIG_MIGRATED_STORAGE_KEY = "mygoodbooks_tab_config_migrated_v1";
+// { [clientId]: true } once an admin answered "Not now" to the copy-up prompt
+// in this browser, so it does not ask again here.
+const TAB_CONFIG_DISMISSED_STORAGE_KEY = "mygoodbooks_tab_config_dismissed_v1";
 
 function loadTabConfig() {
   try {
@@ -26628,6 +27083,13 @@ function loadTabConfig() {
   } catch (e) {
     return {};
   }
+}
+
+// Org-hidden tab keys in the server's shape: known client tab keys only, in
+// sidebar order, never ALWAYS_VISIBLE_KEY (clients_hidden_tabs_known check).
+function normalizeHiddenTabs(keys) {
+  const set = new Set(Array.isArray(keys) ? keys : []);
+  return ALL_TAB_KEYS.filter((k) => k !== ALWAYS_VISIBLE_KEY && set.has(k));
 }
 
 const TAB_ORDER_STORAGE_KEY = "mygoodbooks_tab_order_v1";
@@ -27010,11 +27472,11 @@ const PAGE_META = {
   },
   work: {
     title: "Work",
-    subtitle: "Slate, notes and SOPs, month-end close and deadlines",
+    subtitle: "Slate, notes and SOPs, month-end close, deadlines and Ledger review",
   },
   tasks: {
     title: "Slate",
-    subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects with color dots (admins: Manage projects), subtasks open in place under their task, quick add that reads plain words (for Sierra, re a client, by Friday), month-end tasks from a client's Close checklist (per client, Recurring › One client), select many tasks to complete, reassign, move, reschedule or delete together, with Undo",
+    subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects with color dots (admins: Manage projects), subtasks open in place under their task, quick add that reads plain words (for Sierra, re a client, by Friday), month-end tasks from a client's Close checklist (per client, Recurring › One client), select many tasks to complete, reassign, move, reschedule or delete together, with Undo; Slate plus (once the owner turns it on): filters and saved filters, Calendar, person profiles, Blocked by, custom fields, project status and Portfolio, admin Rules",
   },
   clients: {
     title: "Clients",
@@ -27069,6 +27531,9 @@ const PAGE_META = {
   },
   documents: {
     title: "Documents",
+    // Client page drop: files can be added from any page once the owner's
+    // switch is on for the client (components/client/ClientPageDrop.jsx);
+    // the title stays the same.
     subtitle: "Shared files between you and your bookkeeper",
   },
   messages: {
@@ -28080,7 +28545,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // open. `nonce` forces the effect on the receiving page to re-fire even
   // when the same result is clicked twice in a row (same key, same page).
   const [searchTarget, setSearchTarget] = useState(null);
-  const [tabConfig, setTabConfig] = useState(loadTabConfig);
+  // Read-only copy of the old per-browser org-hidden tabs (see
+  // TAB_CONFIG_STORAGE_KEY); only migrateLegacyHiddenTabs uses it.
+  const [legacyTabConfig] = useState(loadTabConfig);
+  const [legacyTabPrompt, setLegacyTabPrompt] = useState(null); // { clientId, clientName, tabs }
+  // Org-hidden tabs saved in this session, by client id, on top of
+  // client.hiddenTabs from the roster (so the change shows at once).
+  const [orgHiddenOverride, setOrgHiddenOverride] = useState({});
   const [tabOrder, setTabOrder] = useState(loadTabOrder);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -28234,7 +28705,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const [chatWidgetOpen, setChatWidgetOpen] = useState(false);
   // Staff chat drawer (components/inbox/StaffInbox.jsx): null when closed,
   // else {clientId, email?, seq?} — the client whose threads it opens on, if
-  // any, and (from the Workbench hub's Reply) the person's thread to open.
+  // any, and (from the Desk hub's Reply) the person's thread to open.
   const [siDrawer, setSiDrawer] = useState(null);
   // The chat drawer and the client tasks panel share the right edge: opening
   // chat closes the panel (TK_ClientDrawer.jsx).
@@ -28756,12 +29227,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(TAB_CONFIG_STORAGE_KEY, JSON.stringify(tabConfig));
-    } catch (e) {}
-  }, [tabConfig]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem(TAB_ORDER_STORAGE_KEY, JSON.stringify(tabOrder));
     } catch (e) {}
   }, [tabOrder]);
@@ -28957,24 +29422,190 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     recordClientVisit(selectedClientId);
   }, [selectedClientId, page]);
 
-  // tabConfig stores HIDDEN keys per client (not visible ones) so that any
-  // tab added later in the app defaults to visible for every client, rather
-  // than silently staying hidden because it's missing from an old snapshot.
-  const visibleKeys = useMemo(() => {
-    const hidden = new Set(tabConfig[selectedClientId] || []);
-    return new Set(
-      ALL_TAB_KEYS.filter((k) => k === ALWAYS_VISIBLE_KEY || !hidden.has(k)),
+  // Org-hidden tabs (Manage access › Organization tabs): HIDDEN keys per
+  // client (not visible ones), so a tab added later defaults to visible.
+  // Stored on the client row (clients.hidden_tabs, loaded into
+  // client.hiddenTabs by index.html loadClientsRoster), so every login's
+  // resolveAccess and the qbo_* RLS (my_client_access) use the same set.
+  const orgHiddenFor = (c) =>
+    normalizeHiddenTabs(
+      c && Object.prototype.hasOwnProperty.call(orgHiddenOverride, c.id)
+        ? orgHiddenOverride[c.id]
+        : c && c.hiddenTabs,
     );
-  }, [tabConfig, selectedClientId]);
+  const orgHiddenList = orgHiddenFor(client);
+  const orgHiddenSig = orgHiddenList.join(",");
+  const orgHiddenKeys = useMemo(
+    () => new Set(orgHiddenList),
+    [orgHiddenSig],
+  );
+  const visibleKeys = useMemo(
+    () =>
+      new Set(
+        ALL_TAB_KEYS.filter(
+          (k) => k === ALWAYS_VISIBLE_KEY || !orgHiddenKeys.has(k),
+        ),
+      ),
+    [orgHiddenKeys],
+  );
 
-  const toggleTab = (key) => {
-    if (key === ALWAYS_VISIBLE_KEY) return;
-    setTabConfig((prev) => {
-      const hidden = new Set(prev[selectedClientId] || []);
-      if (hidden.has(key)) hidden.delete(key);
-      else hidden.add(key);
-      return { ...prev, [selectedClientId]: Array.from(hidden) };
-    });
+  // Only admins can update clients (policy "admins can update clients",
+  // is_active_staff_admin: a real admin, not temporary admin access), and
+  // View as is read-only.
+  const canEditOrgTabs = !!(
+    staffUser &&
+    staffUser.role === "admin" &&
+    !impersonating &&
+    !clientPortalUser
+  );
+  // The latest saved list per client, for back-to-back clicks before the
+  // first save returns.
+  const orgHiddenLatestRef = useRef({});
+  const applyOrgHidden = (clientId, list) => {
+    const next = normalizeHiddenTabs(list);
+    orgHiddenLatestRef.current[clientId] = next;
+    // Same "mutate the shared roster entry" pattern as the Client Roster
+    // edit, so a later client switch or remount reads the saved value.
+    const entry = CLIENTS.find((c) => c.id === clientId);
+    if (entry) entry.hiddenTabs = next;
+    setOrgHiddenOverride((prev) => ({ ...prev, [clientId]: next }));
+  };
+  const orgTabsToast = (text) => {
+    try {
+      window.dispatchEvent(new CustomEvent("mgb:toast", { detail: { text } }));
+    } catch (e) {}
+  };
+
+  const toggleTab = async (key) => {
+    if (key === ALWAYS_VISIBLE_KEY || !canEditOrgTabs) return;
+    const sb = window.mgbSupabase;
+    if (!sb) return;
+    const clientId = client.id;
+    const prev =
+      orgHiddenLatestRef.current[clientId] || orgHiddenFor(client);
+    const set = new Set(prev);
+    if (set.has(key)) set.delete(key);
+    else set.add(key);
+    const next = normalizeHiddenTabs(Array.from(set));
+    applyOrgHidden(clientId, next);
+    const { data, error } = await sb
+      .from("clients")
+      .update({ hidden_tabs: next })
+      .eq("id", clientId)
+      .select("hidden_tabs");
+    if (error || !data || !data.length) {
+      // Nothing saved (no permission, offline): put the switch back.
+      applyOrgHidden(clientId, prev);
+      orgTabsToast(
+        "Couldn't save the tab change" +
+          (error && error.message ? `: ${error.message}` : ". Only admins can change Organization tabs."),
+      );
+      return;
+    }
+    applyOrgHidden(clientId, data[0].hidden_tabs);
+  };
+
+  // One-time copy of this browser's old Organization tabs setting for the
+  // open client up to the server, when an admin opens Organization tabs.
+  // Additive and safe: it only ever sets hidden keys, and the update itself
+  // only applies while the server has never held a value for this client
+  // (hidden_tabs = '{}' and hidden_tabs_updated_at is null; the column is
+  // stamped by trigger on every change, supabase/client-tab-rls-3.sql), so it
+  // never replaces a saved value, even one saved back to "none hidden".
+  const migrateLegacyHiddenTabs = async () => {
+    if (!canEditOrgTabs) return;
+    const sb = window.mgbSupabase;
+    if (!sb) return;
+    const clientId = client.id;
+    let done = {};
+    try {
+      done =
+        JSON.parse(localStorage.getItem(TAB_CONFIG_MIGRATED_STORAGE_KEY) || "{}") ||
+        {};
+    } catch (e) {
+      done = {};
+    }
+    if (done[clientId]) return;
+    const markDone = () => {
+      try {
+        const cur =
+          JSON.parse(localStorage.getItem(TAB_CONFIG_MIGRATED_STORAGE_KEY) || "{}") ||
+          {};
+        cur[clientId] = true;
+        localStorage.setItem(TAB_CONFIG_MIGRATED_STORAGE_KEY, JSON.stringify(cur));
+      } catch (e) {}
+    };
+    const local = normalizeHiddenTabs(legacyTabConfig[clientId]);
+    if (!local.length || orgHiddenFor(client).length) {
+      markDone();
+      return;
+    }
+    let dismissed = {};
+    try {
+      dismissed =
+        JSON.parse(localStorage.getItem(TAB_CONFIG_DISMISSED_STORAGE_KEY) || "{}") ||
+        {};
+    } catch (e) {
+      dismissed = {};
+    }
+    if (dismissed[clientId]) return;
+    // Hiding tabs for a client's users is visible to them, so ask first.
+    setLegacyTabPrompt({ clientId, clientName: client.name, tabs: local });
+  };
+
+  const dismissLegacyTabPrompt = () => {
+    const p = legacyTabPrompt;
+    setLegacyTabPrompt(null);
+    if (!p) return;
+    try {
+      const cur =
+        JSON.parse(localStorage.getItem(TAB_CONFIG_DISMISSED_STORAGE_KEY) || "{}") ||
+        {};
+      cur[p.clientId] = true;
+      localStorage.setItem(TAB_CONFIG_DISMISSED_STORAGE_KEY, JSON.stringify(cur));
+    } catch (e) {}
+  };
+
+  const confirmLegacyTabPrompt = async () => {
+    const p = legacyTabPrompt;
+    setLegacyTabPrompt(null);
+    if (!p || !canEditOrgTabs) return;
+    const sb = window.mgbSupabase;
+    if (!sb) return;
+    const clientId = p.clientId;
+    const local = p.tabs;
+    const markDone = () => {
+      try {
+        const cur =
+          JSON.parse(localStorage.getItem(TAB_CONFIG_MIGRATED_STORAGE_KEY) || "{}") ||
+          {};
+        cur[clientId] = true;
+        localStorage.setItem(TAB_CONFIG_MIGRATED_STORAGE_KEY, JSON.stringify(cur));
+      } catch (e) {}
+    };
+    const { data, error } = await sb
+      .from("clients")
+      .update({ hidden_tabs: local })
+      .eq("id", clientId)
+      .eq("hidden_tabs", "{}")
+      .is("hidden_tabs_updated_at", null)
+      .select("hidden_tabs");
+    if (error) return; // try again next time Organization tabs opens
+    markDone();
+    if (!data || !data.length) {
+      // The server already had a setting this page hadn't loaded: show it.
+      const fresh = await sb
+        .from("clients")
+        .select("hidden_tabs")
+        .eq("id", clientId)
+        .maybeSingle();
+      if (!fresh.error && fresh.data) applyOrgHidden(clientId, fresh.data.hidden_tabs);
+      return;
+    }
+    applyOrgHidden(clientId, data[0].hidden_tabs);
+    orgTabsToast(
+      `Saved the tabs this browser had hidden for ${p.clientName}, so they're now hidden for everyone there.`,
+    );
   };
 
   const reorderTab = (sectionLabel, fromKey, toKey) => {
@@ -29102,11 +29733,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       resolveAccess(
         client,
         viewAsUserId,
-        new Set(tabConfig[selectedClientId] || []),
+        orgHiddenKeys,
         portalOverrideUser,
       ),
     // previewPlanRev: staff "Preview plan" is read inside resolveAccess.
-    [client, viewAsUserId, tabConfig, selectedClientId, portalOverrideUser, previewPlanRev],
+    [client, viewAsUserId, orgHiddenKeys, portalOverrideUser, previewPlanRev],
   );
 
   const scopedClient = useMemo(
@@ -29478,6 +30109,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // session". A client-portal session is never the bookkeeper, whatever the
   // view-as state happens to say.
   const isStaffSession = !clientPortalUser;
+  // Client page drop (components/client/ClientPageDrop.jsx): the firm switch
+  // for a real client login (client_page_drop_state); false for staff.
+  const cpdClientState = CPD_useClientState(!isStaffSession);
+  // Staff: read the page-drop switch once per page load on any page (like
+  // TM_gate), so the launch notice (ANN_clientDropLaunchOn) knows about it
+  // without a visit to Documents. CPD_readSwitch keeps itself to one read.
+  useEffect(() => {
+    if (isStaffSession && typeof CPD_readSwitch === "function") CPD_readSwitch();
+  });
 
   // Customizable boards save to the signed-in account
   // (components/dashboard/WidgetDrawer.jsx). Staff "View as" and client-user
@@ -29620,7 +30260,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   useEffect(() => {
     if (!siStaffChat || effectivePage === "inbox") setSiDrawer(null);
   }, [siStaffChat, effectivePage]);
-  // The Workbench hub's Reply (components/workbench/WB_store.js, WB_hubOpen):
+  // The Desk hub's Reply (components/workbench/WB_store.js, WB_hubOpen):
   // open the chat drawer on that client and person so the page under the hub
   // never changes. It sets detail.handled when it took the request, and
   // declines (so the hub follows the thread's link instead) when staff chat
@@ -30052,8 +30692,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         action: "Answer",
         tone: overdueReqs ? "urgent" : null,
         onClick: () => {
-          setClientSub({ clientId: selectedClientId, page: "messages", sub: "requests" });
-          setPage("messages");
+          // Requests live under Messages; a client without the Messages tab
+          // answers them from Documents.
+          if (access.tabs.has("messages")) {
+            setClientSub({ clientId: selectedClientId, page: "messages", sub: "requests" });
+            setPage("messages");
+          } else setPage("documents");
         },
       });
     if (tqWaitingForMe.length)
@@ -30359,6 +31003,27 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           currentClient={onStaffPage ? null : client}
         />
       )}
+      {typeof CPD_ClientPageDrop === "function" && (() => {
+        // Always mounted, so a page change never drops an open dialog or a
+        // running upload (it latches its props while busy). pageOk only
+        // turns the page-wide listener and the "Add a file" button off: on
+        // staff pages, NON_CLIENT_PAGES, and Basic Home, which has its own
+        // page-wide drop (BasicHome.jsx).
+        const basicHomeOwnsPage = effectivePage === "dashboard" && access.plan === "basic" && typeof BasicHome === "function";
+        const hasDocs = !!(access.tabs && access.tabs.has("documents"));
+        return (
+          <CPD_ClientPageDrop
+            pageOk={!showStaffRail && !NON_CLIENT_PAGES.has(effectivePage) && !basicHomeOwnsPage}
+            enabled={!isStaffSession && hasDocs && cpdClientState.enabled}
+            // Staff View as with the preview flag: the same drop, uploads stubbed.
+            demo={isStaffSession && !!isPreviewingUser && hasDocs && CPD_previewOn()}
+            client={scopedClient || client}
+            sb={window.mgbSupabase || null}
+            demoEmail={access.user && access.user.email}
+            page={effectivePage}
+          />
+        );
+      })()}
       <div
         className={
           "app-shell" +
@@ -30628,7 +31293,35 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   <ClientNotifications
                     clientId={client.id}
                     items={[
-                      ...(access.tabs.has("documents")
+                      // Tasks p2 minors (7): the bell counts the same open
+                      // requests as Home's Needs you (ClientNeeds: questions and
+                      // documents); the old document list is the fallback.
+                      // Legacy requests keep their ids, so "seen" carries over.
+                      // While the new client's requests load, show none (not
+                      // the fallback list, which may still be the last org's).
+                      ...(cnRequests && !cnRequests.error
+                        ? cnRequests.loaded && (access.tabs.has("messages") || access.tabs.has("documents"))
+                          ? CN_openOf(cnRequests.rows)
+                              // Review fix 2026-10-27: only this client's rows (a
+                              // late answer after an org switch is ignored), and
+                              // questions only when there is a Messages tab to
+                              // answer them in (Documents can't answer a question).
+                              .filter(() => cnRequests.clientId == null || String(cnRequests.clientId) === String(client.id))
+                              .filter((r) => access.tabs.has("messages") || r.needs_upload || r.kind === "document")
+                              .map((r) => ({
+                              id: "req:" + r.id,
+                              title: `${r.needs_upload || r.kind === "document" ? "Please upload" : "Please answer"}: ${r.title}`,
+                              sub: r.due_date ? `Due ${fmtDate(r.due_date)}` : "Requested " + (relTime(r.asked_at || r.created_at) || ""),
+                              cta: r.needs_upload || r.kind === "document" ? "Upload now" : "Answer now",
+                              onOpen: () => {
+                                if (access.tabs.has("messages")) {
+                                  setClientSub({ clientId: selectedClientId, page: "messages", sub: "requests" });
+                                  setPage("messages");
+                                } else setPage("documents");
+                              },
+                            }))
+                          : []
+                        : access.tabs.has("documents")
                         ? openDocRequests.map((r) => ({
                             id: "req:" + r.id,
                             title: `Please upload: ${r.title}`,
@@ -30805,7 +31498,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {/* Client org profile form (components/client/OP_ClientPrompt.jsx):
               real client sessions only; it renders nothing unless the gate
-              (OP_isOn: firm switch or preview) is on and the RPC says eligible. */}
+              (OP_isOn: the firm switch) is on and the RPC says eligible. */}
           {typeof OP_ClientPrompt === "function" && opRealClient && <OP_ClientPrompt email={clientPortalUser.email} />}
           {/* The full-page profile photo gate (components/staff/StaffPhotoGate.jsx,
               PG_Gate) is no longer mounted: it was too intrusive. Staff get a
@@ -30871,7 +31564,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               page={effectivePage}
             />
           )}
-          {/* Desk (was Workbench; components/workbench/WB_Drawer.jsx): an info
+          {/* Desk ( components/workbench/WB_Drawer.jsx): an info
               bar at the bottom and a slim rail on the right of every staff
               page; D or a click opens the right column. Renders nothing while
               the Desk is off; never while viewing as someone, previewing or
@@ -31414,6 +32107,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <DocumentsPage
               client={scopedClient}
               isBookkeeper={isStaffSession && !isPreviewingUser}
+              viewAsEmail={isStaffSession && isPreviewingUser && access.user ? access.user.email : null}
               searchTarget={
                 searchTarget && searchTarget.page === "documents"
                   ? searchTarget
@@ -31572,6 +32266,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         />
       )}
 
+      {legacyTabPrompt && (
+        <ConfirmModal
+          title="Hide these tabs for everyone?"
+          body={`This browser has hidden tabs for ${legacyTabPrompt.clientName}: ${legacyTabPrompt.tabs
+            .map((k) => NAV_LABEL_BY_KEY[k] || k)
+            .join(", ")}. Hide them for everyone at ${legacyTabPrompt.clientName}?`}
+          confirmLabel="Hide"
+          cancelLabel="Not now"
+          onConfirm={confirmLegacyTabPrompt}
+          onCancel={dismissLegacyTabPrompt}
+        />
+      )}
       {settingsOpen && (
         <TabSettingsModal
           scope="access"
@@ -31580,6 +32286,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           tabOrder={tabOrder}
           userAccess={userAccess}
           onToggle={toggleTab}
+          canEditOrgTabs={canEditOrgTabs}
+          onOpenOrgTabs={migrateLegacyHiddenTabs}
           onReorder={reorderTab}
           onToggleUserTab={toggleUserTab}
           onToggleUserCategory={toggleUserCategory}
@@ -31604,6 +32312,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           tabOrder={tabOrder}
           userAccess={userAccess}
           onToggle={toggleTab}
+          canEditOrgTabs={canEditOrgTabs}
+          onOpenOrgTabs={migrateLegacyHiddenTabs}
           onReorder={reorderTab}
           onToggleUserTab={toggleUserTab}
           onToggleUserCategory={toggleUserCategory}

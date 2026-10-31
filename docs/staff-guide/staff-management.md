@@ -67,7 +67,7 @@ It unlocks the admin tabs of **Team** and **HR** (the Members tab opens **read-o
 - **It's read-only.** A bar at the top says "Read-only. Nothing you do here is saved." Anything that would save, send, tick, upload or sync is refused with a note: "View as is read-only. Exit View as to make changes." Each blocked attempt is recorded in the Audit log.
 - **Some things are private to them.** Their **Inbox**, **Reviews** and **Handbook** show a placeholder (Handbook adds who has signed what). Their private tasks are hidden. A Desk is theirs alone, so Today shows the classic page. **Employee records** and **Members** never show. Help shows the staff articles only.
 - **You're still you.** The session stays yours; you aren't signed in as them, and your own Settings stay read-only ("These are your settings, not {name}'s. Exit View as to change them.").
-- **Budgets.** **Approve** shows greyed out with "{First} can't approve budgets." A link, **Exit View as to approve**, takes you out and leaves you on that budget.
+- **Budgets.** **Approve** shows grayed out with "{First} can't approve budgets." A link, **Exit View as to approve**, takes you out and leaves you on that budget.
 - **A new window or tab opened during View as is your normal app,** not the bookkeeper's.
 - Click **Exit "View as"** to return. Every View as (start, blocked change and exit) is recorded in the [Audit log](#/help/audit-log), and your View as time doesn't count in Usage stats.
 

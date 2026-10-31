@@ -273,7 +273,7 @@ function TR_AdminLiveView({ review }) {
       </div>
       <div className="card">
         <h2 className="card-title">Scores so far</h2>
-        <div className="al-table-wrap">
+        <div className="al-table-wrap mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled tr-table">
             <thead>
               <tr>
@@ -332,7 +332,7 @@ function TR_CompareBody({ review, onChanged }) {
 
       <div className="card">
         <h2 className="card-title">Scores</h2>
-        <div className="al-table-wrap">
+        <div className="al-table-wrap mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled tr-table">
             <thead>
               <tr>
@@ -415,7 +415,7 @@ function TR_QuarterCompareCard({ review }) {
         Scores are the reviewer’s ratings. Each area is the average of its two items, out of 5; Overall is all six items, out of 30.
       </p>
       {gap && <p className="tr-muted">{gap}</p>}
-      <div className="al-table-wrap">
+      <div className="al-table-wrap mgb-sticky-wrap">
         <table className="tx-table tx-table-labeled tr-table">
           <thead>
             <tr>
@@ -923,7 +923,7 @@ function TR_PdfAndDrive({ review, onChanged }) {
               {note}
             </p>
             <span className="tr-mono">
-              ~ MGB: Staff Reviews / {r.staff ? r.staff.name : ""} / {TR_reviewFileName(r)}
+              ~ MGB: Personelle (Portal Connected) / {r.staff ? r.staff.name : ""} / {TR_reviewFileName(r)}
             </span>
           </>
         ) : (

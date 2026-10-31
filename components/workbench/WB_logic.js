@@ -381,7 +381,8 @@ function WB_hubDefault() {
 }
 
 // My tasks groups the hub can collapse (never done or unassigned).
-var WB_HUB_TASK_GROUPS = ["overdue", "today", "week", "later", "waiting"];
+// "blocked": Slate plus dependencies, only present while TKP_on (TK_groupMyTasks opts.isBlocked).
+var WB_HUB_TASK_GROUPS = ["overdue", "today", "week", "later", "blocked", "waiting"];
 
 function WB__collapsedClean(c) {
   var out = {};

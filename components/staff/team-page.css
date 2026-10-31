@@ -890,6 +890,11 @@
   background: var(--bad-soft);
   border-color: var(--bad);
 }
+.pf-fee-tag.pf-fee-check {
+  color: var(--warm-text);
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  border-color: var(--gold-deep);
+}
 .pf-fee-tag {
   display: inline-block;
   font-family: var(--font-body);
@@ -903,6 +908,125 @@
   color: var(--text-muted);
   white-space: nowrap;
   vertical-align: 1px;
+}
+.pf-fee-tag.pf-fee-sheet {
+  color: var(--ink-strong);
+  background: var(--accent-soft);
+  border-color: var(--gold-deep);
+}
+.pf-sheet-note {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 12.5px;
+  color: var(--text);
+}
+.pf-sheet-note .tp-q-link,
+.pf-sheet-note .pf-btn {
+  margin-left: 6px;
+}
+/* Master Data sync strip (Team › Clients, internal admins only) */
+.pf-sync {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13px;
+}
+.pf-sync-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.pf-sync-head .pf-fee-tag {
+  margin-left: 0;
+}
+.pf-sync-title {
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.pf-sync-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pf-sync-msg {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+}
+.pf-sync-body {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.pf-sync-body p {
+  margin: 0 0 8px;
+}
+.pf-sync-steps ol {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+.pf-sync-steps li {
+  margin: 0 0 4px;
+}
+.pf-sync-steps code {
+  font-size: 12px;
+}
+.pf-sync-preview {
+  margin-top: 4px;
+}
+.pf-sync-preview .pf-subhead {
+  margin-top: 4px;
+}
+.pf-sync-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+}
+.pf-sync-details {
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.pf-sync-details summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.pf-sync-unmatched {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pf-sync-unmatched li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.pf-sync-unmatched select {
+  max-width: 220px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+@media (max-width: 640px) {
+  .pf-sync-actions {
+    margin-left: 0;
+  }
+  .pf-sync-unmatched select {
+    max-width: 100%;
+  }
 }
 .pf-strip-wrap {
   margin: 0 0 14px;

@@ -4,8 +4,11 @@
 -- Safe to re-run. If it were missing the app would hide the
 -- profit columns and says so.
 --
--- Everything here is ADMIN-ONLY. Bookkeepers never read fees, pay rates,
--- cost or margin.
+-- Everything here is INTERNAL-ONLY: an active admin who also holds the
+-- owner's MGB (internal) grant (can_view_internal(); since 2026-10-31, see
+-- profitability-internal-only.sql, which also needs internal-company-profile.sql
+-- applied first). Bookkeepers and admins without the grant never read fees,
+-- pay rates, cost or margin.
 --
 --   client_fees            the client's actual monthly fee. With no row, the
 --                          app falls back to the pricing-milestone tier fee
@@ -28,8 +31,8 @@
 -- qbo_customer_resolution / qbo_employee_staff_map, the same way as
 -- qbo_hours_by_client / qbo_hours_by_staff (supabase/qbo-firm-time.sql).
 --
--- The RPC is SECURITY INVOKER with an explicit is_active_staff_admin() check;
--- the tables it reads are all admin-only under RLS as well.
+-- The RPC is SECURITY INVOKER with an explicit is_active_staff_admin() and
+-- can_view_internal() check; the tables it reads are internal-only under RLS too.
 
 begin;
 
@@ -48,17 +51,17 @@ grant select, insert, update, delete on public.client_fees to authenticated;
 
 drop policy if exists "admins read client fees" on public.client_fees;
 create policy "admins read client fees" on public.client_fees
-  for select to authenticated using (public.is_active_staff_admin());
+  for select to authenticated using ((select public.is_active_staff_admin()) and (select public.can_view_internal()));
 drop policy if exists "admins write client fees" on public.client_fees;
 create policy "admins write client fees" on public.client_fees
-  for insert to authenticated with check (public.is_active_staff_admin());
+  for insert to authenticated with check ((select public.is_active_staff_admin()) and (select public.can_view_internal()));
 drop policy if exists "admins update client fees" on public.client_fees;
 create policy "admins update client fees" on public.client_fees
   for update to authenticated
-  using (public.is_active_staff_admin()) with check (public.is_active_staff_admin());
+  using ((select public.is_active_staff_admin()) and (select public.can_view_internal())) with check ((select public.is_active_staff_admin()) and (select public.can_view_internal()));
 drop policy if exists "admins delete client fees" on public.client_fees;
 create policy "admins delete client fees" on public.client_fees
-  for delete to authenticated using (public.is_active_staff_admin());
+  for delete to authenticated using ((select public.is_active_staff_admin()) and (select public.can_view_internal()));
 
 -- ---------------------------------------------------------------------------
 -- Loaded hourly cost per staff member (history kept by effective_from)
@@ -77,17 +80,17 @@ grant select, insert, update, delete on public.staff_cost_rates to authenticated
 
 drop policy if exists "admins read staff cost rates" on public.staff_cost_rates;
 create policy "admins read staff cost rates" on public.staff_cost_rates
-  for select to authenticated using (public.is_active_staff_admin());
+  for select to authenticated using ((select public.is_active_staff_admin()) and (select public.can_view_internal()));
 drop policy if exists "admins write staff cost rates" on public.staff_cost_rates;
 create policy "admins write staff cost rates" on public.staff_cost_rates
-  for insert to authenticated with check (public.is_active_staff_admin());
+  for insert to authenticated with check ((select public.is_active_staff_admin()) and (select public.can_view_internal()));
 drop policy if exists "admins update staff cost rates" on public.staff_cost_rates;
 create policy "admins update staff cost rates" on public.staff_cost_rates
   for update to authenticated
-  using (public.is_active_staff_admin()) with check (public.is_active_staff_admin());
+  using ((select public.is_active_staff_admin()) and (select public.can_view_internal())) with check ((select public.is_active_staff_admin()) and (select public.can_view_internal()));
 drop policy if exists "admins delete staff cost rates" on public.staff_cost_rates;
 create policy "admins delete staff cost rates" on public.staff_cost_rates
-  for delete to authenticated using (public.is_active_staff_admin());
+  for delete to authenticated using ((select public.is_active_staff_admin()) and (select public.can_view_internal()));
 
 -- ---------------------------------------------------------------------------
 -- Settings (single row)
@@ -106,11 +109,11 @@ grant select, update on public.profitability_settings to authenticated;
 
 drop policy if exists "admins read profitability settings" on public.profitability_settings;
 create policy "admins read profitability settings" on public.profitability_settings
-  for select to authenticated using (public.is_active_staff_admin());
+  for select to authenticated using ((select public.is_active_staff_admin()) and (select public.can_view_internal()));
 drop policy if exists "admins update profitability settings" on public.profitability_settings;
 create policy "admins update profitability settings" on public.profitability_settings
   for update to authenticated
-  using (public.is_active_staff_admin()) with check (public.is_active_staff_admin());
+  using ((select public.is_active_staff_admin()) and (select public.can_view_internal())) with check ((select public.is_active_staff_admin()) and (select public.can_view_internal()));
 
 -- ---------------------------------------------------------------------------
 -- Profit per client for a date range
@@ -149,7 +152,7 @@ declare
   v_months numeric;
   v_avg numeric;
 begin
-  if not public.is_active_staff_admin() then
+  if not (public.is_active_staff_admin() and public.can_view_internal()) then
     raise exception 'not authorized' using errcode = '42501';
   end if;
   if p_from is null or p_to is null or p_to < p_from then

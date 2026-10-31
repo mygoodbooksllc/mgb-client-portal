@@ -321,6 +321,20 @@ body {
 }
 :where(select, input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"]):focus-visible { outline: 2px solid var(--gold); outline-offset: 0; border-color: var(--gold); }
 :where(select, input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"]):disabled { background-color: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
+/* Plain textareas (feedback box, notes) fall back to the browser's gray box and
+   monospace font. Same themed look as the select above; zero specificity so any
+   class that already styles a textarea still wins. */
+:where(textarea) {
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--surface);
+  color: var(--text);
+  font: 14px/1.45 var(--font-body);
+}
+:where(textarea)::placeholder { color: var(--text-muted); opacity: 1; }
+:where(textarea):focus-visible { outline: 2px solid var(--gold); outline-offset: 0; border-color: var(--gold); }
+:where(textarea):disabled { background-color: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
 
 /* Ambient gradient mesh behind the glass cards (Option C direction). A fixed
    layer sits behind .app-shell (which needs its own stacking context via
@@ -2581,6 +2595,10 @@ th {
   gap: 8px;
   margin-bottom: 16px;
 }
+
+/* The cards above the folder bar (requests, chaser, agreements) have no bottom
+   margin, so the pills touched the last card. Space the bar off whatever precedes it. */
+* + .doc-folder-bar { margin-top: 16px; }
 
 .doc-folder-pill {
   display: inline-flex;
@@ -8239,6 +8257,28 @@ body:has(.modal-overlay) .chat-fab-wrap {
   font-weight: 700;
   color: #f5efe3;
 }
+/* Icon-only sidebar: just the medal (no pill, no text). The gold dot marks a
+   note to read (Reached / Moving to / Near); the hover tip spells it out. */
+.ms-badge.ms-badge-compact {
+  padding: 0;
+  gap: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.ms-badge.ms-badge-compact.ms-badge-noted {
+  box-shadow: none;
+}
+.ms-badge-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ecd9b0;
+  border: 2px solid var(--navy-deep);
+}
 /* Phones: both header pills line up on the left, at the same compact
    height, and the badge keeps its name. */
 @media (max-width: 760px) {
@@ -11166,4 +11206,29 @@ html[data-brand="mgb"] .wb-bar {
 .tk-sbar .an-nav {
   margin-right: auto;
   margin-left: 8px;
+}
+
+/* ---- 2026-10-28: sticky table headers (staff data tables) ----
+   A table wrapper that scrolls sideways (overflow-x) can't let its header stick to the
+   page, because cards clip and the wrapper becomes the scroll parent. So long staff
+   tables get .mgb-sticky-wrap: the wrapper is capped near viewport height and scrolls
+   both ways inside, and the header row sticks to its top. Short tables never reach the
+   cap, so nothing changes for them. Phone widths (<=760px) restack tables as cards with
+   no header row, so this is desktop/tablet only. Colors use existing tokens (dark safe). */
+@media (min-width: 761px) {
+  div.mgb-sticky-wrap {
+    overflow: auto;
+    max-height: max(320px, calc(100vh - 160px));
+  }
+  .mgb-sticky-wrap thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--surface);
+    box-shadow: 0 1px 0 var(--border);
+  }
+  /* Close tracker: the corner cell is sticky both ways, so it sits above the rest. */
+  .mgb-sticky-wrap thead .ct-client-col {
+    z-index: 4;
+  }
 }

@@ -174,7 +174,7 @@ function LR_DupModeBar({ mode, firmMode, override, aside, isAdmin, busy, onChang
         ) : null}
       </p>
       {open && n > 0 && (
-        <div className="lr-table-wrap">
+        <div className="lr-table-wrap mgb-sticky-wrap">
           <table className="lr-table lr-lines">
             <caption className="lr-sr">Entries Smart mode set aside</caption>
             <thead>
@@ -220,7 +220,7 @@ function LR_DupModeBar({ mode, firmMode, override, aside, isAdmin, busy, onChang
 function LR_LineTable({ lines }) {
   if (!lines || !lines.length) return null;
   return (
-    <div className="lr-table-wrap">
+    <div className="lr-table-wrap mgb-sticky-wrap">
       <table className="lr-table lr-lines">
         <caption className="lr-sr">Ledger lines behind this flag</caption>
         <thead>
@@ -344,7 +344,7 @@ function LR_ReconPanel({ recon, hasData, headingId }) {
           </p>
         )}
         {recon.banks_clean === true && !recon.loan_issue && <p className="lr-good">Bank accounts have nothing older than {GLR_config.T.reconStaleDays} days uncleared.</p>}
-        <div className="lr-table-wrap">
+        <div className="lr-table-wrap mgb-sticky-wrap">
           <table className="lr-table">
             <caption className="lr-sr">Uncleared items through {LR_usDate(recon.through)}</caption>
             <thead>
@@ -449,7 +449,7 @@ function LR_RollForwardPanel({ rollfwd, hasData, headingId }) {
                 <p className="card-subtitle">QuickBooks didn't send running balances for this account, so the tie out can't be checked. The activity is below.</p>
               )}
               {!a.line_count && !a.no_balance && <p className="card-subtitle">No activity.</p>}
-              <div className="lr-table-wrap">
+              <div className="lr-table-wrap mgb-sticky-wrap">
                 <table className="lr-table">
                   <caption className="lr-sr">
                     {a.acct} roll-forward for {GLR_config.monthLabel(rollfwd.period)}
@@ -591,7 +591,7 @@ function LR_ComparePanel({ rows, ym, hasData, onCopy, headingId, passThroughCoun
           {moved.length ? `${moved.length} account${moved.length === 1 ? "" : "s"} moved outside the usual range.` : "Everything is in the usual range."}
         </p>
         {pickedRow && <LR_BarChart row={pickedRow} ym={ym} />}
-        <div className="lr-table-wrap">
+        <div className="lr-table-wrap mgb-sticky-wrap">
           <table className="lr-table lr-cmp">
             <caption className="lr-sr">
               {GLR_config.monthLabel(ym)} compared with the average month. Pick an account to chart it.

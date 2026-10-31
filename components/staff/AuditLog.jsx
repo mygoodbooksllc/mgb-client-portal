@@ -25,6 +25,11 @@ const AL_ACTIONS = {
   "client_fee.set": "Client fee set",
   "client_fee.changed": "Client fee changed",
   "client_fee.removed": "Client fee removed",
+  "client_fee.sheet_override_on": "Client fee override on (Master Data sync paused)",
+  "client_fee.sheet_override_off": "Client fee override off (Master Data sync resumed)",
+  "client_fee.sheet_map.insert": "Master Data row matched",
+  "client_fee.sheet_map.update": "Master Data match changed",
+  "client_fee.sheet_map.delete": "Master Data match removed",
   "cost_rate.set": "Cost rate set",
   "cost_rate.changed": "Cost rate changed",
   "cost_rate.removed": "Cost rate removed",
@@ -73,6 +78,8 @@ const AL_ACTIONS = {
   "staff_photo.exempt_off": "Photo required again",
   "staff_photo.version_hidden": "Photo version hidden",
   "staff_photo.downloaded": "Profile photo downloaded",
+  "staff_profile.birthday_set": "Staff birthday filled in (month and day)",
+  "staff_profile.start_date_set": "Staff start date filled in",
   "gl_review.dup_mode": "Ledger review possible duplicates mode changed",
 };
 
@@ -82,9 +89,11 @@ const AL_ACTION_GROUPS = [
   { value: "client_access.", label: "Client assignments" },
   { value: "access_grant.", label: "Temporary access" },
   { value: "staff.", label: "Staff changes" },
-  { value: "client_fee.", label: "Client fees" },
-  { value: "cost_rate.", label: "Cost rates" },
-  { value: "profitability.", label: "Profitability settings" },
+  // Money groups: listed only for an admin with the MGB (internal) grant
+  // (the server hides those rows from anyone else; profitability-internal-only.sql).
+  { value: "client_fee.", label: "Client fees", money: true },
+  { value: "cost_rate.", label: "Cost rates", money: true },
+  { value: "profitability.", label: "Profitability settings", money: true },
   { value: "qbo_", label: "QuickBooks" },
   { value: "client.", label: "Clients" },
   { value: "view_as.", label: "View as" },
@@ -120,7 +129,12 @@ function AL_summary(row) {
     if (d.grants_cancelled) bits.push(`${d.grants_cancelled} request${d.grants_cancelled === 1 ? "" : "s"} cancelled`);
     return bits.join(", ") || "Nothing to move";
   }
-  if (a.startsWith("client_fee.")) return `${AL_money(d.from)} → ${AL_money(d.to)}`;
+  if (a === "client_fee.sheet_override_on" || a === "client_fee.sheet_override_off") return `Fee ${AL_money(d.fee)}`;
+  if (a.startsWith("client_fee.sheet_map.")) {
+    if (d.ignored === true) return `${d.sheet_name || ""}: not a client`;
+    return `${d.sheet_name || ""}${row.action.endsWith(".delete") ? " unmatched" : " matched to a client"}`;
+  }
+  if (a.startsWith("client_fee.")) return `${AL_money(d.from)} → ${AL_money(d.to)}${row.actor_email === "master-sheet-sync" ? " (Master Data sync)" : ""}`;
   if (a.startsWith("cost_rate.")) return `${AL_money(d.from)} → ${AL_money(d.to)}/h from ${d.effective_from || "?"}`;
   if (a === "profitability.target_changed") return `${d.from ?? "?"}% → ${d.to ?? "?"}%`;
   if (a === "client.plan_changed" || a === "client.tier_changed") return `${d.from ?? "none"} → ${d.to ?? "none"}`;
@@ -295,6 +309,9 @@ function AL_csvCell(v) {
 
 function AL_AuditLogPage({ clients }) {
   const supabase = window.mgbSupabase;
+  const toolsCtx = typeof StaffToolsContext !== "undefined" ? React.useContext(StaffToolsContext) : null;
+  const seeMoney = typeof TP_PF_canSee === "function" && TP_PF_canSee(toolsCtx && toolsCtx.staffUser);
+  const actionGroups = AL_ACTION_GROUPS.filter((g) => !g.money || seeMoney);
   const showToast = typeof useToast === "function" ? useToast() : () => {};
   const blank = { actor: "", client: "", action: "", from: "", to: "", search: "" };
   const [filters, setFilters] = React.useState(blank);
@@ -479,7 +496,7 @@ function AL_AuditLogPage({ clients }) {
           <label className="al-field">
             <span>Action</span>
             <select value={filters.action} onChange={set("action")}>
-              {AL_ACTION_GROUPS.map((g) => (
+              {actionGroups.map((g) => (
                 <option key={g.value} value={g.value}>{g.label}</option>
               ))}
             </select>
@@ -510,7 +527,7 @@ function AL_AuditLogPage({ clients }) {
         {state.error && <p className="al-error" role="alert">{state.error}</p>}
 
         {!state.error && (
-          <div className="al-table-wrap">
+          <div className="al-table-wrap mgb-sticky-wrap">
             <table className="tx-table tx-table-labeled al-table">
               <thead>
                 <tr>

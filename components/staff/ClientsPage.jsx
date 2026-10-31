@@ -359,7 +359,7 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
             <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a client" aria-label="Find a client" />
           </label>
         </div>
-        <div className="table-scroll" data-tour="clients-list">
+        <div className="table-scroll mgb-sticky-wrap" data-tour="clients-list">
           <table className="tx-table tx-table-labeled cl-table">
             <thead>
               <tr>

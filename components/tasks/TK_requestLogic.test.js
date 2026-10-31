@@ -92,6 +92,15 @@ t("waiting label counts business days", () => {
   assert.strictEqual(L.TK_waitingLabel(1), "Waiting 1 business day");
   assert.strictEqual(L.TK_waitingLabel(4), "Waiting 4 business days");
 });
+t("asked toast: failed send never says try again (would ask twice)", () => {
+  assert.strictEqual(L.TK_askedToastText("noemail"), "Asked. The task is waiting on the client. Nothing was emailed.");
+  assert.match(L.TK_askedToastText("sent", { mode: "test", sent: 1, recipients: ["me"] }), /^Asked\. Test email sent to you only\.$/);
+  const f = L.TK_askedToastText("sendfailed", { reason: "tk_send_failed" });
+  assert.match(f, /^Asked\. The task is waiting on the client, but the email didn't go out\./);
+  assert.ok(!/Try again/.test(f));
+  assert.match(f, /Email again/);
+  assert.ok(!/Try again/.test(L.TK_askedToastText("sendfailed", { reason: "tk_too_soon" })));
+});
 t("send results always say dry run and nothing sent", () => {
   assert.match(L.TK_sendResultText({ mode: "dry_run", recipients: ["a", "b"] }, "send"), /^Dry run: nothing sent\..*2 people/);
   assert.match(L.TK_sendResultText({ mode: "test", recipients: ["me"] }, "nudge"), /^Dry run: nothing sent\. Reminder .*only to you/);

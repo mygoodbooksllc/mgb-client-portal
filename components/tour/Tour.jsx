@@ -95,6 +95,9 @@
 //   #st-tab-firm     Settings' Firm settings tab, found by id (Settings.jsx)
 //   Tasks tour (TOUR_StaffRoot too; on the portal's #/tasks/my page, never
 //   in the /tasks shell, where tours aren't mounted; components/tasks/)
+//   tk-summary       Work › Slate summary (Slate app on): the card; tk-summary-groups its
+//                    lists and tk-summary-open the Open Slate button (TK_MyTasks.jsx)
+//   wb-hub-open-slate the Desk Slate tab's Open in Slate link (WB_HubTasks.jsx)
 //   tk-add           My Tasks' Add task button (TK_MyTasks.jsx; a list's
 //                    Add task in TK_List.jsx carries it too)
 //   tk-groups        My Tasks' groups, only when there are tasks
@@ -104,20 +107,28 @@
 //   tk-dw-fields     the Assignee/Due/Client/Project/Priority/Status block at
 //                    the top of a task's details, only while one is open (TK_DrawerContent.jsx)
 //   tk-no-team       the sidebar's No team yet group, admins, only when a
-//                    client is in it (TK_Sidebar.jsx)
+//                    client is in it (TK_Sidebar.jsx); with the Slate plus
+//                    icon rail, the group in the Clients panel or, while that
+//                    panel is closed, the Clients icon (TK_SlateRail.jsx)
 //   tk-assign-team   Assign team in a client list's header, admins, only on a
 //                    client with no bookkeeper (TK_ClientHeader.jsx)
 //   tk-tpl-assign    the template editor's Assign to field (TK_Templates.jsx)
 //   tk-status        the first row's status pill (TK_TaskRow.jsx)
 //   tk-sidebar       the lists rail, 900px and up (TK_Sidebar.jsx); below
-//                    that it sits behind the Lists button
-//   tk-review-nav    the sidebar's Review item (TK_Sidebar.jsx), same widths
+//                    that it sits behind the Lists button. Slate plus (hidden
+//                    preview): the icon rail's nav (TK_SlateRail.jsx), same
+//                    widths plus the Slate app's Regular and Full sizes
+//   tk-review-nav    the sidebar's Review item (TK_Sidebar.jsx, or the icon
+//                    rail's Review icon in TK_SlateRail.jsx), same widths
 //   tk-review-groups the review queue's groups (TK_ReviewQueue.jsx), only
 //                    when something is waiting
 //   tk-review-stats  the queue's Last 30 days card (admins)
 //   tk-review-strip  the review strip in a task's details (TK_Drawer.jsx)
-//   tk-recurring-nav the sidebar's Recurring item (TK_Sidebar.jsx), same widths
-//   tk-manage-nav    the sidebar's Manage projects item (admins; TK_Sidebar.jsx)
+//   tk-recurring-nav the sidebar's Recurring item (TK_Sidebar.jsx, or the icon
+//                    rail's Recurring icon), same widths
+//   tk-manage-nav    the sidebar's Manage projects item (admins; TK_Sidebar.jsx);
+//                    with the icon rail, Manage projects in the Projects panel
+//                    or, while that panel is closed, the Projects icon
 //   tk-manage-head   Tasks › Manage projects' heading (TK_ManageProjects.jsx)
 //   tk-groupby       the Group by select in My Tasks' view bar (TK_SlateViewBar,
 //                    TK_MyTasks.jsx; also a person's list switch). The Desk
@@ -133,7 +144,8 @@
 //                    tasks are selected or a skipped report is showing
 //   tk-project-dot   the color dot beside a project's name on its own page
 //                    (TK_List.jsx); the sidebar's project dots sit in tk-sidebar
-//   tk-waiting-nav   the sidebar's Waiting on client item (TK_Sidebar.jsx), same widths
+//   tk-waiting-nav   the sidebar's Waiting on client item (TK_Sidebar.jsx, or the
+//                    icon rail's Waiting icon), same widths
 //   tk-waiting-head  Tasks › Waiting on client's heading (TK_WaitingList.jsx)
 //   tk-waiting-groups its client groups, only when something is waiting
 //   tk-ask-client    a client task's Client requests section (TK_AskClientModal.jsx)
@@ -226,6 +238,7 @@
 //                            informational, it never starts by itself)
 //   tasksTour                { status, at }                 (Tasks tour)
 //   slateTour                { status, at }     ("Slate, start to finish")
+//   slatePlusTour            { status, at }     (Slate plus tour, 2026-10-28)
 // The client tour starts on its own only for a signed-in client user who has
 // no tour status yet. Never for staff, "View as", or "Preview as a client
 // user". Anyone can run it again from the client top bar's "?" menu or
@@ -543,6 +556,20 @@ function TOUR_cadence(plan) {
   return plan === "premium" ? "every hour" : plan === "standard" ? "weekly" : "monthly";
 }
 
+// Client page drop (docs/client-page-drop.md): the Documents step mentions
+// dropping a file anywhere only when the drop is on for this client login
+// (client_page_drop_state, read once by CPD_gate.js), or for staff in View as
+// with the per-person preview mgb_clientdrop_preview on (they get the demo).
+// While the owner's switch is off, real clients keep the old wording.
+function TOUR_clientDropOn(ctx) {
+  try {
+    if (ctx && ctx.preview) return typeof CPD_previewOn === "function" && CPD_previewOn();
+    return !!(typeof CPD__client !== "undefined" && CPD__client.value && CPD__client.value.enabled);
+  } catch (e) {
+    return false;
+  }
+}
+
 // How the books stay current, the same words wherever the client tour says
 // it: from QuickBooks on the plan's schedule, or by the bookkeeper when the
 // client has no QuickBooks connection.
@@ -683,7 +710,9 @@ function TOUR_clientSteps(ctx) {
       targets: ["doc-upload"],
       title: "Documents",
       body: () =>
-        "When your bookkeeper asks for something, like a bank statement or a receipt, upload it here. You'll see a reminder until it's in.",
+        TOUR_clientDropOn(ctx)
+          ? "Drop a file anywhere in the portal, or upload it here. You pick the folder, a name, and who at your organization can see it. When your bookkeeper asks for something, you'll see a reminder until it's in."
+          : "When your bookkeeper asks for something, like a bank statement or a receipt, upload it here. You'll see a reminder until it's in.",
     },
     {
       id: "messages",
@@ -1030,6 +1059,8 @@ function TOUR_tabStep(place, tab, title, body, when) {
 function TOUR_deskPlusOn() {
   try {
     if (typeof WB_plusOn !== "function") return false;
+    // View as shows the tour but never mounts the Desk, so no Desk additions text there.
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
     if (typeof WB_store === "undefined" || !WB_store.getState().on) return false;
     return !!WB_plusOn(true);
   } catch (e) {
@@ -1182,7 +1213,11 @@ function TOUR_bookkeeperSteps(ctx) {
       "work",
       "tasks",
       "Work › Slate",
-      "Your tasks, grouped by when they're due. Notes and client SOPs are on the Notes & SOPs tab next to it.",
+      // Slate app on: Work › Slate is a short summary and the Slate page is the full list.
+      () =>
+        typeof TK_slateAppOn === "function" && TK_slateAppOn()
+          ? "A quick look at what's late, due today and next, with Open Slate for the full list. Notes and client SOPs are on the Notes & SOPs tab next to it."
+          : "Your tasks, grouped by when they're due. Notes and client SOPs are on the Notes & SOPs tab next to it.",
     ),
     TOUR_tabStep(
       "work",
@@ -1251,7 +1286,9 @@ function TOUR_adminSteps(ctx) {
     team(
       "hours",
       "Team › Hours",
-      "Hours and tasks by person and by client, monthly hours budgets and capacity. Click a client or a person for fees, cost and margin.",
+      ctx && ctx.canSeeMoney
+        ? "Hours and tasks by person and by client, monthly hours budgets and capacity. Click a client or a person for fees, cost and margin."
+        : "Hours and tasks by person and by client, monthly hours budgets and capacity. Click a client or a person for the detail.",
     ),
     team("reply-times", "Team › Reply times", "How fast clients hear back, by person, against the 24-hour goal."),
     team("performance", "Team › Performance", "Every bookkeeper's score out of 100. Admins see the full ranking; bookkeepers see only their own."),
@@ -1317,7 +1354,7 @@ function TOUR_adminSteps(ctx) {
       spot: "top",
       title: "Your Today, admin edition",
       body: () =>
-        "Today covers every client you can open, and admins can open them all: access and upgrade requests under Waiting on others, clients needing attention, and birthdays and work anniversaries a week ahead in This week, which also lists pricing milestones to review.",
+        "Today covers every client you can open, and admins can open them all: access and upgrade requests under Waiting on others, clients needing attention, and birthdays and work anniversaries a month ahead in This week, which also lists pricing milestones to review.",
     },
     {
       id: "done",
@@ -1436,7 +1473,9 @@ function TOUR_amSteps(ctx) {
       targets: ["#tp-tab-hours"],
       title: "Fees and hours",
       body: () =>
-        "A client's fee follows their confirmed pricing milestone. Team › Hours shows each client's hours against budget; click a client for fees, cost and margin, and see who has outgrown their plan.",
+        ctx && ctx.canSeeMoney
+          ? "A client's fee follows their confirmed pricing milestone. Team › Hours shows each client's hours against budget; click a client for fees, cost and margin, and see who has outgrown their plan."
+          : "A client's fee follows their confirmed pricing milestone. Team › Hours shows each client's hours against budget, and who has outgrown their plan.",
     },
     {
       id: "new-client",
@@ -1524,7 +1563,10 @@ function TOUR_tasksSteps() {
       spot: "top",
       title: "Lists and projects",
       body: () =>
-        (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
+        // Slate plus icon rail (launched 2026-10-28 behind slateplus_enabled, TK_SlateRail.jsx).
+        document.querySelector(".tk-sidebar.tkr")
+          ? "Icons for every place in Slate; hover one for its full name, and the numbers are what's waiting. Slate, Review (work waiting for an admin's approval), Waiting (everything you've asked a client for), Recurring (templates that make tasks on a schedule) and Search. People, Projects and Clients open a panel with the lists, your pinned ones first (point at one for a quick menu of links); Pin keeps it open. SOPs and 90 Day are projects open to all staff. Admins also find Manage projects under Projects."
+          : (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
         "Slate (group it by due date or by client), Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Recurring (templates that make tasks on a schedule), Search, the firm's projects (each with its own color dot) and each of your clients' lists. SOPs and 90 Day are projects open to all staff. Admins also get Manage projects.",
     },
     {
@@ -1580,6 +1622,105 @@ function TOUR_tasksSteps() {
       title: "That's Slate",
       body: () =>
         "Click any task to open its details: the main fields at the top, then comments, files, subtasks and who's following. Take this tour again from the ? menu.",
+    },
+  ];
+}
+
+// Slate plus tour (launch 2026-10-28): where each Slate plus piece lives,
+// about two minutes. Listed only while the Slate plus gate is on (TKP_on:
+// the firm switch tk_settings.slateplus_enabled, or the per-person preview
+// flag; never in View as). Run by hand, or from the "slate-plus" launch
+// notice (announcements.js tourKey). It only looks: every `go` just changes
+// the address. Steps whose target isn't on screen show centered with the
+// same words (the rail only at 900px and up, a row only when there are
+// tasks).
+function TOUR_slatePlusSteps(ctx) {
+  const admin = !!(ctx && ctx.isAdmin);
+  return [
+    {
+      id: "welcome",
+      title: "What's new in Slate",
+      body: () =>
+        "Slate has new pieces: one search, an icon sidebar, filters, a calendar, people's profiles, Blocked by, custom fields and project status. This tour shows where each one is. About two minutes, and it never changes a task.",
+    },
+    {
+      id: "tsp-search",
+      go: TOUR_tasksOpen(),
+      targets: ["tb-search", "tks-search"],
+      wait: true,
+      title: "One search for everything",
+      body: () =>
+        "Search clients, tasks, projects, people, SOPs and help from here. Press Ctrl+K (Cmd+K on a Mac) from any page. On the Slate page, the first result, Filter this Slate list, narrows your list to your words instead.",
+    },
+    {
+      id: "tsp-rail",
+      when: () => window.innerWidth >= 900,
+      targets: ["tk-sidebar"],
+      wait: true,
+      spot: "top",
+      title: "An icon sidebar",
+      body: () =>
+        "Each icon is a place in Slate; hover one for its name. Point at People, Projects or Clients for a quick menu of links, or click for the full panel with your pinned ones first. Pin keeps the panel open. Portfolio" +
+        (admin ? ", Manage projects and Rules" : "") +
+        " sit under Projects.",
+    },
+    {
+      id: "tsp-filters",
+      targets: ["tk-filter-bar"],
+      wait: true,
+      title: "Filter and save",
+      body: () =>
+        "Narrow the list by Assignee, Client, Project, Due or Status. Every filter you set has to match. Saved filters › Save this view keeps a mix you use often, and Set as my default opens Slate with it. Saved filters are yours only.",
+    },
+    {
+      id: "tsp-calendar",
+      targets: ["tk-calendar-switch"],
+      wait: true,
+      title: "Calendar",
+      body: () =>
+        "Calendar shows these tasks on a month grid by due date. Drag a task to another day to change its due date (Undo is on the message). It follows your search and filters. It's on client, project and person lists too.",
+    },
+    {
+      id: "tsp-names",
+      targets: ["tkp-reassign"],
+      wait: true,
+      title: "Names open profiles",
+      body: () =>
+        "Click a person's name on a row to open their profile: their week, their tasks and the clients they cover. The small button next to the name reassigns the task (on a task nobody has, the empty circle assigns someone). On a client task with an hours budget, the top of that menu shows this month's hours against it.",
+    },
+    {
+      id: "tsp-task",
+      title: "Inside a task",
+      body: () =>
+        "Blocked by makes a task wait for another one: it shows a lock, sits in a Blocked group and can't be started until the other is done. Custom fields (like Fund or Grant) show under it when the project or client has them. In comments, the @ list grays out anyone who can't see the task, and a line after you post says who was notified.",
+    },
+    {
+      id: "tsp-projects",
+      title: "Projects",
+      body: () =>
+        "New project now takes a description, a client, a due date, starter sections and people in one go. On a project, Post update shares a status (On track, At risk, Off track or Done); nobody is emailed. Portfolio, under Projects, lists every project's latest status and due date.",
+    },
+    {
+      id: "tsp-rules",
+      when: () => admin,
+      title: "Rules (admins)",
+      body: () =>
+        "Rules, under Projects, do small repeat steps on one project or client: when a task moves, is done, goes late or is assigned. Dry run shows what a rule would do and changes nothing. Every rule starts off, and only the owner switches one on.",
+    },
+    {
+      id: "tsp-team-load",
+      go: TOUR_go("team", "people"),
+      targets: ["tp-team-load"],
+      wait: true,
+      title: "Team load moved here",
+      body: () =>
+        "Team › People now shows Team load: open tasks, due this week and late for each person, the Unassigned count and the next 4 weeks. Admins and account managers see everyone; everyone else sees their own.",
+    },
+    {
+      id: "done",
+      title: "Make your profile yours",
+      body: () =>
+        "Click your own name on any task row (or search for yourself) and use Customize to add a status, your time zone, pins, goals and favorites, each shared with All staff or kept to you. Read more in Help: What's in Slate plus? Take this tour again from the ? menu.",
     },
   ];
 }
@@ -1664,6 +1805,25 @@ const TOUR_STAFF_TOURS = [
       typeof TK_store.getState === "function" &&
       TK_store.getState().schema === "ok",
     steps: (ctx) => TOUR_slateSteps(ctx),
+  },
+  {
+    // Slate plus (launch 2026-10-28): run by hand, or from the "slate-plus"
+    // launch notice. Listed only while the Slate plus gate is on (TKP_on is
+    // false in View as) and the Tasks tables answer.
+    key: "slateplus",
+    setting: "slatePlusTour",
+    label: "Slate plus tour",
+    sub: "Search, sidebar, filters, calendar, profiles and more",
+    available: (ctx) =>
+      !ctx.impersonating &&
+      typeof TKP_on === "function" &&
+      !!TKP_on() &&
+      typeof TK_App === "function" &&
+      typeof TK_store !== "undefined" &&
+      !!TK_store &&
+      typeof TK_store.getState === "function" &&
+      TK_store.getState().schema === "ok",
+    steps: (ctx) => TOUR_slatePlusSteps(ctx),
   },
 ];
 
@@ -2540,6 +2700,9 @@ function TOUR_StaffRoot({
     isBookkeeper,
     tempAdmin,
     showsAdminPages,
+    // Fees, cost rates and margin: an admin with the MGB (internal) grant only
+    // (TP_PF_canSee), never in View as.
+    canSeeMoney: isAdmin && !impersonating && !!(staffUser && staffUser.canViewInternal === true),
     amCount,
     impersonating: !!impersonating,
     places: navPlaces ? navPlaces.map((p) => p.label) : null,

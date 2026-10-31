@@ -122,6 +122,49 @@ await t("file types and disposition", () => {
   assert.match(L.contentDisposition('é"x.pdf', "application/pdf"), /filename="__x.pdf"; filename\*=UTF-8''%C3%A9%22x.pdf/);
 });
 
+await t("blocked program and script types", () => {
+  for (const name of ["setup.exe", "Setup.EXE", "x.msi", "run.bat", "a.cmd", "a.com", "a.scr", "a.js", "a.vbs", "a.vbe",
+                      "a.ps1", "a.sh", "a.jar", "a.dmg", "a.pkg", "a.apk", "My.app", "invoice.pdf.exe", "setup.exe. ", "setup.exe...",
+                      "macro.xlsm", "a.hta", "a.lnk"]) {
+    assert.equal(L.blockedExt(name), true, name);
+  }
+  for (const name of ["invoice.pdf", "invoice.exe.pdf", "book.xlsx", "photo.HEIC", "noext", "", null, "a.", "jsdoc.txt"]) {
+    assert.equal(L.blockedExt(name), false, String(name));
+  }
+  assert.match(L.BLOCKED_TYPE_MESSAGE, /can't be uploaded/);
+});
+
+await t("access mode and list parsing", () => {
+  assert.equal(L.parseAccessMode(""), "everyone");
+  assert.equal(L.parseAccessMode(undefined), "everyone");
+  assert.equal(L.parseAccessMode(" Only "), "only");
+  assert.equal(L.parseAccessMode("except"), "except");
+  assert.equal(L.parseAccessMode("sometimes"), null);
+  assert.deepEqual(L.normalizeAccessEmails('[" A@B.org ", "a@b.org", "c@d.org"]'), ["a@b.org", "c@d.org"]);
+  assert.deepEqual(L.normalizeAccessEmails("a@b.org, C@D.org"), ["a@b.org", "c@d.org"]);
+  assert.deepEqual(L.normalizeAccessEmails(""), []);
+  assert.deepEqual(L.normalizeAccessEmails(null), []);
+  assert.deepEqual(L.normalizeAccessEmails(["x@y.org"]), ["x@y.org"]);
+  assert.equal(L.normalizeAccessEmails("[not json"), null);
+  assert.equal(L.normalizeAccessEmails('{"a":1}'), null);
+  assert.equal(L.normalizeAccessEmails("[1]"), null);
+  assert.equal(L.normalizeAccessEmails('["not-an-email"]'), null);
+  const many = JSON.stringify(Array.from({ length: 51 }, (_, i) => `p${i}@x.org`));
+  assert.equal(L.normalizeAccessEmails(many), null, "51 is over the cap");
+  const fifty = JSON.stringify(Array.from({ length: 50 }, (_, i) => `p${i}@x.org`));
+  assert.equal(L.normalizeAccessEmails(fifty).length, 50);
+  // Duplicates count once toward the cap.
+  assert.equal(L.normalizeAccessEmails(JSON.stringify([...Array(60)].map(() => "a@b.org"))).length, 1);
+});
+
+await t("display names", () => {
+  assert.equal(L.cleanDisplayName("  Board minutes  "), "Board minutes");
+  assert.equal(L.cleanDisplayName("a\u0000b\nc"), "a b c");
+  assert.equal(L.cleanDisplayName("   "), null);
+  assert.equal(L.cleanDisplayName(undefined), null);
+  assert.equal(L.cleanDisplayName("x".repeat(300)).length, 200);
+});
+
 await t("download link tokens", async () => {
   const id = "0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d";
   const now = 1_790_000_000;

@@ -50,6 +50,7 @@ var TK_COPY = {
   badReviewer: "Pick an active admin who isn't doing the work.",
   serverOwned: "That part is set by the app and can't be edited.",
   ownerOnly: "Only the owner can change that setting.",
+  blockedByTask: "This task is waiting on another task to finish.",
   reviewEmpty: "Nothing is waiting for review.",
   deleted: "Task deleted.",
   restored: "Task restored.",
@@ -401,7 +402,12 @@ function TK_groupMyTasks(tasks, today, opts) {
   var isAdmin = !!opts.isAdmin;
   var inMyBook = typeof opts.inMyBook === "function" ? opts.inMyBook : null;
   var me = TK__lower(email);
+  // Slate plus dependencies: opts.isBlocked(task) (TKD_groupOpt, only while
+  // TKP_on). Open blocked tasks that aren't late go to g.blocked; late ones
+  // stay in Overdue so they still count as late. Without it: as before.
+  var isBlocked = typeof opts.isBlocked === "function" ? opts.isBlocked : null;
   var g = { overdue: [], today: [], week: [], later: [], waiting: [], unassigned: [], done: [] };
+  if (isBlocked) g.blocked = [];
   var list = Array.isArray(tasks) ? tasks : [];
   for (var i = 0; i < list.length; i++) {
     var t = list[i];
@@ -424,6 +430,10 @@ function TK_groupMyTasks(tasks, today, opts) {
     }
     var due = t.due_date ? String(t.due_date).slice(0, 10) : "";
     var d = due ? TK_dayDiff(today, due) : NaN;
+    if (isBlocked && st !== "ready_for_review" && !(d < 0 && !TK_lateExcused(t)) && isBlocked(t)) {
+      g.blocked.push(t);
+      continue;
+    }
     if (isNaN(d)) g.later.push(t);
     else if (d < 0 && TK_lateExcused(t)) g.waiting.push(t);   // tk rhythm s4: never late
     else if (d < 0) g.overdue.push(t);
@@ -437,6 +447,7 @@ function TK_groupMyTasks(tasks, today, opts) {
   g.later.sort(TK_compareTasks);
   g.waiting.sort(TK_compareTasks);
   g.unassigned.sort(TK_compareTasks);
+  if (g.blocked) g.blocked.sort(TK_compareTasks);
   g.done.sort(function (a, b) {
     var c = TK__cmpNullsLast(b.completed_at || b.updated_at, a.completed_at || a.updated_at);
     // nulls last even in descending order
@@ -1039,6 +1050,7 @@ function TK_parseRoute(hash) {
   if (n === 2 && kind === "waiting") return { view: "waiting" }; // tasks p2 s5
   if (n === 2 && kind === "settings") return { view: "settings" }; // Slate app Settings page
   if (n === 2 && kind === "manage") return { view: "manage" }; // tasks p3: admin Manage projects
+  if (n === 2 && kind === "rules" && TK__profileRoutesOn()) return { view: "rules" }; // Slate plus rules (hidden)
   var hasListSuffix = n === 4 && parts[3].toLowerCase() === "list";
   if (kind === "c" && (n === 3 || hasListSuffix)) {
     var id;
@@ -1056,7 +1068,23 @@ function TK_parseRoute(hash) {
   if (kind === "u" && n === 3) {
     return TK_isUuid(parts[2]) ? { view: "person", staffId: parts[2] } : unknown;
   }
+  // Slate plus person profile (TK_Profile.jsx): an opaque key, never an email.
+  // Only while the Slate plus gate is on; off it stays "unknown" as before.
+  if (kind === "person" && n === 3 && TK__profileRoutesOn()) {
+    var pk = String(parts[2] || "").toLowerCase();
+    return /^[0-9a-f]{16}$/.test(pk) ? { view: "profile", key: pk } : unknown;
+  }
+  // Slate plus Portfolio (TK_ProjectUpdates.jsx): gate on only, like profile.
+  if (n === 2 && kind === "portfolio" && TK__profileRoutesOn()) return { view: "portfolio" };
   return unknown;
+}
+
+function TK__profileRoutesOn() {
+  try {
+    return typeof TKP_on === "function" && TKP_on() === true;
+  } catch (e) {
+    return false;
+  }
 }
 
 // Anything that can't be written safely (no id, a bad uuid, an "@" in a
@@ -1068,11 +1096,14 @@ function TK_formatRoute(route) {
   }
   if (r.view === "project" && TK_isUuid(r.projectId)) return "#/tasks/p/" + r.projectId;
   if (r.view === "person" && TK_isUuid(r.staffId)) return "#/tasks/u/" + r.staffId;
+  if (r.view === "profile" && typeof r.key === "string" && /^[0-9a-f]{16}$/.test(r.key)) return "#/tasks/person/" + r.key;
   if (r.view === "search") return "#/tasks/search";
   if (r.view === "review") return "#/tasks/review";
   if (r.view === "templates") return "#/tasks/templates";
+  if (r.view === "rules") return "#/tasks/rules"; // Slate plus rules (hidden)
   if (r.view === "waiting") return "#/tasks/waiting";
   if (r.view === "manage") return "#/tasks/manage";
+  if (r.view === "portfolio") return "#/tasks/portfolio";
   if (r.view === "settings") return "#/tasks/settings";
   return "#/tasks/my";
 }

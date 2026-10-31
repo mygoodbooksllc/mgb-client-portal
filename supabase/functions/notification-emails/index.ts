@@ -543,11 +543,20 @@ Deno.serve(async (req) => {
         });
       } else if (kind === "staff_doc_upload") {
         const titles = list.map((r: any) => String(r.payload?.title || "A document")).slice(0, 15);
+        // Client page drop rows (payload.page_drop) are documents the client
+        // added on their own, not answers to a request.
+        const drops = list.filter((r: any) => r.payload?.page_drop === true).length;
+        const what = drops === 0
+          ? (list.length === 1 ? "a requested document" : `${list.length} requested documents`)
+          : drops === list.length
+            ? (list.length === 1 ? "a new document" : `${list.length} new documents`)
+            : `${list.length} documents`;
+        const verb = drops === list.length ? "added" : "uploaded";
         email = staffEmail({
           subject: `${list.length === 1 ? "Document uploaded" : `${list.length} documents uploaded`}: ${cname}`,
           preheader: titles.join(", ").slice(0, 140),
-          lines: [`<b>${esc(cname)}</b> uploaded ${list.length === 1 ? "a requested document" : `${list.length} requested documents`}:`, L.bullets(titles.map((t) => esc(t)))],
-          textLines: [`${cname} uploaded ${list.length === 1 ? "a requested document" : `${list.length} requested documents`}:`, ...titles.map((t) => `- ${t}`)],
+          lines: [`<b>${esc(cname)}</b> ${verb} ${what}:`, L.bullets(titles.map((t) => esc(t)))],
+          textLines: [`${cname} ${verb} ${what}:`, ...titles.map((t) => `- ${t}`)],
           cta: "Open Documents",
           href: clientLink(clientId, "documents"),
         });

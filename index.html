@@ -257,10 +257,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <script>
-      // Lato font. Classic (mgb_lato_classic) wins, then the firm switch
-      // tk_settings.lato_enabled (cached in mgb_lato_cache after the first read;
-      // code never writes the switch). The per-person checkbox mgb_lato_preview
-      // was retired 2026-10-25, once the switch was on for everyone.
+      // Lato font. The firm switch tk_settings.lato_enabled decides (cached in
+      // mgb_lato_cache after the first read; code never writes the switch). The
+      // per-person checkboxes mgb_lato_preview (retired 2026-10-25) and
+      // mgb_lato_classic (retired 2026-10-28) are gone: the switch has been on
+      // for everyone since 2026-10-21.
       (function () {
         var ls = function (k) {
           try {
@@ -289,9 +290,7 @@
           l.href = "https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400&display=swap";
           document.head.appendChild(l);
         }
-        var classic = ls("mgb_lato_classic") === "1";
-        apply(!classic && ls("mgb_lato_cache") === "1");
-        if (classic) return;
+        apply(ls("mgb_lato_cache") === "1");
         var tries = 0;
         var t = setInterval(function () {
           var c = window.mgbSupabase;
@@ -317,10 +316,10 @@
     </script>
     <script>
       // Brand colors and Hover menus. Same pattern as Lato above. Brand colors:
-      // Classic (mgb_brand_classic) wins, then the firm switch
-      // tk_settings.brand_enabled (cached in mgb_brand_cache after the first
-      // read), else the old look. The per-person checkbox mgb_brand_preview was
-      // retired 2026-10-25, once the switch was on for everyone.
+      // the firm switch tk_settings.brand_enabled decides (cached in
+      // mgb_brand_cache after the first read), else the old look. The per-person
+      // checkboxes mgb_brand_preview (retired 2026-10-25) and mgb_brand_classic
+      // (retired 2026-10-28) are gone: the switch is on for everyone.
       // When on it sets data-brand="mgb" on <html> (styles.css swaps in the brand
       // guide's navy/teal and Montserrat headings) and loads Montserrat only then.
       // Hover menus: this script only caches the firm switch
@@ -363,8 +362,7 @@
           l.href = "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap";
           document.head.appendChild(l);
         }
-        var brandClassic = ls("mgb_brand_classic") === "1";
-        applyBrand(!brandClassic && ls("mgb_brand_cache") === "1");
+        applyBrand(ls("mgb_brand_cache") === "1");
         var isOn = function (v) {
           return v === true || v === "true" || v === 1 || (!!v && typeof v === "object" && v.on === true);
         };
@@ -388,7 +386,7 @@
                 });
                 var brandOn = isOn(vals.brand_enabled);
                 lsSet("mgb_brand_cache", brandOn ? "1" : null);
-                if (!brandClassic) applyBrand(brandOn);
+                applyBrand(brandOn);
                 lsSet("mgb_slate_cache", isOn(vals.slate_app_enabled) ? "1" : null);
                 lsSet("mgb_rhythm_cache", isOn(vals.month_rhythm_enabled) ? "1" : null);
                 var hoverBefore = ls("mgb_hovernav_cache");
@@ -448,7 +446,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-25l", note: "Slate: custom Repeat menu for tasks (Repeat → Custom…) and a Custom schedule for recurring templates (weekdays, nth weekday, last day, every N, time of day, skip weekends/holidays, end date or count, next five dates); staff guide, tips, What's new, README updated. Earlier: Thread menu in the Inbox built behind a hidden preview (Feature flags › Thread menu preview, or the owner-only threadmenu_enabled switch, still off): right-click or ⋯ on a client thread to rename, pin, mark done, snooze, reassign, hide, make a task or copy a link; Done, Snoozed and Hidden chips; Thread actions… on Desk message rows. Nothing changes for staff until the switch is on; guide text drafted, not published. Earlier: Slate app Settings gear is now a real gear icon (was a sun-like circle). Earlier: Slate: new Slate, start to finish tour (seven chapters with a chapter picker, read-only, opens in the Slate app from the ? menu) and a Settings page in the Slate app (the gear: default view, layout, keys, undo, notifications, Replay the Slate tour); ? menu Slate settings link; launch notice dated 2026-10-26; staff guide, tips, What's new, README updated. Earlier: Slate app and installed app: Back, Forward and Refresh buttons in the top bar; Slate app Cmd+Z now undoes the last 5 changes (client stack, no server change); staff guide, What's new, README updated. Earlier: Desk additions built behind a hidden preview (Feature flags › Desk additions preview, or the owner-only deskplus_enabled switch, still off): Ledger chip in the Desk Inbox; Waiting on client, recent messages and recent files plus Ask client and Message buttons on the Desk Client tab; Ask client…, Message… and Time off in the + menu. Nothing changes for staff until the switch is on. Earlier: Client org profiles and anniversary gifts launched for everyone (org_profile_enabled on): launch notice and tour dated 2026-10-25, staff guide, tip and What's new published; Team › Client gifts has Anniversary to follow (Client since or founding date, firm-wide); weekly digest line deployed. Dev Tools: Asana import switch description covers the daily import. Earlier: Month rhythm tasks launched for everyone (month_rhythm_enabled on): launch notice and tour dated 2026-10-26, staff guide, tips and What's new published; the switch is cached in the same index.html read. Earlier: Slate app launched for everyone (slate_app_enabled on): launch notice and tour dated 2026-10-26, staff guide and What's new published. Earlier: Fixed the \"...\" menu on a subtask row being cut off in the task drawer. Earlier: Retired the personal preview boxes for the Desk, left sidebar, Lato font, brand colors and hover menus now that their firm switches are on for everyone (Classic opt-outs and the firm switches stay; if a switch is ever turned off, the feature is off for all) Earlier: Staff sidebar Customize button now uses a sliders icon instead of a gear (wording in the tour notice, guide and README updated). Earlier: Slate app and installed app: Back, Forward and Refresh buttons in the top bar; Slate app Cmd+Z now undoes the last 5 changes (client stack, no server change); staff guide, What's new, README updated. Earlier: Desk additions built behind a hidden preview (Feature flags › Desk additions preview, or the owner-only deskplus_enabled switch, still off): Ledger chip in the Desk Inbox; Waiting on client, recent messages and recent files plus Ask client and Message buttons on the Desk Client tab; Ask client…, Message… and Time off in the + menu. Nothing changes for staff until the switch is on. Earlier: Client org profiles and anniversary gifts launched for everyone (org_profile_enabled on): launch notice and tour dated 2026-10-25, staff guide, tip and What's new published; Team › Client gifts has Anniversary to follow (Client since or founding date, firm-wide); weekly digest line deployed. Dev Tools: Asana import switch description covers the daily import. Earlier: Month rhythm tasks launched for everyone (month_rhythm_enabled on): launch notice and tour dated 2026-10-26, staff guide, tips and What's new published; the switch is cached in the same index.html read. Earlier: Slate app launched for everyone (slate_app_enabled on): launch notice and tour dated 2026-10-26, staff guide and What's new published. Earlier: Fixed the \"...\" menu on a subtask row being cut off in the task drawer. Earlier: Retired the personal preview boxes for the Desk, left sidebar, Lato font, brand colors and hover menus now that their firm switches are on for everyone (Classic opt-outs and the firm switches stay; if a switch is ever turned off, the feature is off for all)" };
+      window.MGB_VERSION = { label: "2026-10-31f", note: "Internal profitability updates (see the Profitability guide article)." };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -506,6 +504,7 @@
       document.write('<link rel="stylesheet" href="components/client/bank-accounts.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/client/client-needs.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/client/basic-home.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/client/client-page-drop.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tour/tour.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tour/tips.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tour/announcements.css?v=' + Date.now() + '">');
@@ -515,9 +514,17 @@
       document.write('<link rel="stylesheet" href="components/tasks/tk-requests.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tasks/tk-slate.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tasks/tk-repeat.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-workload.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-profile.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-rules.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-search.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-calendar.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-projupdates.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-customfields.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/workbench/WB.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/ledger/ledger.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/client/op.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/client/agreements.css?v=' + Date.now() + '">');
 
       // Kick every source fetch off HERE, in <head>, so all five download in
       // parallel with React/Babel/jsPDF instead of after them. Previously each
@@ -556,6 +563,7 @@
         "components/staff/HomeCards.jsx",
         "components/client/DocFolders.jsx",
         "components/staff/PageDrop.jsx",
+        "components/staff/teamHoursLogic.js",
         "components/staff/TeamPage.jsx",
         "components/staff/TeamQbo.jsx",
         "components/staff/QboUsage.jsx",
@@ -601,6 +609,8 @@
         "components/staff/Shoutouts.jsx",
         "components/staff/TechInventory.jsx",
         "components/staff/SopFreshness.jsx",
+        "components/staff/birthdayLogic.js",
+        "components/staff/celebrationLead.js",
         "components/staff/staffPhotoLogic.js",
         "components/staff/staffPhotoApi.js",
         "components/staff/staffPhotoImage.js",
@@ -619,11 +629,20 @@
         "components/client/ClientNeeds.jsx",
         "components/client/basicHomeLogic.js",
         "components/client/BasicHome.jsx",
+        // Client page drop + staff Documents upgrades (docs/client-page-drop.md):
+        // pure rules, the gate (mgb_clientdrop_preview + client_page_drop_enabled),
+        // the client dialog and the staff Documents pieces.
+        "components/client/clientPageDropLogic.js",
+        "components/client/CPD_gate.js",
+        "components/client/ClientPageDrop.jsx",
+        "components/client/DocPlus.jsx",
         "components/client/OP_logic.js",
         "components/client/OP_importLogic.js",
         "components/client/OP_store.js",
         "components/client/OP_ClientPrompt.jsx",
         "components/client/OP_StaffCard.jsx",
+        "components/client/AG_logic.js",
+        "components/client/Agreements.jsx",
         "components/staff/OP_GiftsTab.jsx",
         "components/ledger/GLR_config.js",
         "components/ledger/GLR_rules.js",
@@ -639,6 +658,7 @@
         "components/ledger/LR_ReviewFile.jsx",
         "components/ledger/LR_Settings.jsx",
         "components/tasks/TK_logic.js",
+        "components/tasks/TK_personLink.js",
         "components/tasks/TK_recurrenceLogic.js",
         "components/tasks/TK_repeatLogic.js",
         "components/tasks/TK_templateLogic.js",
@@ -650,14 +670,30 @@
         "components/tasks/TK_optionCLogic.js",
         "components/tasks/TK_sync.js",
         "components/tasks/TK_viewLogic.js",
+        "components/tasks/TK_filterLogic.js",
         "components/tasks/TK_prefsLogic.js",
         "components/tasks/TK_drawerLogic.js",
+        "components/tasks/TK_slatePlus.js",
+        "components/tasks/TK_mentionsLogic.js",
+        "components/tasks/TK_deps.js",
+        "components/tasks/TK_rulesLogic.js",
+        "components/tasks/TK_customFields.js",
         "components/tasks/TK_clientLogic.js",
         "components/tasks/TK_bookkeeperLogic.js",
         "components/tasks/TK_reviewLogic.js",
         "components/tasks/TK_requestLogic.js",
         "components/tasks/TK_coverageLogic.js",
         "components/tasks/TK_rowLogic.js",
+        "components/tasks/TK_workloadLogic.js",
+        "components/tasks/TK_profileLogic.js",
+        "components/tasks/TK_searchLogic.js",
+        "components/tasks/TK_profilePrefsLogic.js",
+        "components/tasks/TK_railLogic.js",
+        "components/tasks/TK_projectFormLogic.js",
+        "components/tasks/TK_hoursChipLogic.js",
+        "components/tasks/TK_HoursChip.jsx",
+        "components/tasks/TK_calendarLogic.js",
+        "components/tasks/TK_projectUpdatesLogic.js",
         "components/tasks/TK_EmailDraft.jsx",
         "components/tasks/TK_TaskRow.jsx",
         "components/tasks/TK_CloseOrder.jsx",
@@ -665,19 +701,28 @@
         "components/tasks/TK_keys.jsx",
         "components/tasks/TK_Drag.jsx",
         "components/tasks/TK_Board.jsx",
+        "components/tasks/TK_Calendar.jsx",
         "components/tasks/TK_BulkBar.jsx",
         "components/tasks/TK_SavedViews.jsx",
+        "components/tasks/TK_FilterBar.jsx",
         "components/tasks/TK_Comments.jsx",
         "components/tasks/TK_Attachments.jsx",
         "components/tasks/TK_Activity.jsx",
         "components/tasks/TK_AskClientModal.jsx",
         "components/tasks/TK_ClientContacts.jsx",
         "components/tasks/TK_RepeatMenu.jsx",
+        "components/tasks/TK_Deps.jsx",
+        "components/tasks/TK_CustomFields.jsx",
         "components/tasks/TK_DrawerContent.jsx",
         "components/tasks/TK_Drawer.jsx",
         "components/tasks/TK_QuickAdd.jsx",
         "components/tasks/TK_ClientHeader.jsx",
+        "components/tasks/TK_SlateRail.jsx",
+        "components/tasks/TK_ProjectForm.jsx",
+        "components/tasks/TK_ProjectUpdates.jsx",
         "components/tasks/TK_Sidebar.jsx",
+        "components/tasks/TK_Workload.jsx",
+        "components/tasks/TK_UnifiedSearch.jsx",
         "components/tasks/TK_MyTasks.jsx",
         "components/tasks/TK_List.jsx",
         "components/tasks/TK_ClientDrawer.jsx",
@@ -691,6 +736,9 @@
         "components/tasks/TK_Templates.jsx",
         "components/tasks/TK_WaitingList.jsx",
         "components/tasks/TK_ManageProjects.jsx",
+        "components/tasks/TK_Rules.jsx",
+        "components/tasks/TK_ProfileEdit.jsx",
+        "components/tasks/TK_Profile.jsx",
         "components/tasks/TK_App.jsx",
         "components/workbench/WB_logic.js",
         "components/workbench/WB_store.js",
@@ -843,7 +891,11 @@
         if (!supabase) return;
         try {
           const baseCols =
-            "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email";
+            "id, name, org_type, entity_type, plan, test_only, payroll_add_on, hidden_tabs, assigned_bookkeeper, assigned_bookkeeper_email";
+          // hidden_tabs (supabase/client-tab-rls.sql): tabs hidden for every
+          // login of the org (Manage access › Organization tabs). In the base
+          // columns on purpose: the qbo_* RLS already enforces it, so every
+          // browser has to know it or a hidden tab would open empty.
           // account_manager / account_manager_email
           // (supabase/account-manager.sql). Until that migration is applied
           // the select fails, so retry without them; window.AM_COLS_OK tells
@@ -886,6 +938,8 @@
               // never in a client list or count (app.jsx rosterClients).
               isInternal: row.is_internal === true,
               payrollAddOn: row.payroll_add_on,
+              // resolveAccess orgHiddenKeys. Never "dashboard" (always visible).
+              hiddenTabs: Array.isArray(row.hidden_tabs) ? row.hidden_tabs : [],
               // assigned_bookkeeper_email (supabase/assigned-bookkeeper-email.sql)
               // is the real staff link; folded into the display object so
               // consumers can match on email and fall back to the name.
@@ -1076,6 +1130,15 @@
       }
 
       window.mgbReloadQboData = loadQboData;
+      // The roster and the QuickBooks numbers are read once at boot. A client
+      // who signs in on this page without a reload (typing the 6-digit code)
+      // had no session at boot, so both came back empty; ClientAuthGate calls
+      // this once the sign-in is confirmed so the portal has the client's org.
+      window.mgbReloadRoster = async function () {
+        window.ROSTER_LOAD_ERROR = false;
+        await loadClientsRoster();
+        await loadQboData();
+      };
 
       (async () => {
         try {

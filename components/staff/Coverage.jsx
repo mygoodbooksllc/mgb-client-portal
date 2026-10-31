@@ -680,7 +680,7 @@ function CV_CoverageTab() {
       <div className="card cv-block" key={t.id}>
         <div className="cv-block-head">
           <div>
-            <h3 className="card-title" style={{ margin: 0 }}>{t.staff_name || t.staff_email}</h3>
+            <h3 className="card-title" style={{ margin: 0 }}>{typeof TKP_who === "function" ? TKP_who(t.staff_email, t.staff_name || t.staff_email) : t.staff_name || t.staff_email}</h3>
             <p className="card-subtitle" style={{ margin: "2px 0 0" }}>
               {CV_range(t)}
               {t.note ? " · " + t.note : ""}
@@ -696,7 +696,7 @@ function CV_CoverageTab() {
           </div>
         </div>
         <CV_Handoff row={t} isAdmin coveredCount={covCount[t.id] || 0} />
-        <div className="table-scroll">
+        <div className="table-scroll mgb-sticky-wrap">
           <table className="tx-table tx-table-labeled cv-table">
             <thead>
               <tr>
@@ -720,7 +720,7 @@ function CV_CoverageTab() {
                         <a href={"#/client/" + encodeURIComponent(c.client_id)}>{c.client_name || c.client_id}</a>
                       </td>
                       <td data-label="Backup">
-                        {c.backup_name || c.backup_email || "—"}
+                        {c.backup_email && typeof TKP_who === "function" ? TKP_who(c.backup_email, c.backup_name || c.backup_email) : c.backup_name || c.backup_email || "—"}
                         {c.backup_away_until && <span className="cv-out-tag">Also out until {fmtDate(c.backup_away_until)}</span>}
                       </td>
                       <td data-label="Backup's access">

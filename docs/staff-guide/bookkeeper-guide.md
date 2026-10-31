@@ -68,7 +68,7 @@ See [How do I message a client or a teammate?](#/help/inbox).
 
 1. **Today**: clear what's marked **Now**.
 2. **Inbox**: reply to every client waiting on you.
-3. **Work › Slate**: finish what's due. Anything sent back from review is back in your list as **In progress**, with the reviewer's note in its comments. See [How does task review work?](#/help/task-review). Tasks with a **Recurring** tag come from a template each period; see [How do recurring tasks from templates work?](#/help/task-templates). Stuck on the client? Use **Ask client** in the task's details, and check **Slate › Waiting on client** for anything that needs a nudge; see [How do I ask a client something from a task?](#/help/ask-client).
+3. **Slate** page: finish what's due. Anything sent back from review is back in your list as **In progress**, with the reviewer's note in its comments. See [How does task review work?](#/help/task-review). Tasks with a **Recurring** tag come from a template each period; see [How do recurring tasks from templates work?](#/help/task-templates). Stuck on the client? Use **Ask client** in the task's details, and check **Slate › Waiting on client** for anything that needs a nudge; see [How do I ask a client something from a task?](#/help/ask-client).
 
 **Every week**
 

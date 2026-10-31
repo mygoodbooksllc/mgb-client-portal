@@ -50,6 +50,10 @@ function DG_when(ts) {
 }
 
 function DG_DigestSettings({ onSent } = {}) {
+  // Price review + Revenue snapshot are internal-only (weekly-admin-digest drops
+  // them for anyone without the MGB (internal) grant), so only name them then.
+  const dgCtx = typeof StaffToolsContext !== "undefined" ? React.useContext(StaffToolsContext) : null;
+  const seeMoney = typeof TP_PF_canSee === "function" && TP_PF_canSee(dgCtx && dgCtx.staffUser);
   const toast = typeof useToast === "function" ? useToast() : (m) => window.alert(m);
   const [state, setState] = React.useState({ loading: true, settings: null, runs: [], missing: false, error: null });
   const [recipientsText, setRecipientsText] = React.useState("");
@@ -187,7 +191,7 @@ function DG_DigestSettings({ onSent } = {}) {
         <div style={{ minWidth: 0 }}>
           <h3 className="card-title" style={{ margin: 0 }}>Weekly digest</h3>
           <p className="card-subtitle" style={{ margin: 0 }}>
-            An admin email with scope creep, pricing, revenue, late payers, timesheet gaps, the staff
+            An admin email with scope creep, {seeMoney ? "pricing, revenue, " : ""}late payers, timesheet gaps, the staff
             scorecard, stale clients, pending items and new staff feedback.{schedule ? ` Sent ${schedule}.` : ""}
           </p>
         </div>

@@ -42,6 +42,21 @@
   min-width: 0;
 }
 
+/* Slate plus icon rail (hidden preview): the rail column is --tkr-w
+   (tk-views.css), 64px or 320px with the pinned panel, instead of 220/240px. */
+.tk-app.is-shell.tk-m-regular.has-tkr > .tk-app-rail {
+  flex-basis: var(--tkr-w);
+  width: var(--tkr-w);
+}
+
+.tk-app.is-shell.tk-m-full.has-tkr {
+  grid-template-columns: var(--tkr-w) minmax(min(480px, calc(100% - var(--tkr-w) - 400px - 32px)), 1fr) clamp(400px, 34%, 600px);
+}
+
+.tk-app.is-shell.tk-m-full.has-tkr > .tk-app-rail {
+  width: var(--tkr-w);
+}
+
 .tk-slate-pane {
   position: sticky;
   top: calc(var(--tk-sticky-top, 0px) + 8px);

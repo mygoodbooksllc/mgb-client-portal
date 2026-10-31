@@ -23,7 +23,7 @@
 --                   (month_close_settings.late_day of the following month)
 --                   isn't done / n.a.: 20. Skipped if month-close.sql hasn't
 --                   been applied (checked at run time with to_regclass).
---     margin        ADMINS ONLY (is_active_staff_admin()): trailing-90-day
+--     margin        INTERNAL ONLY (admin + can_view_internal(), since 2026-10-31): trailing-90-day
 --                   margin from client_profitability() below the target in
 --                   profitability_settings: 15. Bookkeepers never get this
 --                   reason or any margin number. p_default_fees is passed
@@ -127,7 +127,7 @@ begin
   end if;
 
   -- Margin (admins only)
-  if v_admin then
+  if v_admin and public.can_view_internal() then   -- margin: internal-only (profitability-internal-only.sql)
     begin
       select target_margin_pct into v_target from profitability_settings limit 1;
       select coalesce(jsonb_object_agg(p.client_id, p.margin_pct), '{}'::jsonb) into v_margin

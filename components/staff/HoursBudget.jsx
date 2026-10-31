@@ -6,7 +6,7 @@
 // non-client buckets); everyone else through qbo_my_client_hours
 // (supabase/client-hours-for-bookkeepers.sql), which only returns the
 // caller's own clients. Both are read only. Shown in the Team page Clients
-// table (TeamQbo.jsx), the client overview Profitability card (app.jsx), the
+// table (TeamQbo.jsx), the client overview Hourly rate card (app.jsx), the
 // Home custom-card rule "Hours budget" (HomeCards.jsx) and the Clients list
 // (ClientsPage.jsx, staff navigation redesign 2026-10-08).
 //
@@ -131,7 +131,7 @@ function HB_Cell({ data, clientId }) {
   return <HB_Bar status={st} compact />;
 }
 
-// Line for the client overview Profitability card (admins only).
+// Line for the client overview Hourly rate card (admins only).
 // minutes: QuickBooks Time minutes this month (null when unknown).
 function HB_OverviewLine({ minutes, budget }) {
   const has = budget != null && Number(budget) > 0;

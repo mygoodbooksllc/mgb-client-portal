@@ -2,10 +2,10 @@
 title: How do I use my Slate?
 section: Daily work
 audience: staff
-keywords: [slate settings, slate tour, slate start to finish, waiting is never late, preliminary, task in the desk, desk client tab, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, select many, bulk, multi-select, undo, ctrl z, v, select a task, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import, slate, my slate, view bar, sort, sort chips, quick chips, mine today, part of month, group by status, group by part, reset view, check in, send reports, follow up]
+keywords: [search, search box, search slate, search the list, find a task, filter by client name, search notes, slate settings, slate tour, slate start to finish, waiting is never late, preliminary, task in the desk, desk client tab, task row, change assignee from the row, change due date from the row, priority from the row, avatar, initials, overdue red, due today amber, row menu, three dots, add task row, add task at the bottom of a group, inline add, select many, bulk, multi-select, undo, ctrl z, v, select a task, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import, slate, my slate, view bar, sort, sort chips, quick chips, mine today, part of month, group by status, group by part, reset view, check in, send reports, follow up, filter, filters, saved filters, save this view, default filter, assignee filter, due filter, late filter, waiting on client filter, project filter, custom range, clear filters, text chip, filter this slate list, calendar, calendar view, month calendar, drag to reschedule, blocked, blocked group, reassign, profile]
 sort: 110
 ---
-**Slate** is where your tasks live (it was called Tasks). Its home page is one list of everything assigned to you, across every client and project. Open it from the **Slate** button in the top bar (`#/tasks/my`), or from **Work › Slate** (`#/work/tasks`), which shows the same list inside Work. The Slate page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
+**Slate** is where your tasks live (it was called Tasks). Its home page is one list of everything assigned to you, across every client and project. Open it from the **Slate** button in the top bar (`#/tasks/my`), or from **Open Slate** on **Work › Slate** (`#/work/tasks`), which shows just a short summary (late, due today and your next five tasks) inside Work. The Slate page is the one full Slate. If you're on the Classic tasks page, **Work › Slate** still shows the full list. The Slate page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
 
 A task is yours when it's assigned to you. A task you give someone else shows on *their* Slate, not yours. You still see it on the client's or project's list, and you follow it automatically.
 
@@ -16,6 +16,7 @@ A task is yours when it's assigned to you. A task you give someone else shows on
 - **This week**: due in the next 7 days.
 - **Later**: due after that, or with no due date.
 - **Waiting on client**: tasks paused with the **Waiting on client** status. They never count as late, whatever the date. **Slate › Waiting on client** in the sidebar lists every open client request, longest wait first; see [How do I ask a client something from a task?](#/help/ask-client).
+- **Blocked**: tasks waiting on another task to finish (see [How does Blocked by work?](#/help/task-dependencies)). A blocked task that is late stays in **Overdue**, with a lock.
 - **Unassigned**: open tasks on your clients that nobody is on yet (see below). Click **Assign** and pick yourself to take one, or pick a teammate.
 - **Done**: finished tasks. It starts folded.
 
@@ -27,13 +28,46 @@ Click a group's heading to fold or open it. The portal remembers which groups yo
 
 Every row shows the same few things, and you can change most of them without opening the task:
 
-- **Assignee**: a round badge with the person's initials. A task nobody is on shows a dashed empty circle (hover it, or tab to it, to see *Assign*). Click it to pick a teammate; only the task's owner or an admin can reassign, and people who can't see the client are grayed out.
+- **Assignee**: a round badge with the person's initials. Click it to open their profile (see [Profiles, one search and Team load](#/help/slate-profiles)). To change who it's assigned to, use the small **Reassign** button (two arrows) next to it. A task nobody is on shows a dashed empty circle (hover it, or tab to it, to see *Assign*). Only the task's owner or an admin can reassign, and people who can't see the client are grayed out. On a client with a monthly hours budget, the top of the menu shows this month's hours against it.
 - **Due date**: a chip that is red when the task is overdue, amber when it is due today and plain otherwise. With no date it's a faint calendar icon. Click it to pick **Today**, **Tomorrow**, **Next Monday**, **Pick a date…** or **Clear date**.
 - **Priority**: **High**, **Normal** or **Low**, always shown. Click it to change it.
 - **Status**: the pill on the right, as before.
 - **The ... menu**: hover the row (or tab into it) to show it. It has **Open**, **Mark done**, **Assign to me** (when the task is unassigned) and **Copy link**. On a phone it's always visible.
 
 Each picker is a small menu: arrow keys move, **Enter** picks, **Esc** closes. If you can't edit a task (view-only, or it's waiting for review), the cells are plain text. The list keys (**j**, **k**, **x**, **s**, **a**) work as before.
+
+### Search the list
+
+On the Slate page, type in the search box in the top bar (or press **Ctrl+K** / **⌘K**). The first result is **Filter this Slate list for "…"**: pick it (or press **Enter**) and your Slate narrows to your words. A **Text** chip shows in the filter bar; click its **×** to clear it. The other results open clients, tasks, projects, people, SOPs and help instead; see [Profiles, one search and Team load](#/help/slate-profiles).
+
+Type part of a task's title (*recon* finds *Reconcile*), a client's name, or a word from the task's notes. If you type more than one word, a task has to match every word (*grace payroll* finds payroll tasks for Grace).
+
+- Groups, counts, sort, quick chips and the board show only the tasks that match. If you had tasks selected and the filter hides them, they drop out of the selection, so a bulk change never touches a task you can't see.
+- It only narrows the tasks this list already has (yours plus the unassigned ones on your clients, and done ones when **Show done** is on).
+- **Work › Slate** (the summary) and the Desk's Slate tab don't have it.
+- In the Slate app, the **Search tasks** box at the top is a different search: it looks through every task you can see, by whole words, and opens a results page.
+
+### Filter the list and save filters
+
+Under the view bar there is a row of filters. Pick any mix and the list narrows right away; every filter you set must match, together with your search.
+
+- **Assignee**: **Anyone**, **Assigned to me** or **Unassigned** (the open unassigned tasks your Slate shows).
+- **Client**: one client from your tasks. (This takes the place of the client menu in the toolbar.)
+- **Project**: one project, or **No project**.
+- **Due**: **Late**, **Due today**, **Next 7 days**, **Next 30 days**, **No due date**, or **Custom range…** with From and To dates.
+- **Status**: **Late**, **Waiting on client**, **To do**, **In progress** or **Ready for review**. Done tasks still follow **Show done**.
+
+**Late** means open and past its due date. A task waiting on the client, or a month task whose reports went out as preliminary, is never late.
+
+**Clear filters** resets the filters and the search. Group by, Sort and the quick chips are separate and stay as you set them.
+
+**Saved filters.** Set the filters (and a search, if you like), open **Saved filters** and pick **Save this view…**, then name it. Pick a saved filter from the same menu to put it back. Each one has **Rename**, **Delete** and **Set as my default**. Your default opens with the Slate page each time you load the portal, unless you already typed or picked something. **Remove default** goes back to no filters. Saved filters are yours only: no one else sees them, and you can keep up to 30. Dates like **Next 7 days** stay relative, so they move with today.
+
+The filter bar is not in Work › Slate, the Desk's Slate tab or View as.
+
+### Calendar
+
+Press **Calendar** above the list to see your tasks on a month calendar by due date (weeks start on Monday). Late tasks are red and finished ones are gray. If a day has more tasks than fit, click **+N more** to see them all. Click a task to open it, or drag it to another day to change its due date (**Undo** is on the message that appears; dragging doesn't work on touch screens or for tasks in review). The note under the calendar says how many tasks have no due date. Use **Previous month**, **Today** and **Next month** to move around; with the keyboard, the arrow keys move between days and **Page Up** / **Page Down** change the month. The calendar follows your search and filters. Press **Calendar** again to go back to the list. Client, project and person lists have the same button.
 
 ### Group by, sort and quick chips
 
@@ -48,11 +82,11 @@ A small bar above the list changes how Slate is laid out. Nothing changes until 
 - **Waiting on client**: only tasks waiting on a client. These never count against you.
 - **Reset view** shows once you've changed anything and puts everything back to the default.
 
-**Show done** and the client filter still apply. Select and the bulk bar work in every grouping. The portal remembers your view, per person, in this browser. The Desk's **Slate** tab has the same bar and remembers its own view; its count on the tab doesn't change with the view. An admin's switch on a person's list under **People** is still **Default** or **Client**, remembered separately.
+**Show done** and the filter bar still apply. Select and the bulk bar work in every grouping. The portal remembers your view, per person, in this browser. The Desk's **Slate** tab has the same bar and remembers its own view; its count on the tab doesn't change with the view. An admin's switch on a person's list under **People** is still **Default** or **Client**, remembered separately.
 
 In the Slate app, the **gear** opens **Settings**, where you pick the view Slate opens with, row density and quick keys. See [How do I change my Slate settings?](#/help/slate-settings).
 
-The toolbar has **Add task**, a client filter (**All clients**, or one client), **Show done** and, once Show done is on, **Show older**. Done tasks finished more than 12 months ago stay hidden unless you turn on **Show older**. Nothing is deleted.
+The toolbar has **Add task**, **Calendar**, **Show done** and, once Show done is on, **Show older**. (The client filter is in the filter bar.) Done tasks finished more than 12 months ago stay hidden unless you turn on **Show older**. Nothing is deleted.
 
 ### Unassigned tasks and Claim
 

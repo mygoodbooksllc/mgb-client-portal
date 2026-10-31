@@ -78,7 +78,7 @@ function TK_rptAddDays(ymd, n) {
 // The next `count` due dates. A template lists its schedule from its first date.
 // A task lists its own due date, then each date the finished task would roll to
 // (the same steps complete_staff_item takes), so the preview is what staff see.
-function TK_rptPreview(rule, kind, startYmd, holidays, count) {
+function TK_rptPreview(rule, kind, startYmd, holidays, count, savedRule, holidaysLoaded) {
   if (!rule || !TK_repeatValid(rule)) return [];
   if (kind === "template") {
     if (!rule.start) return [];
@@ -87,7 +87,7 @@ function TK_rptPreview(rule, kind, startYmd, holidays, count) {
   var out = [];
   var cur = startYmd;
   var r = TK_rptCopy(rule);
-  r.start = startYmd; // the task saves with its due date as the pattern's start
+  r.start = TK_repeatSaveStart(savedRule, rule, startYmd, holidaysLoaded ? holidays : undefined); // as the task saves it: an unchanged schedule keeps its start
   if (!cur) return out;
   out.push(cur);
   while (out.length < count) {
@@ -200,7 +200,7 @@ function TK_RepeatEditor(props) {
   var hasTime = !!rule.time;
   var problem = TK_rptProblem(rule, kind);
   var holidays = props.holidays || [];
-  var dates = TK_rptPreview(rule, kind, anchor, holidays, 5);
+  var dates = TK_rptPreview(rule, kind, anchor, holidays, 5, initial, !!props.holidaysLoaded);
   var summary = TK_repeatText(rule, kind === "template" ? rule.start || anchor : anchor);
 
   var numberInput = function (id, value, min, max, onVal, label) {

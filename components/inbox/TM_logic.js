@@ -280,8 +280,14 @@ function TM_snoozeAt(preset, now, pick) {
 // The Pick a date bounds: { min: tomorrow, max: today + 30 } in Chicago.
 function TM_dateBounds(now) {
   if (typeof WB_today !== "function" || typeof WB_addDays !== "function") return { min: "", max: "" };
-  var today = WB_today(now == null ? Date.now() : now);
-  return { min: WB_addDays(today, 1), max: WB_addDays(today, 30) };
+  var ms = now == null ? Date.now() : now;
+  var today = WB_today(ms);
+  var max = WB_addDays(today, 30);
+  // Early in the morning, 8am on day +30 is past the 30-day limit and would be
+  // cut to an odd time (say 6:12am). Stop the picker one day earlier then.
+  var at = typeof WB_snoozeUntil === "function" ? WB_snoozeUntil("date", ms, max) : null;
+  if (at && Date.parse(at) >= ms + 30 * 86400000) max = WB_addDays(today, 29);
+  return { min: WB_addDays(today, 1), max: max };
 }
 
 // Delay to the next wake check: the earliest future snoozed_until, at most

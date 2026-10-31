@@ -1,9 +1,9 @@
 // Client org profile: the client's form (spec §2, §3). Mounted by App only
 // for a real client session (clientPortalUser && !isStaffSession &&
-// !impersonating && !isPreviewingUser). It opens by itself once per sign-in
-// while the profile is incomplete and the gate is on (OP_clientGate: the RPC's
+// !impersonating && !isPreviewingUser). It opens by itself once per page
+// load (so once per browser session or tab) while the profile is incomplete and the gate is on (OP_clientGate: the RPC's
 // `eligible`, and the firm switch or the person's preview flag). "Later"
-// stores sessionStorage mgb_op_later:<email>, so it returns next sign-in.
+// stores sessionStorage mgb_op_later:<email>, so it returns in the next browser session or tab.
 // The Needs-you item and the ? menu entry reopen it (window "mgb:op-open").
 // Get-to-know answers are write-only: they are never read back.
 // Styles: components/client/op.css. Element id "op-prompt" holds the client
@@ -130,6 +130,12 @@ function OP_ClientForm({ data, onLater, onSaved }) {
     set("fiscal_year_end", m && d ? m + "-" + d : "");
   };
   const pad = (n) => (n < 10 ? "0" : "") + n;
+  // Days offered follow the month (February 29, as a fiscal year can end on a leap day).
+  const fyeDays = fyeMonth ? OP_daysIn(2024, +fyeMonth) : 31;
+  const pickFyeMonth = (m) => {
+    const max = m ? OP_daysIn(2024, +m) : 31;
+    setFye(m, fyeDay && +fyeDay > max ? pad(max) : fyeDay);
+  };
 
   return (
     <ModalShell onClose={onLater} labelledBy="op-prompt-title" className="op-panel">
@@ -142,14 +148,14 @@ function OP_ClientForm({ data, onLater, onSaved }) {
         </div>
         <div className="modal-body">
           <p className="card-subtitle" style={{ marginTop: 0 }}>
-            A few details so we address things to you correctly and can mark your milestones with you. About two minutes.
+            A few details so we address things to you correctly and can celebrate your anniversaries with you. About two minutes.
           </p>
           <div className="op-form">
             {input("card_name", "Name for cards and gifts", "text", { required: true })}
             {input("org_type", "Organization type", "text", { required: true, hint: "For example: church, school, nonprofit, ministry." })}
             <div className="op-field">
               <label htmlFor="op-established_date">
-                Established date{req}
+                Founding date{req}
               </label>
               <input
                 id="op-established_date"
@@ -206,7 +212,7 @@ function OP_ClientForm({ data, onLater, onSaved }) {
                 Fiscal year end{req}
               </span>
               <div className="op-row2" role="group" aria-labelledby="op-fye-label">
-                <select aria-label="Month" value={fyeMonth} onChange={(e) => setFye(e.target.value, fyeDay)}>
+                <select aria-label="Month" value={fyeMonth} onChange={(e) => pickFyeMonth(e.target.value)}>
                   <option value="">Month</option>
                   {OP_MONTHS.map((m, i) => (
                     <option key={m} value={pad(i + 1)}>
@@ -216,7 +222,7 @@ function OP_ClientForm({ data, onLater, onSaved }) {
                 </select>
                 <select aria-label="Day" value={fyeDay} onChange={(e) => setFye(fyeMonth, e.target.value)}>
                   <option value="">Day</option>
-                  {Array.from({ length: 31 }, (_, i) => (
+                  {Array.from({ length: fyeDays }, (_, i) => (
                     <option key={i} value={pad(i + 1)}>
                       {i + 1}
                     </option>

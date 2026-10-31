@@ -371,6 +371,7 @@ function TK_ClientHeader(props) {
         <div className="tk-head-title">
           <h2 className="tk-head-name">{name}</h2>
           {qbo ? <span className={"pill " + (qboOn ? "good" : "neutral")} data-tour="tk-ch-qbo">{qboOn ? "QuickBooks connected" : "QuickBooks not connected"}</span> : null}
+          {typeof TK_HoursChip === "function" && id ? <TK_HoursChip clientId={id} /> : null}
         </div>
         <div className="tk-head-actions" data-tour="tk-ch-links">
           <a className="tk-link-btn" href={"#/client/" + enc + "/overview"}>
@@ -379,6 +380,7 @@ function TK_ClientHeader(props) {
           <a className="tk-link-btn" href={"#/client/" + enc + "/sop"}>
             SOP
           </a>
+          {typeof TK_CFHeaderButton === "function" && id ? <TK_CFHeaderButton scope="client" target={id} canManage={isAdmin} listName={name} /> : null}
           {driveReady ? (
             <a
               className="tk-link-btn"
@@ -637,6 +639,7 @@ function TK_ClientHeader(props) {
           kind="onboarding"
           clientId={id}
           clientName={name}
+          staffUser={props.staffUser}
           onClose={function () {
             setNewOnboarding(false);
           }}

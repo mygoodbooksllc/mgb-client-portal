@@ -1,0 +1,312 @@
+/* Slate plus Calendar view (month grid), hidden behind the Slate plus gate.
+   TK_Calendar.jsx / TK_calendarLogic.js. Colors come from the shared variables
+   only, so dark mode follows. */
+
+.tk-cal-switch.is-on {
+  background: var(--accent-soft);
+  color: var(--ink-strong);
+  font-weight: 600;
+}
+
+.tk-cal {
+  position: relative;
+  margin-top: 8px;
+}
+
+.tk-cal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.tk-cal-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tk-cal-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tk-cal-flip {
+  transform: scaleX(-1);
+}
+
+.tk-cal-grid {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.tk-cal-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.tk-cal-dow {
+  padding: 6px 4px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.tk-cal-cell {
+  min-height: 104px;
+  min-width: 0;
+  padding: 4px;
+  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: var(--surface);
+}
+
+.tk-cal-row .tk-cal-cell:first-child {
+  border-left: 0;
+}
+
+.tk-cal-dows + .tk-cal-row .tk-cal-cell {
+  border-top: 0;
+}
+
+.tk-cal-cell.is-out {
+  background: var(--surface-2);
+}
+
+.tk-cal-cell.is-out .tk-cal-day {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.tk-cal-cell.is-over {
+  background: var(--accent-soft);
+  outline: 2px dashed var(--accent);
+  outline-offset: -3px;
+}
+
+.tk-cal-cell:focus-visible {
+  outline: 2px solid var(--selected-outline, var(--accent));
+  outline-offset: -2px;
+}
+
+.tk-cal-day {
+  align-self: flex-start;
+  min-width: 22px;
+  padding: 1px 5px;
+  border-radius: 11px;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--text);
+}
+
+.tk-cal-cell.is-today .tk-cal-day {
+  background: var(--accent);
+  color: var(--on-gold);
+  font-weight: 700;
+}
+
+.tk-cal-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tk-cal-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tk-cal-chip.is-draggable {
+  cursor: grab;
+}
+
+.tk-cal-chip:hover {
+  background: var(--hover-bg);
+}
+
+.tk-cal-chip:focus-visible,
+.tk-cal-more:focus-visible,
+.tk-cal-pop-item:focus-visible {
+  outline: 2px solid var(--selected-outline, var(--accent));
+  outline-offset: 1px;
+}
+
+.tk-cal-chip.is-late {
+  border-left-color: var(--bad);
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.tk-cal-chip.is-done {
+  opacity: 0.55;
+  border-left-color: var(--border);
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.tk-cal-chip.is-done .tk-cal-chip-text {
+  text-decoration: line-through;
+}
+
+.tk-cal-chip.is-dragging {
+  opacity: 0.4;
+}
+
+.tk-cal-chip-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-cal-more {
+  align-self: flex-start;
+  padding: 1px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tk-cal-more:hover {
+  color: var(--text);
+}
+
+.tk-cal-foot {
+  margin: 8px 2px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tk-cal-pop {
+  position: absolute;
+  z-index: 30;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(360px, calc(100% - 16px));
+  max-height: min(420px, 70vh);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-hover, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+.tk-cal-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tk-cal-pop-list {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.tk-cal-pop-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tk-cal-pop-item:hover {
+  background: var(--hover-bg);
+}
+
+.tk-cal-pop-item.is-late {
+  color: var(--bad);
+}
+
+.tk-cal-pop-item.is-done {
+  opacity: 0.55;
+}
+
+.tk-cal-pop-item.is-done .tk-cal-pop-text {
+  text-decoration: line-through;
+}
+
+.tk-cal-pop-client {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Phone width: smaller cells, no client names on chips, day sheet fills the width */
+@media (max-width: 640px) {
+  .tk-cal-cell {
+    min-height: 72px;
+    padding: 3px 2px;
+  }
+  .tk-cal-chip {
+    padding: 1px 3px;
+    font-size: 11px;
+  }
+  .tk-cal-day {
+    font-size: 11px;
+    min-width: 18px;
+    padding: 0 3px;
+  }
+  .tk-cal-foot-hint {
+    display: none;
+  }
+  .tk-cal-pop {
+    position: fixed;
+    top: auto;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    transform: none;
+  }
+}
