@@ -1280,6 +1280,24 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   >50% swings. Every table and the function need `can_view_internal()` (others get 403). UI:
   `TP_PF_SheetSyncStrip` on Team › Hours and the fee card in `TeamProfit.jsx`. Owner setup steps live in the
   `profitability` guide article (internal-only). Rollback SQL is in the migration header.
+- **MGB Home, slice S1 (2026-10-31, spec `docs/mgb-home-spec.md`, SQL `supabase/mgb-home-s1.sql`, tests
+  `mgb-home-tests.sql`):** the internal client's rail item becomes **MGB Home** with its own header (gold rule,
+  `.app-topbar.mh-on`), tab row (Home, Profitability, Pricing & fees, Firm books ▾, an Internal lock and the
+  setup gear) and routes `#/internal`, `#/internal/profitability`, `#/internal/pricing`,
+  `#/internal/books/<overview|close|reports|bank|ledger|documents|sop|...>`. One gate:
+  `components/internal/MH_gate.js` (`MH_canOpen(real, imp)` = `STAFF_canViewInternal` && `MH_on()`; `MH_on()` =
+  localStorage `mgb_home_preview` = "1" OR the owner-only firm switch `tk_settings.mgb_home_enabled`, cached as
+  `mgb_home_cache`; tests `MH_gate.test.js`). Pages live in `components/internal/MgbHome.jsx` (`MH_`) and
+  `mgb-home.css`; Profitability is `TP_TeamPage mode="profit"`. With it on for a grant holder, Team › Hours
+  hides every money piece (fees, cost, margin, summary strip, sheet sync, cost rates) and shows a 30-day
+  "Fees and margin are in MGB Home" line (`mgb_home_moved_seen`); until it is on, grant holders keep money on
+  Hours. Billable value is gone for everyone: `qbo_hours_by_client` returns `billable_value` null without the
+  grant, and the column and CSV field were removed. `#/team/hours` deep links still land on Hours.
+  `weekly-admin-digest` money links open `#/internal/profitability` (a person without MGB Home on lands back on
+  Hours via the redirect). Dev Tools hides the preview flag and the switch row from admins without the grant
+  (`internalOnly`). The `mgb-home` guide article is restricted like `profitability`; the launch notice
+  (`ANN_mgbHomeLaunchOn`) and tour wording (`TOUR_mhOwnsMoney`) show only to grant holders. Launch notes:
+  `docs/staff-guide/drafts/staff-guide-mgb-home-launch.md`. Overhead, Cost rates and Capacity are later slices.
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
   (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page

@@ -2,10 +2,12 @@
 title: How do I set client fees, hourly costs and the target margin?
 section: Admin
 audience: admin
-keywords: [profitability, profit, margin, target margin, fee, monthly fee, tier default, hourly cost, loaded cost, cost rate, effective from, revenue, effective rate, internal, mgb internal, who sees profit]
+keywords: [mgb home, pricing and fees, profitability, profit, margin, target margin, fee, monthly fee, tier default, hourly cost, loaded cost, cost rate, effective from, revenue, effective rate, internal, mgb internal, who sees profit]
 sort: 540
 ---
 Profit figures are internal. Only admins the owner has given the **MGB (internal)** permission (**HR › Members**, the **MGB (internal)** column) see them. Other admins and all other staff see no fees, hourly costs, cost, profit or margins anywhere, and can't open this article. Nothing tells them it's hidden.
+
+**MGB Home (preview).** If **MGB Home** is on for you (the rail item that used to say **MGB (internal)**), everything below that says **Team › Hours** lives in MGB Home instead: fees, cost and margin by client and staff cost rates in **MGB Home › Profitability**, and the fee list, **Master Data sync** and milestone tiers in **MGB Home › Pricing & fees**. Team › Hours then shows hours only. See [What is MGB Home?](#/help/mgb-home).
 
 They combine three things you set up once:
 

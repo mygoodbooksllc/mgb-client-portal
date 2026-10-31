@@ -164,6 +164,23 @@ function ANN_slatePlusLaunchOn() {
   }
 }
 
+// MGB Home launch (components/internal/MH_gate.js): true only for an admin
+// with the MGB (internal) grant (ctx.canSeeMoney, never in View as) once the
+// owner has switched tk_settings.mgb_home_enabled on (cached as
+// mgb_home_cache). Deliberately not the per-person preview mgb_home_preview:
+// a preview person sees no launch text. Without the grant nothing about MGB
+// Home is listed anywhere (the notice, What's new's Launches, the ? menu
+// tour, Usage Stats' Announcements card all go through ANN_listed).
+function ANN_mgbHomeLaunchOn(ctx) {
+  try {
+    if (!ctx || ctx.canSeeMoney !== true || ctx.impersonating) return false;
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
+    return window.localStorage.getItem("mgb_home_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 // True once the owner has switched the client page drop on for the whole
 // firm (tk_settings.client_page_drop_enabled true AND
 // client_page_drop_pilot "all"; cached as mgb_clientdrop_cache by
@@ -1852,6 +1869,68 @@ var ANN_REGISTRY = [
             ? "On the Desk, a message row's ⋯ has Thread actions… with the same Rename, Mark done, Reassign, Create task, Copy link and Hide. "
             : "") +
           "To see this again, press ? and pick the launch, or read How do I message a client or a teammate? in Help.",
+      },
+    ],
+  },
+  {
+    // MGB Home launch, HELD: visible only to admins with the MGB (internal) grant once the owner flips
+    // tk_settings.mgb_home_enabled (cached as mgb_home_cache), never in View as (ANN_mgbHomeLaunchOn).
+    // RE-DATE `date` to the launch day when the switch goes on: the notice stops showing 60 days after it.
+    // Spec: docs/mgb-home-spec.md. Drafts: docs/staff-guide/drafts/staff-guide-mgb-home-launch.md.
+    id: "mgb-home",
+    date: "2026-10-31",
+    title: "MGB Home",
+    summary:
+      "MGB (internal) is now MGB Home: the firm's margin, fees, Master Data sync and our own books in one place. Team › Hours now shows hours only.",
+    roles: ["admin"],
+    hash: "#/internal",
+    visible: (ctx) => ANN_mgbHomeLaunchOn(ctx),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "MGB Home",
+        body: () =>
+          "MGB Home is the firm's own home: our numbers, our books and our close. Only admins with the MGB (internal) permission see it. About a minute.",
+      },
+      {
+        id: "ann-mh-home",
+        go: () => {
+          if (!/^#\/internal(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/internal";
+        },
+        targets: ["mh-home-cards"],
+        wait: true,
+        title: "Home",
+        body: () =>
+          "Three cards: margin this month against the target, the last Master Data sync and unmatched rows, and last month's close for our own books. Each card opens its page.",
+      },
+      {
+        id: "ann-mh-profit",
+        go: () => {
+          if (!/^#\/internal\/profitability(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/internal/profitability";
+        },
+        targets: ["mh-profit"],
+        wait: true,
+        title: "Profitability",
+        body: () =>
+          "Fees, cost, profit and margin by client, the target margin, and staff cost rates. Click a client for its fee and profit card. Team › Hours keeps the hours, without the money.",
+      },
+      {
+        id: "ann-mh-pricing",
+        go: () => {
+          if (!/^#\/internal\/pricing(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/internal/pricing";
+        },
+        targets: ["mh-pricing"],
+        wait: true,
+        title: "Pricing & fees",
+        body: () =>
+          "Every client's fee, where it comes from and the gap to their milestone fee, with the Master Data sync and the unmatched rows below.",
+      },
+      {
+        id: "ann-mh-books",
+        targets: ["mh-books"],
+        title: "Firm books",
+        body: () =>
+          "Firm books opens our own Overview, Close, Reports, Bank, Ledger review, Documents and SOP. To see this again, press ? and pick the launch, or read What is MGB Home? in Help.",
       },
     ],
   },

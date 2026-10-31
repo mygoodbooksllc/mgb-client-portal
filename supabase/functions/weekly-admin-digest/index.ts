@@ -336,6 +336,10 @@ function buildSections(d: any): Section[] {
   const cel = comingUpSection(d);
   if (cel) out.push(cel);
   const team = { label: "Open the Hours tab", href: `${APP_URL}/#/team/hours` };
+  // MGB Home S1 (docs/mgb-home-spec.md): money sections link to MGB Home ›
+  // Profitability. Until MGB Home is on for the reader, the app sends that
+  // link on to Team › Hours, which still shows the money (OQ6).
+  const profitLink = { label: "Open Profitability", href: `${APP_URL}/#/internal/profitability` };
   const firmOn = d.firm_qbo?.status === "connected" || d.firm_qbo?.status === "error";
 
   // 0. Needs attention (omitted when everything's fine)
@@ -394,7 +398,7 @@ function buildSections(d: any): Section[] {
         `${r.client_name}: fee ${money(r.monthly_fee)}/mo, cost ${money(r.monthly_cost)}/mo, margin ${r.margin_pct}% -> suggest ${money(r.suggested_fee)}${r.estimated ? " (est.)" : ""}`
       ))
       : "  Nothing this week.") + (noFee ? `\n  ${plural(noFee, "client has", "clients have")} no fee set.` : "");
-    out.push({ title: "Price review", html, text, link: team });
+    out.push({ title: "Price review", html, text, link: profitLink });
   }
 
   // 2b. Fee changes to review (pricing milestones; omitted when none)
@@ -419,7 +423,7 @@ function buildSections(d: any): Section[] {
     const text =
       `  Monthly fees ${money(r.mrr)} · ${r.active_clients ?? 0} active clients · 3-month projection ${money(r.projection_3m)}\n` +
       `  ${added.length ? `Added: ${added.map((a) => a.client_name).join(", ")}` : "No clients added in the last 7 days."}`;
-    out.push({ title: "Revenue snapshot", html, text, link: team });
+    out.push({ title: "Revenue snapshot", html, text, link: profitLink });
   }
 
   // 4. Late payers

@@ -31,7 +31,8 @@ const TP_Q_TREND_MIN_DIFF = 120; // minutes; ignore tiny clients
 const TP_Q_TREND_MIN_DAYS = 7; // too early in a period to judge pace
 const TP_Q_DAYS_PER_MONTH = 30.44;
 const TP_Q_ACT_COLS =
-  "qbo_id, txn_date, name_of, employee_qbo_id, employee_name, vendor_qbo_id, vendor_name, customer_qbo_id, customer_name, minutes, billable_status, hourly_rate, description, item_name";
+  "qbo_id, txn_date, name_of, employee_qbo_id, employee_name, vendor_qbo_id, vendor_name, customer_qbo_id, customer_name, minutes, billable_status, description, item_name";
+// hourly_rate is left out on purpose (MGB Home S1): no money on Team › Hours.
 
 // "missing" = the migration isn't applied (function/table not found),
 // "auth" = signed out or not an admin, "other" = anything else.
@@ -753,7 +754,7 @@ function TP_QTrend({ trend }) {
 // (internal) grant (TP_PF_canSee). Without it the fee, rate, cost, profit and
 // margin columns are not rendered at all.
 // showBudget: every admin sees the hours-budget column (hours only, no money).
-function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping, profit, showBudget: showBudgetProp }) {
+function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping, profit, showBudget: showBudgetProp, showSheetSync = true }) {
   const lateOn = TK_useLateCounts();
   const showMoney = !!profit;
   const showBudget = showMoney || !!showBudgetProp;
@@ -789,7 +790,6 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
       hours: (r) => r.qMinutes,
       app: (r) => TP_qNum(r.appMinutes),
       avg: (r) => r.qAvgMinutes,
-      value: (r) => TP_qNum(r.q && r.q.billable_value),
       rate: (r) => TP_PF_orLast(showMoney ? TP_PF_effRate(pv(r.id).fee, r) : null, sort.dir),
       name: (r) => r.name.toLowerCase(),
       // Rows with no figure sort last whichever way.
@@ -825,7 +825,8 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
   const clientMin = built.rows.reduce((n, r) => n + r.qMinutes, 0);
   const otherMin = built.total - clientMin - unmappedMin;
   const appTotal = built.rows.reduce((n, r) => n + TP_qNum(r.appMinutes), 0);
-  const cols = 9 + (showMoney ? 6 : 0) + (showBudget ? 1 : 0) - (lateOn ? 0 : 1);
+  // Billable value was removed for everyone in MGB Home S1 (money never shows on Team › Hours).
+  const cols = 8 + (showMoney ? 6 : 0) + (showBudget ? 1 : 0) - (lateOn ? 0 : 1);
   const dash = <span className="tp-muted">–</span>;
   const leastFirst = sort.key === "margin" && sort.dir === "asc";
 
@@ -860,7 +861,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
         </div>
       </div>
       {showMoney && <TP_PF_SummaryStrip profit={profit} qboOn={qboOn} />}
-      {showMoney && <TP_PF_SheetSyncStrip profit={profit} />}
+      {showMoney && showSheetSync && <TP_PF_SheetSyncStrip profit={profit} />}
       {built.total > 0 && (
         <p className="tp-q-recon">
           <b>{TP_qHours(built.total)}</b> logged = {TP_qHours(clientMin)} on clients
@@ -920,9 +921,6 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                 <button type="button" className="tp-sort" onClick={() => toggle("avg")}>Avg / mo{mark("avg")}</button>
               </th>
               <th>Trend</th>
-              <th className="num">
-                <button type="button" className="tp-sort" onClick={() => toggle("value")}>Billable value{mark("value")}</button>
-              </th>
               {showMoney && (
                 <>
                   <th className="num" title="Actual monthly fee, or the pricing tier's fee when none is set">
@@ -987,9 +985,6 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                     </td>
                     <td className="num" data-label={`Avg / mo (${avg.label})`}>{qboOn ? TP_qHours(r.qAvgMinutes) : dash}</td>
                     <td data-label="Trend">{r.trend ? <TP_QTrend trend={r.trend} /> : <span className="tp-muted">–</span>}</td>
-                    <td className="num" data-label="Billable value">
-                      {r.q && TP_qNum(r.q.billable_value) ? fmtMoney(TP_qNum(r.q.billable_value)) : "–"}
-                    </td>
                     {showMoney && (
                       <>
                         <td className="num" data-label="Fee / mo">
@@ -1062,9 +1057,6 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                     <td className="num tp-muted" data-label="In app">–</td>
                     <td className="num tp-muted" data-label="Avg / mo">–</td>
                     <td className="tp-muted" data-label="Trend">–</td>
-                    <td className="num" data-label="Billable value">
-                      {TP_qNum(b.q.billable_value) ? fmtMoney(TP_qNum(b.q.billable_value)) : "–"}
-                    </td>
                     {showMoney && (
                       <>
                         <td className="num tp-muted" data-label="Fee / mo">–</td>
@@ -1224,20 +1216,18 @@ function TP_QboDrill({ spec, range, groupBy, emptyText }) {
   const totals = useMemo(() => {
     let minutes = 0;
     let billable = 0;
-    let value = 0;
     const groups = {};
     rows.forEach((a) => {
       const m = a.minutes || 0;
       minutes += m;
       if (TP_qIsBillable(a)) billable += m;
-      if (a.hourly_rate != null) value += (m / 60) * Number(a.hourly_rate);
       const g = groupBy === "customer" ? a.customer_name || "No customer" : TP_qPersonName(a);
       groups[g] = (groups[g] || 0) + m;
     });
     const list = Object.entries(groups)
       .map(([name, m]) => ({ name, minutes: m }))
       .sort((a, b) => b.minutes - a.minutes);
-    return { minutes, billable, value, list };
+    return { minutes, billable, list };
   }, [rows, groupBy]);
   const barEntries = useMemo(
     () => rows.map((a) => ({ entry_date: a.txn_date, minutes: a.minutes || 0 })),
@@ -1268,7 +1258,6 @@ function TP_QboDrill({ spec, range, groupBy, emptyText }) {
         <div className="tp-stats" style={{ marginTop: 0 }}>
           <TP_Stat label="QB hours" value={TP_qHours(totals.minutes)} />
           <TP_Stat label="Billable hours" value={TP_qHours(totals.billable)} />
-          <TP_Stat label="Billable value" value={totals.value ? fmtMoney(totals.value) : "–"} />
           <TP_Stat label="Entries" value={rows.length} />
         </div>
       </div>
@@ -1313,12 +1302,11 @@ function TP_QboDrill({ spec, range, groupBy, emptyText }) {
                 <th>Description</th>
                 <th className="num">Hours</th>
                 <th>Billable</th>
-                <th className="num">Rate</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <EmptyRow colSpan={7}>{emptyText || "No QuickBooks time in this period."}</EmptyRow>
+                <EmptyRow colSpan={6}>{emptyText || "No QuickBooks time in this period."}</EmptyRow>
               ) : (
                 rows.map((a) => (
                   <tr key={a.qbo_id}>
@@ -1332,9 +1320,6 @@ function TP_QboDrill({ spec, range, groupBy, emptyText }) {
                     <td className="num" data-label="Hours">{TP_qHours(a.minutes)}</td>
                     <td data-label="Billable">
                       {a.billable_status === "HasBeenBilled" ? "Billed" : TP_qIsBillable(a) ? "Yes" : "No"}
-                    </td>
-                    <td className="num" data-label="Rate">
-                      {a.hourly_rate != null ? fmtMoney(Number(a.hourly_rate), { cents: true }) : "–"}
                     </td>
                   </tr>
                 ))
@@ -1881,7 +1866,8 @@ function TP_qExportPeople(filename, people, byStaff, qboOn) {
   );
 }
 
-// profit: TP_PF_useProfit() state for admins, else null (no money columns).
+// profit: TP_PF_useProfit() state inside MGB Home (or for a grant holder on
+// Hours before the MGB Home switch), else null: no money columns at all.
 function TP_qExportClients(filename, args, avgLabel, qboOn, staffName, profit) {
   const { rows, bucketRows } = TP_qClientRows(args);
   const h = (m) => (TP_qNum(m) / 60).toFixed(2);
@@ -1890,7 +1876,7 @@ function TP_qExportClients(filename, args, avgLabel, qboOn, staffName, profit) {
   const late = !!TK_lateCountsCache.on;   // grace period: no Overdue column until late tasks count
   TP_downloadCsv(
     filename,
-    ["Client", "Bucket", "Plan", "QuickBooks hours", TP_APP_CSV_HEAD, "In-app hours by staffer", `Avg hours / month (${avgLabel})`, "Billable hours", "Billable value", ...(profit ? ["Effective rate / hour", ...TP_PF_CSV_HEAD] : []), "Trend", "Open tasks", ...(late ? ["Overdue tasks"] : [])],
+    TH_clientsCsvHead(avgLabel, TP_APP_CSV_HEAD, profit ? ["Effective rate / hour", ...TP_PF_CSV_HEAD] : null, late),
     [
       ...rows
         .filter((r) => r.qMinutes || r.qAvgMinutes || r.appMinutes || r.open)
@@ -1903,7 +1889,6 @@ function TP_qExportClients(filename, args, avgLabel, qboOn, staffName, profit) {
           (r.appByStaff || []).map((s) => `${nameOf(s.email)} ${h(s.minutes)}`).join("; "),
           qh(r.qAvgMinutes),
           h(r.q && r.q.billable_minutes),
-          r.q ? TP_qNum(r.q.billable_value).toFixed(2) : "",
           ...(profit
             ? [
                 (() => {
@@ -1917,7 +1902,7 @@ function TP_qExportClients(filename, args, avgLabel, qboOn, staffName, profit) {
           r.open,
           ...(late ? [r.overdue] : []),
         ]),
-      ...bucketRows.map((b) => [b.label, b.bucket, "", h(b.q.total_minutes), "", "", "", h(b.q.billable_minutes), TP_qNum(b.q.billable_value).toFixed(2), ...(profit ? ["", ...TP_PF_CSV_HEAD.map(() => "")] : []), "", ...(late ? ["", ""] : [""])]),
+      ...bucketRows.map((b) => [b.label, b.bucket, "", h(b.q.total_minutes), "", "", "", h(b.q.billable_minutes), ...(profit ? ["", ...TP_PF_CSV_HEAD.map(() => "")] : []), "", ...(late ? ["", ""] : [""])]),
     ],
   );
 }

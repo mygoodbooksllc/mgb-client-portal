@@ -446,7 +446,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-31g", note: "Behind-the-scenes updates." };
+      window.MGB_VERSION = { label: "2026-10-31h", note: "Team › Hours shows hours only (Billable value column removed)." };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -484,6 +484,7 @@
       document.write('<link rel="stylesheet" href="components/staff/client-switcher.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/client-flags.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/team-page.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/internal/mgb-home.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/staff-ops.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/admin-tools.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/staff-guide.css?v=' + Date.now() + '">');
@@ -554,6 +555,7 @@
         "components/staff/DeepLink.jsx",
         "components/inbox/SI_logic.js",
         "components/inbox/TM_gate.js",
+        "components/internal/MH_gate.js",
         "components/inbox/TM_logic.js",
         "components/inbox/StaffInbox.jsx",
         "components/inbox/TM_ThreadMenu.jsx",
@@ -575,6 +577,7 @@
         "components/staff/CloseChecks.jsx",
         "components/staff/CloseTracker.jsx",
         "components/staff/ClientClosePage.jsx",
+        "components/internal/MgbHome.jsx",
         "components/staff/TaskTemplates.jsx",
         "components/staff/TaskChecklist.jsx",
         "components/staff/AuditLog.jsx",

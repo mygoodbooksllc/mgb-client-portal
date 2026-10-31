@@ -1071,7 +1071,12 @@ function TP_MyBackupsCard({ staffUser, clients }) {
   );
 }
 
-function TP_TeamPage({ clients }) {
+// mode: "hours" (Team › Hours, the default) or "profit" (MGB Home ›
+// Profitability, components/internal/MgbHome.jsx: the clients table with fees,
+// cost and margin, the client drill and the staff cost rates; no people,
+// capacity, usage or QuickBooks Time panel).
+function TP_TeamPage({ clients, mode }) {
+  const profitMode = mode === "profit";
   const lateOn = TK_useLateCounts();
   const supabase = window.mgbSupabase;
   const [period, setPeriod] = useState("month");
@@ -1106,8 +1111,21 @@ function TP_TeamPage({ clients }) {
   const { staffUser } = useContext(StaffToolsContext);
   const isAdmin = !!(staffUser && staffUser.role === "admin");
   const canMoney = TP_PF_canSee(staffUser);
-  const profit = TP_PF_useProfit(canMoney, range, qboVersion);
-  const money = canMoney ? profit : null;
+  // MGB Home S1 (docs/mgb-home-spec.md): once MGB Home is open for this admin
+  // (MH_canOpen: the grant plus the preview flag or firm switch), fees and
+  // margin live only in MGB Home › Profitability and Team › Hours shows hours
+  // only. Until then a grant holder keeps the money here (OQ6). The hook is
+  // called on every render (no short-circuit) to keep the hook order stable.
+  const mhGate = typeof MH_useCanOpen === "function" ? MH_useCanOpen(staffUser, null) : false;
+  const mhOwnsMoney = canMoney && mhGate === true;
+  const showMoney = canMoney && (profitMode || !mhOwnsMoney);
+  const profit = TP_PF_useProfit(showMoney, range, qboVersion);
+  const money = showMoney ? profit : null;
+  // "Fees and margin are in MGB Home" line on Hours: 30 days from first shown.
+  const movedLine = useMemo(
+    () => !profitMode && mhOwnsMoney && typeof MH_movedLineOn === "function" && MH_movedLineOn(),
+    [profitMode, mhOwnsMoney],
+  );
   const rangeLabel =
     range.from === range.to
       ? fmtDate(range.from)
@@ -1264,7 +1282,7 @@ function TP_TeamPage({ clients }) {
   }, [view]);
 
   // Deep link #/team/hours?client=<id> opens that client's view.
-  LK_useArrival({ place: "team", tab: "hours", staff: true }, !!data, (a) => {
+  LK_useArrival({ place: "team", tab: "hours", staff: true }, !!data && !profitMode, (a) => {
     if (!a.client) return;
     const rows = TP_qClientRows({ clientRows: data.clientRows, hours: qHours, range, today }).rows;
     const hit = rows.find((r) => String(r.id) === String(a.client));
@@ -1298,9 +1316,11 @@ function TP_TeamPage({ clients }) {
         </div>
         {!view && (
           <div className="tp-export">
-            <button type="button" className="btn-secondary" onClick={exportPeople} disabled={!data}>
-              <DownloadIcon width="14" height="14" /> People CSV
-            </button>
+            {!profitMode && (
+              <button type="button" className="btn-secondary" onClick={exportPeople} disabled={!data}>
+                <DownloadIcon width="14" height="14" /> People CSV
+              </button>
+            )}
             <button type="button" className="btn-secondary" onClick={exportClients} disabled={!data}>
               <DownloadIcon width="14" height="14" /> Clients CSV
             </button>
@@ -1388,6 +1408,7 @@ function TP_TeamPage({ clients }) {
           groupBy={isPerson ? "customer" : "person"}
           range={range}
           onBack={backToTeam}
+          backLabel={profitMode ? "Back to Profitability" : undefined}
           note={
             b.bucket === "unmapped" ? (
               <p className="tp-muted" style={{ marginTop: 14 }}>
@@ -1402,7 +1423,23 @@ function TP_TeamPage({ clients }) {
       </div>
     );
   }
-  if (qPerson) {
+  if (profitMode && view && view.type === "rate" && data) {
+    const p = data.people.find((x) => x.email === view.key);
+    return (
+      <div className="tp-page" data-tour="mh-profit">
+        <TP_QboDetail
+          title={(p && p.name) || view.key}
+          subtitle={[p && p.role && TP_roleLabel(p.role), view.key].filter(Boolean).join(" · ")}
+          backLabel="Back to Profitability"
+          onBack={backToTeam}
+          showQbo={false}
+        >
+          {money && <TP_PF_RateCard email={view.key} name={p ? p.name : view.key} profit={money} today={today} />}
+        </TP_QboDetail>
+      </div>
+    );
+  }
+  if (qPerson && !profitMode) {
     const q = qPerson.q;
     const mins = Number((q && q.total_minutes) || 0);
     const appEntries = data.appInPeriod.filter((e) => e.staff_email === qPerson.email);
@@ -1499,28 +1536,114 @@ function TP_TeamPage({ clients }) {
           groupBy="person"
           range={range}
           onBack={backToTeam}
+          backLabel={profitMode ? "Back to Profitability" : undefined}
           showQbo={qboOn}
           beforeQbo={
             <TP_AppTimeCard entries={appEntries} groupBy="staff" nameOf={staffName} range={range} />
           }
         >
           {money && <TP_PF_ClientProfitCard clientId={r.id} profit={money} qboOn={qboOn} />}
-          <div className="card" style={{ marginBottom: 20 }}>
-            <h3 className="card-title">Tasks</h3>
-            <TP_TaskGroups
-              tasks={(raw.tasks || []).filter((t) => t.client_id === r.id)}
-              today={today}
-              range={range}
-              ownerName={staffName}
-              emptyText="No open tasks for this client, and nothing completed in this period."
-            />
-          </div>
+          {!profitMode && (
+            <div className="card" style={{ marginBottom: 20 }}>
+              <h3 className="card-title">Tasks</h3>
+              <TP_TaskGroups
+                tasks={(raw.tasks || []).filter((t) => t.client_id === r.id)}
+                today={today}
+                range={range}
+                ownerName={staffName}
+                emptyText="No open tasks for this client, and nothing completed in this period."
+              />
+            </div>
+          )}
         </TP_QboDetail>
       </div>
     );
   }
 
   const openMapping = () => setView({ type: "mapping" });
+  if (profitMode) {
+    // Second guard: MgbHome.jsx only renders this behind MH_canOpen, and every
+    // money query is refused server-side without can_view_internal().
+    if (!canMoney) {
+      return (
+        <div className="tp-page">
+          <div className="card">
+            <p className="tp-muted" style={{ margin: 0 }}>This page isn't available.</p>
+          </div>
+        </div>
+      );
+    }
+    const ratePeople = data
+      ? data.people
+          .filter((p) => {
+            const s = data.staffByEmail[TP_lower(p.email)];
+            return (s && s.active !== false) || TP_PF_currentRate(money && money.rates, p.email, null);
+          })
+          .sort((a, b) => a.name.localeCompare(b.name))
+      : null;
+    return (
+      <div className="tp-page" data-tour="mh-profit">
+        {periodCard}
+        <TP_QboClientsTable
+          clientRows={data ? data.clientRows : null}
+          hours={qHours}
+          qboOn={qboOn}
+          range={range}
+          today={today}
+          avg={avg}
+          profit={money}
+          showBudget={isAdmin}
+          showSheetSync={false}
+          onOpenClient={(id) => setView({ type: "client", key: id })}
+          onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
+          onOpenMapping={openMapping}
+        />
+        <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-rates-title">
+          <h3 className="card-title" id="mh-rates-title">Staff cost rates</h3>
+          <p className="card-subtitle">
+            The loaded hourly cost used to cost QuickBooks Time hours. Open a person to add or change a rate.
+          </p>
+          {!ratePeople || !money || money.loading ? (
+            <p className="tp-muted">Loading…</p>
+          ) : money.kind ? (
+            <p className="tp-muted">{TP_PF_blocker(money, true)}</p>
+          ) : ratePeople.length === 0 ? (
+            <p className="tp-muted">No staff yet.</p>
+          ) : (
+            <div className="table-scroll">
+              <table className="tx-table tx-table-labeled tp-table">
+                <thead>
+                  <tr>
+                    <th>Person</th>
+                    <th>Role</th>
+                    <th className="num">Hourly cost</th>
+                    <th>Since</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ratePeople.map((p) => {
+                    const cur = TP_PF_currentRate(money.rates, p.email, today);
+                    return (
+                      <tr key={p.email}>
+                        <td>
+                          <button type="button" className="tp-q-link" onClick={() => setView({ type: "rate", key: p.email })}>
+                            {p.name}
+                          </button>
+                        </td>
+                        <td data-label="Role">{p.role ? TP_roleLabel(p.role) : "–"}</td>
+                        <td className="num" data-label="Hourly cost">{cur ? `${fmtMoney(cur.hourly_cost)}/h` : <span className="tp-muted">not set</span>}</td>
+                        <td data-label="Since">{cur ? TP_PF_dateY(cur.effective_from) : "–"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
   return (
     <div className="tp-page">
       <TP_QboPanel qbo={qbo} onOpenMapping={openMapping} onSynced={refreshQbo} />
@@ -1537,6 +1660,21 @@ function TP_TeamPage({ clients }) {
             }}
           >
             Emails
+          </a>
+        </p>
+      )}
+      {movedLine && (
+        <p className="em-moved mh-moved">
+          Fees and margin are in MGB Home →{" "}
+          <a
+            href="#/internal/profitability"
+            className="link-btn"
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.hash = "#/internal/profitability";
+            }}
+          >
+            Profitability
           </a>
         </p>
       )}

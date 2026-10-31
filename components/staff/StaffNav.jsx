@@ -163,10 +163,20 @@ const NAV_PLACE_BY_KEY = Object.fromEntries(NAV_PLACES.map((p) => [p.key, p]));
 const NAV_PLACE_BY_SLUG = Object.fromEntries(NAV_PLACES.map((p) => [p.slug, p]));
 
 // ctx: { role, isAdmin (admin or temporary admin), isRealAdmin (role admin,
-// not in "View as"), impersonating, canViewInternal }.
+// not in "View as"), impersonating, canViewInternal, mgbHome }.
+// mgbHome (MH_canOpen, components/internal/MH_gate.js): the internal place
+// reads "MGB Home" and its help is the restricted mgb-home article. It never
+// widens who sees the place (visible() still needs canViewInternal).
+const NAV_MGB_HOME_PLACE = {
+  label: "MGB Home",
+  hint: "The firm's own numbers, books and close",
+  help: "mgb-home",
+};
 function NAV_visiblePlaces(ctx) {
   const c = ctx || {};
-  return NAV_PLACES.filter((p) => !p.visible || p.visible(c));
+  return NAV_PLACES.filter((p) => !p.visible || p.visible(c)).map((p) =>
+    p.key === "internal" && c.mgbHome === true && c.canViewInternal ? { ...p, ...NAV_MGB_HOME_PLACE } : p,
+  );
 }
 
 // A place's tabs the viewer can open, in order. Admin tabs need ctx.isAdmin;

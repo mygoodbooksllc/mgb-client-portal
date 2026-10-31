@@ -1,0 +1,77 @@
+/* MGB Home, slice S1 (components/internal/MgbHome.jsx, docs/mgb-home-spec.md).
+   Shown only on the internal client while MH_canOpen. Tokens only, so dark
+   mode follows the theme. */
+
+/* A thin brand-color rule under the top bar, so a screenshot of MGB Home is
+   never mistaken for a client page. */
+.app-topbar.mh-on {
+  border-bottom: 2px solid var(--gold);
+}
+
+.mh-greeting {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.mh-greeting .mh-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+.mh-greeting .mh-mark::before {
+  inset: 1px;
+}
+
+/* The lock on the tab row. */
+.mh-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.mh-lock .icon-inline {
+  color: var(--gold-deep);
+}
+@media (max-width: 760px) {
+  .mh-lock-label {
+    display: none;
+  }
+}
+
+/* Home cards */
+.mh-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.mh-card {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.mh-card-body {
+  flex: 1 1 auto;
+}
+.mh-card-body p {
+  margin: 8px 0 0;
+}
+.mh-card-go {
+  align-self: flex-start;
+  margin-top: 14px;
+}
+.mh-big {
+  font-size: 15px;
+}
+.mh-big .pf-chip {
+  font-size: 15px;
+}
+.mh-small {
+  font-size: 12.5px;
+}
+.mh-warn {
+  color: var(--bad);
+}

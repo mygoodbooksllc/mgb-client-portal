@@ -71,6 +71,19 @@ t("NAV_visiblePlaces: everyone who sees Team sees HR; View as shows the whole ap
   assert.ok(keys(nav.NAV_visiblePlaces({ ...realAdmin, canViewInternal: true })).includes("internal"));
 });
 
+t("NAV_visiblePlaces: MGB Home relabels the internal place only for a grant holder with the gate on", () => {
+  const internalOf = (ctx) => Array.from(nav.NAV_visiblePlaces(ctx)).find((p) => p.key === "internal");
+  assert.strictEqual(internalOf({ ...realAdmin, canViewInternal: true }).label, "MGB (internal)");
+  const on = internalOf({ ...realAdmin, canViewInternal: true, mgbHome: true });
+  assert.strictEqual(on.label, "MGB Home");
+  assert.strictEqual(on.help, "mgb-home");
+  // mgbHome never widens who sees the place.
+  assert.strictEqual(internalOf({ ...realAdmin, mgbHome: true }), undefined);
+  assert.strictEqual(internalOf({ ...viewAs, canViewInternal: true, mgbHome: true }), undefined);
+  // The shared place object is never mutated.
+  assert.strictEqual(nav.NAV_PLACE_BY_KEY.internal.label, "MGB (internal)");
+});
+
 t("NAV_visibleTabs team: bookkeeper", () => {
   assert.deepStrictEqual(keys(nav.NAV_visibleTabs("team", bookkeeper)), ["people", "performance", "inventory"]);
 });

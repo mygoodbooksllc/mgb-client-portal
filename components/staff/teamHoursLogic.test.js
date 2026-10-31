@@ -71,4 +71,14 @@ assert.strictEqual(T.TH_syncedLine("2026-10-28"), "Hours synced through Oct 28, 
 assert.strictEqual(T.TH_syncedLine(null), "");
 assert.strictEqual(T.TH_syncedLine("nope"), "");
 
+// Clients CSV: no money header at all without the money columns (MGB Home S1).
+const head = T.TH_clientsCsvHead("Jul to Sep", "In-app hours", null, false);
+assert.deepStrictEqual(head, ["Client", "Bucket", "Plan", "QuickBooks hours", "In-app hours", "In-app hours by staffer", "Avg hours / month (Jul to Sep)", "Billable hours", "Trend", "Open tasks"]);
+const moneyWords = /value|fee|rate|cost|profit|margin|revenue|\$/i;
+assert.ok(head.every((h) => !moneyWords.test(h)), "Hours CSV must carry no money header");
+assert.ok(T.TH_clientsCsvHead("x", "a", [], true).includes("Overdue tasks"));
+const withMoney = T.TH_clientsCsvHead("x", "a", ["Effective rate / hour", "Monthly fee"], false);
+assert.deepStrictEqual(withMoney.slice(8, 10), ["Effective rate / hour", "Monthly fee"]);
+assert.ok(!withMoney.includes("Billable value"));
+
 console.log("teamHoursLogic: all passed");

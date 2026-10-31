@@ -87,6 +87,11 @@ const TB_HELP_FOR_PAGE = {
   "developer-tools": "admin-insight",
   "audit-log": "audit-log",
   emails: "client-emails",
+  // MGB Home (components/internal/MgbHome.jsx): grant holders only, and the
+  // article itself is restricted (staff_guide "internal only articles").
+  "mgb-home": "mgb-home",
+  "mgb-profitability": "mgb-home",
+  "mgb-pricing": "mgb-home",
 };
 // Articles only admins can read (audience: admin in the guide); a bookkeeper
 // on one of those pages gets no "Help for this page".
@@ -101,6 +106,7 @@ const TB_ADMIN_ARTICLES = new Set([
   "reply-times",
   "quickbooks-api-usage",
   "manage-projects",
+  "mgb-home",
 ]);
 
 const TB_lc = (s) => String(s || "").toLowerCase();
@@ -391,6 +397,15 @@ function TB_pageRows(ctx, onOpenSettings) {
       ["usage-stats", "Usage stats", "Which pages and features get used"],
       ["audit-log", "Audit log", "Every change to access, fees and clients"],
       ["developer-tools", "Developer tools", "Per-browser testing aids"],
+    ].forEach(([slug, title, sub]) => rows.push({ key: "p:" + slug, title, sub, go: () => TB_go("#/" + slug) }));
+  }
+  // MGB Home's own tabs (ctx.mgbHome = MH_canOpen: the internal grant plus
+  // the preview or firm switch). Nothing here for anyone else.
+  if (ctx.mgbHome === true && ctx.canViewInternal) {
+    [
+      ["internal/profitability", "MGB Home › Profitability", "Fees, cost and margin by client"],
+      ["internal/pricing", "MGB Home › Pricing & fees", "Fee list, Master Data sync and milestone tiers"],
+      ["internal/books/close", "MGB Home › Firm books", "The firm's own close, reports and bank"],
     ].forEach(([slug, title, sub]) => rows.push({ key: "p:" + slug, title, sub, go: () => TB_go("#/" + slug) }));
   }
   return rows;
@@ -1840,6 +1855,8 @@ function TB_StaffTopBar({
     isRealAdmin: isRealAdmin && !impersonating,
     impersonating: !!impersonating,
     canViewInternal: typeof STAFF_canViewInternal === "function" && STAFF_canViewInternal(realStaffUser, impersonating),
+    // MGB Home relabel and ⌘K rows (components/internal/MH_gate.js).
+    mgbHome: typeof MH_canOpen === "function" && MH_canOpen(realStaffUser, impersonating),
   };
   return (
     <header className="tb-bar" aria-label="Staff toolbar">

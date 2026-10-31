@@ -109,8 +109,29 @@ function TH_syncedLine(syncedThrough) {
   );
 }
 
+// Clients CSV header (Team › Hours and MGB Home › Profitability). moneyHead is
+// the money columns (TeamProfit.jsx TP_PF_CSV_HEAD plus the effective rate),
+// passed only inside MGB Home, or on Hours for a grant holder before the
+// MGB Home switch (spec OQ6). Hours never export a Billable value column.
+function TH_clientsCsvHead(avgLabel, appHead, moneyHead, late) {
+  return [
+    "Client",
+    "Bucket",
+    "Plan",
+    "QuickBooks hours",
+    appHead,
+    "In-app hours by staffer",
+    "Avg hours / month (" + avgLabel + ")",
+    "Billable hours",
+  ]
+    .concat(moneyHead && moneyHead.length ? moneyHead : [])
+    .concat(["Trend", "Open tasks"])
+    .concat(late ? ["Overdue tasks"] : []);
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    TH_clientsCsvHead: TH_clientsCsvHead,
     TH_MONTHLY_PAID_EMAILS: TH_MONTHLY_PAID_EMAILS,
     TH_MONTHLY_NOTE: TH_MONTHLY_NOTE,
     TH_isMonthlyPaid: TH_isMonthlyPaid,

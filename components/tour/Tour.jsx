@@ -1260,6 +1260,17 @@ function TOUR_bookkeeperSteps(ctx) {
   ];
 }
 
+// MGB Home (components/internal/MH_gate.js) owns the money for this person:
+// an admin with the MGB (internal) grant, not in View as, with MGB Home on.
+// Only then may a tour name MGB Home; everyone else reads the old wording.
+function TOUR_mhOwnsMoney(ctx) {
+  try {
+    return !!(ctx && ctx.canSeeMoney && !ctx.impersonating && typeof MH_on === "function" && MH_on());
+  } catch (e) {
+    return false;
+  }
+}
+
 // Admin tour: the pages only admins see, about two minutes. Each step opens
 // its page first (`go`), so the spotlight lands on the real tab. A brand-new
 // admin (no staff or bookkeeper tour yet) gets the basics first: the
@@ -1286,7 +1297,9 @@ function TOUR_adminSteps(ctx) {
     team(
       "hours",
       "Team › Hours",
-      ctx && ctx.canSeeMoney
+      TOUR_mhOwnsMoney(ctx)
+        ? "Hours and tasks by person and by client, monthly hours budgets and capacity. Fees, cost and margin are in MGB Home › Profitability."
+        : ctx && ctx.canSeeMoney
         ? "Hours and tasks by person and by client, monthly hours budgets and capacity. Click a client or a person for fees, cost and margin."
         : "Hours and tasks by person and by client, monthly hours budgets and capacity. Click a client or a person for the detail.",
     ),
@@ -1473,7 +1486,9 @@ function TOUR_amSteps(ctx) {
       targets: ["#tp-tab-hours"],
       title: "Fees and hours",
       body: () =>
-        ctx && ctx.canSeeMoney
+        TOUR_mhOwnsMoney(ctx)
+          ? "A client's fee follows their confirmed pricing milestone. Team › Hours shows each client's hours against budget and who has outgrown their plan; fees, cost and margin are in MGB Home › Profitability."
+          : ctx && ctx.canSeeMoney
           ? "A client's fee follows their confirmed pricing milestone. Team › Hours shows each client's hours against budget; click a client for fees, cost and margin, and see who has outgrown their plan."
           : "A client's fee follows their confirmed pricing milestone. Team › Hours shows each client's hours against budget, and who has outgrown their plan.",
     },

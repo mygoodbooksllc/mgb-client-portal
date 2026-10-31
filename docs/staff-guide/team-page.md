@@ -52,7 +52,7 @@ Client health has no tab of its own any more: the **Clients** page shows every c
 6. **Capacity** card. See [How do I check team capacity?](#/help/capacity).
 7. **People** table, then **Clients** table.
 
-Temporary admins see the tab without the money figures.
+Temporary admins see a shorter version of the tab.
 
 ### Hours: where they come from
 
@@ -69,7 +69,7 @@ Click a person to see their QB hours, billable hours, in-app time by client and 
 
 ### Clients table
 
-Client, Plan, QB hours, In app, Avg / mo (the average of up to the last 3 complete months that have fully synced, so a month the sync hasn't finished never pulls it down), Trend (for example "▲ 20% vs avg"), Billable value, **Budget (this month)**, then Open and Overdue.
+Client, Plan, QB hours, In app, Avg / mo (the average of up to the last 3 complete months that have fully synced, so a month the sync hasn't finished never pulls it down), Trend (for example "▲ 20% vs avg"), **Budget (this month)**, then Open and Overdue.
 
 - **Budget (this month)** compares this calendar month's QuickBooks Time hours with the client's monthly hours budget: amber from 80%, red with **Over** at 100%. A dash means no budget is set. Bookkeepers see the same comparison as **Hours this month** on the **Clients** page. See [How do I set a monthly hours budget for a client?](#/help/hours-budget).
 - **Show clients with no activity** includes quiet clients.

@@ -551,6 +551,13 @@ function CLIENT_subFromHash() {
       };
     if (parts[0] === "client" && parts[2] && parts[3])
       return { clientId: decodeURIComponent(parts[1]), page: parts[2], sub: parts[3] };
+    // MGB Home's Firm books: #/internal/books/reports/packet is the internal
+    // client's Reports › Board packet (MH_gate.js maps the slug).
+    if (parts[0] === "internal" && parts[1] === "books" && parts[2] && parts[3] && typeof MH_pageFromPath === "function") {
+      const page = MH_pageFromPath(parts.slice(1, 3));
+      const ic = (window.CLIENTS || []).find((c) => c && c.isInternal === true);
+      if (page && ic) return { clientId: ic.id, page, sub: parts[3] };
+    }
   } catch (e) {}
   return { clientId: null, page: null, sub: null };
 }
@@ -1022,6 +1029,17 @@ const FEATURE_FLAGS = [
     description:
       "Turns on for you only, in this browser, while the firm-wide threadmenu_enabled switch is off, the client message thread menu: right-click or ⋯ on a thread to rename, pin, mark done, snooze, reassign, hide, make a task or copy a link. Staff only; clients never see it and nothing emails anyone. Off in View as. The page reloads when you toggle it.",
     reloads: true,
+  },
+  {
+    // Read by MH_previewOn / MH_on (components/internal/MH_gate.js).
+    // internalOnly: the row renders only for an admin with the MGB (internal)
+    // grant (STAFF_canViewInternal); everyone else never sees it.
+    key: "mgb_home_preview",
+    label: "MGB Home preview",
+    description:
+      "Turns on for you only, in this browser, while the firm-wide mgb_home_enabled switch is off, MGB Home: the internal workspace gets its own header and tabs (Home, Profitability, Pricing & fees, Firm books), and fees, margin and staff cost move there from Team › Hours. Only admins with the MGB (internal) permission. Off in View as. The page reloads when you toggle it.",
+    reloads: true,
+    internalOnly: true,
   },
   {
     // Read by TKP_previewOn / TKP_isOn (components/tasks/TK_slatePlus.js), the one
@@ -1619,6 +1637,13 @@ function STAFF_writeLastTab(id, page) {
 // is still a row tab this user sees (Milestone only for a real admin), else
 // Overview. Static on purpose: it runs before the client's plan is known.
 function STAFF_resumeTab(id, user) {
+  // MGB Home (components/internal/MH_gate.js): the internal client always
+  // opens on its Home for someone the gate lets in (never in View as: the
+  // impersonated user has no grant).
+  if (id && typeof MH_canOpen === "function") {
+    const ic = STAFF_internalClient();
+    if (ic && ic.id === id && MH_canOpen(user, null)) return "mgb-home";
+  }
   const k = id ? STAFF_readLastTab(id) : null;
   const t = k && STAFF_CLIENT_TABS.find((x) => x.key === k);
   if (!t || (t.adminOnly && !STAFF_isRealAdmin(user))) return "client-overview";
@@ -1818,6 +1843,7 @@ function Sidebar({
   myTasksDue,
   impersonating,
   canViewInternal,
+  mgbHome,
   hasTempAdminAccess,
   tempAdminAccessExpiresAt,
   statusOverrides,
@@ -2127,6 +2153,7 @@ function Sidebar({
                         isAdmin: showsAdminPages,
                         impersonating: !!impersonating,
                         canViewInternal: !!canViewInternal,
+                        mgbHome: mgbHome === true,
                       })
                     : []
                   ).map((p) => (
@@ -2468,6 +2495,7 @@ function StaffRail({
   impersonating,
   showsAdminPages,
   canViewInternal,
+  mgbHome,
   internalOpen,
   hideMark,
   realEmail,
@@ -2587,6 +2615,7 @@ function StaffRail({
           isAdmin: showsAdminPages,
           impersonating: !!impersonating,
           canViewInternal: !!canViewInternal,
+          mgbHome: mgbHome === true,
         })
       : [];
   const items = places.map((p) => {
@@ -14107,7 +14136,7 @@ function resettableLocalStorageKeys() {
     // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
     // mgb_tk_slate_view_v1:<email> / :desk:<email>, and Slate Settings mgb_tk_prefs_v1:<email>: quick keys, density, open in, show older). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_classic, mgb_rhythm_preview,
-    // mgb_deskplus_preview, mgb_threadmenu_preview, mgb_slateplus_preview). The retired personal previews
+    // mgb_deskplus_preview, mgb_threadmenu_preview, mgb_slateplus_preview, mgb_home_preview). The retired personal previews
     // (mgb_wb_preview, mgb_nav_preview, mgb_lato_preview, mgb_brand_preview, mgb_hovernav_preview,
     // retired 2026-10-25, and mgb_slate_app_preview, mgb_orgprofile_preview plus the Classic opt-outs
     // mgb_lato_classic, mgb_brand_classic, mgb_hovernav_classic, mgb_nav_classic, mgb_slate_classic,
@@ -14131,6 +14160,9 @@ function resettableLocalStorageKeys() {
     // Client agreements: mgb_ag_seen_card_v1 (set when a staff member first sees a client's Agreements card; holds the launch notice; cleared by Reset).
     // Thread menu (hidden preview): mgb_threadmenu_preview (a flag, kept),
     // mgb_threadmenu_cache (the firm switch threadmenu_enabled as last read by TM_gate.js, cleared by Reset).
+    // MGB Home (hidden preview, internal grant only): mgb_home_preview (a flag, kept),
+    // mgb_home_cache (the firm switch mgb_home_enabled as last read by MH_gate.js, cleared by Reset),
+    // mgb_home_moved_seen (first time the "moved to MGB Home" line showed on Team › Hours; cleared by Reset, so the line shows again for 30 days).
     // Client page drop (hidden preview): mgb_clientdrop_preview (a flag, kept),
     // mgb_clientdrop_cache (client_page_drop_enabled + pilot as last read by CPD_gate.js, cleared by Reset).
     return Object.keys(localStorage).filter(
@@ -15675,6 +15707,8 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Nothing emails clients and nothing orders gifts either way."],
             ["client_page_drop_enabled", "Client page drop + who can see a file (owner only)", "Launched 2026-10-31: on (true) with the pilot set to \"all\". Off (or missing): clients drop files only on Documents and Basic Home as before, every file is seen by everyone at the client, and drive-files refuses any who-can-see rule. Staff with the Client page drop preview flag try it alone (View as is a demo that never uploads). Owner sets it with one SQL line, never from here, together with client_page_drop_pilot: when on, then those clients can drop a file anywhere in the portal (Add a file on phones), name it, pick a folder and type, and choose Everyone, Only these people or Everyone except; staff Documents get the upgrades for everyone. Off again: the rules already saved still apply, no new ones can be set."],
             ["client_page_drop_pilot", "Client page drop: which clients", "Launched 2026-10-31 with \"all\". Owner only. \"all\" or a list of client ids. Missing or empty = no client, even with the switch on. Read by the database (cpd__on) and by the portal; code never writes it."],
+            // internalOnly (4th item): only for an admin with the MGB (internal) grant.
+            ["mgb_home_enabled", "MGB Home for admins with MGB (internal) access (owner only)", "Off (or missing, the default): only people with the MGB Home preview flag see MGB Home, and the other admins with MGB (internal) access keep fees and margin on Team › Hours. On (true): every admin with MGB (internal) access gets MGB Home (header, tabs, Home cards, Profitability, Pricing & fees, Firm books) and the money leaves Team › Hours for them too. Nobody without the MGB (internal) permission ever sees it either way. Owner turns it on (true) with one SQL line, never from here (see the README MGB Home launch checklist).", true],
             ["client_upload_notify_enabled", "Email the account manager on a client upload", "Off (or missing, the default; not set at the 2026-10-31 launch unless the owner asked): a client's upload shows only in the Desk Inbox New file list. On (true): the client's account manager also gets the usual \"added a document\" email, only for clients the client page drop is on for, only for uploads by a client login. Owner sets it; never from here."],
             ["agreements_client_enabled", "Client agreements on for clients", "Off (or missing, the default): clients see no Agreements card at all; staff still add and edit agreements on each client's Documents tab, and the card there says clients don't see them yet. Owner turns it on (true) with one SQL line, never from here: then each client sees, read only, the agreements staff marked Visible to client (never the staff note). Off again hides them. Nothing is emailed and nothing can be signed either way."],
             ["org_gift_basis", "Client gifts: anniversary to follow", "Which anniversary Team › Client gifts and the weekly digest follow, for the whole firm: established (the founding date, the default; not set means this; Client since is used for clients whose founding date is Not sure or blank) or client_since (Client since, when an admin picks it). Admins change it on Team › Client gifts › Anniversary to follow (every change audited; the database refuses any other value)."],
@@ -15689,7 +15723,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
             ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Slate › Recurring › One client; off by default. Works while the standard close set is off."],
-          ].map(([key, label, desc]) => {
+          ].filter((r) => r[3] !== true || STAFF_canViewInternal(staffUser, null)).map(([key, label, desc]) => {
             const row = key === "__close_optin_count" ? (closeOptinCount === null ? null : { value: closeOptinCount }) : tkSettings[key];
             const raw = row ? row.value : undefined;
             const val = raw === undefined || raw === null ? "Not set" : raw === true ? "On" : raw === false ? "Off"
@@ -15720,7 +15754,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             Stored in this browser's localStorage only.
           </p>
 
-          {FEATURE_FLAGS.map((f) => (
+          {FEATURE_FLAGS.filter((f) => !f.internalOnly || STAFF_canViewInternal(staffUser, null)).map((f) => (
             <label className="staff-flag-row" key={f.key}>
               <input
                 type="checkbox"
@@ -27381,6 +27415,14 @@ function loadReferralPromo() {
 }
 
 const PAGE_META = {
+  // MGB Home (components/internal/MgbHome.jsx): pages of the internal client,
+  // shown only through MH_canOpen. internalOnly is a marker for any future
+  // list of PAGE_META (nothing lists it today); the real guard is server-side:
+  // Usage Stats never returns these rows without the MGB (internal) grant
+  // (the internal company lock).
+  "mgb-home": { title: "MGB Home", subtitle: "MyGoodBooks · internal, admins with access only", internalOnly: true },
+  "mgb-profitability": { title: "MGB Home › Profitability", subtitle: "MyGoodBooks · internal, admins with access only", internalOnly: true },
+  "mgb-pricing": { title: "MGB Home › Pricing & fees", subtitle: "MyGoodBooks · internal, admins with access only", internalOnly: true },
   // Label only (Usage Stats): the retired MGB Desk window (/desk, deleted in Slate app S5; /desk now redirects to /slate).
   "desk-app": { title: "MGB Desk window (retired)", subtitle: "The Desk in its own window" },
   // Label only (Usage Stats): the Slate app (/slate), preview.
@@ -27978,10 +28020,16 @@ function parseHashRoute(hash) {
     return { clientId: parts[1], page: isKnownAppPage(aliased) ? aliased : null, settingsTab };
   }
   // #/internal: MGB (internal), MyGoodBooks' own workspace. Opens like a bare
-  // #/client/<id>; App refuses it for anyone without the grant.
+  // #/client/<id>; App refuses it for anyone without the grant (lands on
+  // Today, no hint). MGB Home adds #/internal/profitability, /pricing and
+  // /books/<tab> (MH_pageFromPath); an unknown sub-path lands like a bare open.
   if (parts[0] === "internal") {
     const ic = STAFF_internalClient();
-    return ic ? { clientId: ic.id, page: null, bare: true, settingsTab: null } : null;
+    if (!ic) return null;
+    const sub = typeof MH_pageFromPath === "function" ? MH_pageFromPath(parts.slice(1)) : null;
+    return sub
+      ? { clientId: ic.id, page: sub, internal: true, settingsTab: null }
+      : { clientId: ic.id, page: null, bare: true, internal: true, settingsTab: null };
   }
   // A place's slug (#/work, #/hr/reviews), an alias (#/templates) or a
   // bare page key (#/audit-log). Anything after the slug belongs to the page
@@ -28027,6 +28075,12 @@ function buildHashRoute(page, clientId, opts) {
     return "#/" + slug;
   }
   if (!clientId) return "";
+  // MGB Home open on the internal client (App passes mh): its pages and the
+  // Firm books pages read #/internal/...; Client setup keeps #/client/<id>.
+  if (opts && opts.mh && typeof MH_hashFor === "function") {
+    const mh = MH_hashFor(page);
+    if (mh) return mh;
+  }
   const settingsTab = opts && opts.settingsTab;
   return (
     "#/client/" +
@@ -28362,6 +28416,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           ? "dashboard"
           : STAFF_resumeTab(selectedClientId, staffUser)
         : initialRoute && initialRoute.page;
+    // #/internal/... refused (no grant): Today, no hint (docs/mgb-home-spec.md
+    // section 5), not some other client's Close.
+    if (initialRoute && initialRoute.internal && !clientPortalUser && selectedClientId !== initialRoute.clientId) return "today";
     const chosen = fromHash || p;
     // #/settings is the staff page; a client gets their own Settings.
     if (clientPortalUser && chosen === "settings") return "client-settings";
@@ -29024,6 +29081,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // them so routes and the open client resolve; every roster, switcher and
   // count reads rosterClients below instead.
   const canViewInternal = STAFF_canViewInternal(staffUser, impersonating);
+  // MGB Home (components/internal/MH_gate.js): the internal grant plus the
+  // preview flag or the firm switch. False for everyone else, always.
+  const mhOpen = typeof MH_useCanOpen === "function" ? MH_useCanOpen(staffUser, impersonating) : false;
+  // The firm switch answer is in (or the preview is on). Read on every render;
+  // MH_useCanOpen re-renders when the read finishes.
+  const mhSettled = typeof MH_switchSettled === "function" ? MH_switchSettled() : true;
   const visibleClients = useMemo(() => {
     const base = assignedClientIds
       ? CLIENTS.filter(
@@ -29795,8 +29858,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // page; "client-settings" is the client's (and, in the bookkeeper view,
   // staff get its Client settings + Plan tabs). The old Plans, Manage access
   // and Client details page ids are aliases for a tab of it.
+  // MGB Home pages render only on the internal client, for someone the gate
+  // lets in, in the bookkeeper view (not a preview as a client user).
+  const mhHere = !!(mhOpen && staffUser && !clientPortalUser && client && client.isInternal === true && viewAsUserId === BOOKKEEPER_VIEW);
   const effectivePage =
-    page === "settings" && staffUser && !clientPortalUser
+    typeof MH_isPage === "function" && MH_isPage(page)
+      ? mhHere
+        ? page
+        // Mid client switch away from MGB Home (page catches up next render).
+        : mhOpen && client && client.isInternal !== true
+          ? "client-overview"
+          : staffUser && !clientPortalUser
+            ? "today"
+            : homeTab
+    : page === "settings" && staffUser && !clientPortalUser
       ? page
       : page === "client-settings" ||
           page === "enterprise-upgrade" ||
@@ -29934,14 +30009,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     try {
       if (isAuthHash(window.location.hash)) return;
       // Client setup keeps its sub-tab (#/client/<id>/settings/plan).
-      let next = buildHashRoute(effectivePage, selectedClientId, { settingsTab });
+      // MGB Home: #/internal/... while it is open on the internal client.
+      let next = buildHashRoute(effectivePage, selectedClientId, { settingsTab, mh: mhHere });
       // A client sub-tab on screen (Reports › Board packet, Messages ›
       // Requests, a Bank preset) keeps its fourth segment
       // (#/client/<id>/reports/packet), so a refresh or a deep link lands on
       // the same tab.
       if (
         next &&
-        next.indexOf("#/client/") === 0 &&
+        (next.indexOf("#/client/") === 0 || next.indexOf("#/internal/books/") === 0) &&
         clientSub.clientId === selectedClientId &&
         clientSub.page === effectivePage &&
         (((effectivePage === "reports" || effectivePage === "messages") && /^[a-z-]+$/.test(clientSub.sub || "")) ||
@@ -29974,7 +30050,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     } catch (e) {}
     // `page` too: a bounced request (page changes, effectivePage doesn't)
     // must still rewrite the hash back to what's shown.
-  }, [effectivePage, selectedClientId, page, hashRewriteTick]);
+  }, [effectivePage, selectedClientId, page, hashRewriteTick, mhHere]);
 
   // A hash typed or pasted into the address bar of an already-open tab.
   useEffect(() => {
@@ -29982,6 +30058,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       const route = parseHashRoute(window.location.hash);
       if (!route) return;
       hashFromHistory.current = true;
+      // #/internal/... without the grant: Today, no hint (not this client's
+      // Close).
+      if (route.internal && !clientPortalUser && !visibleClients.some((c) => c.id === route.clientId)) {
+        setPage("today");
+        setHashRewriteTick((t) => t + 1);
+        return;
+      }
       // A bare #/client/<id> lands by the landing rule (D9), even for the
       // client already open.
       const landing = route.bare ? (clientPortalUser ? "dashboard" : STAFF_resumeTab(route.clientId, effectiveStaffUser)) : null;
@@ -30015,6 +30098,39 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, [selectedClientId, visibleClients, clientPortalUser]);
+
+  // An MGB Home page that can't show here. A grant holder before MGB Home is
+  // on for them (weekly digest links to #/internal/profitability) gets
+  // Team › Hours, where the money still is until the switch (spec OQ6);
+  // anyone else lands where effectivePage put them. Functional update: a
+  // client switch that already queued its own page wins.
+  useEffect(() => {
+    if (typeof MH_isPage !== "function" || !MH_isPage(page) || effectivePage === page) return;
+    // A grant holder on a cold cache (fresh browser, after Reset): wait for the
+    // switch read before sending them anywhere, or a digest link to
+    // #/internal/profitability would land on Hours just as MGB Home turns on.
+    if (staffUser && !clientPortalUser && canViewInternal && !mhOpen && !mhSettled) return;
+    if (
+      staffUser &&
+      !clientPortalUser &&
+      canViewInternal &&
+      !mhOpen &&
+      client &&
+      client.isInternal === true &&
+      (page === "mgb-profitability" || page === "mgb-pricing")
+    ) {
+      // Replace (no extra Back step), then let the hashchange listener open it.
+      try {
+        window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + "#/team/hours");
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+      } catch (e) {
+        window.location.hash = "#/team/hours";
+      }
+      return;
+    }
+    setPage((p) => (p === page ? effectivePage : p));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, effectivePage, mhOpen, mhSettled, canViewInternal]);
 
   // The manual "My Time" page was retired 2026-09-29 (QuickBooks Time is the
   // hours source). Anyone still holding that page id goes to Today.
@@ -30829,12 +30945,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       const pageTitle =
         effectivePage === "client-settings" && staffClientTabs
           ? "Client setup"
-          : (PAGE_META[effectivePage] && PAGE_META[effectivePage].title) || "";
+          : (mhHere && typeof MH_pageTitle === "function" && MH_pageTitle(effectivePage)) ||
+            (PAGE_META[effectivePage] && PAGE_META[effectivePage].title) || "";
       document.title = onStaffPage
         ? [pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ")
-        : [client && client.name, pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ");
+        : [mhHere ? "MGB Home" : client && client.name, pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ");
     } catch (e) {}
-  }, [effectivePage, onStaffPage, client && client.name, staffClientTabs]);
+  }, [effectivePage, onStaffPage, client && client.name, staffClientTabs, mhHere]);
   // --- In-client tab row hooks (TABS-SPEC section 0: all new App hooks
   // live here, after staffClientTabs and before the early return). ---
   // Badge counts for the tab row and the Overview strip (ClientTabCounts.jsx).
@@ -31063,7 +31180,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <span></span>
           </button>
           <span className="mobile-topbar-title">
-            {NON_CLIENT_PAGES.has(effectivePage) ? "MyGoodBooks" : client.name}
+            {NON_CLIENT_PAGES.has(effectivePage) ? "MyGoodBooks" : mhHere ? "MGB Home" : client.name}
           </span>
         </div>
         <div
@@ -31076,6 +31193,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             page={effectivePage}
             onSelectPage={selectPlace}
             canViewInternal={canViewInternal}
+            mgbHome={mhOpen}
             internalOpen={internalOpen}
             // The same rail, expanded or collapsed per the saved preference,
             // on staff pages and client pages alike (no client sidebar to
@@ -31120,6 +31238,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           page={effectivePage}
           onSelectPage={selectPlace}
           canViewInternal={canViewInternal}
+          mgbHome={mhOpen}
           visibleKeys={access.tabs}
           tabOrder={tabOrder}
           onOpenSettingsPage={() => openClientSettings(null)}
@@ -31256,7 +31375,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               tool bar and header read as one frame. NAV_TabRow
               (components/staff/StaffNav.jsx) portals a page's tabs into
               #app-topbar-tabs below. */}
-          <div className="app-topbar" style={tkShell ? { display: "none" } : undefined}>
+          {/* mh-on: MGB Home's brand rule under the bar (components/internal/mgb-home.css). */}
+          <div className={"app-topbar" + (mhHere ? " mh-on" : "")} style={tkShell ? { display: "none" } : undefined}>
           <div className="page-header app-header">
             <div>
               {/* Staff on a client's pages get "Clients › Grace Community ›
@@ -31266,6 +31386,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               <div className="portal-greeting">
                 {NON_CLIENT_PAGES.has(effectivePage)
                   ? "MyGoodBooks"
+                  : mhHere
+                    ? (
+                        // MGB Home: the logo mark and its name, never a client tile.
+                        <span className="mh-greeting">
+                          <span className="staff-rail-mark mh-mark" aria-hidden="true" />
+                          MGB Home
+                        </span>
+                      )
                   : staffClientTabs && typeof CL_Breadcrumb === "function"
                     ? (
                         <CL_Breadcrumb
@@ -31278,7 +31406,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     : client.name}
               </div>
               <h1 className={"page-title"}>
-                {(staffClientTabs && effectivePage === "client-settings" && "Client setup") ||
+                {(mhHere && typeof MH_pageTitle === "function" && MH_pageTitle(effectivePage)) ||
+                  (staffClientTabs && effectivePage === "client-settings" && "Client setup") ||
                   (!staffClientTabs && clientPlace && clientPlace.tabs && clientPlace.label) ||
                   NAV_LABEL_BY_KEY[effectivePage] ||
                   (meta && meta.title) ||
@@ -31287,7 +31416,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     : client.name)}
               </h1>
               <div className={"page-subtitle"}>
-                {showsLiveReport && client.dataSource === "quickbooks"
+                {mhHere
+                  ? "MyGoodBooks · internal, admins with access only"
+                  : showsLiveReport && client.dataSource === "quickbooks"
                   ? `Your financial snapshot. ${syncCadenceLabel(access.plan)}.`
                   : effectivePage === "client-settings" && isStaffSession && !isPreviewingUser
                     ? STAFF_isRealAdmin(effectiveStaffUser)
@@ -31435,7 +31566,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               (CL_ClientTabs, components/staff/ClientsPage.jsx): Overview,
               the client's own tabs, SOP, Milestone and a Settings gear.
               Replaces the client sidebar on desktop (html.staff-client-tabs). */}
-          {staffClientTabs && typeof CL_ClientTabs === "function" && (
+          {/* MGB Home replaces the client row on the internal client
+              (components/internal/MgbHome.jsx): Home, Profitability,
+              Pricing & fees, the Firm books menu, the lock and the gear. */}
+          {mhHere && !isPreviewingUser && typeof MH_TabRow === "function" && (
+            <MH_TabRow
+              page={effectivePage}
+              access={access}
+              onSelectPage={setPage}
+              onOpenClientSettings={openClientSettings}
+            />
+          )}
+          {staffClientTabs && !mhHere && typeof CL_ClientTabs === "function" && (
             <CL_ClientTabs
               client={client}
               page={effectivePage}
@@ -31622,10 +31764,23 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               tab is open (CL_ClientTabs ids are "client-tab-<key>"). */}
           <div
             id="client-panel"
-            {...(staffClientTabs && STAFF_CLIENT_TABS.some((t) => t.key === effectivePage)
+            {...(mhHere && typeof MH_isPage === "function" && MH_isPage(effectivePage)
+              ? { role: "tabpanel", "aria-labelledby": "mh-tab-" + effectivePage }
+              : staffClientTabs && !mhHere && STAFF_CLIENT_TABS.some((t) => t.key === effectivePage)
               ? { role: "tabpanel", "aria-labelledby": "client-tab-" + effectivePage }
               : {})}
           >
+          {/* MGB Home pages (components/internal/MgbHome.jsx). effectivePage
+              only names them when mhHere (MH_canOpen on the internal client). */}
+          {mhHere && effectivePage === "mgb-home" && typeof MH_HomePage === "function" && (
+            <MH_HomePage clients={rosterClients} onSelectPage={setPage} />
+          )}
+          {mhHere && effectivePage === "mgb-profitability" && typeof MH_ProfitabilityPage === "function" && (
+            <MH_ProfitabilityPage clients={rosterClients} />
+          )}
+          {mhHere && effectivePage === "mgb-pricing" && typeof MH_PricingPage === "function" && (
+            <MH_PricingPage clients={rosterClients} />
+          )}
           {effectivePage === "dashboard" && !staffClientTabs && (
             <CLIENT_HomeTop
               client={client}
