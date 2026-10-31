@@ -78,21 +78,6 @@ function TP_periodRange(key, customFrom, customTo) {
   return { from: TP_ymd(new Date(y, m, 1)), to: TP_ymd(new Date(y, m + 1, 0)) };
 }
 
-// The three full calendar months before this one, for the per-client
-// monthly average that sits next to the current period.
-function TP_avgRange() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const from = new Date(y, m - 3, 1);
-  const to = new Date(y, m, 0);
-  const label =
-    from.toLocaleDateString("en-US", { month: "short" }) +
-    " to " +
-    to.toLocaleDateString("en-US", { month: "short" });
-  return { from: TP_ymd(from), to: TP_ymd(to), label };
-}
-
 // Minutes as h:mm ("12:05").
 function TP_fmtHM(minutes) {
   const total = Math.round(minutes || 0);
@@ -1099,9 +1084,16 @@ function TP_TeamPage({ clients }) {
     () => TP_periodRange(period, customFrom, customTo),
     [period, customFrom, customTo],
   );
-  const avg = useMemo(() => TP_avgRange(), []);
   const today = TP_ymd(new Date());
-  const qHours = TP_useQboHours(qboOn, range, avg, qboVersion);
+  // Interim stale-data fix (teamHoursLogic.js): averages use only fully
+  // synced months, and pace stops at the last synced day.
+  const syncedThrough = TP_useSyncedThrough(qboOn, qboVersion);
+  const avg = useMemo(() => TH_avgRange(today, syncedThrough), [today, syncedThrough]);
+  const qHoursRaw = TP_useQboHours(qboOn, range, avg, qboVersion);
+  const qHours = useMemo(
+    () => ({ ...qHoursRaw, syncedThrough }),
+    [qHoursRaw, syncedThrough],
+  );
   // Fees, pay rates, cost and margin are admin-only (TeamProfit.jsx). A
   // bookkeeper with temporary admin-page access, or an admin in "View as",
   // never loads or sees them.
@@ -1335,6 +1327,15 @@ function TP_TeamPage({ clients }) {
           " · Loading…"
         )}
       </p>
+      {qboOn && syncedThrough && (
+        <p
+          className="card-subtitle tp-synced"
+          style={{ margin: "4px 0 0" }}
+          title="QuickBooks Time hands hours to QuickBooks Online at pay-period approval, so the newest days can be missing. Averages use only fully synced months and weeks."
+        >
+          {TH_syncedLine(syncedThrough)}
+        </p>
+      )}
       {qboOn && qHours.error && (
         <div className="mock-banner" style={{ marginTop: 16, marginBottom: 0 }}>
           <WarningIcon />
@@ -1544,6 +1545,7 @@ function TP_TeamPage({ clients }) {
         people={data ? data.people : null}
         hours={qHours}
         qboOn={qboOn}
+        range={range}
         onOpenPerson={(email) => setView({ type: "person", key: email })}
         onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
         onOpenMapping={openMapping}

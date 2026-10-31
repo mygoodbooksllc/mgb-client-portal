@@ -4,9 +4,12 @@
 // staff_capacity (supabase/staff-capacity.sql) holds each person's weekly
 // target hours (default 35 when there's no row). Hours come from QuickBooks
 // Time via qbo_hours_by_staff, the same RPC as the People table:
-//   - this week (Monday start) so far
 //   - the last 4 full weeks, averaged per week
-// Utilization = 4-week average / target: under 70% "has room", 70–100% OK,
+// Only complete weeks that have fully synced count (teamHoursLogic.js): the
+// current partial week and any week after the last synced QuickBooks day are
+// left out, and there is no "this week" figure (interim fix 2026-10-31, the
+// QuickBooks Online feed lags). Monthly-paid staff show a note instead.
+// Utilization = average / target: under 70% "has room", 70–100% OK,
 // over 100% overloaded. The weekly digest agent reads staff_capacity too, so
 // keep the table and column names.
 //
@@ -23,16 +26,18 @@ const TP_CAP_DEFAULT = 35;
 const TP_CAP_ROOM = 0.7;
 const TP_CAP_TTL = 60000;
 
-function TP_capWeeks() {
-  const now = new Date();
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
-  const sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
-  const from4 = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 28);
-  const to4 = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 1);
-  return {
-    week: { from: TP_ymd(monday), to: TP_ymd(sunday) },
-    last4: { from: TP_ymd(from4), to: TP_ymd(to4) },
-  };
+// The newest day with any QuickBooks time, or null when unknown.
+async function TP_capSyncedThrough(supabase) {
+  try {
+    const res = await supabase
+      .from("qbo_time_activities")
+      .select("txn_date")
+      .order("txn_date", { ascending: false })
+      .limit(1);
+    return !res.error && res.data && res.data[0] ? String(res.data[0].txn_date).slice(0, 10) : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 // "room" | "ok" | "over" | null (no target or no hours data).
@@ -52,21 +57,23 @@ const TP_CAP_EVENT = "mgb-capacity-changed";
 async function TP_capFetch() {
   const supabase = window.mgbSupabase;
   if (!supabase) return { ok: false, reason: "none" };
-  const w = TP_capWeeks();
+  const syncedThrough = await TP_capSyncedThrough(supabase);
+  const w = TH_lastFullWeeks(TP_ymd(new Date()), syncedThrough, 4);
   const safe = (p) =>
     Promise.resolve(p).then(
       (r) => r,
       (e) => ({ data: null, error: e }),
     );
-  const [cap, wk, l4, acc] = await Promise.all([
+  const [cap, l4, acc] = await Promise.all([
     safe(supabase.from("staff_capacity").select("staff_email, weekly_target_hours")),
-    safe(supabase.rpc("qbo_hours_by_staff", { p_from: w.week.from, p_to: w.week.to })),
-    safe(supabase.rpc("qbo_hours_by_staff", { p_from: w.last4.from, p_to: w.last4.to })),
+    w.from
+      ? safe(supabase.rpc("qbo_hours_by_staff", { p_from: w.from, p_to: w.to }))
+      : Promise.resolve({ data: [], error: null }),
     safe(supabase.from("staff_client_access").select("staff_email, client_id")),
   ]);
   const capMissing = cap.error && TP_qErrorKind(cap.error, cap.status) === "missing";
   if (cap.error && !capMissing) return { ok: false, reason: TP_qErrorKind(cap.error, cap.status) || "other" };
-  const hoursOk = !wk.error && !l4.error;
+  const hoursOk = !l4.error;
   const targets = {};
   ((!cap.error && cap.data) || []).forEach((r) => {
     targets[TP_lower(r.staff_email)] = Number(r.weekly_target_hours);
@@ -90,12 +97,12 @@ async function TP_capFetch() {
     ok: true,
     capMissing: !!capMissing,
     hoursOk,
-    hoursKind: hoursOk ? null : TP_qErrorKind(wk.error || l4.error, (wk.error ? wk : l4).status),
+    hoursKind: hoursOk ? null : TP_qErrorKind(l4.error, l4.status),
     targets,
-    week: mins(wk),
     last4: mins(l4),
     clientCounts: Object.fromEntries(Object.entries(clients).map(([k, v]) => [k, v.size])),
     weeks: w,
+    syncedThrough,
   };
 }
 
@@ -132,12 +139,15 @@ function TP_capInvalidate() {
 function TP_capFor(cap, email, noHours) {
   const e = TP_lower(email);
   const target = cap && cap.targets[e] != null ? cap.targets[e] : TP_CAP_DEFAULT;
-  if (!cap || !cap.hoursOk || noHours) return { target, weekMin: null, avgMin: null, util: null, weekUtil: null, status: null };
-  const weekMin = cap.week[e] || 0;
-  const avgMin = (cap.last4[e] || 0) / 4;
+  if (!cap || !cap.hoursOk || noHours) return { target, monthly: false, avgMin: null, util: null, status: null };
+  // Monthly-paid staff: their hours post at month end, so a weekly average
+  // would read as "has room". No figure, no status, just the note.
+  if (TH_isMonthlyPaid(e)) return { target, monthly: true, avgMin: null, util: null, status: null };
+  const weeks = (cap.weeks && cap.weeks.weeks) || 0;
+  if (!weeks) return { target, monthly: false, avgMin: null, util: null, status: null };
+  const avgMin = (cap.last4[e] || 0) / weeks;
   const util = target > 0 ? avgMin / 60 / target : null;
-  const weekUtil = target > 0 ? weekMin / 60 / target : null;
-  return { target, weekMin, avgMin, util, weekUtil, status: TP_capStatus(util) };
+  return { target, monthly: false, avgMin, util, status: TP_capStatus(util) };
 }
 
 function TP_UtilBar({ util, label }) {
@@ -240,11 +250,11 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
     // Admins only appear when they logged QuickBooks hours in the last 4 weeks.
     const logged = (email) => !!(cap && cap.hoursOk && (cap.last4[TP_lower(email)] || 0) > 0);
     return people
-      .filter((p) => p.role !== "admin" || logged(p.email))
+      .filter((p) => p.role !== "admin" || logged(p.email) || TH_isMonthlyPaid(p.email))
       .map((p) => ({ ...p, c: TP_capFor(cap, p.email, !qboOn) }))
       .sort((a, b) => (b.c.util == null ? -1 : b.c.util) - (a.c.util == null ? -1 : a.c.util) || a.name.localeCompare(b.name));
   }, [people, cap, qboOn]);
-  const cols = lateOn ? 8 : 7;
+  const cols = lateOn ? 7 : 6;
   const note = !cap
     ? null
     : !cap.ok
@@ -262,8 +272,9 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
     <div className="card" style={{ marginBottom: 20 }}>
       <h3 className="card-title">Capacity</h3>
       <p className="card-subtitle">
-        QuickBooks Time hours this week so far and the average of the last 4 full weeks, against each person's weekly
-        target. Utilization uses the 4-week average: under 70% has room, over 100% is overloaded.
+        The average QuickBooks Time hours per week over the last 4 full weeks that have synced, against each person's
+        weekly target. The current week is left out. Utilization uses that average: under 70% has room, over 100% is
+        overloaded.
         {qboOn && cap && cap.ok && cap.hoursOk && (counts.room || counts.over) ? (
           <>
             {" "}
@@ -280,7 +291,6 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
             <tr>
               <th>Name</th>
               <th className="num">Target / wk</th>
-              <th className="num">This week</th>
               <th className="num">Avg / wk (4 wks)</th>
               <th>Utilization</th>
               <th className="num">Clients</th>
@@ -318,20 +328,18 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
                       `${p.c.target} h`
                     )}
                   </td>
-                  <td className="num" data-label="This week">
-                    {p.c.weekMin == null ? (
-                      "–"
-                    ) : (
-                      <span>
-                        {TP_fmtHM(p.c.weekMin)}
-                        {p.c.weekUtil != null && <span className="tp-muted"> · {Math.round(p.c.weekUtil * 100)}%</span>}
-                      </span>
-                    )}
-                  </td>
-                  <td className="num" data-label="Avg / wk (4 wks)">{p.c.avgMin == null ? "–" : TP_fmtHM(p.c.avgMin)}</td>
-                  <td data-label="Utilization">
-                    <TP_UtilBar util={p.c.util} />
-                  </td>
+                  {p.c.monthly ? (
+                    <td colSpan={2} data-label="Avg / wk">
+                      <span className="tp-muted">{TH_MONTHLY_NOTE}</span>
+                    </td>
+                  ) : (
+                    <>
+                      <td className="num" data-label="Avg / wk (4 wks)">{p.c.avgMin == null ? "–" : TP_fmtHM(p.c.avgMin)}</td>
+                      <td data-label="Utilization">
+                        <TP_UtilBar util={p.c.util} />
+                      </td>
+                    </>
+                  )}
                   <td className="num" data-label="Clients">
                     {p.role === "admin" && !p.assignedCount ? <span className="tp-muted">All</span> : p.assignedCount}
                   </td>
@@ -365,7 +373,7 @@ function TP_WorkloadHint({ email, clientCount }) {
   const c = TP_capFor(cap, email);
   const n = clientCount != null ? clientCount : cap.clientCounts[TP_lower(email)] || 0;
   return (
-    <span className="tp-cap-hint" title={`4-week average ${TP_fmtHM(c.avgMin)} a week against a ${c.target} h target`}>
+    <span className="tp-cap-hint" title={c.monthly ? TH_MONTHLY_NOTE : c.avgMin == null ? undefined : `Average of the last complete weeks: ${TP_fmtHM(c.avgMin)} a week against a ${c.target} h target`}>
       {c.util != null ? <TP_UtilBar util={c.util} label={false} /> : null}
       <span>
         {n} client{n === 1 ? "" : "s"}

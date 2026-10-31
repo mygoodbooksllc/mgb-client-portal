@@ -375,11 +375,41 @@ function TP_QboPanel({ qbo, onOpenMapping, onSynced }) {
 // ---------------------------------------------------------------------------
 // Hours (for the People and Clients tables)
 // ---------------------------------------------------------------------------
+// The newest day with any QuickBooks time (null until loaded or if the read
+// fails). Days after it have not synced yet; they are not zero hours.
+function TP_useSyncedThrough(enabled, version) {
+  const [day, setDay] = useState(null);
+  useEffect(() => {
+    const supabase = window.mgbSupabase;
+    if (!enabled || !supabase) {
+      setDay(null);
+      return undefined;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const res = await supabase
+          .from("qbo_time_activities")
+          .select("txn_date")
+          .order("txn_date", { ascending: false })
+          .limit(1);
+        if (alive) setDay(!res.error && res.data && res.data[0] ? String(res.data[0].txn_date).slice(0, 10) : null);
+      } catch (e) {
+        if (alive) setDay(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [enabled, version]);
+  return day;
+}
+
 function TP_useQboHours(enabled, range, avg, version) {
-  const [state, setState] = useState({ loading: !!enabled, byClient: [], avgByClient: [], byStaff: [], tiers: {}, error: null });
+  const [state, setState] = useState({ loading: !!enabled, byClient: [], avgByClient: [], byStaff: [], tiers: {}, avgMonths: 3, error: null });
   useEffect(() => {
     if (!enabled) {
-      setState({ loading: false, byClient: [], avgByClient: [], byStaff: [], tiers: {}, error: null });
+      setState({ loading: false, byClient: [], avgByClient: [], byStaff: [], tiers: {}, avgMonths: 3, error: null });
       return undefined;
     }
     let alive = true;
@@ -388,7 +418,7 @@ function TP_useQboHours(enabled, range, avg, version) {
       const supabase = window.mgbSupabase;
       const [c, a, s, m] = await Promise.all([
         TP_qRpc("qbo_hours_by_client", { p_from: range.from, p_to: range.to }),
-        TP_qRpc("qbo_hours_by_client", { p_from: avg.from, p_to: avg.to }),
+        avg.from ? TP_qRpc("qbo_hours_by_client", { p_from: avg.from, p_to: avg.to }) : Promise.resolve({ data: [], error: null }),
         TP_qRpc("qbo_hours_by_staff", { p_from: range.from, p_to: range.to }),
         supabase
           ? supabase.from("client_milestones").select("client_id, confirmed_tier").then(
@@ -410,6 +440,7 @@ function TP_useQboHours(enabled, range, avg, version) {
         loading: false,
         byClient: c.data || [],
         avgByClient: a.data || [],
+        avgMonths: avg.months || 3,
         byStaff: s.data || [],
         tiers,
         error: errs.length ? [...new Set(errs)].join(" ") : null,
@@ -491,7 +522,7 @@ function TP_QBucketTag({ bucket }) {
   );
 }
 
-function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, onOpenMapping }) {
+function TP_QboPeopleTable({ people, hours, qboOn, range, onOpenPerson, onOpenBucket, onOpenMapping }) {
   const lateOn = TK_useLateCounts();   // grace period: no per-person overdue until the owner turns it on
   const loadingPeople = people == null;
   const { rows, bucketRows, total } = useMemo(
@@ -560,7 +591,13 @@ function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, o
                         <span className="tp-name">{p.name}</span>
                         {p.role && <span className="tp-muted tp-role">{TP_roleLabel(p.role)}</span>}
                       </td>
-                      <td className="num" data-label="QB hours">{q ? TP_qHours(mins) : dash}</td>
+                      <td className="num" data-label="QB hours">
+                        {qboOn && TH_monthlyNote(p.email, mins, range, hours.syncedThrough) ? (
+                          <span className="tp-muted tp-q-monthly" title="Paid monthly: QuickBooks gets this person's hours at month end.">
+                            {TH_MONTHLY_NOTE}
+                          </span>
+                        ) : q ? TP_qHours(mins) : dash}
+                      </td>
                       <td className="num tp-app-col" data-label="In app" title={TP_APP_TIP}>
                         {p.appMinutes ? TP_qHours(p.appMinutes) : dash}
                       </td>
@@ -645,9 +682,10 @@ function TP_qClientRows({ clientRows, hours, range, today }) {
     } else buckets.push(r);
   });
   (hours.avgByClient || []).forEach((r) => {
-    if (r.bucket === "client") avgById[r.client_id] = TP_qNum(r.total_minutes) / 3;
+    if (r.bucket === "client") avgById[r.client_id] = TP_qNum(r.total_minutes) / (hours.avgMonths || 3);
   });
-  const elapsed = TP_qElapsedDays(range, today);
+  // Pace counts only days that have synced (teamHoursLogic.js).
+  const elapsed = TP_qElapsedDays(range, TH_paceDay(today, hours.syncedThrough));
   const decorate = (base, q) => {
     const minutes = TP_qNum(q && q.total_minutes);
     const avgMinutes = avgById[base.id] || 0;

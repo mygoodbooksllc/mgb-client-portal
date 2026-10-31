@@ -48,7 +48,7 @@ Client health has no tab of its own any more: the **Clients** page shows every c
 2. **QuickBooks API usage** card: calls to QuickBooks this month against Intuit's limit. See [How do I read the QuickBooks API usage card?](#/help/quickbooks-api-usage).
 3. A link to **Emails** (weekly digest and client email settings live there).
 4. Period tabs: **This week**, **This month** (default), **Last month**, **Custom range**. Use **People CSV** / **Clients CSV** to export.
-5. A summary line: hours in QuickBooks Time and hours active in the app (automatic, not billed).
+5. A summary line: hours in QuickBooks Time and hours active in the app (automatic, not billed), then **Hours synced through** the newest day QuickBooks has handed over. Hours lag: QuickBooks Time passes them to QuickBooks Online when a pay period is approved, so the last few days can be missing and the **This week** tab often reads 0:00 until they arrive. That is a delay, not zero hours. Anyone paid monthly (Gillian) shows **Paid monthly, hours post at month end** in the **People** table's QB hours instead of 0:00.
 6. **Capacity** card. See [How do I check team capacity?](#/help/capacity).
 7. **People** table, then **Clients** table.
 
@@ -69,7 +69,7 @@ Click a person to see their QB hours, billable hours, in-app time by client, tas
 
 ### Clients table
 
-Client, Plan, QB hours, In app, Avg / mo, Trend (for example "▲ 20% vs avg"), Billable value, Fee / mo, **vs milestone** (the actual fee minus the fee for the client's confirmed pricing milestone: plus means they pay more, minus means less; "on milestone" when no actual fee is set so the milestone fee is used), Eff. rate, Cost, Profit, Margin %, **Budget (this month)**, then Open and Overdue.
+Client, Plan, QB hours, In app, Avg / mo (the average of up to the last 3 complete months that have fully synced, so a month the sync hasn't finished never pulls it down), Trend (for example "▲ 20% vs avg"), Billable value, Fee / mo, **vs milestone** (the actual fee minus the fee for the client's confirmed pricing milestone: plus means they pay more, minus means less; "on milestone" when no actual fee is set so the milestone fee is used), Eff. rate, Cost, Profit, Margin %, **Budget (this month)**, then Open and Overdue.
 
 - **Budget (this month)** compares this calendar month's QuickBooks Time hours with the client's monthly hours budget: amber from 80%, red with **Over** at 100%. A dash means no budget is set. Bookkeepers see the same comparison as **Hours this month** on the **Clients** page. See [How do I set a monthly hours budget for a client?](#/help/hours-budget).
 - **Least profitable first** sorts by margin.

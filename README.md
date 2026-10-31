@@ -988,6 +988,15 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   Emails page; Team › Hours links there.
 - **QuickBooks Time**: firm connection and hours by person and client, which feed
   **profitability** (fee vs. cost at each person's rate) and **capacity** (weekly hours vs. target).
+  Interim stale-data fix (2026-10-31, `components/staff/teamHoursLogic.js`, node test
+  `teamHoursLogic.test.js`): the feed is QuickBooks Online TimeActivity, which lags the real time, so the
+  Capacity card has no "This week" column, its weekly average uses only the last 4 complete Monday to Sunday weeks
+  that have fully synced (`TH_lastFullWeeks`), the Clients table Avg / mo uses only fully synced months
+  (`TH_avgRange`), pace stops at the last synced day (`TH_paceDay`), and Team › Hours shows "Hours synced through
+  <newest `qbo_time_activities.txn_date`>". Monthly-paid staff show "Paid monthly, hours post at month end"; there
+  is no pay-frequency field in the database, so the explicit list `TH_MONTHLY_PAID_EMAILS` (currently
+  gillian@mygoodbooks.org) in `teamHoursLogic.js` is the source of truth. The live QuickBooks Time API connection is
+  not built (owner has not approved it).
 - **Work › Close** (`#/work/close`; was Close tracker): month-end close status per client. The "Mine" filter
   uses the assigned bookkeeper's staff email.
 - **Recurring tasks** (`#/tasks/templates`; `#/templates` and Settings › Task templates redirect

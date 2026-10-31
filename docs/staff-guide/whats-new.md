@@ -9,6 +9,9 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-31: Team › Hours is clearer about lag
+Hours in the portal come from QuickBooks Online, which gets them from QuickBooks Time only when a pay period is approved, so the newest days can be missing. To stop that looking like zero hours: the **Capacity** card no longer has a **This week** column, its weekly average uses only the last 4 complete weeks that have fully synced, and **Avg / mo** on the Clients table uses only fully synced months. **Team › Hours** now says **Hours synced through** the newest day it has, and people paid monthly show **Paid monthly, hours post at month end**. A live connection to QuickBooks Time is not part of this. See [How do I check team capacity?](#/help/capacity).
+
 ### 2026-10-31: Clients can drop files anywhere
 - **Clients drop a file on any page** of their portal (or tap **+ Add a file** on a phone), then pick a folder, a name, and who at their organization can see it: everyone, only some people, or everyone except some people. MyGoodBooks staff always see every file. Uploads show on the Desk's Inbox like any client file.
 - **On a client's Documents page**, each file's **⋯** has **Rename**, **Who can see it**, **Replace with a new version**, **Copy link** and **History**. Tick several files to move them together, and **✎** renames a folder. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).

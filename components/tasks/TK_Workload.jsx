@@ -161,11 +161,6 @@ function TK_WorkloadStrip(props) {
                       <b>{r.late}</b> late
                     </span>
                   ) : null}
-                  {h && h.weekMin != null ? (
-                    <span title={"QuickBooks Time this week against a " + h.target + " h weekly target"}>
-                      <b>{typeof TP_fmtHM === "function" ? TP_fmtHM(h.weekMin) : Math.round(h.weekMin / 60)}</b> / {h.target} h
-                    </span>
-                  ) : null}
                 </span>
               </>
             );
@@ -338,11 +333,6 @@ function TK_WorkloadWeeks(props) {
                           <b>{n}</b>
                           <span className="tk-sr"> due</span>
                         </span>
-                        {i === 0 && h && h.weekMin != null ? (
-                          <span className="tkw-wk-hours" title={"QuickBooks Time this week against a " + h.target + " h weekly target"}>
-                            {typeof TP_fmtHM === "function" ? TP_fmtHM(h.weekMin) : Math.round(h.weekMin / 60)} / {h.target} h
-                          </span>
-                        ) : null}
                       </td>
                     );
                   })}
