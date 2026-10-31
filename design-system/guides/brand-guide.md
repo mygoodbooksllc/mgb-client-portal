@@ -6,7 +6,7 @@ that artifact is the source of truth for this text. -->
 
 MyGoodBooks is bookkeeping for churches and small nonprofits. The people reading this product are not accountants — they are a treasurer, an executive pastor, a board member who was handed the finance folder. The design has one job: make a set of numbers they are anxious about feel legible and calm.
 
-That is where the whole visual language comes from. Deep navy and warm gold on a cream ground, a serif for headings and a humanist sans for figures — the register of a well-kept ledger, not a fintech dashboard. Surfaces are flat and opaque, separated by a hairline border, over a ground ruled like ledger paper. The warmth is doing real work: it is what keeps a page of variance figures from reading as a bill.
+That is where the whole visual language comes from. Deep navy and warm gold on a cream ground, Montserrat for headings and Lato for text, with a mono face for figures — the register of a well-kept ledger, not a fintech dashboard. Surfaces are flat and opaque, separated by a hairline border, over a ground ruled like ledger paper. The warmth is doing real work: it is what keeps a page of variance figures from reading as a bill.
 
 **This is the product after the calm redesign.** An earlier version of this interface floated frosted-glass cards over a mesh of slowly drifting color blobs, lifted them on hover and swept a shimmer across them. All of that is retired. What is written below is the current system; where a retired treatment left a token or a class behind, it is marked.
 

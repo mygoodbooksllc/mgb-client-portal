@@ -150,3 +150,9 @@ already shipped here.
 - Grades for 42 components were carried forward from the Sep 22 sync (their
   preview sources didn't change); they were eyeballed on this run's contact
   sheets after the font change.
+
+## 2026-10-31 re-sync (brand retheme: Lato / Montserrat / navy #243746)
+
+- `src/styles.css` retokened to the portal brand look (see repo commit 75d0069); `conventions.md` fonts paragraph and the brand-guide opening line updated to match. Uploaded to project 96865ffb with no anchor (Mac cache was empty; grades copied from the main checkout's `.cache/review`, all 43 carried forward).
+- Run needs `--entry ./dist/index.js` (package does not self-install) and `DS_CHROMIUM_PATH` set; see the Sep 27 notes.
+- Re-sync risk: `conventions.md` still says "never `--navy`" for headings; brand-guide chrome bullet still mentions the old near-black sidebar `#05080d` (intentional, still in the product).
