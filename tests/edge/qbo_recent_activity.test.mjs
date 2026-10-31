@@ -181,3 +181,40 @@ test("merge keeps uncovered stored rows (payroll, failed types) inside the windo
   assert.deepEqual(m.rows.map((r) => r.qbo_id).sort(), ["1", "d1", "p1"]);
   assert.equal(m.rows.find((r) => r.qbo_id === "p1").updated_at, "2026-10-30T00:00:00Z");
 });
+
+test("a reply with no QueryResponse fails the type instead of wiping it", async () => {
+  const r = await R.pullRecentActivity(fakeFetch((q) => {
+    if (entityOf(q) === "Invoice") return { time: "2026-10-31T12:00:00Z" };
+    return { QueryResponse: {} };
+  }), ACCOUNTS, "2026-08-02", "2026-10-31");
+  assert.deepEqual(r.failed, ["Invoice"]);
+  assert.ok(!r.covered.has("Invoice"));
+  assert.doesNotMatch(String(r.firstError.message), /2026-10-31T12/);
+});
+
+test("item list failure keeps item-line types uncovered", async () => {
+  const r = await R.pullRecentActivity(fakeFetch((q) => {
+    const e = entityOf(q);
+    if (e === "Invoice") return { QueryResponse: { Invoice: [{ Id: "60", TxnDate: "2026-10-09", TotalAmt: 10, Line: [{ DetailType: "SalesItemLineDetail", Amount: 10, SalesItemLineDetail: { ItemRef: { value: "77" } } }] }] } };
+    if (e === "Item") throw Object.assign(new Error("500"), { status: 500 });
+    return { QueryResponse: {} };
+  }), ACCOUNTS, "2026-08-02", "2026-10-31");
+  assert.equal(r.itemsError, true);
+  assert.ok(r.failed.includes("Invoice"));
+  assert.ok(!r.covered.has("Invoice") && r.covered.has("Expense"));
+  assert.equal(r.rows.find((x) => x.qbo_id === "60"), undefined);
+});
+
+test("merge drops stale labels with no Query API twin, and Ids already fresh", () => {
+  const fresh = [{ qbo_id: "1", txn_type: "Expense", txn_date: "2026-10-01" }];
+  const stored = [
+    { qbo_id: "1", txn_type: "Credit Card Expense", txn_date: "2026-10-01" },
+    { qbo_id: "2", txn_type: "Cash Expense", txn_date: "2026-10-01" },
+    { qbo_id: "3", txn_type: "Tax Payment", txn_date: "2026-10-01" },
+    { qbo_id: "4", txn_type: "Payroll Adjustment", txn_date: "2026-10-01" },
+  ];
+  const all = new Set(Object.values(R.ENTITY_LABELS).flat());
+  const m = R.mergeRecentRows(fresh, stored, all, "2026-08-02", "2026-10-31");
+  assert.deepEqual(m.rows.map((r) => r.qbo_id).sort(), ["1", "3", "4"]);
+  assert.equal(m.kept, 2);
+});

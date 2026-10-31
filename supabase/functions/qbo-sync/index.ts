@@ -27,7 +27,7 @@ import { mergeRecentRows, pullRecentActivity, RECENT_ENTITIES } from "./recent_a
 //       when qbo_usage_status() says the month's calls passed the hard stop.
 //       For a Pro client whose last full read is under a day old, a CDC call
 //       asks QuickBooks whether anything changed first; nothing changed means
-//       no re-read (one Intuit call instead of six).
+//       no re-read (one Intuit call instead of about twenty).
 //   (b) a signed-in person clicking "Sync now" (the header button next to
 //       the Live pill, or the Client details QuickBooks tab). Presents their
 //       own Supabase JWT and syncs exactly one client:
@@ -464,7 +464,7 @@ function parseProfitAndLoss(report: any): ParsedPL {
 
 // The stored recent-activity rows, so a type the Query API did not read this
 // run (payroll; a failed type) keeps its last good pull. Paged because
-// PostgREST caps a select at 1000 rows.
+// PostgREST caps a select (1000 rows here).
 async function readStoredTransactions(admin: any, clientId: string): Promise<any[]> {
   const out: any[] = [];
   for (let from = 0; ; from += 1000) {
@@ -476,8 +476,10 @@ async function readStoredTransactions(admin: any, clientId: string): Promise<any
       .order("qbo_id")
       .range(from, from + 999);
     if (error) throw new Error(`qbo_transactions: ${error.message}`);
-    out.push(...(data || []));
-    if (!data || data.length < 1000) break;
+    // Stop on an empty page, not a short one, so a lower server row cap
+    // can't silently cut the list (and drop the payroll rows kept from it).
+    if (!data || data.length === 0) break;
+    out.push(...data);
   }
   return out;
 }
@@ -991,7 +993,7 @@ async function syncClient(
     const txStart = isoDay(addDays(today, -90));
 
     // --- Change gate (scheduled Pro runs only) -----------------------------
-    // One CDC call instead of six reads when nothing has changed since the
+    // One CDC call instead of ~20 reads when nothing has changed since the
     // last sync. Any CDC failure other than a rejected token falls back to
     // the full read.
     const knownBase = baseForEnv(apiEnv);

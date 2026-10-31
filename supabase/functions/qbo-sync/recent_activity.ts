@@ -77,6 +77,22 @@ export const ENTITY_LABELS: Record<string, string[]> = {
 
 export const SPLIT_MARK = "-Split-";
 
+// Report-only payroll labels: not in the Query API, so their stored rows are
+// always kept (until they leave the window).
+export const PAYROLL_LABELS = ["Payroll Check", "Tax Payment", "Payroll Adjustment"];
+
+// A query reply must carry QueryResponse (Intuit sends {"QueryResponse":{}}
+// for a truly empty result). Anything else is not an answer: treating it as
+// "no transactions" would wipe that type's stored rows.
+function queryList(res: any, entity: string, what: string): any[] {
+  const qr = res?.QueryResponse;
+  if (!qr || typeof qr !== "object" || Array.isArray(qr)) {
+    throw Object.assign(new Error(`${what}: QuickBooks sent a reply with no QueryResponse`), { status: 0 });
+  }
+  const list = qr[entity];
+  return Array.isArray(list) ? list : [];
+}
+
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const SAFE_ID = /^[A-Za-z0-9-]{1,40}$/;
 
@@ -449,8 +465,7 @@ export async function pullRecentActivity(
           recentQuery(entity, start, end, 1 + page * RECENT_PAGE_SIZE),
           `${entity} query`,
         );
-        const list = res?.QueryResponse?.[entity];
-        const rows = Array.isArray(list) ? list : [];
+        const rows = queryList(res, entity, `${entity} query`);
         got.push(...rows);
         if (rows.length < RECENT_PAGE_SIZE) break;
         if (page === RECENT_MAX_PAGES - 1) truncated.push(entity);
@@ -476,7 +491,7 @@ export async function pullRecentActivity(
       for (let page = 0; page < RECENT_MAX_PAGES; page++) {
         calls++;
         const res = await fetchQuery(itemQuery(1 + page * RECENT_PAGE_SIZE), "Item query");
-        const list = Array.isArray(res?.QueryResponse?.Item) ? res.QueryResponse.Item : [];
+        const list = queryList(res, "Item", "Item query");
         items.push(...list);
         if (list.length < RECENT_PAGE_SIZE) break;
       }
@@ -496,6 +511,14 @@ export async function pullRecentActivity(
   const seen = new Set<string>();
   const covered = new Set<string>();
   for (const [entity, list] of raw) {
+    // A type is covered (its stored rows replaced) only when it was read in
+    // full and, if its lines needed the Item list, that list was read too;
+    // otherwise its stored rows (with good categories) are kept instead.
+    const itemBlind = itemsError && list.some((t) => needsItems(entity, t));
+    if (itemBlind) {
+      failed.push(entity);
+      continue;
+    }
     if (!truncated.includes(entity)) for (const l of ENTITY_LABELS[entity] || []) covered.add(l);
     for (const t of list) {
       const r = mapRecentTxn(entity, t, ctx);
@@ -521,12 +544,22 @@ export function mergeRecentRows(
   start: string,
   end: string,
 ): { rows: any[]; kept: number } {
-  const keys = new Set(fresh.map((r) => `${r.txn_type}|${r.qbo_id}`));
+  // Kept: payroll, plus labels of a known entity that was not covered this
+  // run (failed, truncated, or item-blind). Any other old label (report
+  // wording with no Query API twin) is dropped, so it cannot sit beside the
+  // fresh row for the same transaction.
+  const keepable = new Set(PAYROLL_LABELS);
+  for (const labels of Object.values(ENTITY_LABELS)) {
+    for (const l of labels) if (!covered.has(l)) keepable.add(l);
+  }
+  // QuickBooks transaction Ids are one sequence per company, so an Id that
+  // is already fresh (under any label) is never kept again.
+  const freshIds = new Set(fresh.map((r) => String(r.qbo_id)));
   const kept = (stored || []).filter((r) => {
-    if (!r || covered.has(r.txn_type)) return false;
+    if (!r || !keepable.has(r.txn_type)) return false;
     const d = String(r.txn_date || "").slice(0, 10);
     if (!ISO_DAY.test(d) || d < start || d > end) return false;
-    return !keys.has(`${r.txn_type}|${r.qbo_id}`);
+    return !freshIds.has(String(r.qbo_id));
   });
   return { rows: [...fresh, ...kept], kept: kept.length };
 }
