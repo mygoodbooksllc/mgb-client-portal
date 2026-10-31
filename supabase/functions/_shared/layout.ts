@@ -23,17 +23,17 @@ import { esc } from "./email.ts";
 
 // Light tokens (design-system :root).
 export const T = {
-  bg: "#faf9f6", // --bg (cream ground)
+  bg: "#f4f6f7", // --bg (cream ground)
   surface: "#ffffff", // --surface
-  border: "#e8e2d6", // --border
-  surface2: "#f0ece3", // --surface-2
+  border: "#dde5e9", // --border
+  surface2: "#eaf0f2", // --surface-2
   text: "#26343d", // --text
   muted: "#6b655c", // --text-muted
   ink: "#243746", // brand navy 7546 C (headings)
   navy: "#243746", // brand navy 7546 C (primary button)
   logoNavy: "#243746", // brand navy
   teal: "#06262d", // brand dark teal 5463 C (dark-mode header band)
-  band: "#f1ece0", // light header band (Gmail iOS dark mode inverts it cleanly; a dark band came out pale blue)
+  band: "#e9eff2", // light header band (Gmail iOS dark mode inverts it cleanly; a dark band came out pale blue)
   gold: "#c7ae86", // --gold / --accent
   goldDeep: "#8a6d34", // --gold-deep / --warm-text (links, warnings)
   warmBg: "#fbf6ea", // --warm-bg
