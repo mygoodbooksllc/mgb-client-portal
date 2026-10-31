@@ -32,7 +32,8 @@ export const T = {
   ink: "#243746", // brand navy 7546 C (headings)
   navy: "#243746", // brand navy 7546 C (primary button)
   logoNavy: "#243746", // brand navy
-  teal: "#06262d", // brand dark teal 5463 C (header band)
+  teal: "#06262d", // brand dark teal 5463 C (dark-mode header band)
+  band: "#f1ece0", // light header band (Gmail iOS dark mode inverts it cleanly; a dark band came out pale blue)
   gold: "#c7ae86", // --gold / --accent
   goldDeep: "#8a6d34", // --gold-deep / --warm-text (links, warnings)
   warmBg: "#fbf6ea", // --warm-bg
@@ -105,15 +106,14 @@ export function link(href: string, labelHtml: string, t: "gold" | "muted" = "gol
 }
 
 /**
- * Primary pill button (navy chrome, white ink; gold with dark ink in dark
- * mode). Bulletproof: VML round-rect for Outlook desktop, padded <a> elsewhere.
+ * Primary pill button (gold with dark ink, in both modes). Bulletproof: VML round-rect for Outlook desktop, padded <a> elsewhere.
  * `href` is a trusted constant; `text` is escaped here.
  */
 export function button(text: string, href: string, margin = "8px 0 24px 0"): string {
   const w = Math.max(160, Math.round(text.length * 8.4 + 56));
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:${margin};"><tr><td class="mgb-btn" align="center" bgcolor="${T.navy}" style="background:${T.navy};border-radius:999px;mso-padding-alt:0;">
-<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${href}" style="height:44px;v-text-anchor:middle;width:${w}px;" arcsize="50%" stroke="f" fillcolor="${T.navy}"><w:anchorlock/><center style="color:#ffffff;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">${esc(text)}</center></v:roundrect><![endif]-->
-<!--[if !mso]><!--><a class="mgb-btn-a" href="${href}" style="${FONT_BODY}display:inline-block;padding:12px 26px;font-size:15px;line-height:20px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;">${esc(text)}</a><!--<![endif]-->
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:${margin};"><tr><td class="mgb-btn" align="center" bgcolor="${T.gold}" style="background:${T.gold};border-radius:999px;mso-padding-alt:0;">
+<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${href}" style="height:44px;v-text-anchor:middle;width:${w}px;" arcsize="50%" stroke="f" fillcolor="${T.gold}"><w:anchorlock/><center style="color:${TD.onGold};font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">${esc(text)}</center></v:roundrect><![endif]-->
+<!--[if !mso]><!--><a class="mgb-btn-a" href="${href}" style="${FONT_BODY}display:inline-block;padding:12px 26px;font-size:15px;line-height:20px;font-weight:700;color:${TD.onGold};text-decoration:none;border-radius:999px;">${esc(text)}</a><!--<![endif]-->
 </td></tr></table>`;
 }
 
@@ -196,7 +196,7 @@ a{text-decoration:underline;}
   .mgb-card{background:${TD.surface} !important;border-color:${TD.border} !important;}
   .mgb-warm{background:${TD.warmBg} !important;border-color:${TD.warmBorder} !important;}
   .mgb-line{border-color:${TD.border} !important;}
-  .mgb-band{background:${T.teal} !important;}
+  .mgb-band{background:${TD.surface2} !important;border-color:${TD.border} !important;}
   .mgb-text{color:${TD.text} !important;}
   .mgb-muted{color:${TD.muted} !important;}
   .mgb-ink,.mgb-word{color:${TD.ink} !important;}
@@ -236,9 +236,9 @@ export function emailDocument(opts: {
 <table role="presentation" class="mgb-bg" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${T.bg}" style="background:${T.bg};"><tr><td class="mgb-outer" align="center" style="padding:32px 16px 40px 16px;">
 <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
-  <tr><td align="left" class="mgb-band" bgcolor="${T.teal}" style="padding:20px 24px 18px 24px;background:${T.teal};border-radius:12px;border-bottom:3px solid ${T.gold};">
-    <div class="mgb-word-on" style="${FONT_HEAD}font-size:22px;line-height:1.15;font-weight:800;letter-spacing:0;color:#ffffff;">MyGoodBooks</div>
-    ${opts.subtitle ? `<div style="${FONT_BODY}font-style:italic;font-size:14px;line-height:1.4;color:${T.gold};margin:6px 0 0 0;">${esc(opts.subtitle)}</div>` : ""}
+  <tr><td align="left" class="mgb-band" bgcolor="${T.band}" style="padding:20px 24px 18px 24px;background:${T.band};border:1px solid ${T.border};border-radius:12px;border-bottom:3px solid ${T.gold};">
+    <div class="mgb-word" style="${FONT_HEAD}font-size:22px;line-height:1.15;font-weight:800;letter-spacing:0;color:${T.logoNavy};">MyGoodBooks</div>
+    ${opts.subtitle ? `<div style="${FONT_BODY}font-style:italic;font-size:14px;line-height:1.4;color:${T.goldDeep};margin:6px 0 0 0;">${esc(opts.subtitle)}</div>` : ""}
   </td></tr>
   <tr><td style="height:18px;line-height:18px;font-size:1px;">&nbsp;</td></tr>
   ${opts.intro || ""}
