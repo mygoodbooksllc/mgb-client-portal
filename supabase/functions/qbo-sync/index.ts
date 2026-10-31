@@ -7,6 +7,7 @@ import {
   QboKeysMissingError,
   TokenStoreError,
 } from "../_shared/qbo.ts";
+import { faultSummary, isHopelessReportStatus } from "./intuit_fault.ts";
 
 // Pulls a client's books out of QuickBooks into the qbo_* tables
 // (supabase/qbo-data.sql), which the browser then reads through RLS and
@@ -57,7 +58,8 @@ import {
 // customer financial data and Intuit's review prohibits logging it). Status
 // codes, counts and intuit_tid only. intuit_tid is captured on every Intuit
 // response so a disputed or failed call can be correlated with Intuit
-// support without needing the body.
+// support without needing the body. On an error reply only the Fault type,
+// numeric code and parameter name are kept (intuit_fault.ts, whitelisted).
 //
 // Every Intuit Accounting API call is counted and added to qbo_api_usage
 // once per request (qbo_usage_add). OAuth token calls aren't metered by Intuit
@@ -137,10 +139,13 @@ function secretsMatch(a: string, b: string): boolean {
 class IntuitError extends Error {
   status: number;
   tid: string | null;
-  constructor(status: number, tid: string | null, what: string) {
-    super(`${what} failed (${status})${tid ? ` — intuit_tid: ${tid}` : ""}`);
+  // Whitelisted Fault type / code / parameter name only (intuit_fault.ts).
+  fault: string;
+  constructor(status: number, tid: string | null, what: string, fault = "") {
+    super(`${what} failed (${status}${fault ? `, ${fault}` : ""})${tid ? ` — intuit_tid: ${tid}` : ""}`);
     this.status = status;
     this.tid = tid;
+    this.fault = fault;
   }
 }
 
@@ -235,8 +240,16 @@ async function intuitFetch(
   });
   const tid = res.headers.get("intuit_tid");
   if (!res.ok) {
-    // Body deliberately not read and never logged — see the header comment.
-    throw new IntuitError(res.status, tid, what);
+    // The body is never logged — see the header comment. It is read only to
+    // keep Intuit's Fault type, error code and parameter name (each
+    // whitelisted by shape in intuit_fault.ts), so a 400 says why.
+    let fault = "";
+    try {
+      fault = faultSummary(await res.text());
+    } catch (_e) {
+      fault = "";
+    }
+    throw new IntuitError(res.status, tid, what, fault);
   }
   try {
     return await res.json();
@@ -1015,6 +1028,8 @@ async function syncClient(
 ) {
   const startedAt = new Date().toISOString();
   const counts: Record<string, number> = {};
+  // Set when a part of the read was skipped but the sync still counts as ok.
+  let partialNote: string | null = null;
 
   try {
     if (!realmId) throw new Error("connection has no realm_id — reconnect QuickBooks");
@@ -1302,17 +1317,30 @@ async function syncClient(
       counts.bills = await replaceRows(admin, "qbo_bills", clientId, billRows);
 
       // --- Recent register activity -----------------------------------------
-      const txReport = await intuitFetch(
-        accessToken,
-        reportUrl(base, realmId, "TransactionList", { start_date: txStart, end_date: plEnd }),
-        "TransactionList report",
-      );
-      const txRows = parseTransactionList(txReport).map((t) => ({
-        client_id: clientId,
-        ...t,
-        updated_at: new Date().toISOString(),
-      }));
-      counts.transactions = await replaceRows(admin, "qbo_transactions", clientId, txRows);
+      // A 400 here is QuickBooks refusing the report itself; retrying it every
+      // 5 minutes can never succeed (it did exactly that from 2026-10-31,
+      // MGB Home spec S0). Keep the stored rows, let the rest of the sync
+      // count as ok so the normal schedule resumes, and say so in last_error.
+      try {
+        const txReport = await intuitFetch(
+          accessToken,
+          reportUrl(base, realmId, "TransactionList", { start_date: txStart, end_date: plEnd }),
+          "TransactionList report",
+        );
+        const txRows = parseTransactionList(txReport).map((t) => ({
+          client_id: clientId,
+          ...t,
+          updated_at: new Date().toISOString(),
+        }));
+        counts.transactions = await replaceRows(admin, "qbo_transactions", clientId, txRows);
+      } catch (e) {
+        if (!(e instanceof IntuitError) || !isHopelessReportStatus(e.status)) throw e;
+        counts.transactions_error = 1;
+        partialNote =
+          `Synced, but QuickBooks refused the recent-activity report (${e.message}); ` +
+          "recent activity shows the last good pull.";
+        console.log(`qbo-sync: TransactionList skipped for client ${clientId}: ${e.message}`);
+      }
     }
 
     // --- Close data (daily; the first pull is the backfill) ----------------
@@ -1366,7 +1394,7 @@ async function syncClient(
       started_at: startedAt,
       finished_at: new Date().toISOString(),
       status: "ok",
-      detail: null,
+      detail: partialNote,
       counts,
     });
     const syncedAt = new Date().toISOString();
@@ -1375,7 +1403,7 @@ async function syncClient(
       .update({
         status: "connected",
         last_synced_at: syncedAt,
-        last_error: null,
+        last_error: partialNote,
         updated_at: new Date().toISOString(),
         ...(skipFull ? {} : { last_full_sync_at: syncedAt }),
         ...(closePulled ? { close_synced_at: syncedAt } : {}),
