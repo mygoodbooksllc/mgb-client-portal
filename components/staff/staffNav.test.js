@@ -180,8 +180,12 @@ t("no old Team tab address is left unmapped", () => {
     }
   }
   // And the other way: every HR tab is reachable from its old Team address.
-  for (const k of hrNow) assert.strictEqual(NAV_legacyTeamRedirect("#/team/" + k), "#/hr/" + k);
-  assert.deepStrictEqual(hrNow.slice().sort(), NAV_HR_MOVED_TABS.slice().sort());
+  // HR tabs added after the split (never lived under #/team/) have no old address to map.
+  const hrNewSinceSplit = ["members-area"];
+  const hrMoved = hrNow.filter((k) => !hrNewSinceSplit.includes(k));
+  for (const k of hrMoved) assert.strictEqual(NAV_legacyTeamRedirect("#/team/" + k), "#/hr/" + k);
+  for (const k of hrNewSinceSplit) assert.strictEqual(NAV_legacyTeamRedirect("#/team/" + k), null, k);
+  assert.deepStrictEqual(hrMoved.slice().sort(), NAV_HR_MOVED_TABS.slice().sort());
 });
 
 t("redirect: the slashless form (#team/...) is rewritten like #/team/...", () => {
