@@ -7,7 +7,7 @@ import {
   QboKeysMissingError,
   TokenStoreError,
 } from "../_shared/qbo.ts";
-import { faultSummary, isHopelessReportStatus } from "./intuit_fault.ts";
+import { FAULT_IN_200_STATUS, faultSummary, faultSummaryOf, isFaultBody, isHopelessReportStatus } from "./intuit_fault.ts";
 
 // Pulls a client's books out of QuickBooks into the qbo_* tables
 // (supabase/qbo-data.sql), which the browser then reads through RLS and
@@ -142,7 +142,9 @@ class IntuitError extends Error {
   // Whitelisted Fault type / code / parameter name only (intuit_fault.ts).
   fault: string;
   constructor(status: number, tid: string | null, what: string, fault = "") {
-    super(`${what} failed (${status}${fault ? `, ${fault}` : ""})${tid ? ` — intuit_tid: ${tid}` : ""}`);
+    // A 200 here is always a Fault sent with a success code (intuitFetch).
+    const code = status === 200 ? "200 with Fault" : String(status);
+    super(`${what} failed (${code}${fault ? `, ${fault}` : ""})${tid ? ` — intuit_tid: ${tid}` : ""}`);
     this.status = status;
     this.tid = tid;
     this.fault = fault;
@@ -251,13 +253,19 @@ async function intuitFetch(
     }
     throw new IntuitError(res.status, tid, what, fault);
   }
+  let body: any;
   try {
-    return await res.json();
+    body = await res.json();
   } catch (_e) {
     // The runtime's SyntaxError quotes the start of the body; this message
     // reaches logs and last_error, so it must not carry any of it.
     throw new Error(`${what}: QuickBooks sent a reply that isn't valid JSON`);
   }
+  // A 200 that is really a refusal ({ Fault, time } and nothing else, see
+  // intuit_fault.ts) must fail like the 400 it is, or the caller stores an
+  // empty result as fresh. Only the whitelisted summary is kept.
+  if (isFaultBody(body)) throw new IntuitError(FAULT_IN_200_STATUS, tid, what, faultSummaryOf(body));
+  return body;
 }
 
 function queryUrl(base: string, realmId: string, q: string): string {
@@ -1029,7 +1037,7 @@ async function syncClient(
   const startedAt = new Date().toISOString();
   const counts: Record<string, number> = {};
   // Set when a part of the read was skipped but the sync still counts as ok.
-  let partialNote: string | null = null;
+  const notes: string[] = [];
 
   try {
     if (!realmId) throw new Error("connection has no realm_id — reconnect QuickBooks");
@@ -1336,9 +1344,10 @@ async function syncClient(
       } catch (e) {
         if (!(e instanceof IntuitError) || !isHopelessReportStatus(e.status)) throw e;
         counts.transactions_error = 1;
-        partialNote =
+        notes.push(
           `Synced, but QuickBooks refused the recent-activity report (${e.message}); ` +
-          "recent activity shows the last good pull.";
+            "recent activity shows the last good pull.",
+        );
         console.log(`qbo-sync: TransactionList skipped for client ${clientId}: ${e.message}`);
       }
     }
@@ -1359,9 +1368,16 @@ async function syncClient(
         closePulled = true;
       } catch (e) {
         // The dashboard data above is still good; close checks just keep
-        // yesterday's data and retry on the next run.
+        // the last good pull and retry on the next run. close_synced_at is
+        // NOT stamped, so close_checks_evaluate flags the data as stale after
+        // 3 days instead of scoring an empty pull as fresh. Said in
+        // last_error too, so staff see it on Team › QuickBooks. Only an
+        // IntuitError's message (status, whitelisted Fault, intuit_tid) goes
+        // there; anything else stays in the function log.
         if (e instanceof IntuitError && e.status === 401) throw e;
         counts.close_error = 1;
+        const why = e instanceof IntuitError ? e.message : "an internal error";
+        notes.push(`Close-check data was not refreshed (${why}); close checks still use the last good pull.`);
         console.log(`qbo-sync: close data pull failed for client ${clientId}: ${(e as Error).message}`);
       }
     }
@@ -1389,6 +1405,7 @@ async function syncClient(
     }
 
     // --- Bookkeeping -------------------------------------------------------
+    const partialNote = notes.length ? notes.join(" ") : null;
     await admin.from("qbo_sync_runs").insert({
       client_id: clientId,
       started_at: startedAt,

@@ -44,3 +44,37 @@ test("only a 400 is treated as hopeless; 401, 429 and 5xx keep their handling", 
   assert.equal(F.isHopelessReportStatus(400), true);
   for (const s of [401, 403, 429, 500, 502, 503]) assert.equal(F.isHopelessReportStatus(s), false, String(s));
 });
+
+// Fault-in-200 (2026-10-31): Intuit answered TransactionList with `columns`
+// as HTTP 200 and a body that is only { Fault, time }. intuitFetch must
+// throw on it instead of handing an empty report to the caller.
+test("a 200 body that is only { Fault, time } is a Fault", () => {
+  const body = {
+    Fault: { Error: [{ Message: "x", Detail: "Acme $5", code: "6000" }], type: "ValidationFault" },
+    time: "2026-10-31T12:00:00.000-07:00",
+  };
+  assert.equal(F.isFaultBody(body), true);
+  assert.equal(F.faultSummaryOf(body), "ValidationFault 6000");
+  assert.equal(F.isFaultBody({ fault: { type: "SystemFault" } }), true);
+});
+
+test("real answers and look-alikes are not Faults", () => {
+  assert.equal(F.isFaultBody(null), false);
+  assert.equal(F.isFaultBody([]), false);
+  assert.equal(F.isFaultBody("Fault"), false);
+  assert.equal(F.isFaultBody({ QueryResponse: { Purchase: [] }, time: "t" }), false);
+  assert.equal(F.isFaultBody({ Header: {}, Columns: {}, Rows: {} }), false);
+  assert.equal(F.isFaultBody({ CDCResponse: [] }), false);
+  // A Fault key with nothing in it, or not an object, is not the pattern.
+  assert.equal(F.isFaultBody({ Fault: {} }), false);
+  assert.equal(F.isFaultBody({ Fault: { Error: [] } }), false);
+  assert.equal(F.isFaultBody({ Fault: "boom" }), false);
+  assert.equal(F.isFaultBody({ Fault: [{ code: "1" }] }), false);
+  // A Fault riding along with a real payload is left to the payload.
+  assert.equal(F.isFaultBody({ Fault: { type: "ValidationFault" }, QueryResponse: {} }), false);
+});
+
+test("a Fault-in-200 is skipped like a 400", () => {
+  assert.equal(F.FAULT_IN_200_STATUS, 200);
+  assert.equal(F.isHopelessReportStatus(F.FAULT_IN_200_STATUS), true);
+});
