@@ -860,6 +860,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
         </div>
       </div>
       {showMoney && <TP_PF_SummaryStrip profit={profit} qboOn={qboOn} />}
+      {showMoney && <TP_PF_SheetSyncStrip profit={profit} />}
       {built.total > 0 && (
         <p className="tp-q-recon">
           <b>{TP_qHours(built.total)}</b> logged = {TP_qHours(clientMin)} on clients
@@ -995,7 +996,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                           {m.fee != null ? (
                             <span>
                               {fmtMoney(m.fee)}
-                              <TP_PF_FeeTag source={m.feeSource} review={m.feeReview} />
+                              <TP_PF_FeeTag source={m.feeSource} review={m.feeReview} sheet={m.feeSheet} />
                             </span>
                           ) : (
                             "–"

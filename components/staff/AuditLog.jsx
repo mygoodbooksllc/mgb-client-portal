@@ -25,6 +25,11 @@ const AL_ACTIONS = {
   "client_fee.set": "Client fee set",
   "client_fee.changed": "Client fee changed",
   "client_fee.removed": "Client fee removed",
+  "client_fee.sheet_override_on": "Client fee override on (Master Data sync paused)",
+  "client_fee.sheet_override_off": "Client fee override off (Master Data sync resumed)",
+  "client_fee.sheet_map.insert": "Master Data row matched",
+  "client_fee.sheet_map.update": "Master Data match changed",
+  "client_fee.sheet_map.delete": "Master Data match removed",
   "cost_rate.set": "Cost rate set",
   "cost_rate.changed": "Cost rate changed",
   "cost_rate.removed": "Cost rate removed",
@@ -124,7 +129,12 @@ function AL_summary(row) {
     if (d.grants_cancelled) bits.push(`${d.grants_cancelled} request${d.grants_cancelled === 1 ? "" : "s"} cancelled`);
     return bits.join(", ") || "Nothing to move";
   }
-  if (a.startsWith("client_fee.")) return `${AL_money(d.from)} → ${AL_money(d.to)}`;
+  if (a === "client_fee.sheet_override_on" || a === "client_fee.sheet_override_off") return `Fee ${AL_money(d.fee)}`;
+  if (a.startsWith("client_fee.sheet_map.")) {
+    if (d.ignored === true) return `${d.sheet_name || ""}: not a client`;
+    return `${d.sheet_name || ""}${row.action.endsWith(".delete") ? " unmatched" : " matched to a client"}`;
+  }
+  if (a.startsWith("client_fee.")) return `${AL_money(d.from)} → ${AL_money(d.to)}${row.actor_email === "master-sheet-sync" ? " (Master Data sync)" : ""}`;
   if (a.startsWith("cost_rate.")) return `${AL_money(d.from)} → ${AL_money(d.to)}/h from ${d.effective_from || "?"}`;
   if (a === "profitability.target_changed") return `${d.from ?? "?"}% → ${d.to ?? "?"}%`;
   if (a === "client.plan_changed" || a === "client.tier_changed") return `${d.from ?? "none"} → ${d.to ?? "none"}`;

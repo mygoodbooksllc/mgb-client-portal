@@ -1259,6 +1259,18 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   and their hints don't render at all (the Budget column stays for every admin via `showBudget`).
   `weekly-admin-digest` drops Price review, Revenue snapshot and their headline bits for a preview by an admin
   without the grant and for each recipient without an `internal_access` row (fails closed to the plain version).
+- **Master Data fee sync (2026-10-31, `supabase/master-sheet-sync.sql`, tests `master-sheet-sync-tests.sql`,
+  spec `docs/master-sheet-sync-spec.md`):** edge function `supabase/functions/master-sheet-sync/` (`verify_jwt`
+  off: deploy with `--no-verify-jwt`; pure logic in `logic.js`, tests `node .../logic.test.js`) reads the
+  `MGB_Master_Data` Google Sheet (Clients tab) through a read-only service account (secret `GOOGLE_SA_KEY`; never
+  publish-to-web) and writes `client_fees` via `master_sheet_apply()` (service_role only, actor
+  `master-sheet-sync`). Fee column = `FEE_COLUMN` in `logic.js` (`"2027"`, flip to `"now"`). Only Active rows write;
+  blank/bad fees never clear; unmatched rows go to `master_sheet_unmatched` and `master_sheet_client_map` (admin
+  matches); `sheet_override` stops it per client. Actions `status` / `preview` / `sync` (fingerprint must match the
+  preview); nightly cron `master-sheet-sync-nightly` waits for a first manual Sync now and holds on >10 changes or
+  >50% swings. Every table and the function need `can_view_internal()` (others get 403). UI:
+  `TP_PF_SheetSyncStrip` on Team › Hours and the fee card in `TeamProfit.jsx`. Owner setup steps live in the
+  `profitability` guide article (internal-only). Rollback SQL is in the migration header.
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
   (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page

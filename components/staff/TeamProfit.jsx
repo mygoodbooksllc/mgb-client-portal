@@ -108,7 +108,7 @@ function TP_PF_useProfit(enabled, range, version) {
         TP_PF_safe(supabase.rpc("client_profitability", { p_from: range.from, p_to: range.to, p_default_fees: tierFees })),
         TP_PF_safe(supabase.from("profitability_settings").select("target_margin_pct").limit(1)),
         TP_PF_safe(supabase.from("staff_cost_rates").select("staff_email, effective_from, hourly_cost").order("staff_email").order("effective_from", { ascending: false })),
-        TP_PF_safe(supabase.from("client_fees").select("client_id, monthly_fee, needs_review, review_note")),
+        TP_PF_safe(supabase.from("client_fees").select("client_id, monthly_fee, needs_review, review_note, source, sheet_override, synced_at")),
       ]);
       if (!alive) return;
       const firstErr = [p, s, rt, f].find((r) => r.error);
@@ -134,9 +134,15 @@ function TP_PF_useProfit(enabled, range, version) {
       });
       const fees = {};
       const feeReview = {};
+      // Master Data sync (supabase/master-sheet-sync.sql): "synced" = the fee
+      // comes from the sheet and is read-only here; "override" = an admin
+      // stopped the sync for this client.
+      const feeSheet = {};
       (f.data || []).forEach((r) => {
         fees[r.client_id] = TP_PF_num(r.monthly_fee);
         if (r.needs_review) feeReview[r.client_id] = r.review_note || "Double check this price";
+        if (r.sheet_override) feeSheet[r.client_id] = { kind: "override", syncedAt: r.synced_at };
+        else if (r.source === "master_sheet") feeSheet[r.client_id] = { kind: "synced", syncedAt: r.synced_at };
       });
       const settings = (s.data || [])[0];
       setState({
@@ -149,6 +155,7 @@ function TP_PF_useProfit(enabled, range, version) {
         rates: (rt.data || []).map((r) => ({ ...r, hourly_cost: TP_PF_num(r.hourly_cost) })),
         fees,
         feeReview,
+        feeSheet,
         tierFees,
       });
     })();
@@ -204,6 +211,7 @@ function TP_PF_rowView(profit, qboOn, clientId) {
     fee: fee.fee,
     feeSource: fee.source,
     feeReview: (profit && profit.feeReview && profit.feeReview[clientId]) || null,
+    feeSheet: (fee.source === "actual" && profit && profit.feeSheet && profit.feeSheet[clientId]) || null,
     revenue: r ? r.revenue : null,
     cost: show ? r.cost : null,
     profit: show ? r.profit : null,
@@ -226,10 +234,20 @@ function TP_PF_effRate(fee, row) {
   return fee / (row.basis / 60);
 }
 
-function TP_PF_FeeTag({ source, review }) {
+function TP_PF_FeeTag({ source, review, sheet }) {
   return (
     <>
       {source === "tier_default" && <span className="pf-fee-tag" title="No actual fee set: using the pricing tier's fee">tier default</span>}
+      {sheet && sheet.kind === "synced" && (
+        <span className="pf-fee-tag pf-fee-sheet" title="Synced from the MGB_Master_Data Google Sheet">
+          Master Data
+        </span>
+      )}
+      {sheet && sheet.kind === "override" && (
+        <span className="pf-fee-tag pf-fee-check" title="An admin overrode this fee: the Master Data sync leaves it alone">
+          override
+        </span>
+      )}
       {review && (
         <span className="pf-fee-tag pf-fee-check" title={review}>
           check price
@@ -358,12 +376,21 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
+  const [overriding, setOverriding] = useState(false);
+  useEffect(() => {
+    setOverriding(false);
+    setDraft("");
+  }, [clientId]);
   if (!profit || profit.kind === "auth") return null;
   const blocker = TP_PF_blocker(profit, qboOn);
   const v = TP_PF_rowView(profit, qboOn, clientId);
   const r = v.row;
   const tierFee = profit.tierFees[clientId];
   const hasActual = v.feeSource === "actual";
+  // Master Data sync: a synced fee is read-only unless an admin overrides it.
+  const synced = !!(v.feeSheet && v.feeSheet.kind === "synced");
+  const overridden = !!(v.feeSheet && v.feeSheet.kind === "override");
+  const showForm = !synced || overriding;
   const sb = window.mgbSupabase;
   const saveFee = async () => {
     const n = Number(draft);
@@ -373,13 +400,28 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
     }
     setSaving(true);
     setErr(null);
-    const res = await TP_PF_safe(sb.from("client_fees").upsert({ client_id: clientId, monthly_fee: n, needs_review: false, review_note: null, updated_at: new Date().toISOString() }, { onConflict: "client_id" }));
+    const row = { client_id: clientId, monthly_fee: n, needs_review: false, review_note: null, updated_at: new Date().toISOString() };
+    // Overriding a synced fee: the sync leaves this client alone until "Resume sync".
+    if (synced || overridden) row.sheet_override = true;
+    const res = await TP_PF_safe(sb.from("client_fees").upsert(row, { onConflict: "client_id" }));
     setSaving(false);
     if (res.error) {
       setErr(`Couldn't save: ${res.error.message || res.error}`);
       return;
     }
     setDraft("");
+    setOverriding(false);
+    profit.reload();
+  };
+  const resumeSync = async () => {
+    setSaving(true);
+    setErr(null);
+    const res = await TP_PF_safe(sb.from("client_fees").update({ sheet_override: false }).eq("client_id", clientId));
+    setSaving(false);
+    if (res.error) {
+      setErr(`Couldn't resume: ${res.error.message || res.error}`);
+      return;
+    }
     profit.reload();
   };
   const markChecked = async () => {
@@ -419,13 +461,37 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
       ) : (
         <>
           <div className="tp-stats">
-            <TP_Stat label="Monthly fee" value={v.fee != null ? <>{fmtMoney(v.fee)} <TP_PF_FeeTag source={v.feeSource} review={v.feeReview} /></> : "Not set"} />
+            <TP_Stat label="Monthly fee" value={v.fee != null ? <>{fmtMoney(v.fee)} <TP_PF_FeeTag source={v.feeSource} review={v.feeReview} sheet={v.feeSheet} /></> : "Not set"} />
             <TP_Stat label="Revenue (period)" value={v.revenue != null ? fmtMoney(Math.round(v.revenue)) : "–"} />
             <TP_Stat label={v.estimated ? "Cost (part estimated)" : "Cost"} value={v.cost != null ? fmtMoney(Math.round(v.cost)) : "–"} />
             <TP_Stat label="Profit" value={v.profit != null ? fmtMoney(Math.round(v.profit)) : "–"} bad={v.profit != null && v.profit < 0} />
             <TP_Stat label="Margin" value={<TP_PF_MarginChip margin={v.margin} target={profit.target} />} />
           </div>
           {blocker && <p className="tp-muted" style={{ marginTop: 12 }}>{blocker}</p>}
+          {synced && (
+            <p className="pf-sheet-note">
+              <b>Synced from Master Data.</b> This fee comes from the MGB_Master_Data sheet
+              {v.feeSheet.syncedAt ? ` (last synced ${TP_PF_when(v.feeSheet.syncedAt)})` : ""}. Change it in the sheet.
+              {!overriding && (
+                <>
+                  {" "}
+                  <button type="button" className="tp-q-link" onClick={() => setOverriding(true)}>
+                    Override (stops Master Data sync for this client)
+                  </button>
+                </>
+              )}
+            </p>
+          )}
+          {overridden && (
+            <p className="pf-sheet-note">
+              <b>Override on.</b> The Master Data sync leaves this fee alone.{" "}
+              <button type="button" className="tp-q-link" onClick={resumeSync} disabled={saving}>
+                Resume sync
+              </button>{" "}
+              <span className="tp-muted">(the next sync sets it back to the sheet's fee)</span>
+            </p>
+          )}
+          {showForm && (
           <div className="pf-fee-form">
             <label>
               <span>{hasActual ? "Change actual monthly fee" : "Set actual monthly fee"}</span>
@@ -440,19 +506,32 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
               />
             </label>
             <button type="button" className="btn-primary pf-btn" onClick={saveFee} disabled={saving}>
-              {saving ? "Saving…" : "Save fee"}
+              {saving ? "Saving…" : synced ? "Save override" : "Save fee"}
             </button>
+            {synced && overriding && (
+              <button type="button" className="btn-secondary pf-btn" onClick={() => setOverriding(false)} disabled={saving}>
+                Cancel
+              </button>
+            )}
             {v.feeReview && (
               <button type="button" className="btn-secondary pf-btn" onClick={markChecked} disabled={saving} title={v.feeReview}>
                 Price checked
               </button>
             )}
-            {hasActual && (
+            {hasActual && !synced && !overridden && (
               <button type="button" className="btn-secondary pf-btn" onClick={clearFee} disabled={saving}>
                 {tierFee != null ? `Use tier default (${fmtMoney(tierFee)})` : "Clear actual fee"}
               </button>
             )}
           </div>
+          )}
+          {!showForm && v.feeReview && (
+            <div className="pf-fee-form">
+              <button type="button" className="btn-secondary pf-btn" onClick={markChecked} disabled={saving} title={v.feeReview}>
+                Price checked
+              </button>
+            </div>
+          )}
           {err && <p className="tp-bad" style={{ marginTop: 8 }}>{err}</p>}
           {qboOn && profit.hasRates && (
             <>
@@ -494,6 +573,360 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
             </>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Master Data sync strip (Team page, under the summary strip)
+// ---------------------------------------------------------------------------
+// Edge function master-sheet-sync + supabase/master-sheet-sync.sql. Fees come
+// from the MGB_Master_Data Google Sheet (Clients tab). Only rendered for the
+// same people as the rest of this file (TP_PF_canSee); the function and the
+// tables refuse everyone else on the server too.
+const TP_PF_SYNC_FN = "master-sheet-sync";
+
+function TP_PF_when(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+async function TP_PF_invokeSync(body) {
+  const sb = window.mgbSupabase;
+  if (!sb) return { error: "Not signed in." };
+  try {
+    const res = await sb.functions.invoke(TP_PF_SYNC_FN, { body });
+    let data = res.data;
+    let err = res.error;
+    if (err && err.context && typeof err.context.json === "function") {
+      try {
+        const b = await err.context.json();
+        if (b && (b.status || b.error)) {
+          data = b;
+          err = null;
+        }
+      } catch (e) {}
+    }
+    if (err) return { error: err.message || String(err) };
+    if (data && data.error) return { error: data.error === "forbidden" ? "You don't have access to this." : String(data.error) };
+    return { data };
+  } catch (e) {
+    return { error: (e && e.message) || String(e) };
+  }
+}
+
+function TP_PF_SheetSyncStrip({ profit }) {
+  const [st, setSt] = useState({ loading: true });
+  const [ver, setVer] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(null);
+  const [preview, setPreview] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const [pick, setPick] = useState({});
+  const [done, setDone] = useState({});
+  // Wait for the profit load: it is what proves the internal grant (kind "auth" = no grant).
+  const blocked = !profit || !profit.ready;
+  useEffect(() => {
+    const sb = window.mgbSupabase;
+    if (blocked || !sb) return undefined;
+    let alive = true;
+    (async () => {
+      const [s, runs, un, cl, mp] = await Promise.all([
+        TP_PF_invokeSync({ action: "status" }),
+        TP_PF_safe(
+          sb
+            .from("master_sheet_sync_runs")
+            .select("id, started_at, trigger, mode, status, requested_by, rows_read, updated, unchanged, unmatched, skipped, errors, conflicts, message")
+            .order("started_at", { ascending: false })
+            .limit(8)
+        ),
+        TP_PF_safe(sb.from("master_sheet_unmatched").select("sheet_key, sheet_name, status, fee_text, reason, last_seen_at").order("sheet_name")),
+        TP_PF_safe(sb.from("clients").select("id, name, test_only, is_internal").order("name")),
+        TP_PF_safe(sb.from("master_sheet_client_map").select("sheet_key")),
+      ]);
+      if (!alive) return;
+      setSt({
+        loading: false,
+        status: s.data || null,
+        statusErr: s.error || null,
+        forbidden: s.error === "You don't have access to this.",
+        tablesMissing: !!runs.error,
+        runs: runs.data || [],
+        // The list is rebuilt only on a live run: hide rows matched since then.
+        unmatched: (un.data || []).filter((u) => !(mp.data || []).some((m) => m.sheet_key === u.sheet_key)),
+        clients: (cl.data || []).filter((c) => !c.test_only && !c.is_internal),
+      });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [blocked, ver]);
+  if (blocked || st.loading || st.tablesMissing || st.forbidden) return null;
+
+  const status = st.status;
+  const connected = !!(status && status.connected);
+  const lastLive = st.runs.find((r) => r.mode === "live" && r.status !== "not_connected");
+  const lastAny = st.runs[0];
+  const unmatched = st.unmatched.filter((u) => !done[u.sheet_key]);
+  const reloadAll = () => {
+    setVer((n) => n + 1);
+    profit.reload();
+  };
+
+  const runPreview = async () => {
+    setBusy("preview");
+    setMsg(null);
+    const r = await TP_PF_invokeSync({ action: "preview" });
+    setBusy(null);
+    if (r.error) {
+      setMsg({ bad: true, text: `Preview failed: ${r.error}` });
+      return;
+    }
+    if (r.data.status !== "ok") {
+      setMsg({ bad: r.data.status === "error", text: r.data.message || "Preview didn't run." });
+      setPreview(null);
+      setVer((n) => n + 1);
+      return;
+    }
+    setPreview(r.data);
+    setOpen(true);
+    setVer((n) => n + 1);
+  };
+
+  const runSync = async () => {
+    if (!preview) return;
+    const n = (preview.changes || []).length;
+    const ok = window.confirm(
+      n ? `Apply ${n} fee change${n === 1 ? "" : "s"} from Master Data? Each change is logged in the Audit log.` : "No fee changes. Record a sync now (this also turns on the nightly sync)?"
+    );
+    if (!ok) return;
+    setBusy("sync");
+    setMsg(null);
+    const r = await TP_PF_invokeSync({ action: "sync", fingerprint: preview.fingerprint });
+    setBusy(null);
+    if (r.error) {
+      setMsg({ bad: true, text: `Sync failed: ${r.error}` });
+      return;
+    }
+    const d = r.data;
+    if (d.status === "ok") {
+      setMsg({ bad: false, text: `Synced. ${d.message || ""}` });
+      setPreview(null);
+      setDone({});
+      reloadAll();
+    } else {
+      setMsg({ bad: true, text: d.message || "Sync didn't run." });
+      if (d.status === "changed_since_preview") setPreview(null);
+      setVer((n) => n + 1);
+    }
+  };
+
+  const saveMap = async (u, clientId) => {
+    const sb = window.mgbSupabase;
+    setBusy("map:" + u.sheet_key);
+    const row = clientId ? { sheet_name: u.sheet_name, client_id: clientId, ignored: false } : { sheet_name: u.sheet_name, client_id: null, ignored: true };
+    const res = await TP_PF_safe(sb.from("master_sheet_client_map").upsert(row, { onConflict: "sheet_key" }));
+    setBusy(null);
+    if (res.error) {
+      setMsg({ bad: true, text: `Couldn't save the match: ${res.error.message || res.error}` });
+      return;
+    }
+    setDone((m) => ({ ...m, [u.sheet_key]: true }));
+    setMsg({ bad: false, text: clientId ? `${u.sheet_name} matched. Its fee syncs on the next Sync now.` : `${u.sheet_name} marked not a client.` });
+  };
+
+  const summary = (r) => {
+    if (!r) return null;
+    const bits = [`${r.updated} updated`, `${r.unchanged} already matched`];
+    if (r.unmatched) bits.push(`${r.unmatched} need matching`);
+    if (r.skipped) bits.push(`${r.skipped} skipped`);
+    if (r.errors) bits.push(`${r.errors} errors`);
+    if (r.conflicts) bits.push(`${r.conflicts} left alone`);
+    return bits.join(" · ");
+  };
+  const trig = (r) => (r.trigger === "cron" ? "nightly" : r.requested_by || "manual");
+
+  return (
+    <div className="pf-sync">
+      <div className="pf-sync-head">
+        <span className="pf-sync-title">Master Data sync</span>
+        {!status ? (
+          <span className="tp-muted">{st.statusErr ? `Couldn't check the sync: ${st.statusErr}` : "Checking…"}</span>
+        ) : !connected ? (
+          <span className="pf-fee-tag pf-fee-check">not connected yet</span>
+        ) : lastLive ? (
+          <span className="tp-muted">
+            Last sync {TP_PF_when(lastLive.started_at)} ({trig(lastLive)}){lastLive.status === "ok" ? `: ${summary(lastLive)}` : `: ${lastLive.status.replace(/_/g, " ")}`}
+          </span>
+        ) : (
+          <span className="tp-muted">Connected. No sync yet: preview, then Sync now.</span>
+        )}
+        <span className="pf-sync-actions">
+          {connected && (
+            <button type="button" className="btn-secondary pf-btn" onClick={runPreview} disabled={!!busy}>
+              {busy === "preview" ? "Reading the sheet…" : "Preview changes"}
+            </button>
+          )}
+          <button type="button" className="tp-q-link" onClick={() => setOpen((o) => !o)}>
+            {open ? "Hide details" : `Details${unmatched.length ? ` (${unmatched.length} to match)` : ""}`}
+          </button>
+        </span>
+      </div>
+      {msg && <p className={msg.bad ? "tp-bad pf-sync-msg" : "pf-sync-msg"}>{msg.text}</p>}
+      {connected && lastAny && lastAny.status === "error" && !msg && <p className="tp-bad pf-sync-msg">Last run failed: {lastAny.message}</p>}
+      {connected && lastAny && lastAny.status === "held" && !msg && <p className="pf-sync-msg">{lastAny.message}</p>}
+
+      {open && (
+        <div className="pf-sync-body">
+          {!connected && (
+            <div className="pf-sync-steps">
+              <p>
+                Fees will come from the <b>{(status && status.fee_header) || "Bookkeeping fee 2027"}</b> column of the MGB_Master_Data sheet (Clients tab) once
+                the sheet is connected. Until then nothing changes.
+              </p>
+              {status && status.key_error && <p className="tp-bad">The key saved in Supabase doesn't work: {status.key_error}</p>}
+              <ol>
+                <li>In Google Cloud, create a service account (no roles) in a project with the Google Sheets API turned on, and download a JSON key for it.</li>
+                <li>In Supabase › Edge Functions › Secrets, add <code>GOOGLE_SA_KEY</code> with the whole JSON key as the value.</li>
+                <li>Share MGB_Master_Data with the service account's email (it ends in <code>.iam.gserviceaccount.com</code>) as <b>Viewer</b> only.</li>
+                <li>Come back here, click Preview changes, check the list, then Sync now.</li>
+              </ol>
+              <p className="tp-muted">The full steps are in the Profitability guide article.</p>
+            </div>
+          )}
+          {connected && status.service_account_email && (
+            <p className="tp-muted">
+              Reading as {status.service_account_email} (Viewer) · column “{status.fee_header}” ·{" "}
+              {status.nightly_ready ? "nightly sync on (early morning, about 3:20–4:20 AM Eastern)" : "nightly sync starts after the first Sync now"}
+            </p>
+          )}
+
+          {preview && (
+            <div className="pf-sync-preview">
+              <h4 className="pf-subhead">Preview: nothing has changed yet</h4>
+              <p className="tp-muted">
+                {preview.counts.rows_read} sheet rows · {(preview.changes || []).length} fee changes · {preview.unchanged} already match ·{" "}
+                {(preview.unmatched || []).length} need matching · {(preview.skipped || []).length} skipped
+              </p>
+              {(preview.changes || []).length > 0 && (
+                <div className="table-scroll">
+                  <table className="tx-table tx-table-labeled tp-table">
+                    <thead>
+                      <tr>
+                        <th>Client</th>
+                        <th className="num">Now</th>
+                        <th className="num">From sheet</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.changes.map((c) => (
+                        <tr key={c.client_id}>
+                          <td data-primary="">
+                            <span className="tp-name">{c.client_name}</span>
+                            {c.sheet_name !== c.client_name && <span className="tp-muted"> (sheet: {c.sheet_name})</span>}
+                          </td>
+                          <td className="num" data-label="Now">{c.from != null ? fmtMoney(c.from) : "Not set"}</td>
+                          <td className="num" data-label="From sheet">{fmtMoney(c.to)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {(preview.errors || []).length > 0 && (
+                <ul className="pf-sync-list tp-bad">
+                  {preview.errors.map((e, i) => (
+                    <li key={i}>
+                      Row {e.row} {e.sheet_name}: {e.reason}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {(preview.skipped || []).length > 0 && (
+                <details className="pf-sync-details">
+                  <summary>Skipped rows ({preview.skipped.length})</summary>
+                  <ul className="pf-sync-list">
+                    {preview.skipped.map((s, i) => (
+                      <li key={i}>
+                        {s.sheet_name}: {s.reason}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              <div className="pf-inline-form" style={{ marginTop: 10 }}>
+                <button type="button" className="btn-primary pf-btn" onClick={runSync} disabled={!!busy}>
+                  {busy === "sync"
+                    ? "Syncing…"
+                    : (preview.changes || []).length
+                      ? `Sync now: apply ${(preview.changes || []).length} change${(preview.changes || []).length === 1 ? "" : "s"}`
+                      : "Sync now (no fee changes)"}
+                </button>
+                <button type="button" className="btn-secondary pf-btn" onClick={() => setPreview(null)} disabled={!!busy}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {unmatched.length > 0 && (
+            <>
+              <h4 className="pf-subhead">Sheet rows with no portal client ({unmatched.length})</h4>
+              <p className="tp-muted">Never guessed. Match each to a client, or mark it not a client. Matches take effect on the next sync.</p>
+              <ul className="pf-sync-unmatched">
+                {unmatched.map((u) => (
+                  <li key={u.sheet_key}>
+                    <span className="pf-sync-uname">
+                      <b>{u.sheet_name}</b>{" "}
+                      <span className="tp-muted">
+                        {u.status || "no status"}
+                        {u.fee_text ? ` · ${u.fee_text}` : ""}
+                      </span>
+                    </span>
+                    <span className="pf-inline-form">
+                      <select
+                        aria-label={`Portal client for ${u.sheet_name}`}
+                        value={pick[u.sheet_key] || ""}
+                        onChange={(e) => setPick((p) => ({ ...p, [u.sheet_key]: e.target.value }))}
+                      >
+                        <option value="">Choose a client…</option>
+                        {st.clients.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button type="button" className="btn-secondary pf-btn" disabled={!pick[u.sheet_key] || !!busy} onClick={() => saveMap(u, pick[u.sheet_key])}>
+                        Match to client
+                      </button>
+                      <button type="button" className="tp-q-link" disabled={!!busy} onClick={() => saveMap(u, null)}>
+                        Not a client
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {st.runs.length > 0 && (
+            <details className="pf-sync-details">
+              <summary>Recent runs</summary>
+              <ul className="pf-sync-list">
+                {st.runs.map((r) => (
+                  <li key={r.id}>
+                    {TP_PF_when(r.started_at)} · {r.mode === "dry_run" ? "preview" : "sync"} by {trig(r)} · {r.status.replace(/_/g, " ")}
+                    {r.status === "ok" && r.mode === "live" ? ` · ${summary(r)}` : ""}
+                    {r.message && r.status !== "ok" ? ` · ${r.message}` : ""}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
       )}
     </div>
   );
@@ -643,7 +1076,7 @@ function TP_PF_OverviewLines({ clientId, qboOn, from, to }) {
     <>
       <li>
         <span>
-          Monthly fee <TP_PF_FeeTag source={v.feeSource} review={v.feeReview} />
+          Monthly fee <TP_PF_FeeTag source={v.feeSource} review={v.feeReview} sheet={v.feeSheet} />
         </span>
         <span>{v.fee != null ? fmtMoney(v.fee) : "Not set"}</span>
       </li>
