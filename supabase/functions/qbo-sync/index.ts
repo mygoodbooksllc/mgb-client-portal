@@ -7,7 +7,8 @@ import {
   QboKeysMissingError,
   TokenStoreError,
 } from "../_shared/qbo.ts";
-import { FAULT_IN_200_STATUS, faultSummary, faultSummaryOf, isFaultBody, isHopelessReportStatus } from "./intuit_fault.ts";
+import { FAULT_IN_200_STATUS, faultSummary, faultSummaryOf, isFaultBody } from "./intuit_fault.ts";
+import { mergeRecentRows, pullRecentActivity, RECENT_ENTITIES } from "./recent_activity.ts";
 
 // Pulls a client's books out of QuickBooks into the qbo_* tables
 // (supabase/qbo-data.sql), which the browser then reads through RLS and
@@ -461,82 +462,23 @@ function parseProfitAndLoss(report: any): ParsedPL {
   return { monthly, lines };
 }
 
-// TransactionList's columns genuinely vary by company and by the options
-// Intuit decides to include, so resolve every one of them by ColTitle.
-function parseTransactionList(report: any): any[] {
-  const cols = (report?.Columns?.Column || []).map((c: any) =>
-    String(c?.ColTitle || "").trim().toLowerCase(),
-  );
-  const find = (...names: string[]) => {
-    for (const n of names) {
-      const i = cols.indexOf(n);
-      if (i !== -1) return i;
-    }
-    // Loose second pass — "Memo/Description" vs "Memo", "Transaction Type"
-    // vs "Type", and so on.
-    for (const n of names) {
-      const i = cols.findIndex((c: string) => c.includes(n));
-      if (i !== -1) return i;
-    }
-    return -1;
-  };
-  const iDate = find("date", "txn date");
-  const iType = find("transaction type", "type");
-  const iName = find("name", "customer", "vendor", "payee");
-  const iMemo = find("memo/description", "memo", "description");
-  const iAcct = find("account", "split");
-  // The posting ("split") account, used as the transaction's category. Only
-  // when it's a separate column from the register account above.
-  const iSplitRaw = find("split");
-  const iSplit = iSplitRaw !== iAcct ? iSplitRaw : -1;
-  const iAmt = find("amount", "total");
-
+// The stored recent-activity rows, so a type the Query API did not read this
+// run (payroll; a failed type) keeps its last good pull. Paged because
+// PostgREST caps a select at 1000 rows.
+async function readStoredTransactions(admin: any, clientId: string): Promise<any[]> {
   const out: any[] = [];
-  const seen = new Set<string>();
-
-  function walk(rows: any[]) {
-    for (const row of rows || []) {
-      if (row?.Rows?.Row) {
-        walk(row.Rows.Row);
-        continue;
-      }
-      const cd = row?.ColData;
-      if (!cd || !cd.length) continue;
-      const txnDate = iDate >= 0 ? (cd[iDate]?.value || "").slice(0, 10) : "";
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(txnDate)) continue; // skip summary rows
-      const txnType = (iType >= 0 ? cd[iType]?.value : "") || "Transaction";
-      // Intuit hangs the entity id off whichever cell links to the
-      // transaction — usually the date or the type cell.
-      const qboId =
-        (iDate >= 0 && cd[iDate]?.id) ||
-        (iType >= 0 && cd[iType]?.id) ||
-        cd.find((c: any) => c?.id)?.id ||
-        "";
-      // No id at all (some report rows genuinely have none) — synthesize a
-      // stable one from the row's own content so the primary key holds and a
-      // re-sync produces the same key rather than duplicating.
-      let key = String(qboId || "");
-      if (!key) {
-        key = `syn-${txnDate}-${(iAmt >= 0 ? cd[iAmt]?.value : "") || ""}-${
-          (iName >= 0 ? cd[iName]?.value : "") || ""
-        }`.replace(/\s+/g, "_").slice(0, 120);
-      }
-      const dedupe = `${txnType}|${key}`;
-      if (seen.has(dedupe)) continue;
-      seen.add(dedupe);
-      out.push({
-        qbo_id: key,
-        txn_type: txnType,
-        txn_date: txnDate,
-        account_name: (iAcct >= 0 ? cd[iAcct]?.value : "") || null,
-        split_account: (iSplit >= 0 ? cd[iSplit]?.value : "") || null,
-        name: (iName >= 0 ? cd[iName]?.value : "") || null,
-        memo: (iMemo >= 0 ? cd[iMemo]?.value : "") || null,
-        amount: iAmt >= 0 ? num(cd[iAmt]?.value) : 0,
-      });
-    }
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await admin
+      .from("qbo_transactions")
+      .select("client_id, qbo_id, txn_type, txn_date, account_name, split_account, name, memo, amount, updated_at")
+      .eq("client_id", clientId)
+      .order("txn_type")
+      .order("qbo_id")
+      .range(from, from + 999);
+    if (error) throw new Error(`qbo_transactions: ${error.message}`);
+    out.push(...(data || []));
+    if (!data || data.length < 1000) break;
   }
-  walk(report?.Rows?.Row || []);
   return out;
 }
 
@@ -1325,30 +1267,43 @@ async function syncClient(
       counts.bills = await replaceRows(admin, "qbo_bills", clientId, billRows);
 
       // --- Recent register activity -----------------------------------------
-      // A 400 here is QuickBooks refusing the report itself; retrying it every
-      // 5 minutes can never succeed (it did exactly that from 2026-10-31,
-      // MGB Home spec S0). Keep the stored rows, let the rest of the sync
-      // count as ok so the normal schedule resumes, and say so in last_error.
-      try {
-        const txReport = await intuitFetch(
-          accessToken,
-          reportUrl(base, realmId, "TransactionList", { start_date: txStart, end_date: plEnd }),
-          "TransactionList report",
+      // From the Query API, one entity type at a time (recent_activity.ts):
+      // Intuit has refused the TransactionList report since 2026-10-31. A
+      // type that fails is non-fatal: its stored rows are kept as the last
+      // good pull, the rest of the sync counts as ok, and last_error says so.
+      // Payroll rows (not in the Query API) are kept the same way until
+      // they age out of the window. A rejected token (401) still throws.
+      const recent = await pullRecentActivity(
+        (q, what) => intuitFetch(accessToken, queryUrl(base, realmId, q), what),
+        accountsRes?.QueryResponse?.Account || [],
+        txStart,
+        plEnd,
+      );
+      if (recent.failed.length === RECENT_ENTITIES.length) {
+        // Nothing read: leave the stored rows exactly as they are.
+        counts.transactions_error = recent.failed.length;
+      } else {
+        const stored = await readStoredTransactions(admin, clientId);
+        const nowIso = new Date().toISOString();
+        const merged = mergeRecentRows(recent.rows, stored, recent.covered, txStart, plEnd);
+        const txRows = merged.rows.map((r) =>
+          r.client_id ? r : { client_id: clientId, ...r, updated_at: nowIso }
         );
-        const txRows = parseTransactionList(txReport).map((t) => ({
-          client_id: clientId,
-          ...t,
-          updated_at: new Date().toISOString(),
-        }));
-        counts.transactions = await replaceRows(admin, "qbo_transactions", clientId, txRows);
-      } catch (e) {
-        if (!(e instanceof IntuitError) || !isHopelessReportStatus(e.status)) throw e;
-        counts.transactions_error = 1;
+        await replaceRows(admin, "qbo_transactions", clientId, txRows);
+        counts.transactions = recent.rows.length;
+        if (merged.kept) counts.transactions_kept = merged.kept;
+        if (recent.failed.length) counts.transactions_error = recent.failed.length;
+      }
+      if (recent.truncated.length) counts.transactions_truncated = recent.truncated.length;
+      if (recent.itemsError) counts.transactions_items_error = 1;
+      if (recent.failed.length) {
+        const fe = recent.firstError;
+        const why = fe instanceof IntuitError ? fe.message : "an internal error";
         notes.push(
-          `Synced, but QuickBooks refused the recent-activity report (${e.message}); ` +
-            "recent activity shows the last good pull.",
+          `Synced, but QuickBooks refused recent activity for ${recent.failed.join(", ")} (${why}); ` +
+            "those show the last good pull.",
         );
-        console.log(`qbo-sync: TransactionList skipped for client ${clientId}: ${e.message}`);
+        console.log(`qbo-sync: recent activity partial for client ${clientId}: ${recent.failed.join(",")} (${why})`);
       }
     }
 
