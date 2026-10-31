@@ -4,7 +4,7 @@
 // every Monday 7:00 America/New_York (pg_cron -> digest_cron_tick(); schema in
 // supabase/weekly-digest.sql). This card lets an admin:
 //   - edit digest_settings.recipients and .enabled (admin-only RLS),
-//   - Preview: opens the rendered HTML in a new tab (?preview=1, sends nothing),
+//   - Preview: shows the rendered HTML in a sandboxed iframe (?preview=1, sends nothing),
 //   - Send test now: sends to the recipients even when turned off,
 //   - see the last few runs from digest_runs.
 // Fails soft: before the migration is live, or for non-admins, it renders a
@@ -58,6 +58,7 @@ function DG_DigestSettings({ onSent } = {}) {
   const [state, setState] = React.useState({ loading: true, settings: null, runs: [], missing: false, error: null });
   const [recipientsText, setRecipientsText] = React.useState("");
   const [busy, setBusy] = React.useState(null); // "save" | "toggle" | "preview" | "send"
+  const [previewHtml, setPreviewHtml] = React.useState(null); // set while the preview modal is open
 
   const load = React.useCallback(async () => {
     const sb = window.mgbSupabase;
@@ -112,9 +113,6 @@ function DG_DigestSettings({ onSent } = {}) {
   async function preview() {
     const sb = window.mgbSupabase;
     if (!sb) return;
-    // Open the tab now (inside the click) so pop-up blockers allow it.
-    const win = window.open("", "_blank");
-    if (win) win.document.write("<p style=\"font-family:sans-serif;padding:20px;color:#555\">Building the digest preview…</p>");
     setBusy("preview");
     try {
       const { data } = await sb.auth.getSession();
@@ -132,12 +130,11 @@ function DG_DigestSettings({ onSent } = {}) {
         } catch (e) {}
         throw new Error(msg || `HTTP ${res.status}`);
       }
-      const url = URL.createObjectURL(new Blob([body], { type: "text/html" }));
-      if (win) win.location.href = url;
-      else window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      // A sandboxed srcdoc iframe, not a same-origin blob: tab, so an
+      // escaping slip in the template can't run script with this session
+      // (security audit L8).
+      setPreviewHtml(body);
     } catch (e) {
-      if (win) win.close();
       toast("Couldn't build the preview: " + (e.message || String(e)));
     }
     setBusy(null);
@@ -257,6 +254,20 @@ function DG_DigestSettings({ onSent } = {}) {
             </div>
           )}
         </>
+      )}
+      {previewHtml && (
+        <ModalShell onClose={() => setPreviewHtml(null)} labelledBy="dg-preview-title" className="email-preview-modal">
+          <div className="modal-header">
+            <h3 className="card-title" id="dg-preview-title" style={{ margin: 0 }}>
+              Weekly digest preview
+            </h3>
+            <button type="button" className="modal-close" onClick={() => setPreviewHtml(null)} aria-label="Close">
+              ×
+            </button>
+          </div>
+          {/* sandbox="" : opaque origin, no scripts, no forms, no top navigation. */}
+          <iframe className="email-preview-frame" sandbox="" srcDoc={previewHtml} title="Weekly digest preview" />
+        </ModalShell>
       )}
     </div>
   );

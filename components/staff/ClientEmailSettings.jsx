@@ -92,6 +92,8 @@ function CE_ClientEmailSettings({ onSent } = {}) {
   const [pick, setPick] = React.useState("");
   const [busy, setBusy] = React.useState(null);
   const [showAll, setShowAll] = React.useState(false);
+  // { title, html } while the preview modal is open.
+  const [previewDoc, setPreviewDoc] = React.useState(null);
 
   const load = React.useCallback(async () => {
     const sb = window.mgbSupabase;
@@ -199,8 +201,6 @@ function CE_ClientEmailSettings({ onSent } = {}) {
 
   async function preview(job) {
     if (!pick) return;
-    const win = window.open("", "_blank");
-    if (win) win.document.write('<p style="font-family:sans-serif;padding:20px;color:#555">Building the preview…</p>');
     setBusy("preview:" + job);
     try {
       const res = await CE_callFn({ job, action: "preview", client_id: pick });
@@ -213,13 +213,13 @@ function CE_ClientEmailSettings({ onSent } = {}) {
         throw new Error(msg || `HTTP ${res.status}`);
       }
       const would = res.headers.get("X-Would-Send") || "";
-      const url = URL.createObjectURL(new Blob([body], { type: "text/html" }));
-      if (win) win.location.href = url;
-      else window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      // Shown in a sandboxed srcdoc iframe, not a same-origin blob: tab, so
+      // an escaping slip in a template can't run script with this session
+      // (security audit L8).
+      const label = (CE_JOBS.find((j) => j.key === job) || {}).label || "Email";
+      setPreviewDoc({ title: label + " preview", html: body });
       if (would) toast(would === "yes" ? "This client would get this email." : "Wouldn't send right now: " + would.replace(/^no:\s*/, ""));
     } catch (e) {
-      if (win) win.close();
       toast("Couldn't build the preview: " + (e.message || String(e)));
     }
     setBusy(null);
@@ -447,6 +447,20 @@ function CE_ClientEmailSettings({ onSent } = {}) {
             </div>
           ))}
         </div>
+      )}
+      {previewDoc && (
+        <ModalShell onClose={() => setPreviewDoc(null)} labelledBy="ce-preview-title" className="email-preview-modal">
+          <div className="modal-header">
+            <h3 className="card-title" id="ce-preview-title" style={{ margin: 0 }}>
+              {previewDoc.title}
+            </h3>
+            <button type="button" className="modal-close" onClick={() => setPreviewDoc(null)} aria-label="Close">
+              ×
+            </button>
+          </div>
+          {/* sandbox="" : opaque origin, no scripts, no forms, no top navigation. */}
+          <iframe className="email-preview-frame" sandbox="" srcDoc={previewDoc.html} title="Client email preview" />
+        </ModalShell>
       )}
     </div>
   );

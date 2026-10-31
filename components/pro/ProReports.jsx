@@ -169,15 +169,6 @@ function prHexToRgb(hex) {
   return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 }
 
-function prRandomToken() {
-  if (!window.crypto || !window.crypto.getRandomValues) {
-    throw new Error("This browser can't make a secure link.");
-  }
-  return Array.from(window.crypto.getRandomValues(new Uint8Array(32)))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 function prShareUrl(token) {
   return `${window.location.origin}/?share=${token}`;
 }
@@ -2630,22 +2621,26 @@ function PrSharesPanel({ shares, reloadShares, snapshot, orgName, sb, clientId, 
     if (!needSave()) return;
     setCreating(true);
     try {
-      const token = prRandomToken();
       const n = PR_EXPIRY_OPTIONS.includes(Number(days)) ? Number(days) : 30;
       // A minute's grace so a fast browser clock can't trip the 90-day check.
       const expires = new Date(Date.now() + n * 86400000 - 60000).toISOString();
       const snap = JSON.parse(JSON.stringify(snapshot));
       const t = (title || defaultTitle).trim().slice(0, 200) || "Board packet";
-      const { error } = await sb.from("client_report_shares").insert({
-        client_id: clientId,
-        token,
-        title: t,
-        snapshot: snap,
-        created_by: whoEmail,
-        expires_at: expires,
-      });
-      if (error) flagError(error, "Couldn't create the link.");
+      // The server generates the token and stamps created_by (a trigger
+      // overwrites anything sent), so read the token back from the insert.
+      const { data, error } = await sb
+        .from("client_report_shares")
+        .insert({
+          client_id: clientId,
+          title: t,
+          snapshot: snap,
+          expires_at: expires,
+        })
+        .select("token")
+        .single();
+      if (error || !data || !data.token) flagError(error || new Error("No token returned."), "Couldn't create the link.");
       else {
+        const token = data.token;
         setJustMade(token);
         setTitle("");
         showToast("Share link created.");

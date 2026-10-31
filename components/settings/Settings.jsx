@@ -2200,12 +2200,11 @@ function ST_ClientSettingsPage({
                   type="button"
                   className="btn-secondary"
                   disabled={readOnly}
-                  onClick={async () => {
-                    const sb = window.mgbSupabase;
-                    try {
-                      if (sb) await sb.auth.signOut({ scope: "global" });
-                    } catch (e) {}
-                    onSignOut();
+                  onClick={() => {
+                    // Ends every session, then clears this browser and
+                    // reloads (security audit L7; supabaseClient.js).
+                    if (window.mgbSignOutAndClear) window.mgbSignOutAndClear({ scope: "global" });
+                    else onSignOut();
                   }}
                 >
                   Sign out on all devices

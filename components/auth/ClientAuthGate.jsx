@@ -231,7 +231,8 @@
     }
 
     function signOut() {
-      supabase.auth.signOut();
+      // Clears app storage and reloads too (security audit L7).
+      window.mgbSignOutAndClear();
     }
 
     if (status === "loading" || status === "checking-row") {

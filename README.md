@@ -1843,10 +1843,15 @@ Team Reviews files.
 
 ## Database changes
 
-- All SQL lives flat in `supabase/*.sql`. It's applied **by hand**, either in the Supabase SQL
-  editor or through the Supabase MCP `apply_migration`. Nothing applies it automatically.
-- The files are written to be **re-runnable** (`if not exists`, drop-then-create policies,
-  `create or replace`). Keep new files that way. Each file's header says what it depends on.
+- Older SQL lives flat in `supabase/*.sql`. **New changes go in `supabase/migrations/`** as
+  `<timestamp>_<name>.sql`, applied once, in filename order. Either way it's applied **by
+  hand**, in the Supabase SQL editor or through the Supabase MCP `apply_migration`. Nothing
+  applies it automatically.
+- Don't re-run an old flat file without checking it against the live policies first: some
+  recreate policies that have since been hardened. Files known to undo the per-client scoping
+  are in `supabase/archive/` and must not be run (security audit 2026-10-05, M8).
+- Keep new files idempotent (`if not exists`, drop-then-create policies, `create or replace`).
+  Each file's header says what it depends on.
 - **The live database can differ from the repo.** Function bodies and policies have been
   changed live before. Before running a `create or replace function`, check the live body
   (`select pg_get_functiondef('public.fn_name'::regproc)` or look in `pg_proc`) and build on
@@ -2684,9 +2689,9 @@ Team Reviews files.
 
 **Data and access gaps**
 
-- Per-person category scoping isn't enforced in the database for `qbo_*` rows. The helper
-  `client_can_see_category()` exists (`client-scope-view.sql`) but the QuickBooks policies
-  don't use it yet.
+- Per-person category scoping is enforced in the database for `qbo_*` rows and transaction
+  questions (`supabase/client-scope-rls.sql` and the live transaction_questions policy). Files in the
+  `client-uploads/<client>/shared/` folder are still visible to everyone at the org, by design.
 - The Finances tab order (Manage access → Organization tabs, drag ⠿) and dashboard layouts are
   saved in each browser's `localStorage`, not in Supabase, so they don't carry across devices or
   people. Which tabs are hidden is on the server (`clients.hidden_tabs`). The People tab edits

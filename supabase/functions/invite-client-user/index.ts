@@ -59,6 +59,20 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Fixed error codes and wording; the raw DB/auth error is logged with
+// console.error and never returned.
+const ERROR_MESSAGES: Record<string, string> = {
+  contact_save_failed: "The contact couldn't be saved. Please try again.",
+  invite_failed: "The invite email couldn't be sent. Please try again later.",
+  rate_limit_check_failed: "Invites aren't available right now. Please try again later.",
+};
+function fail(code: string, status: number) {
+  return json({ error: code, message: ERROR_MESSAGES[code] }, status);
+}
+
+const INVITES_PER_CALLER_PER_HOUR = 20;
+const RECIPIENT_COOLDOWN_MS = 10 * 60 * 1000;
+
 // Supabase reports "this address already has an auth user" a few different
 // ways depending on version/path. Any of them means the same thing for us:
 // there is nothing to invite, the person just uses the normal login form
@@ -149,15 +163,58 @@ Deno.serve(async (req) => {
 
   if (existingContact && existingContact.client_id !== clientId) {
     // email is client_users' primary key — one person, one org. Silently
-    // moving them would revoke their access to the other org.
+    // moving them would revoke their access to the other org. Which org is
+    // deliberately not said: the caller may not be assigned to it.
     return json(
       {
         error: "already_assigned",
-        message:
-          `${email} is already set up for a different organization (${existingContact.client_id}).`,
+        message: `${email} is already set up for a different organization.`,
       },
       409,
     );
+  }
+
+  // Rate limits (invite_attempts, service-role only). Every invite email
+  // draws on Supabase's project-wide auth-email quota, which everyone's
+  // sign-in links share: at most INVITES_PER_CALLER_PER_HOUR per staffer,
+  // and one per recipient per RECIPIENT_COOLDOWN_MS. Fails closed.
+  const nowMs = Date.now();
+  const [byCaller, byRecipient] = await Promise.all([
+    admin
+      .from("invite_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("caller_email", callerEmail)
+      .gte("created_at", new Date(nowMs - 60 * 60 * 1000).toISOString()),
+    admin
+      .from("invite_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_email", email)
+      .gte("created_at", new Date(nowMs - RECIPIENT_COOLDOWN_MS).toISOString()),
+  ]);
+  if (byCaller.error || byRecipient.error) {
+    console.error(
+      `invite-client-user: rate-limit check failed: ${(byCaller.error || byRecipient.error)!.message}`,
+    );
+    return fail("rate_limit_check_failed", 500);
+  }
+  if ((byCaller.count ?? 0) >= INVITES_PER_CALLER_PER_HOUR) {
+    return json({
+      error: "rate_limited",
+      message: "You've sent a lot of invites in the last hour. Please try again later.",
+    }, 429);
+  }
+  if ((byRecipient.count ?? 0) >= 1) {
+    return json({
+      error: "rate_limited",
+      message: `An invite was just sent to ${email}. Please wait 10 minutes before sending another.`,
+    }, 429);
+  }
+  const { error: attemptError } = await admin
+    .from("invite_attempts")
+    .insert({ caller_email: callerEmail, recipient_email: email });
+  if (attemptError) {
+    console.error(`invite-client-user: could not record attempt: ${attemptError.message}`);
+    return fail("rate_limit_check_failed", 500);
   }
 
   // Written through invite_write_client_user (service_role only) so the
@@ -171,7 +228,10 @@ Deno.serve(async (req) => {
       p_name: (body.name || "").trim() || email.split("@")[0],
       p_role: (body.role || "").trim() || "Contact",
     });
-    if (writeError) return json({ error: writeError.message }, 400);
+    if (writeError) {
+      console.error(`invite-client-user: invite_write_client_user failed: ${writeError.code ?? ""} ${writeError.message}`);
+      return fail("contact_save_failed", 400);
+    }
   }
 
   // --- the invite itself -----------------------------------------------
@@ -185,7 +245,10 @@ Deno.serve(async (req) => {
     : "invited";
 
   if (status === "error") {
-    return json({ error: inviteError!.message }, 400);
+    console.error(
+      `invite-client-user: invite failed: ${inviteError!.code ?? ""} ${inviteError!.status ?? ""} ${inviteError!.message}`,
+    );
+    return fail("invite_failed", 400);
   }
 
   // The client_users trigger (client-activity-log.sql) logs the row change,

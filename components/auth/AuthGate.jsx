@@ -192,13 +192,10 @@
     }
 
     function signOut() {
-      // So signing back in within the same tab lands on Home again too —
-      // otherwise app.jsx's initialPage() would see the flag still set from
-      // before and treat the new sign-in as a mid-session refresh instead.
-      try {
-        sessionStorage.removeItem("mygoodbooks_session_started_v1");
-      } catch (e) {}
-      supabase.auth.signOut();
+      // Clears app storage too (security audit L7; see supabaseClient.js) —
+      // sessionStorage included, so signing back in within the same tab
+      // lands on Home again rather than looking like a mid-session refresh.
+      window.mgbSignOutAndClear();
     }
 
     if (status === "loading" || status === "checking-staff") {
