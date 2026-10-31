@@ -43,7 +43,7 @@ Slate › Recurring has a set called **MGB Month Rhythm**. It holds eight monthl
 
 Each task is due on its part's date, in the month after the month it covers. For example, September's Send reports tasks are due on the Send reports date in October. The row reads "Monthly · On the Send reports date (14th), next month". The dates come from **Settings › Firm settings › Month rhythm**, or from a client's own rhythm if an admin set one (see [Where are a client's Client setup (staff) and Settings (client)?](#/help/client-settings)).
 
-- **On for every client since October 25, 2026.** The owner turned on month rhythm tasks, so the daily task run makes them for every client from that day forward. Earlier months are not filled in.
+- **Off for real clients for now.** The owner is holding automatic month rhythm tasks until real clients' monthly work runs in Slate, so the daily task run does not make them yet. You will not see new monthly tasks appear on your clients because of this set. When it is turned on, tasks are made from that day forward and earlier months are not filled in.
 - **Test and internal clients** also get the tasks when an admin presses **Make due tasks now** on that client.
 - **If the rhythm can't be read**, the run skips these templates and shows one warning. Save the month rhythm again in Settings to fix it.
 
