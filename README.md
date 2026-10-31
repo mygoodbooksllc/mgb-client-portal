@@ -1259,6 +1259,14 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   and their hints don't render at all (the Budget column stays for every admin via `showBudget`).
   `weekly-admin-digest` drops Price review, Revenue snapshot and their headline bits for a preview by an admin
   without the grant and for each recipient without an `internal_access` row (fails closed to the plain version).
+- **Members area foundation, step 1 (2026-10-31, `supabase/members-foundation-v1.sql`, tests
+  `members-foundation-v1-tests.sql`, rollback `members-foundation-v1-rollback.sql`):** for the website members area,
+  not the portal UI. Tables `member_access`, `member_profiles`, `member_purchases` (read own rows only, by confirmed
+  email through `member_jwt_email()`; no client-side writes). Trigger `client_users_member_access_sync`: an active
+  `client_users` row adds a `client`/`client_roster` row, deactivate or delete removes it. Private bucket `members`
+  (no storage policies). Edge function `supabase/functions/members-file/` (`verify_jwt` off, checks the JWT itself,
+  reads `member_access` through the caller's JWT, folder rules, `no-store`). Staff get nothing yet (step 2).
+  Plan and critique live in the website folder (`Members Staff Side Build Plan.md`).
 - **Master Data fee sync (2026-10-31, `supabase/master-sheet-sync.sql`, tests `master-sheet-sync-tests.sql`,
   spec `docs/master-sheet-sync-spec.md`):** edge function `supabase/functions/master-sheet-sync/` (`verify_jwt`
   off: deploy with `--no-verify-jwt`; pure logic in `logic.js`, tests `node .../logic.test.js`) reads the
