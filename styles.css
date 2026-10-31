@@ -8257,6 +8257,28 @@ body:has(.modal-overlay) .chat-fab-wrap {
   font-weight: 700;
   color: #f5efe3;
 }
+/* Icon-only sidebar: just the medal (no pill, no text). The gold dot marks a
+   note to read (Reached / Moving to / Near); the hover tip spells it out. */
+.ms-badge.ms-badge-compact {
+  padding: 0;
+  gap: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.ms-badge.ms-badge-compact.ms-badge-noted {
+  box-shadow: none;
+}
+.ms-badge-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #ecd9b0;
+  border: 2px solid var(--navy-deep);
+}
 /* Phones: both header pills line up on the left, at the same compact
    height, and the badge keeps its name. */
 @media (max-width: 760px) {

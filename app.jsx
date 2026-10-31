@@ -2018,6 +2018,22 @@ function Sidebar({
         </div>
       )}
 
+      {/* Collapsed (icon-only) sidebar: just the medal, with a gold dot when
+          there is a note to read. Opens the Milestone page like the pill. */}
+      {client && !NON_CLIENT_PAGES.has(page) && !(access && access.isCategoryScoped) && collapsed && (
+        <div className="sidebar-ms-row sidebar-ms-compact">
+          <MilestoneBadge
+            compact
+            client={client}
+            staff={viewingAsStaff}
+            onOpen={() => {
+              onSelectPage("milestone");
+              if (onCloseMobile) onCloseMobile();
+            }}
+          />
+        </div>
+      )}
+
       {isBookkeeper ? (
         <React.Fragment>
           {/* Staff Access isn't about any client — showing a client picker
@@ -5402,7 +5418,7 @@ function MilestoneStatusNote({ s, staff }) {
 // Opens the Milestone page. A change the numbers point to (or, for staff, an
 // unset milestone) shows as a small note on its own line under the badge, so
 // it never pushes past the sidebar.
-function MilestoneBadge({ client, staff, onOpen }) {
+function MilestoneBadge({ client, staff, onOpen, compact }) {
   const { byId } = useMilestones([client.id]);
   // Same hover label as the sidebar's (.icon-hover-tip), not the browser's
   // native title tooltip.
@@ -5455,7 +5471,11 @@ function MilestoneBadge({ client, staff, onOpen }) {
     <React.Fragment>
     <button
       type="button"
-      className={"ms-badge" + (note && note.kind !== "staff" ? " ms-badge-noted" : "")}
+      className={
+        "ms-badge" +
+        (compact ? " ms-badge-compact" : "") +
+        (note && note.kind !== "staff" ? " ms-badge-noted" : "")
+      }
       onClick={() => {
         hideTip();
         onOpen();
@@ -5478,23 +5498,26 @@ function MilestoneBadge({ client, staff, onOpen }) {
           />
         </svg>
         <span className={"ms-badge-roman" + (cur.roman.length > 2 ? " long" : "")}>{cur.roman}</span>
+        {compact && note && <span className="ms-badge-dot" aria-hidden="true" />}
       </span>
-      <span className="ms-badge-text">
-        <span className="ms-badge-kicker">Milestone</span>
-        <span className="ms-badge-name">{cur.name}</span>
-      </span>
+      {!compact && (
+        <span className="ms-badge-text">
+          <span className="ms-badge-kicker">Milestone</span>
+          <span className="ms-badge-name">{cur.name}</span>
+        </span>
+      )}
       {tipRect &&
         ReactDOM.createPortal(
           <div
             className="icon-hover-tip icon-hover-tip-wrap"
             style={{ top: tipRect.top + tipRect.height / 2, left: tipRect.right + 10 }}
           >
-            {tipText}
+            {compact ? `${cur.churchPlant ? cur.name : `${cur.roman} · ${cur.name}`}${note ? `. ${note.text}` : ""}` : tipText}
           </div>,
           document.body,
         )}
     </button>
-    {note && (
+    {note && !compact && (
       <button
         type="button"
         className={"ms-badge-note ms-badge-note-" + note.kind}
