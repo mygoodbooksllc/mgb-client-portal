@@ -35,6 +35,14 @@ import { celebrationItems } from "./celebrations.ts";
 // skipped with status "not_configured". Numbers come from the service-role-only
 // SQL function digest_weekly_data(), including the Staff feedback section
 // (staff_feedback key; supabase/digest-staff-feedback.sql).
+//
+// Internal-only money (2026-10-31, supabase/profitability-internal-only.sql):
+// "Price review" and "Revenue snapshot" (fees, cost, margin, target margin) and
+// their headline bits go only to a recipient with an internal_access row (the
+// owner's MGB (internal) grant). Everyone else on the recipient list gets the
+// same digest without them, in a separate send; an admin previewing without the
+// grant (can_view_internal() false) sees that version too. digest_runs.summary
+// (readable by every admin) always stores the version without money.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -358,8 +366,8 @@ function buildSections(d: any): Section[] {
     out.push({ title: "Scope creep", html, text, link: team });
   }
 
-  // 2. Price review
-  {
+  // 2. Price review (internal-only: skipped in the version without money)
+  if (!d._no_money) {
     const rows: any[] = d.price_review || [];
     const noFee = Number(d.price_review_no_fee_count || 0);
     let html = rows.length
@@ -395,8 +403,8 @@ function buildSections(d: any): Section[] {
     if (fc) out.push(fc);
   }
 
-  // 3. Revenue snapshot
-  {
+  // 3. Revenue snapshot (internal-only, like Price review)
+  if (!d._no_money) {
     const r = d.revenue || {};
     const added: any[] = r.added || [];
     const html = tableHtml(
@@ -629,13 +637,16 @@ function headline(d: any): string[] {
   const bits: string[] = [];
   const late: any[] = d.late_payers || [];
   const lateTotal = late.reduce((s, r) => s + Number(r.balance || 0), 0);
-  bits.push(`${money(d.revenue?.mrr)} monthly fees across ${plural(Number(d.revenue?.active_clients || 0), "active client")}`);
+  if (!d._no_money) {
+    bits.push(`${money(d.revenue?.mrr)} monthly fees across ${plural(Number(d.revenue?.active_clients || 0), "active client")}`);
+  }
+  const base = bits.length;
   const naCount = needsAttentionCount(d.needs_attention);
   if (naCount) bits.push(`${plural(naCount, "thing")} need${naCount === 1 ? "s" : ""} attention (see the top section)`);
   const feeCount = (d.fee_suggestions?.changes || []).length;
   if (feeCount) bits.push(`${plural(feeCount, "fee change")} to review`);
   if ((d.scope_creep || []).length) bits.push(`${plural(d.scope_creep.length, "client")} running over usual hours`);
-  if ((d.price_review || []).length) bits.push(`${plural(d.price_review.length, "client")} below target margin`);
+  if (!d._no_money && (d.price_review || []).length) bits.push(`${plural(d.price_review.length, "client")} below target margin`);
   if (late.length) bits.push(`${plural(late.length, "overdue invoice")} (${money(lateTotal)})`);
   const firmOn = d.firm_qbo?.status === "connected" || d.firm_qbo?.status === "error";
   const gaps = firmOn ? (d.timesheet_gaps || []).length : 0;
@@ -645,8 +656,15 @@ function headline(d: any): string[] {
   const pend = (d.pending?.access_requests || []).length;
   if (pend) bits.push(`${plural(pend, "access request")} waiting`);
   if (Number(d.staff_feedback?.new_total)) bits.push(plural(Number(d.staff_feedback.new_total), "new staff feedback report"));
-  if (bits.length === 1) bits.push("nothing needs attention");
+  if (bits.length === base) bits.push("nothing needs attention");
   return bits;
+}
+
+// The digest data without the internal-only money keys (see the header).
+function withoutMoney(d: any) {
+  const c = { ...d, _no_money: true };
+  for (const k of ["price_review", "price_review_no_fee_count", "price_review_has_rates", "target_margin_pct", "revenue"]) delete c[k];
+  return c;
 }
 
 function render(d: any) {
@@ -718,6 +736,8 @@ Deno.serve(async (req) => {
 
   let trigger: "cron" | "manual" | "preview";
   let requestedBy: string | null = null;
+  // Machine callers (cron key / service role) are the system itself.
+  let callerSeesMoney = true;
   if (isMachine) {
     // The cron key may also ask for a preview (sends nothing).
     trigger = body?.preview === true ? "preview" : "cron";
@@ -730,6 +750,9 @@ Deno.serve(async (req) => {
     if (userErr || !userRes?.user?.email) return json({ error: "unauthorized" }, 401);
     const { data: isAdmin, error: rpcErr } = await asUser.rpc("is_active_staff_admin");
     if (rpcErr || isAdmin !== true) return json({ error: "forbidden" }, 403);
+    // Fail closed: any error means no grant.
+    const { data: internal, error: intErr } = await asUser.rpc("can_view_internal");
+    callerSeesMoney = !intErr && internal === true;
     requestedBy = userRes.user.email;
     const preview = url.searchParams.get("preview") === "1" || body?.preview === true;
     trigger = preview ? "preview" : "manual";
@@ -823,10 +846,18 @@ Deno.serve(async (req) => {
   }
 
   const email = render(data);
-  const summary = { headline: email.headline, subject: email.subject };
+  const plain = render(withoutMoney(data));
+  // digest_runs is readable by every admin, so the logged headline never has money.
+  const summary = { headline: plain.headline, subject: plain.subject };
 
   if (trigger === "preview") {
     await log("preview", { summary });
+    if (!callerSeesMoney) {
+      if (url.searchParams.get("format") === "json" || body?.format === "json") {
+        return json({ status: "preview", subject: plain.subject, html: plain.html, text: plain.text, email_configured: emailConfigured(), recipients, from: defaultFrom() });
+      }
+      return new Response(plain.html, { headers: { ...CORS, "Content-Type": "text/html; charset=utf-8" } });
+    }
     if (url.searchParams.get("format") === "json" || body?.format === "json" || requestedBy === "machine preview") {
       return json({ status: "preview", subject: email.subject, html: email.html, text: email.text, email_configured: emailConfigured(), recipients, from: defaultFrom() });
     }
@@ -839,18 +870,34 @@ Deno.serve(async (req) => {
     return json({ status: "not_configured", error: "email not configured", subject: email.subject });
   }
 
-  const sent = await sendEmail({
-    to: recipients,
-    subject: trigger === "manual" ? `[Test] ${email.subject}` : email.subject,
-    html: email.html,
-    text: email.text,
-    tags: [{ name: "kind", value: "weekly_admin_digest" }],
-  });
-  if (!sent.ok) {
-    await log("error", { detail: sent.error, summary });
-    console.log(`weekly-admin-digest: send failed — ${sent.error}`);
-    return json({ status: "error", error: sent.error }, 502);
+  // Split the recipients: the full digest only to addresses with an
+  // internal_access row; everyone else gets the version without money. If the
+  // grant list can't be read, everyone gets the version without money.
+  const { data: grantRows, error: grantErr } = await admin.from("internal_access").select("staff_email");
+  if (grantErr) console.log(`weekly-admin-digest: internal_access unreadable, sending without money — ${grantErr.message}`);
+  const granted = new Set((grantErr ? [] : grantRows || []).map((g: any) => String(g.staff_email || "").trim().toLowerCase()));
+  const fullTo = recipients.filter((r) => granted.has(String(r).trim().toLowerCase()));
+  const plainTo = recipients.filter((r) => !granted.has(String(r).trim().toLowerCase()));
+  const sends: { to: string[]; e: { subject: string; html: string; text: string } }[] = [];
+  if (fullTo.length) sends.push({ to: fullTo, e: email });
+  if (plainTo.length) sends.push({ to: plainTo, e: plain });
+  const ids: string[] = [];
+  for (const sd of sends) {
+    const res = await sendEmail({
+      to: sd.to,
+      subject: trigger === "manual" ? `[Test] ${sd.e.subject}` : sd.e.subject,
+      html: sd.e.html,
+      text: sd.e.text,
+      tags: [{ name: "kind", value: "weekly_admin_digest" }],
+    });
+    if (!res.ok) {
+      await log("error", { detail: res.error, summary, ...(ids.length ? { provider_id: ids.join(",") } : {}) });
+      console.log(`weekly-admin-digest: send failed — ${res.error}`);
+      return json({ status: "error", error: res.error }, 502);
+    }
+    if (res.id) ids.push(res.id);
   }
+  const sent = { id: ids.join(",") };
   await log("sent", { provider_id: sent.id, summary });
   console.log(`weekly-admin-digest: sent (${trigger}) to ${recipients.length} recipient(s)`);
   return json({ status: "sent", id: sent.id, recipients, subject: email.subject });

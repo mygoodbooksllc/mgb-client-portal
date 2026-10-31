@@ -1,5 +1,9 @@
 // ----------------------------------------------------------------------------
-// Client profitability (owner request 2026-09-29). ADMIN-ONLY.
+// Client profitability (owner request 2026-09-29). INTERNAL-ONLY since
+// 2026-10-31: an admin who also holds the owner's MGB (internal) grant
+// (staffUser.canViewInternal, server can_view_internal()). Everyone else gets
+// nothing rendered at all, not an error: call TP_PF_canSee(staffUser) before
+// mounting any piece here (supabase/profitability-internal-only.sql).
 //
 // Server side is supabase/client-profitability.sql:
 //   client_fees             actual monthly fee per client (else tier default)
@@ -20,6 +24,13 @@
 
 const TP_PF_DEFAULT_TARGET = 40;
 const TP_PF_AMBER_BAND = 15; // points below target that are amber, not red
+
+// The one gate for every fee / rate / cost / margin surface in the app.
+// View as: callers pass the effective (impersonated) user, which never carries
+// canViewInternal, so previews stay clean too.
+function TP_PF_canSee(user) {
+  return !!user && user.role === "admin" && user.canViewInternal === true;
+}
 
 const TP_PF_num = (v) => (v == null || v === "" ? null : Number(v));
 
@@ -177,7 +188,7 @@ function TP_PF_blocker(profit, qboOn) {
   if (!profit) return "Profit isn't available.";
   if (profit.loading) return null;
   if (profit.kind === "missing") return "Profitability isn't set up on the server yet.";
-  if (profit.kind === "auth") return "Profit is only visible to admins.";
+  if (profit.kind === "auth") return null; // no grant: render nothing, say nothing
   if (profit.kind) return `Couldn't load profit. ${String((profit.error && profit.error.message) || "")}`.trim();
   if (!qboOn) return "Connect QuickBooks Time to see cost and profit. Fees are shown alone.";
   if (!profit.hasRates) return "Set staff rates to see profit. Open a person below to add their loaded hourly cost.";
@@ -237,7 +248,8 @@ function TP_PF_SummaryStrip({ profit, qboOn, clientIds }) {
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
-  if (!profit || profit.loading) return <p className="pf-strip tp-muted">Loading profit…</p>;
+  if (!profit || profit.kind === "auth") return null;
+  if (profit.loading) return <p className="pf-strip tp-muted">Loading profit…</p>;
   if (profit.kind) return <p className="pf-strip tp-muted">{blocker}</p>;
   const ids = clientIds ? new Set(clientIds) : null;
   // Test clients and MGB (internal) never count toward firm revenue, cost or profit.
@@ -346,7 +358,7 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
-  if (!profit) return null;
+  if (!profit || profit.kind === "auth") return null;
   const blocker = TP_PF_blocker(profit, qboOn);
   const v = TP_PF_rowView(profit, qboOn, clientId);
   const r = v.row;
@@ -495,7 +507,7 @@ function TP_PF_RateCard({ email, name, profit, today }) {
   const [from, setFrom] = useState(today);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
-  if (!profit) return null;
+  if (!profit || profit.kind === "auth") return null;
   const e = String(email || "").toLowerCase();
   const history = (profit.rates || []).filter((r) => r.staff_email === e);
   const current = TP_PF_currentRate(profit.rates, e, today);
@@ -622,14 +634,9 @@ function TP_PF_OverviewLines({ clientId, qboOn, from, to }) {
       </li>
     );
   }
-  if (profit.kind) {
-    return (
-      <li className="muted">
-        <span>Profit</span>
-        <span>{profit.kind === "missing" ? "Not set up" : "Unavailable"}</span>
-      </li>
-    );
-  }
+  // No grant (or anything else wrong): show nothing rather than a hint that
+  // profit exists.
+  if (profit.kind) return null;
   const v = TP_PF_rowView(profit, qboOn, clientId);
   const blocker = !qboOn ? "QuickBooks Time not connected" : !profit.hasRates ? "Set staff rates to see profit" : null;
   return (

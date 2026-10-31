@@ -749,11 +749,14 @@ function TP_QTrend({ trend }) {
   return <span className="task-chip tp-q-trend">New hours</span>;
 }
 
-// profit: TP_PF_useProfit() state, passed only for admins. Without it the
-// fee, rate, cost, profit and margin columns are not rendered at all.
-function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping, profit }) {
+// profit: TP_PF_useProfit() state, passed only for an admin with the MGB
+// (internal) grant (TP_PF_canSee). Without it the fee, rate, cost, profit and
+// margin columns are not rendered at all.
+// showBudget: every admin sees the hours-budget column (hours only, no money).
+function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping, profit, showBudget: showBudgetProp }) {
   const lateOn = TK_useLateCounts();
   const showMoney = !!profit;
+  const showBudget = showMoney || !!showBudgetProp;
   const pv = (id) => TP_PF_rowView(profit, qboOn, id);
   // Actual fee minus the confirmed pricing milestone's fee (null when either is missing).
   const msGap = (id) => {
@@ -763,7 +766,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
     return { gap: m.fee - tier, tier, same: m.feeSource === "tier_default" };
   };
   // Hours budget (HoursBudget.jsx): admins only, always this calendar month.
-  const budgets = HB_useBudgets(showMoney);
+  const budgets = HB_useBudgets(showBudget);
   const budgetRatio = (id) => {
     const st = budgets && budgets.byClient[id];
     return st ? st.ratio : null;
@@ -795,7 +798,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
       cost: (r) => TP_PF_orLast(showMoney ? pv(r.id).cost : null, sort.dir),
       profit: (r) => TP_PF_orLast(showMoney ? pv(r.id).profit : null, sort.dir),
       margin: (r) => TP_PF_orLast(showMoney ? pv(r.id).margin : null, sort.dir),
-      budget: (r) => TP_PF_orLast(showMoney ? budgetRatio(r.id) : null, sort.dir),
+      budget: (r) => TP_PF_orLast(showBudget ? budgetRatio(r.id) : null, sort.dir),
     }[sort.key] || ((r) => r.qMinutes);
     return [...list].sort((a, b) => {
       const x = val(a);
@@ -822,7 +825,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
   const clientMin = built.rows.reduce((n, r) => n + r.qMinutes, 0);
   const otherMin = built.total - clientMin - unmappedMin;
   const appTotal = built.rows.reduce((n, r) => n + TP_qNum(r.appMinutes), 0);
-  const cols = (showMoney ? 16 : 9) - (lateOn ? 0 : 1);
+  const cols = 9 + (showMoney ? 6 : 0) + (showBudget ? 1 : 0) - (lateOn ? 0 : 1);
   const dash = <span className="tp-muted">–</span>;
   const leastFirst = sort.key === "margin" && sort.dir === "asc";
 
@@ -882,9 +885,9 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                 ["rate", "Rate"],
                 ["profit", "Profit"],
                 ["margin", "Margin"],
-                ["budget", "Budget"],
               ]
             : []),
+          ...(showBudget ? [["budget", "Budget"]] : []),
           ["name", "Name"],
         ].map(([k, l]) => (
           <button
@@ -939,6 +942,10 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                   <th className="num">
                     <button type="button" className="tp-sort" onClick={() => toggle("margin")}>Margin %{mark("margin")}</button>
                   </th>
+                </>
+              )}
+              {showBudget && (
+                <>
                   <th className="num" title="QuickBooks Time hours this calendar month against the client's monthly hours budget (set on the client overview). Amber from 80%, red at 100%.">
                     <button type="button" className="tp-sort" onClick={() => toggle("budget")}>Budget (this month){mark("budget")}</button>
                   </th>
@@ -1020,6 +1027,10 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                         <td className="num" data-label="Margin %">
                           <TP_PF_MarginChip margin={m.margin} target={profit.target} />
                         </td>
+                      </>
+                    )}
+                    {showBudget && (
+                      <>
                         <td className="num" data-label="Budget (this month)">
                           <HB_Cell data={budgets} clientId={r.id} />
                         </td>
@@ -1061,6 +1072,10 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                         <td className="num tp-muted" data-label="Cost">–</td>
                         <td className="num tp-muted" data-label="Profit">–</td>
                         <td className="num tp-muted" data-label="Margin %">–</td>
+                      </>
+                    )}
+                    {showBudget && (
+                      <>
                         <td className="num tp-muted" data-label="Budget (this month)">–</td>
                       </>
                     )}

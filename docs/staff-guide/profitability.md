@@ -2,10 +2,12 @@
 title: How do I set client fees, hourly costs and the target margin?
 section: Admin
 audience: admin
-keywords: [profitability, profit, margin, target margin, fee, monthly fee, tier default, hourly cost, loaded cost, cost rate, effective from, revenue, effective rate]
+keywords: [profitability, profit, margin, target margin, fee, monthly fee, tier default, hourly cost, loaded cost, cost rate, effective from, revenue, effective rate, internal, mgb internal, who sees profit]
 sort: 540
 ---
-Profit figures are for admins only. They combine three things you set up once:
+Profit figures are internal. Only admins the owner has given the **MGB (internal)** permission (**HR › Members**, the **MGB (internal)** column) see them. Other admins and all other staff see no fees, hourly costs, cost, profit or margins anywhere, and can't open this article. Nothing tells them it's hidden.
+
+They combine three things you set up once:
 
 | Input | Where | Default |
 |---|---|---|
@@ -38,7 +40,16 @@ A new rate starts on its date; hours before it keep the old rate. Rate history i
 
 In the summary strip (Revenue, Cost, Profit, Blended margin), click **Edit** next to **Target margin**, enter 0–100 and **Save**.
 
-Admins also see monthly fee, cost, profit and margin on each client's **Client overview**, in **Billing and time** at the bottom. Other staff don't see that section. Every fee, rate and target change is recorded in the Audit log.
+### Where else you see it
+
+- **Team › Hours, Clients table**: Fee / mo, **vs milestone** (the actual fee minus the fee for the client's confirmed pricing milestone: plus means they pay more, minus means less; "on milestone" when no actual fee is set so the milestone fee is used), Eff. rate, Cost, Profit and Margin %, plus the **Least profitable first** sort.
+- **Team › Hours, click a person**: their **Loaded hourly cost**.
+- **Client overview → Billing and time**: monthly fee, cost, profit and margin.
+- **Client health**: **Margin below target** takes 15 points off. Only people with the permission have it in their score, so their score for a client can be lower than another admin's.
+- **Weekly digest**: the **Price review** and **Revenue snapshot** sections, and the fee and margin bits of the headline, go only to recipients with the permission. Everyone else on the list gets the same digest without them. **Preview** shows you the version you would get.
+- **Audit log**: every fee, rate and target change, in the **Client fees**, **Cost rates** and **Profitability settings** groups. Only people with the permission see those entries or groups.
+
+Turning the permission off for an admin hides all of this from them at once, in the database as well as on screen.
 
 ### Troubleshooting
 

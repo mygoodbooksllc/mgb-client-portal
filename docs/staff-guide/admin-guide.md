@@ -21,7 +21,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | Where | What it's for | More |
 |---|---|---|
 | **HR › Members** | Add staff, set roles, assign clients, give temporary admin access, **View as** a bookkeeper (their whole app, read-only) and check **Last seen** to see exactly what they see and when they were last on | [Staff and access](#/help/staff-management), [Temporary access](#/help/temporary-access) |
-| **Team › Hours** | Hours and tasks by person and by client, monthly hours budgets, capacity, and fees, cost and margin | [Hours budget](#/help/hours-budget), [Capacity](#/help/capacity), [Profitability](#/help/profitability) |
+| **Team › Hours** | Hours and tasks by person and by client, monthly hours budgets and capacity | [Hours budget](#/help/hours-budget), [Capacity](#/help/capacity) |
 | **Team › Reply times** | How fast clients hear back, against the 24-hour goal | [Reply times](#/help/reply-times) |
 | **Team › Performance** | Every bookkeeper's score out of 100, as a ranking (bookkeepers see only their own) | [Performance](#/help/performance) |
 | **Manage projects** in the Slate sidebar | Rename, archive, trash or restore any project | [Manage projects](#/help/manage-projects) |
@@ -63,7 +63,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 
 1. **Work › Close**: is every client's month closed? See [Month-end close](#/help/month-end-close).
 2. On **Today**, open the **This week** card and confirm pricing milestones. See [Pricing milestones](#/help/pricing-milestones).
-3. **Team › Hours**: check margin by client. See [Profitability](#/help/profitability).
+3. **Team › Hours**: check each client's hours against its budget. See [Hours budget](#/help/hours-budget).
 4. **Settings › Usage stats**: what's used and who's gone quiet.
 
 **Every quarter**

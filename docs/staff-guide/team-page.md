@@ -65,18 +65,17 @@ Temporary admins see the tab without the money figures.
 
 Name, QB hours, In app, Billable, On clients, unmapped customer hours, Open, Overdue, Completed tasks, and Clients (with "+N temporary"). Rows tagged **Unmapped**, **Ignored**, **No customer** or **No person** collect hours that aren't matched yet; click **Map them** to fix.
 
-Click a person to see their QB hours, billable hours, in-app time by client, tasks (Overdue, Open, Completed in period) and their **Loaded hourly cost**.
+Click a person to see their QB hours, billable hours, in-app time by client and tasks (Overdue, Open, Completed in period).
 
 ### Clients table
 
-Client, Plan, QB hours, In app, Avg / mo (the average of up to the last 3 complete months that have fully synced, so a month the sync hasn't finished never pulls it down), Trend (for example "▲ 20% vs avg"), Billable value, Fee / mo, **vs milestone** (the actual fee minus the fee for the client's confirmed pricing milestone: plus means they pay more, minus means less; "on milestone" when no actual fee is set so the milestone fee is used), Eff. rate, Cost, Profit, Margin %, **Budget (this month)**, then Open and Overdue.
+Client, Plan, QB hours, In app, Avg / mo (the average of up to the last 3 complete months that have fully synced, so a month the sync hasn't finished never pulls it down), Trend (for example "▲ 20% vs avg"), Billable value, **Budget (this month)**, then Open and Overdue.
 
 - **Budget (this month)** compares this calendar month's QuickBooks Time hours with the client's monthly hours budget: amber from 80%, red with **Over** at 100%. A dash means no budget is set. Bookkeepers see the same comparison as **Hours this month** on the **Clients** page. See [How do I set a monthly hours budget for a client?](#/help/hours-budget).
-- **Least profitable first** sorts by margin.
 - **Show clients with no activity** includes quiet clients.
 - The line under the table reconciles total hours: on clients, unmapped, ignored or internal.
 
-Click a client to see hours by QuickBooks customer and by person, hours over the period, every QuickBooks Time entry and the **Profitability** card.
+Click a client to see hours by QuickBooks customer and by person, hours over the period and every QuickBooks Time entry.
 
 ### In View as (admins)
 

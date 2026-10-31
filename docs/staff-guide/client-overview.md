@@ -2,7 +2,7 @@
 title: What does the Client overview show?
 section: Working with a client
 audience: staff
-keywords: [client overview, overview, open for this client, chips, status line, tasks for this client, client task list, task status, activity, log a call, key dates, coverage, organization type, pinned notes, billing and time, monthly bill, profitability, hours budget, engagement, onboarding, health, why score, duplicate bills, quickbooks sync, deadlines, backup bookkeeper, out until, time off, account manager, close summary]
+keywords: [client overview, overview, open for this client, chips, status line, tasks for this client, client task list, task status, activity, log a call, key dates, coverage, organization type, pinned notes, billing and time, monthly bill, hourly rate, hours budget, engagement, onboarding, health, why score, duplicate bills, quickbooks sync, deadlines, backup bookkeeper, out until, time off, account manager, close summary]
 sort: 200
 ---
 The **Client overview** is the staff-only summary of one client. It's the first tab in the client's tab row. The client never sees this page.
@@ -58,7 +58,7 @@ Under the strip is one line of facts:
 Below the columns, real admins see a **Billing and time** section, with the monthly bill and the hours so far this month in its heading. Bookkeepers, account managers and temporary admins don't see it at all. It stays open or closed the way you last left it for that client.
 
 - **Monthly bill**: what the client pays: milestone fee, plan and logins, plus payroll if they have the add-on. The title opens the client's **Milestone** tab.
-- **Profitability · this month**: the bill divided by QuickBooks Time hours, against a target rate. Also shows your in-app time, fee, cost and margin, and **Hours budget**: hours used this month out of the client's monthly budget. See [How do I set a monthly hours budget for a client?](#/help/hours-budget) and [How do I set client fees, hourly costs and the target margin?](#/help/profitability).
+- **Hourly rate · this month**: the bill divided by QuickBooks Time hours, against a target rate. Also shows your in-app time and **Hours budget**: hours used this month out of the client's monthly budget. See [How do I set a monthly hours budget for a client?](#/help/hours-budget).
 - **Engagement · 30 days**: when the client last visited, page views, who signed in and their top pages. **Usage stats** opens the full report.
 - **Onboarding**: steps for new clients. Once every step is done it folds to one line, *Onboarding done*, with **Show steps**. See [How does client onboarding work?](#/help/onboarding).
 
@@ -73,4 +73,4 @@ Nothing on the Overview glows or pulses. The gold glow is now only on the **Clos
 - **"This needs supabase/staff-client-tools.sql…"** A database update is missing. Tell an admin.
 - **"Couldn't check what's open for {client}."** Click **Try again**. If it keeps failing, reload the page.
 - **I don't see Billing and time.** It's for admins only. Ask an admin if you need a number from it.
-- **Profitability shows "—" for hours.** No QuickBooks Time hours are logged for this client this month.
+- **Hourly rate shows "—" for hours.** No QuickBooks Time hours are logged for this client this month.

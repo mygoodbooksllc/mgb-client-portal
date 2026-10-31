@@ -530,7 +530,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
       here for every staff member, the target hourly rate, hours budget and account manager picker
       for admins) and pinned notes with All notes (edit and pin in place, no remove)
     - **Billing and time**, real admins only, not in the DOM for anyone else: Monthly bill,
-      Profitability, Engagement (reads "Usage stats") and the Onboarding card. Open by default,
+      Hourly rate (fee, cost and margin lines only with `TP_PF_canSee`), Engagement (reads "Usage stats") and the Onboarding card. Open by default,
       state in `mgb_ov_billing_open_v1`.
     Every card header opens the page that owns it (`OV_Card`; the card body is not a link). The
     checklist, "Sent to the client" and the QuickBooks check moved to the Close tab, document
@@ -1249,6 +1249,16 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   loads before the SQL is applied). Temp admins, bookkeepers, account managers and clients never see it, and
   View as hides it (`STAFF_canViewInternal(realUser, impersonating)` gates the nav item, route resolution and
   `visibleClients`). The owner toggles it per admin in HR › Members (an owner-only "MGB (internal)" column).
+- **Profitability is internal-only too (2026-10-31, `supabase/profitability-internal-only.sql`, tests
+  `profitability-internal-only-tests.sql`):** client fees, staff cost rates (MGB payroll), the target margin,
+  `client_profitability()`, `quote_inputs()` and saved quotes need `is_active_staff_admin() and can_view_internal()`;
+  `client_health()` adds the margin factor only for that caller; RESTRICTIVE policies hide `client_fee.*`,
+  `cost_rate.*`, `profitability.*` audit rows and the `profitability` guide article from everyone else. The app
+  gate is `TP_PF_canSee(staffUser)` (`TeamProfit.jsx`: admin + `canViewInternal`, so View as never shows it);
+  without it the profit columns, summary strip, fee/rate editors, cost card, overview lines, audit money groups
+  and their hints don't render at all (the Budget column stays for every admin via `showBudget`).
+  `weekly-admin-digest` drops Price review, Revenue snapshot and their headline bits for a preview by an admin
+  without the grant and for each recipient without an `internal_access` row (fails closed to the plain version).
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
   (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page
@@ -1571,7 +1581,7 @@ Team Reviews files.
   though they can technically read the column through the existing profile policy).
   `components/staff/HoursBudget.jsx` (`HB_`): one cached load of every budget plus this calendar
   month's `qbo_hours_by_client` (read only), shown in the Team Clients table (**Budget (this
-  month)** column in `TeamQbo.jsx`), the overview Profitability card and the Clients page's **Hours this month** column
+  month)** column in `TeamQbo.jsx`), the overview Hourly rate card and the Clients page's **Hours this month** column
   (everyone assigned, via the narrow `qbo_my_client_hours` RPC in
   `supabase/client-hours-for-bookkeepers.sql`). Near at 80%, over at 100%
   (`OPS_budgetStatus`). Guide: `hours-budget.md`.

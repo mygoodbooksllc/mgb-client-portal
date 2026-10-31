@@ -1286,7 +1286,9 @@ function TOUR_adminSteps(ctx) {
     team(
       "hours",
       "Team › Hours",
-      "Hours and tasks by person and by client, monthly hours budgets and capacity. Click a client or a person for fees, cost and margin.",
+      ctx && ctx.canSeeMoney
+        ? "Hours and tasks by person and by client, monthly hours budgets and capacity. Click a client or a person for fees, cost and margin."
+        : "Hours and tasks by person and by client, monthly hours budgets and capacity. Click a client or a person for the detail.",
     ),
     team("reply-times", "Team › Reply times", "How fast clients hear back, by person, against the 24-hour goal."),
     team("performance", "Team › Performance", "Every bookkeeper's score out of 100. Admins see the full ranking; bookkeepers see only their own."),
@@ -1471,7 +1473,9 @@ function TOUR_amSteps(ctx) {
       targets: ["#tp-tab-hours"],
       title: "Fees and hours",
       body: () =>
-        "A client's fee follows their confirmed pricing milestone. Team › Hours shows each client's hours against budget; click a client for fees, cost and margin, and see who has outgrown their plan.",
+        ctx && ctx.canSeeMoney
+          ? "A client's fee follows their confirmed pricing milestone. Team › Hours shows each client's hours against budget; click a client for fees, cost and margin, and see who has outgrown their plan."
+          : "A client's fee follows their confirmed pricing milestone. Team › Hours shows each client's hours against budget, and who has outgrown their plan.",
     },
     {
       id: "new-client",
@@ -2696,6 +2700,9 @@ function TOUR_StaffRoot({
     isBookkeeper,
     tempAdmin,
     showsAdminPages,
+    // Fees, cost rates and margin: an admin with the MGB (internal) grant only
+    // (TP_PF_canSee), never in View as.
+    canSeeMoney: isAdmin && !impersonating && !!(staffUser && staffUser.canViewInternal === true),
     amCount,
     impersonating: !!impersonating,
     places: navPlaces ? navPlaces.map((p) => p.label) : null,

@@ -8281,7 +8281,7 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
 
         <OV_Card
           anchor="ov-profit"
-          title="Profitability · this month"
+          title="Hourly rate · this month"
           to={{ place: "team", tab: "hours", client: cid }}
           className="ov-stat"
           noLk
@@ -8302,8 +8302,8 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
               <span>Target rate</span>
               <span>{target != null ? `${fmtMoney(target)}/h` : "Not set"}</span>
             </li>
-            {/* Fee, cost, profit, margin: admins only (TeamProfit.jsx). */}
-            {staffUser && staffUser.role === "admin" && typeof TP_PF_OverviewLines === "function" && (
+            {/* Fee, cost, profit, margin: internal-only, an admin with the MGB (internal) grant (TeamProfit.jsx). */}
+            {typeof TP_PF_canSee === "function" && TP_PF_canSee(staffUser) && typeof TP_PF_OverviewLines === "function" && (
               <TP_PF_OverviewLines clientId={client.id} qboOn={data.qbMinutes != null} from={monthStart} to={todayLocal()} />
             )}
             {/* Hours budget: admins only (HoursBudget.jsx). */}
@@ -14440,8 +14440,8 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
     }
     showToast(
       allowed
-        ? `${row.name} can now open MGB (internal).`
-        : `${row.name} can no longer open MGB (internal).`,
+        ? `${row.name} can now open MGB (internal) and see client profitability.`
+        : `${row.name} can no longer open MGB (internal) or see client profitability.`,
     );
     loadInternalGrants();
   }
@@ -14990,7 +14990,11 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                   <th>Active</th>
                   <th>Clients</th>
                   <th>Temp admin access</th>
-                  {isInternalOwner && <th>MGB (internal)</th>}
+                  {isInternalOwner && (
+                    <th title="Opens MGB (internal) and every fee, staff cost rate, cost and margin figure (client profitability).">
+                      MGB (internal)
+                    </th>
+                  )}
                   <th></th>
                   <th></th>
                 </tr>
@@ -15179,7 +15183,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                                 type="checkbox"
                                 checked={!!internalGrants[String(row.email).toLowerCase()]}
                                 disabled={internalBusyId === row.id || !row.active}
-                                aria-label={`Let ${row.name} open MGB (internal)`}
+                                aria-label={`Let ${row.name} open MGB (internal) and see client profitability`}
                                 onChange={(e) => toggleInternalAccess(row, e.target.checked)}
                               />
                               <span>

@@ -1615,7 +1615,7 @@ begin
     end;
   end if;
 
-  if v_admin then
+  if v_admin and public.can_view_internal() then   -- margin: internal-only (profitability-internal-only.sql)
     begin
       select target_margin_pct into v_target from profitability_settings limit 1;
       select coalesce(jsonb_object_agg(p.client_id, p.margin_pct), '{}'::jsonb) into v_margin

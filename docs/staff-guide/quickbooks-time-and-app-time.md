@@ -10,7 +10,7 @@ You don't log hours in the portal. There are two separate things, and only one o
 ### 1. Your real hours: QuickBooks Time
 
 - Keep tracking your hours the way you already do, in **QuickBooks Time** (Workforce), against the right customer.
-- The portal reads those hours from QuickBooks automatically. Admins use them on **Team › Hours** for profitability and capacity, and everyone sees **Hours this month** per client on the **Clients** page.
+- The portal reads those hours from QuickBooks automatically. Admins use them on **Team › Hours** for hours budgets and capacity, and everyone sees **Hours this month** per client on the **Clients** page.
 - The old **My Time** page in the portal was removed. If you have a bookmark to it, it now opens Today.
 
 ### 2. In-app time: automatic, not billed

@@ -310,7 +310,7 @@ declare
   v_rates jsonb;
   v_avg numeric;
 begin
-  if not public.is_active_staff_admin() then
+  if not (public.is_active_staff_admin() and public.can_view_internal()) then   -- internal-only since 2026-10-31
     raise exception 'Only admins can use the quote tool.' using errcode = '42501';
   end if;
   select target_margin_pct into v_margin from profitability_settings where id;

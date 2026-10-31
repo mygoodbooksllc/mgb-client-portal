@@ -84,9 +84,11 @@ const AL_ACTION_GROUPS = [
   { value: "client_access.", label: "Client assignments" },
   { value: "access_grant.", label: "Temporary access" },
   { value: "staff.", label: "Staff changes" },
-  { value: "client_fee.", label: "Client fees" },
-  { value: "cost_rate.", label: "Cost rates" },
-  { value: "profitability.", label: "Profitability settings" },
+  // Money groups: listed only for an admin with the MGB (internal) grant
+  // (the server hides those rows from anyone else; profitability-internal-only.sql).
+  { value: "client_fee.", label: "Client fees", money: true },
+  { value: "cost_rate.", label: "Cost rates", money: true },
+  { value: "profitability.", label: "Profitability settings", money: true },
   { value: "qbo_", label: "QuickBooks" },
   { value: "client.", label: "Clients" },
   { value: "view_as.", label: "View as" },
@@ -297,6 +299,9 @@ function AL_csvCell(v) {
 
 function AL_AuditLogPage({ clients }) {
   const supabase = window.mgbSupabase;
+  const toolsCtx = typeof StaffToolsContext !== "undefined" ? React.useContext(StaffToolsContext) : null;
+  const seeMoney = typeof TP_PF_canSee === "function" && TP_PF_canSee(toolsCtx && toolsCtx.staffUser);
+  const actionGroups = AL_ACTION_GROUPS.filter((g) => !g.money || seeMoney);
   const showToast = typeof useToast === "function" ? useToast() : () => {};
   const blank = { actor: "", client: "", action: "", from: "", to: "", search: "" };
   const [filters, setFilters] = React.useState(blank);
@@ -481,7 +486,7 @@ function AL_AuditLogPage({ clients }) {
           <label className="al-field">
             <span>Action</span>
             <select value={filters.action} onChange={set("action")}>
-              {AL_ACTION_GROUPS.map((g) => (
+              {actionGroups.map((g) => (
                 <option key={g.value} value={g.value}>{g.label}</option>
               ))}
             </select>

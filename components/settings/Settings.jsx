@@ -1102,7 +1102,7 @@ function ST_firmGroups(isAdmin, hasTempAdminAccess) {
       title: "Insight and records",
       rows: [
         { key: "usage", page: "usage-stats", label: "Usage stats", sub: "Which pages and features actually get used, most to least.", icon: icon("BarChartIcon"), show: anyAdmin },
-        { key: "audit", page: "audit-log", label: "Audit log", sub: "Every change to access, fees, rates, mappings and clients.", icon: icon("DocumentIcon"), show: !!isAdmin && typeof AL_AuditLogPage === "function" },
+        { key: "audit", page: "audit-log", label: "Audit log", sub: "Every change to access, staff, mappings and clients.", icon: icon("DocumentIcon"), show: !!isAdmin && typeof AL_AuditLogPage === "function" },
         { key: "dev", page: "developer-tools", label: "Developer tools", sub: "Per-browser testing aids. Nothing here is shared or written to Supabase.", icon: icon("WrenchIcon"), show: anyAdmin },
       ],
     },

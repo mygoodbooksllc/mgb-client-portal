@@ -1094,13 +1094,15 @@ function TP_TeamPage({ clients }) {
     () => ({ ...qHoursRaw, syncedThrough }),
     [qHoursRaw, syncedThrough],
   );
-  // Fees, pay rates, cost and margin are admin-only (TeamProfit.jsx). A
-  // bookkeeper with temporary admin-page access, or an admin in "View as",
-  // never loads or sees them.
+  // Fees, pay rates, cost and margin are internal-only (TeamProfit.jsx): an
+  // admin with the owner's MGB (internal) grant. Any other admin, a bookkeeper
+  // with temporary admin-page access, or an admin in "View as" never loads
+  // them and sees no trace of them. Hours budgets stay for every admin.
   const { staffUser } = useContext(StaffToolsContext);
   const isAdmin = !!(staffUser && staffUser.role === "admin");
-  const profit = TP_PF_useProfit(isAdmin, range, qboVersion);
-  const money = isAdmin ? profit : null;
+  const canMoney = TP_PF_canSee(staffUser);
+  const profit = TP_PF_useProfit(canMoney, range, qboVersion);
+  const money = canMoney ? profit : null;
   const rangeLabel =
     range.from === range.to
       ? fmtDate(range.from)
@@ -1558,6 +1560,7 @@ function TP_TeamPage({ clients }) {
         today={today}
         avg={avg}
         profit={money}
+        showBudget={isAdmin}
         onOpenClient={(id) => setView({ type: "client", key: id })}
         onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
         onOpenMapping={openMapping}
