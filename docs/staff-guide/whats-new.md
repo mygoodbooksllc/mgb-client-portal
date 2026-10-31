@@ -9,6 +9,10 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-31: Clients can drop files anywhere
+- **Clients drop a file on any page** of their portal (or tap **+ Add a file** on a phone), then pick a folder, a name, and who at their organization can see it: everyone, only some people, or everyone except some people. MyGoodBooks staff always see every file. Uploads show on the Desk's Inbox like any client file.
+- **On a client's Documents page**, each file's **⋯** has **Rename**, **Who can see it**, **Replace with a new version**, **Copy link** and **History**. Tick several files to move them together, and **✎** renames a folder. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).
+
 ### 2026-10-30: Organization tabs reach the client
 Turning a tab off in **Client setup › Manage access › Organization tabs** now hides it for everyone at that client, on their own devices too (before, it only changed what your browser showed). Only admins can change these switches; other staff see them grayed out. If your browser had tabs turned off for a client the old way, they're saved for everyone the first time an admin opens Organization tabs for that client.
 

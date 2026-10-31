@@ -1772,14 +1772,14 @@ var ANN_REGISTRY = [
     },
   },
   {
-    // Client page drop + Documents upgrades launch, HELD (DRAFT, not published): visible only once
-    // the owner flips tk_settings.client_page_drop_enabled (cached as mgb_clientdrop_cache), never in
-    // View as, never for the per-person preview alone. RE-DATE `date` to the launch day when the switch
-    // goes on, because the notice stops showing 60 days after `date`.
-    // Drafts: docs/staff-guide/drafts/staff-guide-client-page-drop.md (guide, tip, What's new, the
-    // client notice text) and supabase/staff-guide-client-page-drop.sql (run at launch only).
+    // Client page drop + Documents upgrades launch, LAUNCHED 2026-10-31: visible only once
+    // tk_settings.client_page_drop_enabled is on with client_page_drop_pilot "all" (cached as
+    // mgb_clientdrop_cache), never in View as, never for the per-person preview alone. `date` is the
+    // launch day, because the notice stops showing 60 days after `date`.
+    // Guide text: docs/staff-guide/drafts/staff-guide-client-page-drop.md (published 2026-10-31) and
+    // supabase/staff-guide-client-page-drop.sql (applied at launch).
     id: "client-page-drop",
-    date: "2026-10-30",
+    date: "2026-10-31",
     title: "Clients can drop files anywhere",
     summary:
       "Clients can now drop a file anywhere in the portal and choose its folder, name and who at their organization can see it. On a client's Documents page, each file's ⋯ renames it, sets who can see it, replaces it, copies a link or shows its history.",

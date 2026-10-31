@@ -1,7 +1,7 @@
 -- Client page drop staff guide rows: six articles, targeted replace() updates, body_md only.
--- NOT APPLIED: apply at launch, when the owner turns tk_settings.client_page_drop_enabled on with
--- client_page_drop_pilot = "all". Before running, replace DATE in the whats-new heading (here and in
--- docs/staff-guide/drafts/staff-guide-client-page-drop.md) with the launch day.
+-- To be applied at launch 2026-10-31 (the launching session applies it right after this commit), when
+-- tk_settings.client_page_drop_enabled is on with client_page_drop_pilot = "all". The whats-new heading
+-- carries the launch day, 2026-10-31.
 -- Articles: add-documents, client-portal, google-drive-files, client-tour, tips, whats-new.
 -- Each update swaps an anchor of the live row for the new text, only when the row does not already contain
 -- the marker (a re-run is a no-op); the DO block raises (and rolls back) when a row is missing, an anchor moved,
@@ -108,7 +108,7 @@ $a$ in (select body_md from public.staff_guide where slug = 'whats-new')) = 0 th
 
 $a$, $n$so a tour is never lost once its notice is gone.
 
-### DATE: Clients can drop files anywhere
+### 2026-10-31: Clients can drop files anywhere
 - **Clients drop a file on any page** of their portal (or tap **+ Add a file** on a phone), then pick a folder, a name, and who at their organization can see it: everyone, only some people, or everyone except some people. MyGoodBooks staff always see every file. Uploads show on the Desk's Inbox like any client file.
 - **On a client's Documents page**, each file's **⋯** has **Rename**, **Who can see it**, **Replace with a new version**, **Copy link** and **History**. Tick several files to move them together, and **✎** renames a folder. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).
 

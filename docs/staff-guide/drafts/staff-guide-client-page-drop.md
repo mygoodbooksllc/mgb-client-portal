@@ -1,6 +1,6 @@
 # Client page drop + Documents upgrades: DRAFT guide text
 
-Draft for the hidden build (per-person preview `mgb_clientdrop_preview`, Developer tools › Feature flags › **Client page drop + Documents upgrades preview**; owner-only firm switch `tk_settings.client_page_drop_enabled` plus `client_page_drop_pilot`). **Not published**: nothing below is in `docs/staff-guide/*.md` or the `staff_guide` table yet. Publish at launch, when the owner turns the switch on with the pilot set to `"all"`. Spec: `docs/client-page-drop.md`.
+Draft for the hidden build (per-person preview `mgb_clientdrop_preview`, Developer tools › Feature flags › **Client page drop + Documents upgrades preview**; owner-only firm switch `tk_settings.client_page_drop_enabled` plus `client_page_drop_pilot`). **Published 2026-10-31**: the text below went into `docs/staff-guide/*.md` and the `staff_guide` table at launch, when the switch went on with the pilot set to `"all"`. Spec: `docs/client-page-drop.md`.
 
 Already in the code, shown only while the feature is on for that person:
 
@@ -10,7 +10,7 @@ Already in the code, shown only while the feature is on for that person:
 
 Launch day:
 
-1. Change the `client-page-drop` entry's `date` in `components/tour/announcements.js`, and the `### DATE:` heading below and in `supabase/staff-guide-client-page-drop.sql`, to the day you flip the switch.
+1. Change the `client-page-drop` entry's `date` in `components/tour/announcements.js`, and the `### 2026-10-31:` heading below and in `supabase/staff-guide-client-page-drop.sql`, to the day you flip the switch.
 2. Paste each "Ready to paste" block into the live file named, and run `supabase/staff-guide-client-page-drop.sql` (upserts only, guarded; a re-run is a no-op).
 3. Add `drop anywhere, add a file, who can see it, only these people, everyone except, rename file, replace file, copy link, file history, move several files, rename folder` to the keywords of `add-documents.md`, and `who can see it, only some people, add a file` to `client-portal.md`.
 4. Send the client notice (below) the way the owner prefers: the portal has no client next-visit notice, so it goes in the monthly summary or a message.
@@ -92,7 +92,7 @@ Same limits as the Documents page: up to 10 files, 25 MB each, PDF, images, CSV,
 ### docs/staff-guide/whats-new.md: new top entry
 
 ````markdown
-### DATE: Clients can drop files anywhere
+### 2026-10-31: Clients can drop files anywhere
 - **Clients drop a file on any page** of their portal (or tap **+ Add a file** on a phone), then pick a folder, a name, and who at their organization can see it: everyone, only some people, or everyone except some people. MyGoodBooks staff always see every file. Uploads show on the Desk's Inbox like any client file.
 - **On a client's Documents page**, each file's **⋯** has **Rename**, **Who can see it**, **Replace with a new version**, **Copy link** and **History**. Tick several files to move them together, and **✎** renames a folder. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).
 
