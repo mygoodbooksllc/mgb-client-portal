@@ -1300,7 +1300,9 @@ async function syncClient(
       if (recent.itemsError) counts.transactions_items_error = 1;
       if (recent.failed.length) {
         const fe = recent.firstError;
-        const why = fe instanceof IntuitError ? fe.message : "an internal error";
+        // status 0: recent_activity.ts could not read the reply's shape; its
+        // message names only the entity, never response data.
+        const why = fe instanceof IntuitError || fe?.status === 0 ? fe.message : "an internal error";
         notes.push(
           `Synced, but QuickBooks refused recent activity for ${recent.failed.join(", ")} (${why}); ` +
             "those show the last good pull.",

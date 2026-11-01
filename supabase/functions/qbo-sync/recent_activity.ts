@@ -81,16 +81,37 @@ export const SPLIT_MARK = "-Split-";
 // always kept (until they leave the window).
 export const PAYROLL_LABELS = ["Payroll Check", "Tax Payment", "Payroll Adjustment"];
 
+// The QueryResponse key a query's rows come back under, when it is not the
+// entity name. `select * from CreditCardPayment` answers with
+// {"QueryResponse":{"CreditCardPaymentTxn":[...]}} (seen on production
+// 2026-11-01); reading only "CreditCardPayment" took 15 real card payments
+// for "none" and wiped them.
+export const RESPONSE_KEYS: Record<string, string[]> = {
+  CreditCardPayment: ["CreditCardPaymentTxn", "CreditCardPayment"],
+};
+
 // A query reply must carry QueryResponse (Intuit sends {"QueryResponse":{}}
 // for a truly empty result). Anything else is not an answer: treating it as
-// "no transactions" would wipe that type's stored rows.
-function queryList(res: any, entity: string, what: string): any[] {
+// "no transactions" would wipe that type's stored rows. The same goes for a
+// QueryResponse whose rows sit under a key we don't expect (another array,
+// or a totalCount above 0 with no list we know): that is a shape we can't
+// read, so the type fails and its stored rows are kept. totalCount is only
+// trusted on the first page: the empty page after an exactly-full one may
+// still carry the total.
+export function queryList(res: any, entity: string, what: string, firstPage = true): any[] {
   const qr = res?.QueryResponse;
   if (!qr || typeof qr !== "object" || Array.isArray(qr)) {
     throw Object.assign(new Error(`${what}: QuickBooks sent a reply with no QueryResponse`), { status: 0 });
   }
-  const list = qr[entity];
-  return Array.isArray(list) ? list : [];
+  for (const key of RESPONSE_KEYS[entity] || [entity]) {
+    if (Array.isArray(qr[key])) return qr[key];
+  }
+  const unknownList = Object.keys(qr).some((k) => Array.isArray(qr[k]));
+  const counted = firstPage && typeof qr.totalCount === "number" && qr.totalCount > 0;
+  if (unknownList || counted) {
+    throw Object.assign(new Error(`${what}: QuickBooks sent rows under an unexpected key`), { status: 0 });
+  }
+  return [];
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -316,6 +337,8 @@ export function mapRecentTxn(entity: string, t: any, ctx: RecentCtx): any | null
       break;
     }
     case "CreditCardPayment": {
+      // Rows arrive as CreditCardPaymentTxn (see RESPONSE_KEYS); fields are
+      // Amount, BankAccountRef, CreditCardAccountRef, optional VendorRef.
       txnType = "Credit Card Payment";
       account = refName(ctx, t.BankAccountRef);
       split = refName(ctx, t.CreditCardAccountRef);
@@ -465,7 +488,7 @@ export async function pullRecentActivity(
           recentQuery(entity, start, end, 1 + page * RECENT_PAGE_SIZE),
           `${entity} query`,
         );
-        const rows = queryList(res, entity, `${entity} query`);
+        const rows = queryList(res, entity, `${entity} query`, page === 0);
         got.push(...rows);
         if (rows.length < RECENT_PAGE_SIZE) break;
         if (page === RECENT_MAX_PAGES - 1) truncated.push(entity);
@@ -491,7 +514,7 @@ export async function pullRecentActivity(
       for (let page = 0; page < RECENT_MAX_PAGES; page++) {
         calls++;
         const res = await fetchQuery(itemQuery(1 + page * RECENT_PAGE_SIZE), "Item query");
-        const list = queryList(res, "Item", "Item query");
+        const list = queryList(res, "Item", "Item query", page === 0);
         items.push(...list);
         if (list.length < RECENT_PAGE_SIZE) break;
       }

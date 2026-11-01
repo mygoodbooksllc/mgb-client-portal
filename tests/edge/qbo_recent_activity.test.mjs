@@ -218,3 +218,54 @@ test("merge drops stale labels with no Query API twin, and Ids already fresh", (
   assert.deepEqual(m.rows.map((r) => r.qbo_id).sort(), ["1", "3", "4"]);
   assert.equal(m.kept, 2);
 });
+
+// Production 2026-11-01: `select * from CreditCardPayment` answers with the
+// rows under QueryResponse.CreditCardPaymentTxn. Reading only
+// "CreditCardPayment" treated 15 card payments as none and wiped them.
+test("CreditCardPayment rows come back under CreditCardPaymentTxn and are read", async () => {
+  const ccp = (id, d) => ({ Id: id, TxnDate: d, Amount: 300, BankAccountRef: { value: "1" }, CreditCardAccountRef: { value: "2" }, VendorRef: { name: "Bank" } });
+  const r = await R.pullRecentActivity(fakeFetch((q) => {
+    if (entityOf(q) === "CreditCardPayment") {
+      return { QueryResponse: { CreditCardPaymentTxn: [ccp("70", "2026-08-23"), ccp("71", "2026-10-27")], startPosition: 1, maxResults: 2, totalCount: 2 } };
+    }
+    return { QueryResponse: {} };
+  }), ACCOUNTS, "2026-08-02", "2026-10-31");
+  assert.deepEqual(r.failed, []);
+  assert.ok(r.covered.has("Credit Card Payment"));
+  const got = r.rows.filter((x) => x.txn_type === "Credit Card Payment");
+  assert.deepEqual(got.map((x) => x.qbo_id).sort(), ["70", "71"]);
+  assert.deepEqual([got[0].account_name, got[0].split_account, got[0].amount, got[0].name], ["Checking", "Visa", -300, "Bank"]);
+  // Still read if Intuit ever answers under the entity name itself.
+  assert.equal(R.queryList({ QueryResponse: { CreditCardPayment: [ccp("72", "2026-10-01")] } }, "CreditCardPayment", "q").length, 1);
+});
+
+test("rows under an unexpected key fail the type (stored rows kept) instead of reading as none", async () => {
+  const r = await R.pullRecentActivity(fakeFetch((q) => {
+    if (entityOf(q) === "Transfer") return { QueryResponse: { TransferTxn: [{ Id: "80", TxnDate: "2026-10-01" }], startPosition: 1, maxResults: 1 } };
+    if (entityOf(q) === "Deposit") return { QueryResponse: { totalCount: 3 } };
+    return { QueryResponse: {} };
+  }), ACCOUNTS, "2026-08-02", "2026-10-31");
+  assert.deepEqual(r.failed.sort(), ["Deposit", "Transfer"]);
+  assert.ok(!r.covered.has("Transfer") && !r.covered.has("Deposit") && r.covered.has("Expense"));
+  assert.match(String(r.firstError.message), /unexpected key/);
+  const m = R.mergeRecentRows(r.rows, [{ qbo_id: "80", txn_type: "Transfer", txn_date: "2026-10-01" }], r.covered, "2026-08-02", "2026-10-31");
+  assert.equal(m.kept, 1);
+  // A genuinely empty reply (no list, no count, or totalCount 0) is still "none".
+  assert.deepEqual(R.queryList({ QueryResponse: {} }, "Transfer", "q"), []);
+  assert.deepEqual(R.queryList({ QueryResponse: { totalCount: 0 } }, "Transfer", "q"), []);
+});
+
+test("an exactly-full page then an empty page carrying totalCount is not a failure", async () => {
+  const many = Array.from({ length: 1000 }, (_, i) => ({ Id: String(i + 1), TxnDate: "2026-10-01", Amount: 1, BankAccountRef: { value: "1" }, CreditCardAccountRef: { value: "2" } }));
+  const r = await R.pullRecentActivity(fakeFetch((q) => {
+    if (entityOf(q) === "CreditCardPayment") {
+      return posOf(q) === 1
+        ? { QueryResponse: { CreditCardPaymentTxn: many, startPosition: 1, maxResults: 1000, totalCount: 1000 } }
+        : { QueryResponse: { startPosition: 1001, maxResults: 0, totalCount: 1000 } };
+    }
+    return { QueryResponse: {} };
+  }), ACCOUNTS, "2026-08-02", "2026-10-31");
+  assert.deepEqual(r.failed, []);
+  assert.equal(r.rows.filter((x) => x.txn_type === "Credit Card Payment").length, 1000);
+  assert.ok(r.covered.has("Credit Card Payment"));
+});
