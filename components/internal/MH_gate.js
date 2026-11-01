@@ -2,8 +2,9 @@
 // MH_gate: the one gate for MGB Home (docs/mgb-home-spec.md section 6), the
 // firm's own home for the internal client (MyGoodBooks, clients.id
 // 'mygoodbooks'): the rail label "MGB Home", its header and tab row, the
-// #/internal/<tab> routes, the Home cards, Profitability and Pricing & fees,
-// the ⌘K entries, its tour and notice, and the Team › Hours money hand-off.
+// #/internal/<tab> routes, the Home cards, Profitability, Pricing & fees,
+// Overhead, the ⌘K entries, its tour and notice, and the Team › Hours money
+// hand-off.
 //
 //   MH_on()               = localStorage mgb_home_preview === "1"
 //                           OR tk_settings.mgb_home_enabled is true
@@ -173,14 +174,16 @@ function MH_useCanOpen(real, imp) {
 
 // ---------------------------------------------------------------------------
 // Pages and routes (app.jsx parseHashRoute / buildHashRoute / effectivePage).
-// MGB Home is still the internal client: its own three pages plus the Firm
+// MGB Home is still the internal client: its own four pages plus the Firm
 // books menu, which regroups the internal client's existing pages unchanged.
-// Overhead, Cost rates and Capacity are later slices (not built, no route).
+// Overhead came in S2; Cost rates and Capacity are later slices (not built,
+// no route).
 // ---------------------------------------------------------------------------
 var MH_TABS = [
   { key: "mgb-home", slug: "", label: "Home", tour: "mh-tab-home" },
   { key: "mgb-profitability", slug: "profitability", label: "Profitability", tour: "mh-tab-profit" },
   { key: "mgb-pricing", slug: "pricing", label: "Pricing & fees", tour: "mh-tab-pricing" },
+  { key: "mgb-overhead", slug: "overhead", label: "Overhead", tour: "mh-tab-overhead" },
 ];
 // #/internal/books/<slug> -> an existing page key. Labels are for the Firm
 // books menu; "fin" marks the Finances group (shown only when the internal

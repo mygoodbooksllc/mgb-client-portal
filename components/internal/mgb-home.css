@@ -75,3 +75,49 @@
 .mh-warn {
   color: var(--bad);
 }
+
+/* Overhead (S2): month bars. */
+.mh-oh-trend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.mh-oh-month {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.mh-oh-month-label {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.mh-oh-bar-track {
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.mh-oh-bar {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: var(--gold);
+}
+.mh-oh-month-val {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+@media (max-width: 560px) {
+  .mh-oh-month {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+  .mh-oh-month-val {
+    grid-column: 2;
+    text-align: left;
+  }
+}

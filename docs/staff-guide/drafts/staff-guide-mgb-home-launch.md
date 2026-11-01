@@ -1,4 +1,4 @@
-# MGB Home: launch notes (S1)
+# MGB Home: launch notes (S1, S2)
 
 MGB Home (spec: `docs/mgb-home-spec.md`) is hidden behind the per-person preview `mgb_home_preview` (Developer tools › Feature flags › MGB Home preview, shown only to admins with the MGB (internal) grant) and the owner-only firm switch `tk_settings.mgb_home_enabled`. Code never writes the switch.
 
@@ -14,4 +14,10 @@ Deliberately NOT in the public What's new: any line naming MGB Home. Admins with
 
 1. Change the `mgb-home` entry's `date` in `components/tour/announcements.js` to the launch day (the notice stops 60 days after `date`).
 2. Nothing else in the public guide changes. Do not add MGB Home to `admin-insight`, `mgb-internal`, `team-page` or `whats-new`: those are readable without the grant.
-3. Later slices (Overhead, Cost rates, Capacity) update `docs/staff-guide/mgb-home.md` with the md5-guarded staff_guide pattern.
+3. Later slices (Cost rates, Capacity) update `docs/staff-guide/mgb-home.md` with the md5-guarded staff_guide pattern.
+
+## S2 Overhead (2026-10-31)
+
+- Live now for everyone (not gated, neutral wording): the clock-in customer **My Good Books (Clock-in Option)** is mapped to the internal client, so its time leaves client and Unmapped hours for every admin. Public guide lines in `firm-quickbooks` and `whats-new` say only that; they never name MGB Home, Overhead or cost.
+- Gated (grant holders only): the `mgb-home` article's Overhead section and fourth Home card, the `ann-mh-overhead` step in the `mgb-home` notice, the ⌘K row and the `mgb-overhead` page. The internal mapping row is hidden from, and can't be changed by, admins without the grant.
+- If other QuickBooks customers are internal time too, the owner maps them to MGB (internal) on the mapping page; Overhead picks them up with no code change.

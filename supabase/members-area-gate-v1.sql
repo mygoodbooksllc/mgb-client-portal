@@ -115,7 +115,7 @@ language sql
 immutable
 set search_path = public
 as $$
-  select p_key in ('client_request_enabled', 'client_request_pilot', 'standard_set_live',
+  select p_key in ('mgb_home_enabled', 'client_request_enabled', 'client_request_pilot', 'standard_set_live',
                    'late_tasks_count_against_staff', 'late_tasks_effective_from',
                    'wb_enabled', 'desk_app_enabled', 'nav_enabled', 'lato_enabled',
                    'month_rhythm_enabled', 'slate_app_enabled',

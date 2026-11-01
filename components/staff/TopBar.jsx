@@ -92,6 +92,7 @@ const TB_HELP_FOR_PAGE = {
   "mgb-home": "mgb-home",
   "mgb-profitability": "mgb-home",
   "mgb-pricing": "mgb-home",
+  "mgb-overhead": "mgb-home",
 };
 // Articles only admins can read (audience: admin in the guide); a bookkeeper
 // on one of those pages gets no "Help for this page".
@@ -405,6 +406,7 @@ function TB_pageRows(ctx, onOpenSettings) {
     [
       ["internal/profitability", "MGB Home › Profitability", "Fees, cost and margin by client"],
       ["internal/pricing", "MGB Home › Pricing & fees", "Fee list, Master Data sync and milestone tiers"],
+      ["internal/overhead", "MGB Home › Overhead", "Internal hours and their cost"],
       ["internal/books/close", "MGB Home › Firm books", "The firm's own close, reports and bank"],
     ].forEach(([slug, title, sub]) => rows.push({ key: "p:" + slug, title, sub, go: () => TB_go("#/" + slug) }));
   }

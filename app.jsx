@@ -1037,7 +1037,7 @@ const FEATURE_FLAGS = [
     key: "mgb_home_preview",
     label: "MGB Home preview",
     description:
-      "Turns on for you only, in this browser, while the firm-wide mgb_home_enabled switch is off, MGB Home: the internal workspace gets its own header and tabs (Home, Profitability, Pricing & fees, Firm books), and fees, margin and staff cost move there from Team › Hours. Only admins with the MGB (internal) permission. Off in View as. The page reloads when you toggle it.",
+      "Turns on for you only, in this browser, while the firm-wide mgb_home_enabled switch is off, MGB Home: the internal workspace gets its own header and tabs (Home, Profitability, Pricing & fees, Overhead, Firm books), and fees, margin and staff cost move there from Team › Hours. Only admins with the MGB (internal) permission. Off in View as. The page reloads when you toggle it.",
     reloads: true,
     internalOnly: true,
   },
@@ -15708,7 +15708,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["client_page_drop_enabled", "Client page drop + who can see a file (owner only)", "Launched 2026-10-31: on (true) with the pilot set to \"all\". Off (or missing): clients drop files only on Documents and Basic Home as before, every file is seen by everyone at the client, and drive-files refuses any who-can-see rule. Staff with the Client page drop preview flag try it alone (View as is a demo that never uploads). Owner sets it with one SQL line, never from here, together with client_page_drop_pilot: when on, then those clients can drop a file anywhere in the portal (Add a file on phones), name it, pick a folder and type, and choose Everyone, Only these people or Everyone except; staff Documents get the upgrades for everyone. Off again: the rules already saved still apply, no new ones can be set."],
             ["client_page_drop_pilot", "Client page drop: which clients", "Launched 2026-10-31 with \"all\". Owner only. \"all\" or a list of client ids. Missing or empty = no client, even with the switch on. Read by the database (cpd__on) and by the portal; code never writes it."],
             // internalOnly (4th item): only for an admin with the MGB (internal) grant.
-            ["mgb_home_enabled", "MGB Home for admins with MGB (internal) access (owner only)", "Off (or missing, the default): only people with the MGB Home preview flag see MGB Home, and the other admins with MGB (internal) access keep fees and margin on Team › Hours. On (true): every admin with MGB (internal) access gets MGB Home (header, tabs, Home cards, Profitability, Pricing & fees, Firm books) and the money leaves Team › Hours for them too. Nobody without the MGB (internal) permission ever sees it either way. Owner turns it on (true) with one SQL line, never from here (see the README MGB Home launch checklist).", true],
+            ["mgb_home_enabled", "MGB Home for admins with MGB (internal) access (owner only)", "Off (or missing, the default): only people with the MGB Home preview flag see MGB Home, and the other admins with MGB (internal) access keep fees and margin on Team › Hours. On (true): every admin with MGB (internal) access gets MGB Home (header, tabs, Home cards, Profitability, Pricing & fees, Overhead, Firm books) and the money leaves Team › Hours for them too. Nobody without the MGB (internal) permission ever sees it either way. Owner turns it on (true) with one SQL line, never from here (see the README MGB Home launch checklist).", true],
             ["client_upload_notify_enabled", "Email the account manager on a client upload", "Off (or missing, the default; not set at the 2026-10-31 launch unless the owner asked): a client's upload shows only in the Desk Inbox New file list. On (true): the client's account manager also gets the usual \"added a document\" email, only for clients the client page drop is on for, only for uploads by a client login. Owner sets it; never from here."],
             ["agreements_client_enabled", "Client agreements on for clients", "Off (or missing, the default): clients see no Agreements card at all; staff still add and edit agreements on each client's Documents tab, and the card there says clients don't see them yet. Owner turns it on (true) with one SQL line, never from here: then each client sees, read only, the agreements staff marked Visible to client (never the staff note). Off again hides them. Nothing is emailed and nothing can be signed either way."],
             ["org_gift_basis", "Client gifts: anniversary to follow", "Which anniversary Team › Client gifts and the weekly digest follow, for the whole firm: established (the founding date, the default; not set means this; Client since is used for clients whose founding date is Not sure or blank) or client_since (Client since, when an admin picks it). Admins change it on Team › Client gifts › Anniversary to follow (every change audited; the database refuses any other value)."],
@@ -27421,6 +27421,7 @@ const PAGE_META = {
   // Usage Stats never returns these rows without the MGB (internal) grant
   // (the internal company lock).
   "mgb-home": { title: "MGB Home", subtitle: "MyGoodBooks · internal, admins with access only", internalOnly: true },
+  "mgb-overhead": { title: "MGB Home › Overhead", subtitle: "MyGoodBooks · internal, admins with access only", internalOnly: true },
   "mgb-profitability": { title: "MGB Home › Profitability", subtitle: "MyGoodBooks · internal, admins with access only", internalOnly: true },
   "mgb-pricing": { title: "MGB Home › Pricing & fees", subtitle: "MyGoodBooks · internal, admins with access only", internalOnly: true },
   // Label only (Usage Stats): the retired MGB Desk window (/desk, deleted in Slate app S5; /desk now redirects to /slate).
@@ -28021,7 +28022,7 @@ function parseHashRoute(hash) {
   }
   // #/internal: MGB (internal), MyGoodBooks' own workspace. Opens like a bare
   // #/client/<id>; App refuses it for anyone without the grant (lands on
-  // Today, no hint). MGB Home adds #/internal/profitability, /pricing and
+  // Today, no hint). MGB Home adds #/internal/profitability, /pricing, /overhead and
   // /books/<tab> (MH_pageFromPath); an unknown sub-path lands like a bare open.
   if (parts[0] === "internal") {
     const ic = STAFF_internalClient();
@@ -31568,7 +31569,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               Replaces the client sidebar on desktop (html.staff-client-tabs). */}
           {/* MGB Home replaces the client row on the internal client
               (components/internal/MgbHome.jsx): Home, Profitability,
-              Pricing & fees, the Firm books menu, the lock and the gear. */}
+              Pricing & fees, Overhead, the Firm books menu, the lock and
+              the gear. */}
           {mhHere && !isPreviewingUser && typeof MH_TabRow === "function" && (
             <MH_TabRow
               page={effectivePage}
@@ -31774,6 +31776,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               only names them when mhHere (MH_canOpen on the internal client). */}
           {mhHere && effectivePage === "mgb-home" && typeof MH_HomePage === "function" && (
             <MH_HomePage clients={rosterClients} onSelectPage={setPage} />
+          )}
+          {mhHere && effectivePage === "mgb-overhead" && typeof MH_OverheadPage === "function" && (
+            <MH_OverheadPage />
           )}
           {mhHere && effectivePage === "mgb-profitability" && typeof MH_ProfitabilityPage === "function" && (
             <MH_ProfitabilityPage clients={rosterClients} />

@@ -1298,6 +1298,17 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   (`internalOnly`). The `mgb-home` guide article is restricted like `profitability`; the launch notice
   (`ANN_mgbHomeLaunchOn`) and tour wording (`TOUR_mhOwnsMoney`) show only to grant holders. Launch notes:
   `docs/staff-guide/drafts/staff-guide-mgb-home-launch.md`. Overhead, Cost rates and Capacity are later slices.
+- **MGB Home, slice S2 Overhead (2026-10-31, SQL `supabase/mgb-home-s2.sql`, tests in `mgb-home-tests.sql`):**
+  `#/internal/overhead` (`MH_OverheadPage`, pure logic `components/internal/MH_overhead.js` + `MH_overhead.test.js`)
+  and a fourth Home card read `internal_hours(p_from, p_to)` (SECURITY DEFINER; 42501 unless
+  `is_active_staff_admin()` and `can_view_internal()`; range at most 1100 days). It sums QuickBooks Time minutes on
+  customers resolved to an internal client (`qbo_internal_customers()`), costed at each person's loaded rate on the
+  day, else the average of the latest rates (flagged estimated). Cost only, no revenue. The clock-in customer
+  **My Good Books (Clock-in Option)** is mapped to `mygoodbooks`; `qbo_hours_by_client` / `qbo_hours_by_staff` drop
+  internal customers from client and Unmapped hours for everyone, and `qbo_set_customer_mapping` refuses changes to
+  an internal row without the grant. Also: `mgb_home_enabled` is back in `tk__owner_only_key`, and the
+  `usage_events_mh_internal` trigger files `mgb-*` page events under the internal client so the company lock hides
+  them. Categories are a keyword guess (`MH_ohCategory`); most clock-in time has no description.
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
   (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page

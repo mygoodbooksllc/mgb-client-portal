@@ -1881,7 +1881,7 @@ var ANN_REGISTRY = [
     date: "2026-10-31",
     title: "MGB Home",
     summary:
-      "MGB (internal) is now MGB Home: the firm's margin, fees, Master Data sync and our own books in one place. Team › Hours now shows hours only.",
+      "MGB (internal) is now MGB Home: the firm's margin, fees, internal time, Master Data sync and our own books in one place. Team › Hours now shows hours only.",
     roles: ["admin"],
     hash: "#/internal",
     visible: (ctx) => ANN_mgbHomeLaunchOn(ctx),
@@ -1901,7 +1901,7 @@ var ANN_REGISTRY = [
         wait: true,
         title: "Home",
         body: () =>
-          "Three cards: margin this month against the target, the last Master Data sync and unmatched rows, and last month's close for our own books. Each card opens its page.",
+          "Four cards: margin this month against the target, the last Master Data sync and unmatched rows, last month's close for our own books, and this month's internal hours and their cost. Each card opens its page.",
       },
       {
         id: "ann-mh-profit",
@@ -1924,6 +1924,17 @@ var ANN_REGISTRY = [
         title: "Pricing & fees",
         body: () =>
           "Every client's fee, where it comes from and the gap to their milestone fee, with the Master Data sync and the unmatched rows below.",
+      },
+      {
+        id: "ann-mh-overhead",
+        go: () => {
+          if (!/^#\/internal\/overhead(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/internal/overhead";
+        },
+        targets: ["mh-overhead"],
+        wait: true,
+        title: "Overhead",
+        body: () =>
+          "Time logged to the firm itself (the clock-in customer in QuickBooks Time): hours and cost by month, by person and by category, and the top descriptions. Pick a period at the top; CSV downloads it.",
       },
       {
         id: "ann-mh-books",

@@ -37,11 +37,12 @@ t("routes: #/internal sub-paths map to MGB Home pages and Firm books pages", () 
   assert.strictEqual(P.MH_pageFromPath([]), null);
   assert.strictEqual(P.MH_pageFromPath(["profitability"]), "mgb-profitability");
   assert.strictEqual(P.MH_pageFromPath(["pricing"]), "mgb-pricing");
+  assert.strictEqual(P.MH_pageFromPath(["overhead"]), "mgb-overhead");
   assert.strictEqual(P.MH_pageFromPath(["books", "close"]), "client-close");
   assert.strictEqual(P.MH_pageFromPath(["books", "overview"]), "client-overview");
   assert.strictEqual(P.MH_pageFromPath(["books", "finances"]), "dashboard");
   // Later slices are not routes yet; unknown lands like a bare open.
-  ["overhead", "costs", "capacity", "nope", ""].forEach((x) => assert.strictEqual(P.MH_pageFromPath([x]), null, x));
+  ["costs", "capacity", "nope", ""].forEach((x) => assert.strictEqual(P.MH_pageFromPath([x]), null, x));
   assert.strictEqual(P.MH_pageFromPath(["books"]), null);
   assert.strictEqual(P.MH_pageFromPath(["books", "messages"]), null);
 });
@@ -59,7 +60,9 @@ t("routes: every page builds the hash that parses back to it", () => {
     assert.strictEqual(P.MH_pageFromPath(["books", b.slug]), b.page);
   });
   ["client-settings", "messages", "milestone", "today", null].forEach((p) => assert.strictEqual(P.MH_hashFor(p), null));
-  assert.ok(P.MH_isPage("mgb-pricing") && !P.MH_isPage("client-close") && !P.MH_isPage("mgb-overhead"));
+  assert.ok(P.MH_isPage("mgb-pricing") && !P.MH_isPage("client-close") && P.MH_isPage("mgb-overhead") && !P.MH_isPage("mgb-capacity"));
+  assert.deepStrictEqual(P.MH_TABS.map((x) => x.key), ["mgb-home", "mgb-profitability", "mgb-pricing", "mgb-overhead"]);
+  assert.strictEqual(P.MH_hashFor("mgb-overhead"), "#/internal/overhead");
 });
 
 t("moved line: shows for 30 days from the first time, then never", () => {

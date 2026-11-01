@@ -1,14 +1,19 @@
 // ----------------------------------------------------------------------------
-// MGB Home, slice S1 (docs/mgb-home-spec.md): the firm's own home on the
-// internal client (MyGoodBooks). app.jsx renders these only when mhHere
+// MGB Home, slices S1 + S2 (docs/mgb-home-spec.md): the firm's own home on
+// the internal client (MyGoodBooks). app.jsx renders these only when mhHere
 // (MH_canOpen on the internal client, components/internal/MH_gate.js):
 //
-//   MH_TabRow             Home · Profitability · Pricing & fees, then the
-//                         Firm books ▾ menu (the internal client's existing
-//                         pages, regrouped), the lock and the gear.
-//   MH_HomePage           #/internal: three cards (margin this month vs
+//   MH_TabRow             Home · Profitability · Pricing & fees · Overhead,
+//                         then the Firm books ▾ menu (the internal client's
+//                         existing pages, regrouped), the lock and the gear.
+//   MH_HomePage           #/internal: four cards (margin this month vs
 //                         target, Master Data sync, Firm books close + last
-//                         QuickBooks sync). Overhead is a later slice.
+//                         QuickBooks sync, overhead hours this month).
+//   MH_OverheadPage       #/internal/overhead (S2): the firm's own time from
+//                         internal_hours() (supabase/mgb-home-s2.sql): hours,
+//                         share and loaded cost by person, category, month
+//                         and description. Cost only, no revenue. Pure logic
+//                         in MH_overhead.js.
 //   MH_ProfitabilityPage  #/internal/profitability: TP_TeamPage mode="profit"
 //                         (clients table with fees, cost and margin, client
 //                         drill, staff cost rates).
@@ -18,7 +23,7 @@
 //
 // Every money piece keeps TP_PF_canSee(effective user) as a second guard and
 // every query behind it is refused server-side without can_view_internal().
-// Overhead, Cost rates and Capacity tabs are later slices: nothing for them.
+// Cost rates and Capacity tabs are later slices: nothing for them.
 //
 // Loaded after TeamPage.jsx / TeamProfit.jsx and before app.jsx; shares the
 // global scope, so top-level names carry the MH_ prefix and app.jsx globals
@@ -237,6 +242,8 @@ function MH_HomePage({ clients, onSelectPage }) {
   const profit = TP_PF_useProfit(canMoney, monthRange, 0);
   const qbo = TP_useQboStatus();
   const qboOn = !!qbo.available;
+  const ohRange = useMemo(() => MH_ohRange("month"), []);
+  const oh = MH_useInternalHours(canMoney, ohRange);
   const [sync, setSync] = useState({ loading: true });
   const [books, setBooks] = useState({ loading: true });
   const internal = typeof STAFF_internalClient === "function" ? STAFF_internalClient() : null;
@@ -369,7 +376,268 @@ function MH_HomePage({ clients, onSelectPage }) {
               : "QuickBooks isn't connected for the firm."}
           </p>
         </MH_Card>
+        <MH_Card title="Overhead this month" go={() => onSelectPage("mgb-overhead")} goLabel="Overhead">
+          {oh.loading ? (
+            <p className="tp-muted">Loading…</p>
+          ) : oh.error || !oh.data ? (
+            <p className="tp-muted">Couldn't load overhead hours.</p>
+          ) : (
+            <>
+              <p className="mh-big">
+                <b>{MH_ohHours(oh.data.totals && oh.data.totals.minutes)}</b> hours
+                {MH_ohPct(oh.data.totals && oh.data.totals.minutes, oh.data.totals && oh.data.totals.all_minutes) != null && (
+                  <span className="tp-muted"> · {MH_ohPct(oh.data.totals.minutes, oh.data.totals.all_minutes)}% of all logged hours</span>
+                )}
+              </p>
+              <p className="tp-muted">
+                {oh.data.rates_set ? `Cost ${MH_ohMoney(oh.data.totals && oh.data.totals.cost)}` : "Set staff cost rates to see cost."}
+              </p>
+            </>
+          )}
+          <p className="tp-muted mh-small">The firm's own time in QuickBooks Time, month to date.</p>
+        </MH_Card>
       </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Overhead (S2): the firm's own time, from internal_hours(). Refused
+// server-side without can_view_internal(); `on` false = no request at all.
+// ---------------------------------------------------------------------------
+function MH_useInternalHours(on, range) {
+  const [st, setSt] = useState({ loading: !!on });
+  const from = range && range.from;
+  const to = range && range.to;
+  useEffect(() => {
+    if (!on || !from || !to || typeof TP_qRpc !== "function") {
+      setSt({ loading: false });
+      return undefined;
+    }
+    let alive = true;
+    setSt((s) => ({ ...s, loading: true }));
+    TP_qRpc("internal_hours", { p_from: from, p_to: to }).then((r) => {
+      if (!alive) return;
+      setSt({ loading: false, data: r.error ? null : r.data || null, error: r.error || null, status: r.status });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [on, from, to]);
+  return st;
+}
+
+function MH_ohHours(min) {
+  return typeof TP_fmtHM === "function" ? TP_fmtHM(min || 0) : String(Math.round((min || 0) / 6) / 10);
+}
+function MH_ohMoney(v) {
+  return v == null ? "–" : fmtMoney(Math.round(Number(v)));
+}
+function MH_ohPctLabel(p) {
+  return p == null ? "–" : `${p}%`;
+}
+
+function MH_OverheadPage() {
+  const { canMoney } = MH_useMoneyUser();
+  const [period, setPeriod] = useState("month");
+  const range = useMemo(() => MH_ohRange(period), [period]);
+  const res = MH_useInternalHours(canMoney, range);
+  if (!canMoney) return <MH_NoAccess />;
+
+  const d = res.data;
+  const tot = (d && d.totals) || {};
+  const ratesSet = !!(d && d.rates_set);
+  const people = (d && d.people) || [];
+  const lines = (d && d.lines) || [];
+  const months = d ? MH_ohMonths(d.months, range.from, range.to) : [];
+  const cats = MH_ohCategories(lines);
+  const described = lines.filter((l) => l && l.description).slice(0, 15);
+  const maxMonth = months.reduce((m, x) => Math.max(m, x.minutes || 0), 0);
+  const noDesc = cats.find((c) => c.category === MH_OH_NO_DESC);
+  const noDescPct = noDesc ? MH_ohPct(noDesc.minutes, tot.minutes) : null;
+
+  const csv = () => {
+    if (!d || typeof TP_downloadCsv !== "function") return;
+    TP_downloadCsv(
+      `mgb-overhead-${range.from}-to-${range.to}.csv`,
+      ["Section", "Name", "Item", "Hours", "Share %", "Cost"],
+      [
+        ...people.map((p) => ["Person", p.name || p.staff_email || "", "", (p.minutes / 60).toFixed(2), MH_ohPct(p.minutes, p.all_minutes) ?? "", ratesSet && p.cost != null ? p.cost : ""]),
+        ...cats.map((c) => ["Category", c.category, "", (c.minutes / 60).toFixed(2), MH_ohPct(c.minutes, tot.minutes) ?? "", ratesSet && c.cost != null ? c.cost : ""]),
+        ...months.map((m) => ["Month", m.month.slice(0, 7), "", (m.minutes / 60).toFixed(2), "", ratesSet && m.cost != null ? m.cost : ""]),
+        ...lines.map((l) => ["Line", l.description || MH_OH_NO_DESC, l.item || "", (l.minutes / 60).toFixed(2), MH_ohPct(l.minutes, tot.minutes) ?? "", ratesSet && l.cost != null ? l.cost : ""]),
+      ],
+    );
+  };
+
+  return (
+    <div className="tp-page mh-overhead" data-tour="mh-overhead">
+      <div className="card tp-toolbar-card" style={{ marginBottom: 20 }}>
+        <div className="tp-toolbar">
+          <div className="modal-tabs" style={{ marginTop: 0 }}>
+            {MH_OH_PERIODS.map((p) => (
+              <button key={p.key} type="button" className={"modal-tab" + (period === p.key ? " active" : "")} onClick={() => setPeriod(p.key)}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="btn-secondary" onClick={csv} disabled={!d}>
+            Download CSV
+          </button>
+        </div>
+      </div>
+
+      <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-oh-title">
+        <h3 className="card-title" id="mh-oh-title">Overhead</h3>
+        <p className="card-subtitle">
+          The firm's own time: QuickBooks Time hours on customers matched to MyGoodBooks (internal), such as My Good Books
+          (Clock-in Option), with their cost at each person's loaded cost rate. Cost only; no revenue.
+        </p>
+        {res.loading && !d ? (
+          <p className="tp-muted">Loading…</p>
+        ) : res.error ? (
+          <p className="tp-muted">{typeof TP_qErrorText === "function" ? TP_qErrorText("overhead hours", res.error, res.status) : "Couldn't load overhead hours."}</p>
+        ) : !d ? (
+          <p className="tp-muted">Nothing to show.</p>
+        ) : (
+          <>
+            <div className="tp-stats">
+              <TP_Stat label="Overhead hours" value={MH_ohHours(tot.minutes)} />
+              <TP_Stat label="Share of all logged hours" value={MH_ohPctLabel(MH_ohPct(tot.minutes, tot.all_minutes))} />
+              <TP_Stat label={tot.estimated_minutes ? "Cost (part estimated)" : "Cost"} value={ratesSet ? MH_ohMoney(tot.cost) : "–"} />
+              <TP_Stat label="People" value={String(tot.people || 0)} />
+            </div>
+            {!ratesSet && <p className="tp-muted">Set staff cost rates (Profitability › Staff cost rates) to see cost.</p>}
+            {ratesSet && tot.estimated_minutes > 0 && (
+              <p className="tp-muted mh-small">
+                {MH_ohHours(tot.estimated_minutes)} of these hours ({MH_ohMoney(tot.estimated_cost)}) are costed at the average
+                rate: the person has no cost rate for that date, or isn't matched to a staff member.
+              </p>
+            )}
+            {!tot.minutes && <p className="tp-muted">No internal time in this period.</p>}
+          </>
+        )}
+      </section>
+
+      {d && tot.minutes > 0 && (
+        <>
+          {months.length > 1 && (
+            <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-oh-trend">
+              <h3 className="card-title" id="mh-oh-trend">By month</h3>
+              <div className="mh-oh-trend">
+                {months.map((m) => (
+                  <div className="mh-oh-month" key={m.month}>
+                    <span className="mh-oh-month-label">
+                      {new Date(m.month + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
+                    </span>
+                    <span className="mh-oh-bar-track" aria-hidden="true">
+                      <span className="mh-oh-bar" style={{ width: maxMonth ? `${Math.max(0, (m.minutes / maxMonth) * 100)}%` : 0 }} />
+                    </span>
+                    <span className="mh-oh-month-val">
+                      {MH_ohHours(m.minutes)}
+                      {ratesSet && <span className="tp-muted"> · {MH_ohMoney(m.cost)}</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-oh-people">
+            <h3 className="card-title" id="mh-oh-people">By person</h3>
+            <p className="card-subtitle">Share = this person's internal hours out of everything they logged in the period.</p>
+            <div className="table-scroll">
+              <table className="tx-table tx-table-labeled tp-table">
+                <thead>
+                  <tr>
+                    <th>Person</th>
+                    <th className="num">Hours</th>
+                    <th className="num">Share of their hours</th>
+                    <th className="num">Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {people.map((p) => (
+                    <tr key={p.key}>
+                      <td data-label="Person">
+                        {p.name || p.staff_email || "Unknown"}
+                        {!p.mapped && <span className="tp-muted"> · not matched to staff</span>}
+                      </td>
+                      <td className="num" data-label="Hours">{MH_ohHours(p.minutes)}</td>
+                      <td className="num" data-label="Share of their hours">{MH_ohPctLabel(MH_ohPct(p.minutes, p.all_minutes))}</td>
+                      <td className="num" data-label="Cost">
+                        {ratesSet ? MH_ohMoney(p.cost) : "–"}
+                        {ratesSet && p.estimated && <span className="tp-muted" title="Part costed at the average rate"> *</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-oh-cats">
+            <h3 className="card-title" id="mh-oh-cats">By category</h3>
+            <p className="card-subtitle">
+              Grouped from the service item, or from words in the description when the item is the generic "Hours".
+              {noDescPct != null && noDescPct >= 50 && ` ${noDescPct}% of this time has no description in QuickBooks Time.`}
+            </p>
+            <div className="table-scroll">
+              <table className="tx-table tx-table-labeled tp-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th className="num">Hours</th>
+                    <th className="num">Share</th>
+                    <th className="num">Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cats.map((c) => (
+                    <tr key={c.category}>
+                      <td data-label="Category">{c.category}</td>
+                      <td className="num" data-label="Hours">{MH_ohHours(c.minutes)}</td>
+                      <td className="num" data-label="Share">{MH_ohPctLabel(MH_ohPct(c.minutes, tot.minutes))}</td>
+                      <td className="num" data-label="Cost">{ratesSet ? MH_ohMoney(c.cost) : "–"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {described.length > 0 && (
+            <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-oh-top">
+              <h3 className="card-title" id="mh-oh-top">Top descriptions</h3>
+              <div className="table-scroll">
+                <table className="tx-table tx-table-labeled tp-table">
+                  <thead>
+                    <tr>
+                      <th>Description</th>
+                      <th className="num">Hours</th>
+                      <th className="num">People</th>
+                      <th className="num">Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {described.map((l, i) => (
+                      <tr key={i}>
+                        <td data-label="Description">
+                          {l.description}
+                          {l.item && String(l.item).toLowerCase() !== "hours" && <span className="tp-muted"> · {l.item}</span>}
+                        </td>
+                        <td className="num" data-label="Hours">{MH_ohHours(l.minutes)}</td>
+                        <td className="num" data-label="People">{l.people}</td>
+                        <td className="num" data-label="Cost">{ratesSet ? MH_ohMoney(l.cost) : "–"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 }

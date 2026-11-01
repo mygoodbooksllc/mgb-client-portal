@@ -1,5 +1,6 @@
--- MGB Home S1: tests for mgb-home-s1.sql (and the locks MGB Home relies on).
--- NOT a migration. Run AFTER mgb-home-s1.sql has been applied, in the Supabase
+-- MGB Home S1 + S2: tests for mgb-home-s1.sql, mgb-home-s2.sql (and the locks
+-- MGB Home relies on).
+-- NOT a migration. Run AFTER both have been applied, in the Supabase
 -- SQL editor (or psql as postgres). Everything runs in one transaction that
 -- ends in ROLLBACK, so no fixture survives. A failing check is collected; the
 -- run ends by raising 'mgb-home tests FAILED: ...' listing every failure, or
@@ -200,6 +201,166 @@ begin
   perform pg_temp.chk('staff_last_seen: adm_no never sees an MGB Home page as last view', v not like 'mgb-%' and v not like 'ERR:%', v);
   v := pg_temp.probe(own, format($q$select public.staff_last_seen(%L)->'last_view'->>'page'$q$, own));
   perform pg_temp.chk('staff_last_seen: owner sees own MGB Home last view', v = 'mgb-profitability', v);
+end $$;
+
+-- ===========================================================================
+-- S2 (mgb-home-s2.sql): Overhead. internal_hours(), the internal customers
+-- dropping out of the hours RPCs for every admin, and the mapping lock.
+-- ===========================================================================
+-- Fixtures, all in a test realm, February and March 1999:
+--   customer mh-int  mapped to the internal client
+--   customer mh-cli  mapped to an ordinary roster client
+--   employee mh-e1   mapped to the owner (cost rate 50/hour from 1999-01-01)
+--   employee mh-e2   not mapped to anyone (costed at the average rate, estimated)
+--   t1  mh-e1  mh-int  1999-02-10  120 min  item Hours, "Team meeting"
+--   t2  mh-e1  mh-cli  1999-02-11   60 min
+--   t3  mh-e2  mh-int  1999-03-05   30 min  no description
+--   t4  mh-e1  none    1999-03-06   15 min  (no customer)
+-- Expected for the owner, 1999-02-01..1999-03-31: 150 internal minutes, cost
+-- 100.00 (t1) + 25.00 (t3 at the 50 average, estimated) = 125.00; all minutes
+-- 225; the owner's own share 120 of 195.
+insert into qbo_customer_client_map (realm_id, qbo_customer_id, customer_name, client_id, manual)
+  values ('mh-test-realm-s2', 'mh-int', 'mh-test internal', (select id from clients where is_internal order by id limit 1), true),
+         ('mh-test-realm-s2', 'mh-cli', 'mh-test client',
+          (select id from clients where not coalesce(is_internal, false) and public.is_roster_client_id(id) order by id limit 1), true);
+insert into qbo_employee_staff_map (realm_id, qbo_entity_type, qbo_id, display_name, staff_email, manual)
+  values ('mh-test-realm-s2', 'Employee', 'mh-e1', 'mh-test owner', (select email from _who where k = 'owner'), true);
+insert into staff_cost_rates (staff_email, effective_from, hourly_cost, updated_by)
+  values (lower((select email from _who where k = 'owner')), date '1999-01-01', 50, 'mh-test');
+insert into qbo_time_activities (realm_id, qbo_id, txn_date, minutes, employee_qbo_id, employee_name,
+                                 customer_qbo_id, customer_name, item_name, description, billable_status)
+  values ('mh-test-realm-s2', 'mh-test-s2-1', date '1999-02-10', 120, 'mh-e1', 'mh-test owner', 'mh-int', 'mh-test internal', 'Hours', 'Team meeting', 'NotBillable'),
+         ('mh-test-realm-s2', 'mh-test-s2-2', date '1999-02-11',  60, 'mh-e1', 'mh-test owner', 'mh-cli', 'mh-test client',   'Hours', 'Client work',  'Billable'),
+         ('mh-test-realm-s2', 'mh-test-s2-3', date '1999-03-05',  30, 'mh-e2', 'mh-test helper', 'mh-int', 'mh-test internal', 'Hours', null,           'NotBillable'),
+         ('mh-test-realm-s2', 'mh-test-s2-4', date '1999-03-06',  15, 'mh-e1', 'mh-test owner', null,     null,               null,    null,           'NotBillable');
+
+do $$
+declare
+  own text := (select email from _who where k = 'owner');
+  adm text := (select email from _who where k = 'adm_no');
+  bk  text := (select email from _who where k = 'bk');
+  q   text := $q$select public.internal_hours(date '1999-02-01', date '1999-03-31')::text$q$;
+  v text;
+  j jsonb;
+begin
+  perform pg_temp.chk('S2 fixture: a roster client exists for mh-cli',
+    exists (select 1 from qbo_customer_client_map where qbo_customer_id = 'mh-cli' and client_id is not null));
+
+  -- 1. internal_hours: refused without the grant.
+  v := pg_temp.probe(adm, q);
+  perform pg_temp.chk('internal_hours: refused 42501 for adm_no', v like 'ERR:42501:%', v);
+  v := pg_temp.probe(bk, q);
+  perform pg_temp.chk('internal_hours: refused 42501 for a bookkeeper', v like 'ERR:42501:%', v);
+  v := pg_temp.probe(null, q);
+  perform pg_temp.chk('internal_hours: refused 42501 with no jwt', v like 'ERR:42501:%', v);
+  perform pg_temp.chk('internal_hours: anon has no execute',
+    not has_function_privilege('anon', 'public.internal_hours(date,date)', 'execute'));
+  perform pg_temp.chk('internal_hours: security definer',
+    (select prosecdef from pg_proc where oid = 'public.internal_hours(date,date)'::regprocedure));
+  v := pg_temp.probe(own, $q$select public.internal_hours(date '1999-03-31', date '1999-02-01')::text$q$);
+  perform pg_temp.chk('internal_hours: reversed range refused 22023', v like 'ERR:22023:%', v);
+  v := pg_temp.probe(own, $q$select public.internal_hours(date '1990-01-01', date '1999-03-31')::text$q$);
+  perform pg_temp.chk('internal_hours: range over 3 years refused 22023', v like 'ERR:22023:%', v);
+
+  -- 2. internal_hours for the owner: minutes, cost, share, months, lines.
+  v := pg_temp.probe(own, q);
+  perform pg_temp.chk('internal_hours: runs for owner', v not like 'ERR:%', left(v, 120));
+  if v not like 'ERR:%' then
+    j := v::jsonb;
+    perform pg_temp.chk('internal_hours: total minutes 150', (j->'totals'->>'minutes') = '150', j->'totals'->>'minutes');
+    perform pg_temp.chk('internal_hours: total cost 125.00', (j->'totals'->>'cost')::numeric = 125, j->'totals'->>'cost');
+    perform pg_temp.chk('internal_hours: estimated cost 25.00 (unmapped person at the average)',
+      (j->'totals'->>'estimated_cost')::numeric = 25, j->'totals'->>'estimated_cost');
+    perform pg_temp.chk('internal_hours: estimated minutes 30', (j->'totals'->>'estimated_minutes') = '30', j->'totals'->>'estimated_minutes');
+    perform pg_temp.chk('internal_hours: all minutes 225', (j->'totals'->>'all_minutes') = '225', j->'totals'->>'all_minutes');
+    perform pg_temp.chk('internal_hours: no-customer minutes 15', (j->'totals'->>'no_customer_minutes') = '15', j->'totals'->>'no_customer_minutes');
+    perform pg_temp.chk('internal_hours: 2 people', (j->'totals'->>'people') = '2', j->'totals'->>'people');
+    perform pg_temp.chk('internal_hours: rates_set true', (j->>'rates_set') = 'true', j->>'rates_set');
+    perform pg_temp.chk('internal_hours: owner row 120 of 195, cost 100, not estimated',
+      exists (select 1 from jsonb_array_elements(j->'people') p
+               where p->>'staff_email' = lower(own) and (p->>'minutes') = '120' and (p->>'all_minutes') = '195'
+                 and (p->>'cost')::numeric = 100 and (p->>'estimated') = 'false'),
+      (j->'people')::text);
+    perform pg_temp.chk('internal_hours: unmapped person 30 min, estimated, not mapped',
+      exists (select 1 from jsonb_array_elements(j->'people') p
+               where p->>'name' = 'mh-test helper' and (p->>'minutes') = '30' and (p->>'estimated') = 'true'
+                 and (p->>'mapped') = 'false' and (p->>'cost')::numeric = 25),
+      (j->'people')::text);
+    perform pg_temp.chk('internal_hours: months Feb 120 / Mar 30',
+      jsonb_array_length(j->'months') = 2
+      and (j->'months'->0->>'month') = '1999-02-01' and (j->'months'->0->>'minutes') = '120'
+      and (j->'months'->1->>'month') = '1999-03-01' and (j->'months'->1->>'minutes') = '30',
+      (j->'months')::text);
+    perform pg_temp.chk('internal_hours: 2 lines, top is "Team meeting" 120 min',
+      jsonb_array_length(j->'lines') = 2
+      and (j->'lines'->0->>'description') = 'Team meeting' and (j->'lines'->0->>'minutes') = '120'
+      and (j->'lines'->0->>'item') = 'Hours',
+      (j->'lines')::text);
+    perform pg_temp.chk('internal_hours: no revenue or rate keys in the answer',
+      v not ilike '%revenue%' and v not ilike '%hourly_rate%' and v not ilike '%billable%');
+  end if;
+
+  -- 3. Hours RPCs: internal customers drop out for every admin.
+  v := pg_temp.probe(adm, $q$select sum(total_minutes) from public.qbo_hours_by_client(date '1999-02-01', date '1999-03-31')$q$);
+  perform pg_temp.chk('qbo_hours_by_client: adm_no total excludes internal time (60 + 15)', v = '75', v);
+  v := pg_temp.probe(adm, $q$select count(*) from public.qbo_hours_by_client(date '1999-02-01', date '1999-03-31') where bucket = 'unmapped'$q$);
+  perform pg_temp.chk('qbo_hours_by_client: adm_no sees no unmapped bucket for internal time', v = '0', v);
+  v := pg_temp.probe(own, $q$select sum(total_minutes) from public.qbo_hours_by_client(date '1999-02-01', date '1999-03-31')$q$);
+  perform pg_temp.chk('qbo_hours_by_client: owner gets the same total', v = '75', v);
+  v := pg_temp.probe(adm, $q$select sum(unmapped_customer_minutes) from public.qbo_hours_by_staff(date '1999-02-01', date '1999-03-31')$q$);
+  perform pg_temp.chk('qbo_hours_by_staff: adm_no counts no internal time as unmapped customer', v = '0', v);
+  v := pg_temp.probe(adm, $q$select sum(client_minutes) from public.qbo_hours_by_staff(date '1999-02-01', date '1999-03-31')$q$);
+  perform pg_temp.chk('qbo_hours_by_staff: adm_no client minutes 60', v = '60', v);
+  v := pg_temp.probe(adm, $q$select sum(total_minutes) from public.qbo_hours_by_staff(date '1999-02-01', date '1999-03-31')$q$);
+  perform pg_temp.chk('qbo_hours_by_staff: adm_no still sees every logged minute (225)', v = '225', v);
+  v := pg_temp.probe(own, $q$select sum(unmapped_customer_minutes) from public.qbo_hours_by_staff(date '1999-02-01', date '1999-03-31')$q$);
+  perform pg_temp.chk('qbo_hours_by_staff: owner counts no internal time as unmapped', v = '0', v);
+
+  -- 4. qbo_internal_customers: ids only, admins only.
+  v := pg_temp.probe(adm, $q$select count(*) from public.qbo_internal_customers() where qbo_customer_id = 'mh-int'$q$);
+  perform pg_temp.chk('qbo_internal_customers: answers adm_no (ids only)', v = '1', v);
+  v := pg_temp.probe(bk, $q$select count(*) from public.qbo_internal_customers()$q$);
+  perform pg_temp.chk('qbo_internal_customers: nothing for a bookkeeper', v = '0', v);
+  perform pg_temp.chk('qbo_internal_customers: anon has no execute',
+    not has_function_privilege('anon', 'public.qbo_internal_customers()', 'execute'));
+  v := pg_temp.probe(adm, $q$select count(*) from public.qbo_customer_client_map where qbo_customer_id = 'mh-int'$q$);
+  perform pg_temp.chk('qbo_customer_client_map: internal row still hidden from adm_no', v = '0', v);
+
+  -- 5. qbo_set_customer_mapping: an internal-mapped customer needs the grant.
+  v := pg_temp.probe(adm, $q$select public.qbo_set_customer_mapping('mh-int', null, false, 'mh-test-realm-s2')::text$q$);
+  perform pg_temp.chk('qbo_set_customer_mapping: adm_no reset of internal row refused', v like 'ERR:%', v);
+  v := pg_temp.probe(adm, $q$select public.qbo_set_customer_mapping('mh-int', null, true, 'mh-test-realm-s2')::text$q$);
+  perform pg_temp.chk('qbo_set_customer_mapping: adm_no ignore of internal row refused', v like 'ERR:%', v);
+  v := pg_temp.probe(adm, format($q$select public.qbo_set_customer_mapping('mh-int', %L, false, 'mh-test-realm-s2')::text$q$,
+         (select client_id from qbo_customer_client_map where qbo_customer_id = 'mh-cli')));
+  perform pg_temp.chk('qbo_set_customer_mapping: adm_no remap of internal row refused', v like 'ERR:%', v);
+  perform pg_temp.chk('internal row unchanged after adm_no attempts',
+    exists (select 1 from qbo_customer_client_map m join clients c on c.id = m.client_id and c.is_internal
+             where m.realm_id = 'mh-test-realm-s2' and m.qbo_customer_id = 'mh-int' and not m.ignored and m.manual));
+  v := pg_temp.probe(adm, format($q$select public.qbo_set_customer_mapping('mh-cli', %L, false, 'mh-test-realm-s2')::text$q$,
+         (select client_id from qbo_customer_client_map where qbo_customer_id = 'mh-cli')));
+  perform pg_temp.chk('qbo_set_customer_mapping: adm_no still maps ordinary customers', v not like 'ERR:%', v);
+  v := pg_temp.probe(own, format($q$select public.qbo_set_customer_mapping('mh-int', %L, false, 'mh-test-realm-s2')::text$q$,
+         (select id from clients where is_internal order by id limit 1)));
+  perform pg_temp.chk('qbo_set_customer_mapping: owner can still change the internal row', v not like 'ERR:%', v);
+
+  -- 6. Actions logged on an MGB Home page (client_id null, as MGB_track does)
+  --    land on the internal client, so adm_no never reads them.
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'mgb-overhead', 'action', 'mh-test')$q$);
+  perform pg_temp.chk('usage_events: owner action on an mgb page is logged', v = '1', v);
+  v := pg_temp.probe(adm, $q$select count(*) from public.usage_events where page like 'mgb-%'$q$);
+  perform pg_temp.chk('usage_events: adm_no reads no mgb-* row (views or actions)', v = '0', v);
+  v := pg_temp.probe(own, $q$select count(*) from public.usage_events where page = 'mgb-overhead' and detail = 'mh-test'$q$);
+  perform pg_temp.chk('usage_events: owner reads the action', v = '1', v);
+  perform pg_temp.chk('usage_events: no mgb-* row without a client',
+    not exists (select 1 from usage_events where page like 'mgb-%' and client_id is null));
+
+  -- 7. The live clock-in customer is mapped to the internal client (spec OQ5).
+  perform pg_temp.chk('live: "My Good Books (Clock-in Option)" maps to the internal client',
+    exists (select 1 from qbo_customer_client_map m join clients c on c.id = m.client_id and c.is_internal
+             where m.realm_id = (select realm_id from qbo_firm_connection where id = true)
+               and m.customer_name = 'My Good Books (Clock-in Option)'));
 end $$;
 
 do $$

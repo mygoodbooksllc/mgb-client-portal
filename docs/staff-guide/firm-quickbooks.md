@@ -33,6 +33,8 @@ On the **QuickBooks mapping** page:
 
 In the client choices, test clients come last with a **Test** tag and stay hidden until **Show test clients** is on. MyGoodBooks' own books and the test clients are never counted in client hours.
 
+Time logged to **My Good Books (Clock-in Option)** is the firm's own internal time. It's set up already, so it never counts in client hours or as unmapped.
+
 For each row, choose a client (**Choose a client…**) or staff member (**Choose a staff member…**), or click **Ignore** for internal or non-client work. **Reset** hands a row back to automatic matching: customers by name, people by email. A QuickBooks employee or vendor whose email isn't their portal sign-in email needs mapping by hand.
 
 Row statuses: **Mapped to X**, **Auto-matched to X**, **Via {parent}: X** (jobs and sub-customers roll up to their parent unless mapped on their own), **Ignored**, **Not mapped**.
