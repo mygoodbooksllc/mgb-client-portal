@@ -60,6 +60,15 @@ t("category: keyword rules", () => {
 t("category: first rule wins (meeting about training)", () => assert.strictEqual(O.MH_ohCategory("Hours", "Training meeting"), "Meetings"));
 t("category: no false hit inside words (recall, leader)", () => {
   assert.strictEqual(O.MH_ohCategory("Hours", "recall"), "Other");
+  assert.strictEqual(O.MH_ohCategory("Hours", "leadership notes"), "Other");
+  assert.strictEqual(O.MH_ohCategory("Hours", "explanation of fees"), "Other");
+  assert.strictEqual(O.MH_ohCategory("Hours", "printer setup"), "Other");
+});
+t("category: words that should still match", () => {
+  assert.strictEqual(O.MH_ohCategory("Hours", "Follow up on leads"), "Sales & marketing");
+  assert.strictEqual(O.MH_ohCategory("Hours", "New lead call"), "Meetings");
+  assert.strictEqual(O.MH_ohCategory("Hours", "Planning Q4"), "Reviews & planning");
+  assert.strictEqual(O.MH_ohCategory("Hours", "Account setup for Acme"), "Onboarding");
 });
 
 t("categories: totals, cost sums, most minutes first", () => {

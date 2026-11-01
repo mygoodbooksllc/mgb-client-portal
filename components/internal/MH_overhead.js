@@ -46,12 +46,12 @@ var MH_OH_NO_DESC = "No description";
 var MH_OH_OTHER = "Other";
 // First match wins.
 var MH_OH_RULES = [
-  { label: "Onboarding", re: /onboard|new client|set ?up|kick-?off/ },
+  { label: "Onboarding", re: /onboard|new client|client set ?up|account set ?up|kick-?off/ },
   { label: "Meetings", re: /meeting|\bmtg\b|\bcall\b|huddle|1:1|one on one|stand-?up|\bzoom\b|\bteams\b/ },
   { label: "Training", re: /train|learn|course|webinar|\bcpe\b|certif|study|tutorial/ },
-  { label: "Sales & marketing", re: /sales|marketing|proposal|prospect|\blead|discovery|website|social media|newsletter/ },
+  { label: "Sales & marketing", re: /sales|marketing|proposal|prospect|\bleads?\b|discovery|website|social media|newsletter/ },
   { label: "Email & admin", re: /e-?mail|inbox|admin|asana|slack|filing|organi[sz]|schedul|calendar|payroll|invoice|billing/ },
-  { label: "Reviews & planning", re: /review|plan|strategy|process|\bsop\b|document|research/ },
+  { label: "Reviews & planning", re: /review|\bplan|strategy|process|\bsop\b|document|research/ },
 ];
 
 // A real service item (anything but QuickBooks Time's generic "Hours") wins;

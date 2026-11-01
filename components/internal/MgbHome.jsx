@@ -415,7 +415,8 @@ function MH_useInternalHours(on, range) {
       return undefined;
     }
     let alive = true;
-    setSt((s) => ({ ...s, loading: true }));
+    // Drop the old period's answer so the page and CSV never show it under the new period.
+    setSt({ loading: true });
     TP_qRpc("internal_hours", { p_from: from, p_to: to }).then((r) => {
       if (!alive) return;
       setSt({ loading: false, data: r.error ? null : r.data || null, error: r.error || null, status: r.status });
@@ -481,7 +482,7 @@ function MH_OverheadPage() {
               </button>
             ))}
           </div>
-          <button type="button" className="btn-secondary" onClick={csv} disabled={!d}>
+          <button type="button" className="btn-secondary" onClick={csv} disabled={!d || res.loading}>
             Download CSV
           </button>
         </div>
@@ -581,6 +582,7 @@ function MH_OverheadPage() {
             <p className="card-subtitle">
               Grouped from the service item, or from words in the description when the item is the generic "Hours".
               {noDescPct != null && noDescPct >= 50 && ` ${noDescPct}% of this time has no description in QuickBooks Time.`}
+              {lines.length >= 300 && " Uses the 300 biggest lines, so small categories may be missing."}
             </p>
             <div className="table-scroll">
               <table className="tx-table tx-table-labeled tp-table">

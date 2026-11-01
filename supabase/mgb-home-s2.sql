@@ -1,6 +1,7 @@
 -- MGB Home, slice S2: Overhead (docs/mgb-home-spec.md sections 4, 6, 12 OQ5).
 -- Applied to production 2026-10-31 (Supabase MCP apply_migration: sections
--- 1-5 as mgb_home_s2, sections 6-7 as mgb_home_s2_locks).
+-- 1-5 as mgb_home_s2, sections 6-7 as mgb_home_s2_locks, section 8 as
+-- mgb_home_s2_review, 8c as mgb_home_s2_review_fix).
 --
 -- 1. Map the firm's own QuickBooks Time customer "My Good Books (Clock-in
 --    Option)" to MGB (internal) (spec OQ5). A documented admin mapping, the
@@ -318,6 +319,88 @@ create trigger usage_events_mh_internal
 update public.usage_events
    set client_id = (select c.id from public.clients c where c.is_internal order by c.id limit 1)
  where client_id is null and page like 'mgb-%';
+
+-- ---------------------------------------------------------------------------
+-- 8. Review fixes (applied as mgb_home_s2_review).
+--  a. qbo_set_customer_mapping: the S2 guard looked only at the row's own
+--     client_id, so a job or sub-customer that reaches the internal client
+--     through its parent (shown "Not mapped" to an admin without the grant,
+--     who can't see the parent row) could still be mapped or ignored by
+--     them, quietly moving time out of Overhead. Check the full resolution
+--     (qbo_internal_customers(), SECURITY DEFINER) as well.
+--  b. usage_events: help views of the internal-only articles (page 'help',
+--     tab 'mgb-home' / 'profitability'), "help-page:" actions for them, any
+--     action naming an MGB Home page or #/internal route, and a grant
+--     holder's guide searches for MGB Home words were logged with client_id
+--     null, readable by every admin in Usage stats. File them under the
+--     internal client too (insert trigger + the rows already logged).
+-- ---------------------------------------------------------------------------
+select pg_temp.mh_patch_fn('public.qbo_set_customer_mapping(text, text, boolean, text)',
+  $a$        where m0.realm_id = v_realm and m0.qbo_customer_id = p_qbo_customer_id) then$a$,
+  $a$        where m0.realm_id = v_realm and m0.qbo_customer_id = p_qbo_customer_id)
+     -- S2 review: also a job / sub-customer that resolves to it via a parent
+     or (v_realm, p_qbo_customer_id) in (select ic.realm_id, ic.qbo_customer_id from public.qbo_internal_customers() ic) then$a$,
+  $a$S2 review: also a job / sub-customer$a$, 1);
+
+-- 8c. Fix to 8a (applied as mgb_home_s2_review_fix): 8a's added "or" bound
+--     looser than "not can_view_internal() and ...", so the job check also
+--     refused a grant holder (the owner could no longer remap the internal
+--     customer). Group the two checks under the grant test.
+select pg_temp.mh_patch_fn('public.qbo_set_customer_mapping(text, text, boolean, text)',
+  $a$  if not public.can_view_internal() and exists (
+       select 1 from qbo_customer_client_map m0 join clients c0 on c0.id = m0.client_id and c0.is_internal
+        where m0.realm_id = v_realm and m0.qbo_customer_id = p_qbo_customer_id)
+     -- S2 review: also a job / sub-customer that resolves to it via a parent
+     or (v_realm, p_qbo_customer_id) in (select ic.realm_id, ic.qbo_customer_id from public.qbo_internal_customers() ic) then$a$,
+  $a$  if not public.can_view_internal() and (exists (
+       select 1 from qbo_customer_client_map m0 join clients c0 on c0.id = m0.client_id and c0.is_internal
+        where m0.realm_id = v_realm and m0.qbo_customer_id = p_qbo_customer_id)
+     -- S2 review: also a job / sub-customer that resolves to it via a parent (grouped under the grant test)
+     or (v_realm, p_qbo_customer_id) in (select ic.realm_id, ic.qbo_customer_id from public.qbo_internal_customers() ic)) then$a$,
+  $a$(grouped under the grant test)$a$, 1);
+
+create or replace function public.usage_events__mh_is_internal(p_page text, p_tab text, p_detail text, p_actor text)
+returns boolean
+language sql
+stable
+security definer
+set search_path to 'public'
+as $f$
+  select coalesce(p_page like 'mgb-%', false)
+      or (p_page = 'help' and p_tab in ('mgb-home', 'profitability'))
+      or coalesce(p_detail ~ '^help-page:(mgb-home|profitability)$', false)
+      or coalesce(p_detail ~* '(mgb-(home|overhead|profitability|pricing)|#?/internal/(overhead|profitability|pricing|books))', false)
+      or (coalesce(p_detail ~* '^guide-(search|miss):.*(mgb|overhead|profitab|margin|internal)', false)
+          and exists (select 1 from internal_access ia where lower(ia.staff_email) = lower(p_actor)));
+$f$;
+revoke all on function public.usage_events__mh_is_internal(text, text, text, text) from public;
+revoke all on function public.usage_events__mh_is_internal(text, text, text, text) from anon;
+revoke all on function public.usage_events__mh_is_internal(text, text, text, text) from authenticated;
+
+create or replace function public.usage_events__mh_internal()
+returns trigger
+language plpgsql
+security definer
+set search_path to 'public'
+as $f$
+begin
+  -- MGB Home S2: an mgb-* page, and anything that names MGB Home or its
+  -- internal-only articles, always belongs to the internal client.
+  if new.client_id is null
+     and public.usage_events__mh_is_internal(new.page, new.tab, new.detail, new.actor_email) then
+    new.client_id := (select c.id from clients c where c.is_internal order by c.id limit 1);
+  end if;
+  return new;
+end;
+$f$;
+revoke all on function public.usage_events__mh_internal() from public;
+revoke all on function public.usage_events__mh_internal() from anon;
+revoke all on function public.usage_events__mh_internal() from authenticated;
+
+update public.usage_events
+   set client_id = (select c.id from public.clients c where c.is_internal order by c.id limit 1)
+ where client_id is null
+   and public.usage_events__mh_is_internal(page, tab, detail, actor_email);
 
 -- Quick check after applying:
 --   select client_id, manual, updated_by from qbo_customer_client_map where customer_name = 'My Good Books (Clock-in Option)';

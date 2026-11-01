@@ -223,6 +223,10 @@ insert into qbo_customer_client_map (realm_id, qbo_customer_id, customer_name, c
   values ('mh-test-realm-s2', 'mh-int', 'mh-test internal', (select id from clients where is_internal order by id limit 1), true),
          ('mh-test-realm-s2', 'mh-cli', 'mh-test client',
           (select id from clients where not coalesce(is_internal, false) and public.is_roster_client_id(id) order by id limit 1), true);
+-- A job under mh-int with no mapping of its own: it reaches the internal
+-- client only through its parent (the review's sub-customer case).
+insert into qbo_customer_client_map (realm_id, qbo_customer_id, customer_name, client_id, parent_qbo_id, manual)
+  values ('mh-test-realm-s2', 'mh-int-job', 'mh-test internal:job', null, 'mh-int', false);
 insert into qbo_employee_staff_map (realm_id, qbo_entity_type, qbo_id, display_name, staff_email, manual)
   values ('mh-test-realm-s2', 'Employee', 'mh-e1', 'mh-test owner', (select email from _who where k = 'owner'), true);
 insert into staff_cost_rates (staff_email, effective_from, hourly_cost, updated_by)
@@ -344,6 +348,17 @@ begin
          (select id from clients where is_internal order by id limit 1)));
   perform pg_temp.chk('qbo_set_customer_mapping: owner can still change the internal row', v not like 'ERR:%', v);
 
+  v := pg_temp.probe(adm, $q$select public.qbo_set_customer_mapping('mh-int-job', null, true, 'mh-test-realm-s2')::text$q$);
+  perform pg_temp.chk('qbo_set_customer_mapping: adm_no ignore of a job under the internal row refused', v like 'ERR:%', v);
+  v := pg_temp.probe(adm, format($q$select public.qbo_set_customer_mapping('mh-int-job', %L, false, 'mh-test-realm-s2')::text$q$,
+         (select client_id from qbo_customer_client_map where qbo_customer_id = 'mh-cli')));
+  perform pg_temp.chk('qbo_set_customer_mapping: adm_no map of a job under the internal row refused', v like 'ERR:%', v);
+  perform pg_temp.chk('job under the internal row unchanged',
+    exists (select 1 from qbo_customer_client_map where realm_id = 'mh-test-realm-s2' and qbo_customer_id = 'mh-int-job'
+             and client_id is null and not ignored));
+  v := pg_temp.probe(own, $q$select public.qbo_set_customer_mapping('mh-int-job', null, true, 'mh-test-realm-s2')::text$q$);
+  perform pg_temp.chk('qbo_set_customer_mapping: owner can still ignore a job under the internal row', v not like 'ERR:%', v);
+
   -- 6. Actions logged on an MGB Home page (client_id null, as MGB_track does)
   --    land on the internal client, so adm_no never reads them.
   v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
@@ -355,6 +370,32 @@ begin
   perform pg_temp.chk('usage_events: owner reads the action', v = '1', v);
   perform pg_temp.chk('usage_events: no mgb-* row without a client',
     not exists (select 1 from usage_events where page like 'mgb-%' and client_id is null));
+
+  -- 6b. Help views of the internal-only articles, and actions naming them,
+  --     are filed under the internal client too; ordinary help stays open.
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, tab, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'help', 'mgb-home', 'view', 'mh-test-help')$q$);
+  perform pg_temp.chk('usage_events: owner help view of mgb-home is logged', v = '1', v);
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'today', 'action', 'help-page:profitability')$q$);
+  perform pg_temp.chk('usage_events: owner help-page:profitability action is logged', v = '1', v);
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'today', 'action', 'guide-search:mh-test overhead')$q$);
+  perform pg_temp.chk('usage_events: owner guide search for overhead is logged', v = '1', v);
+  v := pg_temp.probe(adm, $q$select count(*) from public.usage_events
+         where (page = 'help' and tab in ('mgb-home', 'profitability')) or detail ~ '^help-page:(mgb-home|profitability)$'
+            or detail = 'guide-search:mh-test overhead'$q$);
+  perform pg_temp.chk('usage_events: adm_no reads no internal-article view, help-page or grant-holder search', v = '0', v);
+  v := pg_temp.probe(own, $q$select count(*) from public.usage_events where detail in ('mh-test-help', 'help-page:profitability', 'guide-search:mh-test overhead')$q$);
+  perform pg_temp.chk('usage_events: owner reads all three', v::int >= 3, v);
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, tab, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'help', 'whats-new', 'view', 'mh-test-open')$q$);
+  v := pg_temp.probe(adm, $q$select count(*) from public.usage_events where detail = 'mh-test-open'$q$);
+  perform pg_temp.chk('usage_events: an ordinary help view stays readable by adm_no', v = '1', v);
+  v := pg_temp.dml(adm, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'today', 'action', 'guide-search:mh-test overhead adm')$q$);
+  v := pg_temp.probe(adm, $q$select count(*) from public.usage_events where detail = 'guide-search:mh-test overhead adm'$q$);
+  perform pg_temp.chk('usage_events: adm_no own guide search stays readable to them', v = '1', v);
 
   -- 7. The live clock-in customer is mapped to the internal client (spec OQ5).
   perform pg_temp.chk('live: "My Good Books (Clock-in Option)" maps to the internal client',
