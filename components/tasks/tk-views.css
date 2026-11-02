@@ -4229,6 +4229,8 @@ a.tk-card-title:hover {
     left: 0;
     right: auto;
   }
+}
+
 /* ---- Slate plus "Blocked by" (hidden preview, TK_deps.js / TK_Deps.jsx) ---------------- */
 
 .tk-meta-blocked {
