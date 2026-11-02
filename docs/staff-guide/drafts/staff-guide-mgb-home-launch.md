@@ -1,4 +1,4 @@
-# MGB Home: launch notes (S1, S2, S3)
+# MGB Home: launch notes (S1 to S4)
 
 MGB Home (spec: `docs/mgb-home-spec.md`) is hidden behind the per-person preview `mgb_home_preview` (Developer tools › Feature flags › MGB Home preview, shown only to admins with the MGB (internal) grant) and the owner-only firm switch `tk_settings.mgb_home_enabled`. Code never writes the switch.
 
@@ -27,3 +27,9 @@ Deliberately NOT in the public What's new: any line naming MGB Home. Admins with
 - Nothing public changes, so there is no `whats-new` line: the staff cost rates list already lived on MGB Home › Profitability (grant only), and Team › Hours keeps its person rate card for when MGB Home is off.
 - Gated (grant holders only): the `mgb-costs` page (`#/internal/costs`), the Staff cost / Full cost toggle, the `mgb-home` and `profitability` article lines, the ⌘K row, the `firm_cost.*` audit rows and the `ann-mh-costs` step. The `mgb-home` notice keeps 6 steps: the old Firm books step is folded into `ann-mh-costs`. Notice gating is unchanged.
 - Before launch the owner enters the firm cost basis (staff rate and full rate per hour) on Cost rates; Full cost stays grayed out until then. People with no rate (shown as "needs rate") are costed at the average and marked estimated.
+
+## S4 Firm books polish (2026-11-02)
+
+- Nothing public changes, so there is no `whats-new` line: the Firm books card, the sync line and the firm Profit & Loss card show only inside MGB Home (grant holders with it on), and the firm's close, sync and P&L rows were already hidden by the internal company lock.
+- Gated (grant holders only): the Home card's close badge, reasons and due/late line, the last-sync line with its warnings and Sync now, the **Firm Profit & Loss** card at the top of Firm books › Reports, the `mgb-home` article lines and the `ann-mh-home` / `ann-mh-costs` wording. The notice keeps 6 steps.
+- Nothing for the owner to set. If the firm's QuickBooks needs reconnecting, the card says so and points to Setup.

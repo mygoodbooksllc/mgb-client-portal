@@ -1326,6 +1326,16 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   `MH_gate.js`); Full cost stays disabled until a basis row exists. Time by people no longer on staff (no rate, and
   their QuickBooks Time person is ignored or mapped to an inactive staff row) is costed at the firm average and
   reported as `former_*`, not as estimated.
+- **MGB Home, slice S4 Firm books polish (2026-11-02, no SQL; checks added to `mgb-home-tests.sql`):** the Home
+  **Firm books** card reads, for the internal client, `month_close` (status), `close_checks` (badge via `CC_Badge`
+  and the first two reasons), `month_close_settings.late_day` (due / late line via `CT_deadline` / `CT_isLate`),
+  `qbo_connections` and the newest `qbo_sync_runs` row, and shows the last sync with a warning when it failed,
+  needs reconnecting or is over `MH_BK_STALE_HOURS` (26) old, plus `QboSyncNowButton`. Firm books › Reports gets
+  `MH_FirmPnlCard` above `ReportsPage` (mounted in `app.jsx` only when `mhHere`, money only for `TP_PF_canSee`):
+  income, expenses, net and margin from `client.monthly` (closed months only, `periodMonths`), month / quarter /
+  YTD, by-month table and `REPORT_PDF_BUILDERS.pl`. Pure logic `components/internal/MH_books.js` +
+  `MH_books.test.js`. All those tables already sit behind the internal company lock; the tests check the owner
+  reads every firm row and an admin without the grant or a bookkeeper reads none.
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
   (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page

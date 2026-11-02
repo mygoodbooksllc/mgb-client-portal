@@ -148,3 +148,38 @@
     width: 100%;
   }
 }
+
+/* Firm books (S4): Home card close-check reasons + sync line, and the firm
+   Profit & Loss on Firm books › Reports. */
+.mh-reasons {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.mh-reasons li + li {
+  margin-top: 2px;
+}
+.mh-sync {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+.mh-sync p {
+  margin: 0;
+  flex: 1 1 180px;
+}
+.mh-pnl-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px 20px;
+  margin: 16px 0;
+}
+.mh-pnl-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.mh-pnl-stats b {
+  font-size: 20px;
+}

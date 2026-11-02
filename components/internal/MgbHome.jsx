@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// MGB Home, slices S1 + S2 + S3 (docs/mgb-home-spec.md): the firm's own home on
+// MGB Home, slices S1 to S4 (docs/mgb-home-spec.md): the firm's own home on
 // the internal client (MyGoodBooks). app.jsx renders these only when mhHere
 // (MH_canOpen on the internal client, components/internal/MH_gate.js):
 //
@@ -9,8 +9,15 @@
 //                         existing pages, regrouped), the lock and the gear.
 //   MH_HomePage           #/internal: four cards (margin this month vs
 //                         target, staff and full cost once a firm cost basis
-//                         exists; Master Data sync; Firm books close + last
-//                         QuickBooks sync; overhead hours this month).
+//                         exists; Master Data sync; Firm books (S4: last
+//                         month's close status, close-check badge and
+//                         reasons, due / late line, last QuickBooks sync
+//                         with a warning when it failed, is behind or needs
+//                         reconnecting, and Sync now); overhead hours this
+//                         month). Pure logic in MH_books.js.
+//   MH_FirmPnlCard        Firm books › Reports (S4): the firm's Profit & Loss
+//                         first on the page (closed months from QuickBooks,
+//                         period toggle, by month, Download PDF).
 //   MH_OverheadPage       #/internal/overhead (S2): the firm's own time from
 //                         internal_hours() (supabase/mgb-home-s2.sql): hours,
 //                         share and loaded cost by person, category, month
@@ -394,25 +401,43 @@ function MH_HomePage({ clients, onSelectPage }) {
     };
   }, [canMoney]);
 
+  // S4: the close status card (status, close-check badge and reasons, due
+  // line) and the last sync line (with Sync now). booksBump reloads it after
+  // a sync.
+  const [booksBump, setBooksBump] = useState(0);
   useEffect(() => {
     const sb = window.mgbSupabase;
-    if (!canMoney || !sb || !internalId) {
+    if (!canMoney || !sb) {
       setBooks({ loading: false });
       return undefined;
     }
+    // The roster is still loading: keep "Loading…" rather than "not connected".
+    if (!internalId) return undefined;
     let alive = true;
     (async () => {
-      const [mc, qc] = await Promise.all([
+      const [mc, qc, cc, run, st] = await Promise.all([
         MH_safe(sb.from("month_close").select("status, updated_at").eq("client_id", internalId).eq("period_kind", "month").eq("period", closePeriod).maybeSingle()),
         MH_safe(sb.from("qbo_connections").select("status, last_synced_at").eq("client_id", internalId).maybeSingle()),
+        MH_safe(sb.from("close_checks").select("status, reasons, evaluated_at").eq("client_id", internalId).eq("period", closePeriod).maybeSingle()),
+        MH_safe(sb.from("qbo_sync_runs").select("status, started_at").eq("client_id", internalId).order("started_at", { ascending: false }).limit(1)),
+        MH_safe(sb.from("month_close_settings").select("late_day").maybeSingle()),
       ]);
       if (!alive) return;
-      setBooks({ loading: false, close: mc.data || null, closeErr: mc.error || null, qbo: qc.data || null });
+      setBooks({
+        loading: false,
+        close: mc.data || null,
+        closeErr: mc.error || null,
+        qbo: qc.data || null,
+        qboErr: qc.error || null,
+        checks: cc.data || null,
+        run: (run.data || [])[0] || null,
+        lateDay: (st.data && Number(st.data.late_day)) || 15,
+      });
     })();
     return () => {
       alive = false;
     };
-  }, [canMoney, internalId, closePeriod]);
+  }, [canMoney, internalId, closePeriod, booksBump]);
 
   if (!canMoney) return <MH_NoAccess />;
 
@@ -427,7 +452,40 @@ function MH_HomePage({ clients, onSelectPage }) {
     return lbl;
   })();
   const monthName = new Date(closePeriod + "T00:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  const lastSync = books.qbo && books.qbo.last_synced_at ? fmtDate(String(books.qbo.last_synced_at).slice(0, 10)) : null;
+  const closeStatus = books.close ? books.close.status : "not_started";
+  const closeNote = (() => {
+    if (books.loading || books.closeErr) return null;
+    const deadline = typeof CT_deadline === "function" ? CT_deadline(closePeriod, books.lateDay || 15) : null;
+    const late = typeof CT_isLate === "function" ? CT_isLate(closePeriod, closeStatus, books.lateDay || 15, new Date()) : false;
+    const n = MH_bkCloseNote(closeStatus, deadline, late, new Date());
+    if (!n) return null;
+    const dueTxt = n.due ? n.due.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+    if (n.kind === "late") return { warn: true, text: `Late: it was due ${dueTxt}.` };
+    if (n.kind === "signoff") return { warn: false, text: "Waiting on an admin sign-off." };
+    return { warn: false, text: `Due ${dueTxt}.` };
+  })();
+  const reasons = MH_bkReasons(books.checks, 2);
+  const syncState = MH_bkSyncState(books.qbo || null, books.run || null, Date.now());
+  const ago = (iso) => (typeof relTime === "function" && relTime(iso)) || fmtDate(String(iso).slice(0, 10));
+  const exactAt = (iso) => (iso && typeof fmtDateTime === "function" ? fmtDateTime(iso) : undefined);
+  const syncText = (() => {
+    if (books.qboErr) return "Couldn't load the QuickBooks status.";
+    switch (syncState.kind) {
+      case "none":
+        return "QuickBooks isn't connected for the firm.";
+      case "reconnect":
+        return "QuickBooks needs to be reconnected. Reconnect it from Setup (the gear at the top right).";
+      case "never":
+        return "QuickBooks connected, not synced yet.";
+      case "failed":
+        return `The last sync failed ${ago(syncState.failedAt)}.` + (syncState.at ? ` Last good sync ${ago(syncState.at)}.` : "");
+      case "stale":
+        return `QuickBooks hasn't synced since ${ago(syncState.at)}.`;
+      default:
+        return `QuickBooks last synced ${ago(syncState.at)}.`;
+    }
+  })();
+  const canSyncHere = !books.qboErr && syncState.kind !== "none" && syncState.kind !== "reconnect" && typeof QboSyncNowButton === "function";
 
   const runLine = (() => {
     if (sync.loading) return "Loading…";
@@ -476,18 +534,43 @@ function MH_HomePage({ clients, onSelectPage }) {
           )}
         </MH_Card>
         <MH_Card title="Firm books" go={() => onSelectPage("client-close")} goLabel="Close">
-          <p>
-            {monthName} close: <b>{closeLabel}</b>
-          </p>
-          <p className="tp-muted">
-            {books.loading
-              ? ""
-              : books.qbo
-              ? lastSync
-                ? `QuickBooks last synced ${lastSync}`
-                : "QuickBooks connected, not synced yet"
-              : "QuickBooks isn't connected for the firm."}
-          </p>
+          <div data-tour="mh-firm-close">
+            <p>
+              {monthName} close: <b>{closeLabel}</b>
+              {books.checks && typeof CC_Badge === "function" && (
+                <>
+                  {" "}
+                  <CC_Badge row={books.checks} compact />
+                </>
+              )}
+            </p>
+            {closeNote && <p className={(closeNote.warn ? "mh-warn" : "tp-muted") + " mh-small"}>{closeNote.text}</p>}
+            {reasons.shown.length > 0 && (
+              <ul className="mh-reasons tp-muted mh-small" aria-label="Close checks">
+                {reasons.shown.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+                {reasons.more > 0 && <li>and {reasons.more} more</li>}
+              </ul>
+            )}
+          </div>
+          {!books.loading && (
+            <div className="mh-sync" data-tour="mh-firm-sync">
+              <p className={syncState.warn ? "mh-warn" : "tp-muted"} title={exactAt(syncState.failedAt || syncState.at)}>
+                {syncText}
+              </p>
+              {canSyncHere && (
+                <QboSyncNowButton
+                  clientId={internalId}
+                  isStaff
+                  canSyncNow
+                  setupLabel="Setup (the gear at the top right)"
+                  onSynced={() => setBooksBump((n) => n + 1)}
+                  onFailed={() => setBooksBump((n) => n + 1)}
+                />
+              )}
+            </div>
+          )}
         </MH_Card>
         <MH_Card title="Overhead this month" go={() => onSelectPage("mgb-overhead")} goLabel="Overhead">
           {oh.loading ? (
@@ -513,6 +596,115 @@ function MH_HomePage({ clients, onSelectPage }) {
         </MH_Card>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Firm books › Reports (S4): the firm's Profit & Loss on screen, first on the
+// page (the downloads and the board packet stay below it, unchanged). From
+// client.monthly (QuickBooks, closed months only, the same rows the P&L PDF
+// uses). app.jsx renders it only when mhHere; TP_PF_canSee is the second guard
+// and the internal client's QuickBooks rows are locked without the grant.
+// ---------------------------------------------------------------------------
+const MH_PNL_PERIODS = ["month", "quarter", "ytd"];
+
+function MH_FirmPnlCard({ client }) {
+  const { canMoney } = MH_useMoneyUser();
+  const showToast = typeof useToast === "function" ? useToast() : null;
+  const [period, setPeriod] = useState("month");
+  if (!canMoney || !client) return null;
+  const monthly = client.monthly || [];
+  const fromQbo = client.dataSource === "quickbooks";
+  // Closed months only: periodMonths falls back to the month-to-date row when
+  // nothing is closed, which this card shouldn't call a Profit & Loss.
+  const hasClosed = typeof window.mgbClosedMonths === "function" && window.mgbClosedMonths(monthly).length > 0;
+  const months = fromQbo && hasClosed && typeof periodMonths === "function" ? periodMonths(monthly, period) : [];
+  const pnl = MH_bkPnl(months);
+  const label = (key) => (typeof periodLabelFor === "function" ? periodLabelFor(monthly, key) : key);
+  const monthLabel = (m) => (typeof window.mgbMonthYearLabel === "function" ? window.mgbMonthYearLabel(m) : m.month);
+  const span = months.length ? (months.length === 1 ? monthLabel(months[0]) : `${monthLabel(months[0])} – ${monthLabel(months[months.length - 1])}`) : "";
+  const download = () => {
+    if (typeof REPORT_PDF_BUILDERS !== "object" || !REPORT_PDF_BUILDERS.pl) return;
+    const filename = REPORT_PDF_BUILDERS.pl(client, period);
+    if (showToast) showToast(`Downloaded "${filename}"`);
+    MH_track("mh-firm-pnl-pdf");
+  };
+  return (
+    <section className="card mh-pnl" style={{ marginBottom: 20 }} data-tour="mh-firm-pnl" aria-labelledby="mh-pnl-title">
+      <h3 className="card-title" id="mh-pnl-title">
+        Firm Profit &amp; Loss
+      </h3>
+      {!fromQbo ? (
+        <p className="tp-muted" style={{ margin: 0 }}>
+          QuickBooks isn't connected for the firm, so there's no Profit &amp; Loss to show.
+        </p>
+      ) : !months.length ? (
+        <p className="tp-muted" style={{ margin: 0 }}>
+          No closed month from QuickBooks yet.
+        </p>
+      ) : (
+        <>
+          <p className="card-subtitle" style={{ margin: 0 }}>
+            {span}. Closed months from QuickBooks; the current month shows once it ends.
+          </p>
+          <div className="view-toggle" style={{ marginTop: 12 }} role="group" aria-label="Period">
+            {MH_PNL_PERIODS.map((key) => (
+              <button
+                type="button"
+                key={key}
+                className={"view-toggle-btn" + (period === key ? " active" : "")}
+                aria-pressed={period === key}
+                onClick={() => setPeriod(key)}
+              >
+                {label(key)}
+              </button>
+            ))}
+          </div>
+          <div className="mh-pnl-stats">
+            <div>
+              <span className="tp-muted mh-small">Income</span>
+              <b>{fmtMoney(pnl.income)}</b>
+            </div>
+            <div>
+              <span className="tp-muted mh-small">Expenses</span>
+              <b>{fmtMoney(pnl.expenses)}</b>
+            </div>
+            <div>
+              <span className="tp-muted mh-small">Net income</span>
+              <b className={pnl.net < 0 ? "mh-warn" : undefined}>{fmtMoney(pnl.net)}</b>
+              {pnl.margin != null && <span className="tp-muted mh-small">{pnl.margin}% of income</span>}
+            </div>
+          </div>
+          {pnl.rows.length > 1 && (
+            <div className="table-scroll">
+              <table className="tx-table tx-table-labeled tp-table">
+                <thead>
+                  <tr>
+                    <th>Month</th>
+                    <th className="num">Income</th>
+                    <th className="num">Expenses</th>
+                    <th className="num">Net income</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pnl.rows.map((r, i) => (
+                    <tr key={i}>
+                      <td data-label="Month">{monthLabel(r)}</td>
+                      <td className="num" data-label="Income">{fmtMoney(r.income)}</td>
+                      <td className="num" data-label="Expenses">{fmtMoney(r.expenses)}</td>
+                      <td className="num" data-label="Net income">{fmtMoney(r.net)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <button type="button" className="btn-primary" style={{ marginTop: 14 }} onClick={download}>
+            Download PDF
+          </button>
+        </>
+      )}
+    </section>
   );
 }
 

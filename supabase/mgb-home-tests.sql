@@ -1,5 +1,6 @@
--- MGB Home S1 + S2 + S3: tests for mgb-home-s1.sql, mgb-home-s2.sql,
--- mgb-home-s3.sql (and the locks MGB Home relies on).
+-- MGB Home S1 to S4: tests for mgb-home-s1.sql, mgb-home-s2.sql,
+-- mgb-home-s3.sql (and the locks MGB Home relies on; S4 adds no SQL, only
+-- the reads behind the Firm books card and the firm Profit & Loss).
 -- NOT a migration. Run AFTER all three have been applied, in the Supabase
 -- SQL editor (or psql as postgres). Everything runs in one transaction that
 -- ends in ROLLBACK, so no fixture survives. A failing check is collected; the
@@ -243,7 +244,7 @@ declare
   own text := (select email from _who where k = 'owner');
   adm text := (select email from _who where k = 'adm_no');
   bk  text := (select email from _who where k = 'bk');
-  q   text := $q$select public.internal_hours(date '1999-02-01', date '1999-03-31')::text$q$;
+  q   text := $q$select public.internal_hours(date '1999-02-01', date '1999-03-31', 'staff')::text$q$;
   v text;
   j jsonb;
 begin
@@ -261,9 +262,9 @@ begin
     not has_function_privilege('anon', 'public.internal_hours(date,date,text)', 'execute'));
   perform pg_temp.chk('internal_hours: security definer',
     (select prosecdef from pg_proc where oid = 'public.internal_hours(date,date,text)'::regprocedure));
-  v := pg_temp.probe(own, $q$select public.internal_hours(date '1999-03-31', date '1999-02-01')::text$q$);
+  v := pg_temp.probe(own, $q$select public.internal_hours(date '1999-03-31', date '1999-02-01', 'staff')::text$q$);
   perform pg_temp.chk('internal_hours: reversed range refused 22023', v like 'ERR:22023:%', v);
-  v := pg_temp.probe(own, $q$select public.internal_hours(date '1990-01-01', date '1999-03-31')::text$q$);
+  v := pg_temp.probe(own, $q$select public.internal_hours(date '1990-01-01', date '1999-03-31', 'staff')::text$q$);
   perform pg_temp.chk('internal_hours: range over 3 years refused 22023', v like 'ERR:22023:%', v);
 
   -- 2. internal_hours for the owner: minutes, cost, share, months, lines.
@@ -607,6 +608,48 @@ begin
     not exists (select 1 from staff_cost_rates r
                  where coalesce(r.updated_by, '') <> 'mh-test'
                    and not exists (select 1 from staff s where lower(s.email) = lower(r.staff_email))));
+end $$;
+
+-- ===========================================================================
+-- S4: Firm books polish. No new SQL; the Home Firm books card reads
+-- month_close, close_checks, qbo_connections, qbo_sync_runs and
+-- month_close_settings, and the firm Profit & Loss reads the internal
+-- client's QuickBooks rows (qbo_monthly_pl, qbo_pl_lines: client.monthly and
+-- the P&L PDF). Every client_id table stays behind the internal
+-- company lock: adm_no and bk read none of the firm's rows, the owner reads
+-- them all. Live rows (counted as postgres), nothing written.
+-- ===========================================================================
+do $$
+declare
+  own text := (select email from _who where k = 'owner');
+  adm text := (select email from _who where k = 'adm_no');
+  bk  text := (select email from _who where k = 'bk');
+  iid text := (select id from clients where is_internal order by id limit 1);
+  t   text;
+  v   text;
+  n   bigint;
+begin
+  perform pg_temp.chk('S4: an internal client exists', iid is not null, iid);
+  foreach t in array array['month_close', 'close_checks', 'qbo_connections', 'qbo_sync_runs', 'qbo_account_status',
+                             'qbo_monthly_pl', 'qbo_pl_lines'] loop
+    if to_regclass('public.' || t) is null then
+      perform pg_temp.chk('S4 ' || t || ': table exists', false);
+      continue;
+    end if;
+    execute format('select count(*) from public.%I where client_id = %L', t, iid) into n;
+    v := pg_temp.probe(own, format('select count(*) from public.%I where client_id = %L', t, iid));
+    perform pg_temp.chk('S4 ' || t || ': owner reads every firm row (' || n || ')', v = n::text, v);
+    v := pg_temp.probe(adm, format('select count(*) from public.%I where client_id = %L', t, iid));
+    perform pg_temp.chk('S4 ' || t || ': adm_no reads no firm row', v = '0', v);
+    v := pg_temp.probe(bk, format('select count(*) from public.%I where client_id = %L', t, iid));
+    perform pg_temp.chk('S4 ' || t || ': bookkeeper reads no firm row', v = '0', v);
+  end loop;
+  -- The card's late day is plain staff config (no money): every staff reads it.
+  v := pg_temp.probe(bk, $q$select count(*) from public.month_close_settings$q$);
+  perform pg_temp.chk('S4 month_close_settings: bookkeeper reads the late day', v <> '0' and v not like 'ERR:%', v);
+  -- Sync now for the firm: adm_no can't touch the firm connection row.
+  v := pg_temp.dml(adm, format($q$update public.qbo_connections set updated_at = updated_at where client_id = %L$q$, iid));
+  perform pg_temp.chk('S4 qbo_connections: adm_no updates no firm row', v = '0' or v like 'ERR:%', v);
 end $$;
 
 do $$

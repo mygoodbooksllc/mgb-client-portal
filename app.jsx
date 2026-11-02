@@ -27729,7 +27729,10 @@ class ErrorBoundary extends React.Component {
 // passes "sync").
 // `isStaff` (TABS D24): staff get their own reconnect / not-connected toasts
 // and never the client-facing "included with Pro" one.
-function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, lastSyncedAt, canSyncNow = true, tour, isStaff }) {
+// onFailed (optional): called after a failed sync (MGB Home reloads its sync
+// line so the failed run shows). setupLabel names the place to (re)connect in
+// the staff error toasts ("Client setup" unless given).
+function QboSyncNowButton({ clientId, onSynced, onFailed, setupLabel = "Client setup", liveLabel: liveLabelProp, plan, lastSyncedAt, canSyncNow = true, tour, isStaff }) {
   const showToast = useToast();
   const [syncing, setSyncing] = useState(false);
   // "A sync is already running": watch last_synced_at every 10 s for up to
@@ -27827,14 +27830,15 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
           message = "You don't have permission to sync this account. Try signing out and back in.";
         } else if (httpStatus === 400) {
           message = isStaff
-            ? "QuickBooks isn't connected for this client. Connect it from Client setup."
+            ? `QuickBooks isn't connected for this client. Connect it from ${setupLabel}.`
             : "QuickBooks isn't connected for this account.";
         } else if (/reconnect/i.test(detail)) {
           message = isStaff
-            ? "QuickBooks needs to be reconnected. Reconnect it from Client setup."
+            ? `QuickBooks needs to be reconnected. Reconnect it from ${setupLabel}.`
             : "QuickBooks needs to be reconnected before it can sync. Your bookkeeper can do this.";
         }
         showToast(message);
+        if (onFailed) onFailed();
         return;
       }
       await reloadAfterSync();
@@ -27848,6 +27852,7 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
       }
     } catch (err) {
       showToast("We couldn't reach QuickBooks just now. Please try again in a few minutes.");
+      if (onFailed) onFailed();
     } finally {
       setSyncing(false);
     }
@@ -32006,6 +32011,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "reports" &&
             (staffClientTabs ? (
               <>
+                {/* MGB Home S4: Firm books › Reports opens on the firm's own
+                    Profit & Loss (MgbHome.jsx), only on the internal client
+                    with MGB Home open. */}
+                {mhHere && typeof MH_FirmPnlCard === "function" && <MH_FirmPnlCard client={scopedClient} />}
                 <ReportsPage client={scopedClient} />
                 {showsReportBuilder && typeof ProReportsSuite === "function" && (
                   <ProReportsSuite

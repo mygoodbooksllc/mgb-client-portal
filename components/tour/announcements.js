@@ -1904,7 +1904,7 @@ var ANN_REGISTRY = [
         wait: true,
         title: "Home",
         body: () =>
-          "Four cards: margin this month against the target, the last Master Data sync and unmatched rows, last month's close for our own books, and this month's internal hours and their cost. Each card opens its page.",
+          "Four cards: margin this month against the target, the last Master Data sync and unmatched rows, last month's close for our own books with what still blocks it and when QuickBooks last synced (Sync now runs one), and this month's internal hours and their cost. Each card opens its page.",
       },
       {
         id: "ann-mh-profit",
@@ -1948,7 +1948,7 @@ var ANN_REGISTRY = [
         wait: true,
         title: "Cost rates",
         body: () =>
-          "Each person's loaded hourly cost with its history, who still needs a rate, and the firm cost basis that Full cost uses. Firm books, at the end of the tab row, opens our own Overview, Close, Reports, Bank, Ledger review, Documents and SOP. To see this again, press ? and pick the launch, or read What is MGB Home? in Help.",
+          "Each person's loaded hourly cost with its history, who still needs a rate, and the firm cost basis that Full cost uses. Firm books, at the end of the tab row, opens our own Overview, Close, Reports (the firm's Profit & Loss first), Bank, Ledger review, Documents and SOP. To see this again, press ? and pick the launch, or read What is MGB Home? in Help.",
       },
     ],
   },
