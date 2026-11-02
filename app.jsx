@@ -31443,7 +31443,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     : client.name)}
               </h1>
               <div className={"page-subtitle"}>
-                {mhHere
+                {mhHere && !onStaffPage
                   ? "MyGoodBooks · internal, admins with access only"
                   : showsLiveReport && client.dataSource === "quickbooks"
                   ? `Your financial snapshot. ${syncCadenceLabel(access.plan)}.`
@@ -31597,7 +31597,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               (components/internal/MgbHome.jsx): Home, Profitability,
               Pricing & fees, Overhead, Cost rates, the Firm books menu, the lock and
               the gear. */}
-          {mhHere && !isPreviewingUser && typeof MH_TabRow === "function" && (
+          {mhHere && !onStaffPage && !isPreviewingUser && typeof MH_TabRow === "function" && (
             <MH_TabRow
               page={effectivePage}
               access={access}
