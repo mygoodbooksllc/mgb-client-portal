@@ -43,7 +43,8 @@ t("routes: #/internal sub-paths map to MGB Home pages and Firm books pages", () 
   assert.strictEqual(P.MH_pageFromPath(["books", "finances"]), "dashboard");
   // Later slices are not routes yet; unknown lands like a bare open.
   assert.strictEqual(P.MH_pageFromPath(["costs"]), "mgb-costs");
-  ["capacity", "nope", ""].forEach((x) => assert.strictEqual(P.MH_pageFromPath([x]), null, x));
+  assert.strictEqual(P.MH_pageFromPath(["capacity"]), "mgb-capacity");
+  ["nope", ""].forEach((x) => assert.strictEqual(P.MH_pageFromPath([x]), null, x));
   assert.strictEqual(P.MH_pageFromPath(["books"]), null);
   assert.strictEqual(P.MH_pageFromPath(["books", "messages"]), null);
 });
@@ -61,8 +62,9 @@ t("routes: every page builds the hash that parses back to it", () => {
     assert.strictEqual(P.MH_pageFromPath(["books", b.slug]), b.page);
   });
   ["client-settings", "messages", "milestone", "today", null].forEach((p) => assert.strictEqual(P.MH_hashFor(p), null));
-  assert.ok(P.MH_isPage("mgb-pricing") && !P.MH_isPage("client-close") && P.MH_isPage("mgb-overhead") && !P.MH_isPage("mgb-capacity"));
-  assert.deepStrictEqual(P.MH_TABS.map((x) => x.key), ["mgb-home", "mgb-profitability", "mgb-pricing", "mgb-overhead", "mgb-costs"]);
+  assert.ok(P.MH_isPage("mgb-pricing") && !P.MH_isPage("client-close") && P.MH_isPage("mgb-overhead") && P.MH_isPage("mgb-capacity") && !P.MH_isPage("mgb-nope"));
+  assert.deepStrictEqual(P.MH_TABS.map((x) => x.key), ["mgb-home", "mgb-profitability", "mgb-pricing", "mgb-overhead", "mgb-costs", "mgb-capacity"]);
+  assert.strictEqual(P.MH_hashFor("mgb-capacity"), "#/internal/capacity");
   assert.strictEqual(P.MH_hashFor("mgb-overhead"), "#/internal/overhead");
   assert.strictEqual(P.MH_hashFor("mgb-costs"), "#/internal/costs");
   assert.strictEqual(P.MH_pageFromPath(["costs"]), "mgb-costs");

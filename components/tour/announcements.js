@@ -1901,7 +1901,7 @@ var ANN_REGISTRY = [
     date: "2026-10-31",
     title: "MGB Home",
     summary:
-      "MGB (internal) is now MGB Home: the firm's margin, fees, internal time, cost rates, Master Data sync and our own books in one place. Team › Hours now shows hours only.",
+      "MGB (internal) is now MGB Home: the firm's margin, fees, internal time, cost rates, capacity, Master Data sync and our own books in one place. Team › Hours now shows hours only.",
     roles: ["admin"],
     hash: "#/internal",
     visible: (ctx) => ANN_mgbHomeLaunchOn(ctx),
@@ -1957,15 +1957,15 @@ var ANN_REGISTRY = [
           "Time logged to the firm itself (the clock-in customer in QuickBooks Time): hours and cost by month, by person and by category, and the top descriptions. Pick a period at the top; CSV downloads it.",
       },
       {
-        id: "ann-mh-costs",
+        id: "ann-mh-capacity",
         go: () => {
-          if (!/^#\/internal\/costs(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/internal/costs";
+          if (!/^#\/internal\/capacity(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/internal/capacity";
         },
-        targets: ["mh-costs"],
+        targets: ["mh-capacity"],
         wait: true,
-        title: "Cost rates",
+        title: "Cost rates and Capacity",
         body: () =>
-          "Each person's loaded hourly cost with its history, who still needs a rate, and the firm cost basis that Full cost uses. Firm books, at the end of the tab row, opens our own Overview, Close, Reports (the firm's Profit & Loss first), Bank, Ledger review, Documents and SOP. To see this again, press ? and pick the launch, or read What is MGB Home? in Help.",
+          "Cost rates holds each person's loaded hourly cost and the firm cost basis that Full cost uses. Capacity shows each person's hours against their target, the fee revenue of the clients they work on and their pay cost, with IHH shown apart from MGB clients; allocation rules sit at the bottom. Firm books, at the end of the tab row, opens our own books. To see this again, press ? and pick the launch, or read What is MGB Home? in Help.",
       },
     ],
   },

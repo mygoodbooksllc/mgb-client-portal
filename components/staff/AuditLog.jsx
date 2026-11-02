@@ -36,6 +36,12 @@ const AL_ACTIONS = {
   "firm_cost.set": "Firm cost basis set",
   "firm_cost.changed": "Firm cost basis changed",
   "firm_cost.removed": "Firm cost basis removed",
+  "cost_contract.set": "Contract client added (Capacity)",
+  "cost_contract.changed": "Contract client changed (Capacity)",
+  "cost_contract.removed": "Contract client removed (Capacity)",
+  "cost_alloc.set": "Cost allocation rule set",
+  "cost_alloc.changed": "Cost allocation rule changed",
+  "cost_alloc.removed": "Cost allocation rule removed",
   "profitability.target_changed": "Target margin changed",
   "qbo_customer_map.insert": "QuickBooks customer mapped",
   "qbo_customer_map.update": "QuickBooks customer mapping changed",
@@ -97,6 +103,8 @@ const AL_ACTION_GROUPS = [
   { value: "client_fee.", label: "Client fees", money: true },
   { value: "cost_rate.", label: "Cost rates", money: true },
   { value: "firm_cost.", label: "Firm cost basis", money: true },
+  { value: "cost_contract.", label: "Contract clients (Capacity)", money: true },
+  { value: "cost_alloc.", label: "Cost allocation rules", money: true },
   { value: "profitability.", label: "Profitability settings", money: true },
   { value: "qbo_", label: "QuickBooks" },
   { value: "client.", label: "Clients" },
@@ -116,6 +124,13 @@ function AL_money(v) {
   if (v == null || v === "") return "none";
   const n = Number(v);
   return Number.isFinite(n) ? "$" + n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : String(v);
+}
+
+// A 0..1 share as a percentage (MGB Home S6 allocation rules).
+function AL_pct(v) {
+  if (v == null || v === "") return "none";
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(n * 1000) / 10 + "%" : String(v);
 }
 
 // One-line plain-English summary of the details object.
@@ -140,6 +155,9 @@ function AL_summary(row) {
   }
   if (a.startsWith("client_fee.")) return `${AL_money(d.from)} → ${AL_money(d.to)}${row.actor_email === "master-sheet-sync" ? " (Master Data sync)" : ""}`;
   if (a.startsWith("cost_rate.")) return `${AL_money(d.from)} → ${AL_money(d.to)}/h from ${d.effective_from || "?"}`;
+  if (a.startsWith("cost_contract.")) return `${d.client || "?"}: ${d.label_from ?? "none"} → ${d.label_to ?? "none"}`;
+  if (a.startsWith("cost_alloc."))
+    return `${d.client || "?"} ${d.method || "fixed"}: ${AL_pct(d.share_from)} → ${AL_pct(d.share_to)} from ${d.effective_from || "?"}`;
   if (a.startsWith("firm_cost."))
     return `staff ${AL_money(d.staff_from)} → ${AL_money(d.staff_to)}/h, full ${AL_money(d.full_from)} → ${AL_money(d.full_to)}/h from ${d.effective_from || "?"}`;
   if (a === "profitability.target_changed") return `${d.from ?? "?"}% → ${d.to ?? "?"}%`;

@@ -201,3 +201,19 @@
 .mh-fr-flag:first-child {
   margin-left: 0;
 }
+/* Capacity (S6) */
+.mh-cap-sub {
+  margin: 14px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.mh-cap-sub:first-child {
+  margin-top: 0;
+}
+.mh-cap-notes {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.mh-cap-notes li + li {
+  margin-top: 2px;
+}

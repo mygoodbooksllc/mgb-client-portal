@@ -1,10 +1,10 @@
 // ----------------------------------------------------------------------------
-// MGB Home, slices S1 to S5 (docs/mgb-home-spec.md): the firm's own home on
+// MGB Home, slices S1 to S6 (docs/mgb-home-spec.md): the firm's own home on
 // the internal client (MyGoodBooks). app.jsx renders these only when mhHere
 // (MH_canOpen on the internal client, components/internal/MH_gate.js):
 //
 //   MH_TabRow             Home · Profitability · Pricing & fees · Overhead ·
-//                         Cost rates,
+//                         Cost rates · Capacity,
 //                         then the Firm books ▾ menu (the internal client's
 //                         existing pages, regrouped), the lock and the gear.
 //   MH_HomePage           #/internal: four cards (margin this month vs
@@ -43,12 +43,19 @@
 //                         (S5, MH_FeeReviewCard: read-only master-sheet-sync
 //                         action "compare", now vs 2027, flags, CSV; pure
 //                         logic in MH_fees.js), milestone tiers (read-only).
+//   MH_CapacityPage       #/internal/capacity (S6): hours per person against
+//                         target, fee revenue carried (shared by hours), pay
+//                         cost, and the split between contract clients (IHH)
+//                         and MGB clients, from capacity_inputs()
+//                         (supabase/mgb-home-s6.sql); MH_CapacityRulesCard
+//                         edits contract clients and fixed / fallback shares.
+//                         Pure logic in MH_capacity.js.
 //   MH_pageTitle          header title for an MGB Home page or a Firm books page.
 //
 // Every money piece keeps TP_PF_canSee(effective user) as a second guard and
 // every query behind it is refused server-side without can_view_internal().
 // No rate values live in code: every figure is read from the database, and
-// a missing rate shows as "needs rate". Capacity is a later slice.
+// a missing rate shows as "needs rate". Money pages never call MH_track.
 //
 // Loaded after TeamPage.jsx / TeamProfit.jsx and before app.jsx; shares the
 // global scope, so top-level names carry the MH_ prefix and app.jsx globals
@@ -1288,6 +1295,524 @@ function MH_FirmBasisCard({ cb, today }) {
               ))}
             </ul>
           )}
+        </>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Capacity (S6)
+// ---------------------------------------------------------------------------
+// Hours per person next to the fee revenue of the clients they carry and
+// their pay cost, split between contract clients (IHH) and MGB clients. One
+// read, capacity_inputs() (supabase/mgb-home-s6.sql), refused server-side
+// without can_view_internal(); the math is MH_capCompute (MH_capacity.js).
+// The rules card edits cost_contract_clients and staff_cost_allocations
+// (RLS: grant holders only; audited as cost_contract.* / cost_alloc.*).
+// No MH_track here: money pages are never sent to usage tracking.
+function MH_useCapacity(on, range, basis, wait, bump) {
+  const [st, setSt] = useState({ loading: !!on });
+  const b = basis === "full" ? "full" : "staff";
+  const from = range && range.from;
+  const to = range && range.to;
+  const key = `${from}|${to}|${b}|${bump}`;
+  useEffect(() => {
+    const sb = window.mgbSupabase;
+    if (!on || wait || !from || !to || !sb || typeof TP_qRpc !== "function") {
+      setSt({ loading: !!(on && wait) });
+      return undefined;
+    }
+    let alive = true;
+    setSt({ loading: true });
+    (async () => {
+      // Tier fees fill in for clients without a fee row, as on Profitability.
+      const m = await MH_safe(sb.from("client_milestones").select("client_id, confirmed_tier"));
+      const tierFees = {};
+      ((m && m.data) || []).forEach((r) => {
+        const fee = typeof TP_PF_tierFee === "function" ? TP_PF_tierFee(r.confirmed_tier) : null;
+        if (fee != null) tierFees[r.client_id] = fee;
+      });
+      const r = await TP_qRpc("capacity_inputs", { p_from: from, p_to: to, p_basis: b, p_default_fees: tierFees });
+      if (!alive) return;
+      setSt({ loading: false, key, data: r.error ? null : r.data || null, error: r.error || null, status: r.status, message: MH_basisErrorText(r.error) });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [on, wait, from, to, b, bump]);
+  if (on && (wait || (!st.loading && st.key !== key))) return { loading: true };
+  return st;
+}
+
+function MH_capPct(x) {
+  return x == null || !isFinite(x) ? "–" : `${Math.round(x * 100)}%`;
+}
+
+function MH_CapacityPage({ clients }) {
+  const { canMoney } = MH_useMoneyUser();
+  const [period, setPeriod] = useState("last-month");
+  const [bump, setBump] = useState(0);
+  const reload = useCallback(() => setBump((n) => n + 1), []);
+  const range = useMemo(() => MH_ohRange(period), [period]);
+  const cb = MH_useCostBasis(canMoney);
+  const res = MH_useCapacity(canMoney, range, cb.basis, cb.loading, bump);
+  const d = res.data;
+  const r = useMemo(() => (d && typeof MH_capCompute === "function" ? MH_capCompute(d) : null), [d]);
+  if (!canMoney) return <MH_NoAccess />;
+
+  const ratesSet = !!(d && d.rates_set);
+  const fullBasis = !!(d && d.basis === "full");
+  const contracts = (r && r.contracts) || [];
+  const people = (r && r.people) || [];
+  const tot = (r && r.totals) || {};
+  const uncarriedMgb = r ? r.uncarried.mgb : 0;
+  const uncarriedContract = r ? Object.keys(r.uncarried.contract).reduce((a, k) => a + (r.uncarried.contract[k] || 0), 0) : 0;
+  const anyEst = people.some((p) => p.flags.estimated);
+  const anyFallback = people.some((p) => p.flags.fallback);
+  const anyNoHours = people.some((p) => p.flags.noHours);
+  const anyCapped = people.some((p) => p.flags.capped);
+  const anyUncosted = people.some((p) => p.flags.uncosted);
+  const hrs = (m) => MH_ohHours(m);
+  const money = (v) => (ratesSet ? MH_ohMoney(v) : "–");
+
+  const csv = () => {
+    if (!r || typeof TP_downloadCsv !== "function") return;
+    const head = ["Section", "Name", "Hours", "Target hours", "Use %", "Fee revenue", "Pay cost"];
+    contracts.forEach((c) => head.push(`${c.label} cost`));
+    head.push("MGB cost", "Margin", "Margin %");
+    const rows = people.map((p) => {
+      const row = ["Person", p.name, (p.minutes / 60).toFixed(2), p.targetMinutes != null ? (p.targetMinutes / 60).toFixed(2) : "", p.utilization != null ? Math.round(p.utilization * 100) : "", p.revenue, ratesSet ? p.pay : ""];
+      contracts.forEach((c) => row.push(ratesSet ? p.contractCost[c.client_id] : ""));
+      row.push(ratesSet ? p.mgbCost : "", ratesSet ? p.margin : "", ratesSet && p.marginPct != null ? p.marginPct : "");
+      return row;
+    });
+    r.split.forEach((s) => {
+      const row = ["Split", s.name, "", "", "", s.revenue, ratesSet ? s.cost : ""];
+      contracts.forEach(() => row.push(""));
+      row.push("", ratesSet ? s.margin : "", ratesSet && s.marginPct != null ? s.marginPct : "");
+      rows.push(row);
+    });
+    TP_downloadCsv(`mgb-capacity-${fullBasis ? "full-cost" : "staff-cost"}-${range.from}-to-${range.to}.csv`, head, rows);
+  };
+
+  return (
+    <div className="tp-page mh-capacity" data-tour="mh-capacity">
+      <div className="card tp-toolbar-card" style={{ marginBottom: 20 }}>
+        <div className="tp-toolbar">
+          <div className="modal-tabs" style={{ marginTop: 0 }}>
+            {MH_OH_PERIODS.map((p) => (
+              <button key={p.key} type="button" className={"modal-tab" + (period === p.key ? " active" : "")} onClick={() => setPeriod(p.key)}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <button type="button" className="btn-secondary" onClick={csv} disabled={!r || res.loading}>
+            Download CSV
+          </button>
+        </div>
+        <MH_BasisToggle cb={cb} />
+      </div>
+
+      <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-cap-title">
+        <h3 className="card-title" id="mh-cap-title">Capacity</h3>
+        <p className="card-subtitle">
+          Each person's QuickBooks Time hours against their weekly target, the fee revenue of the clients they log time on
+          (shared by hours), and their pay cost: loaded cost rate{fullBasis ? " plus the firm overhead per hour (Full cost)" : ""} ×
+          paid hours (the target hours for the days so far, or the logged hours when more). Contract clients such as IHH are
+          shown apart from MGB clients. Plain hours stay on Team › Hours.
+        </p>
+        {res.loading && !d ? (
+          <p className="tp-muted">Loading…</p>
+        ) : res.error ? (
+          <p className="tp-muted">{res.message || (typeof TP_qErrorText === "function" ? TP_qErrorText("capacity", res.error, res.status) : "Couldn't load capacity.")}</p>
+        ) : !r ? (
+          <p className="tp-muted">Nothing to show.</p>
+        ) : (
+          <>
+            <div className="tp-stats">
+              <TP_Stat label="Hours logged" value={hrs(tot.minutes)} />
+              <TP_Stat label="Use of target hours" value={MH_capPct(tot.utilization)} />
+              <TP_Stat label="Fee revenue" value={MH_ohMoney(tot.revenue)} />
+              <TP_Stat label={(fullBasis ? "Full pay cost" : "Pay cost") + (anyEst ? " (part estimated)" : "")} value={money(tot.pay)} />
+              <TP_Stat label="Margin" value={ratesSet ? `${MH_ohMoney(tot.margin)} · ${MH_ohPctLabel(tot.marginPct)}` : "–"} bad={ratesSet && tot.margin < 0} />
+            </div>
+            {!ratesSet && <p className="tp-muted">Set staff cost rates on Cost rates to see cost.</p>}
+            {(uncarriedMgb > 0 || uncarriedContract > 0) && (
+              <p className="tp-muted mh-small">
+                {MH_ohMoney(uncarriedMgb + uncarriedContract)} of fee revenue is from clients nobody logged time on in a month. It
+                counts in the split below but isn't carried by anyone in the people table.
+              </p>
+            )}
+            {r.missingFees > 0 && (
+              <p className="tp-muted mh-small">
+                {r.missingFees} {r.missingFees === 1 ? "client has" : "clients have"} no fee and no tier, so no revenue. Set fees on
+                Pricing &amp; fees.
+              </p>
+            )}
+          </>
+        )}
+      </section>
+
+      {r && (
+        <>
+          <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-cap-split" data-tour="mh-capacity-split">
+            <h3 className="card-title" id="mh-cap-split">Contract clients vs MGB clients</h3>
+            <p className="card-subtitle">
+              Revenue is each side's client fees. Cost is everyone's pay cost, split by the allocation rules below: a fixed share
+              when one is set, otherwise by the hours each person logged on the contract client that month. MGB includes the
+              firm's own time.
+            </p>
+            <div className="table-scroll">
+              <table className="tx-table tx-table-labeled tp-table">
+                <thead>
+                  <tr>
+                    <th>Side</th>
+                    <th className="num">Fee revenue</th>
+                    <th className="num">Allocated cost</th>
+                    <th className="num">Margin</th>
+                    <th className="num">Margin %</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {r.split.map((s) => (
+                    <tr key={s.key}>
+                      <td data-primary="">
+                        {s.contract ? s.label : "MGB clients"}
+                        {s.contract && s.name && s.name !== s.label && <span className="tp-muted"> · {s.name}</span>}
+                        {!s.contract && <span className="tp-muted"> · and firm time</span>}
+                      </td>
+                      <td className="num" data-label="Fee revenue">{MH_ohMoney(s.revenue)}</td>
+                      <td className="num" data-label="Allocated cost">{money(s.cost)}</td>
+                      <td className={"num" + (ratesSet && s.margin < 0 ? " mh-warn" : "")} data-label="Margin">{money(s.margin)}</td>
+                      <td className="num" data-label="Margin %">{ratesSet ? MH_ohPctLabel(s.marginPct) : "–"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-cap-people">
+            <h3 className="card-title" id="mh-cap-people">By person</h3>
+            <p className="card-subtitle">
+              Use = hours logged out of their weekly target for the days covered (target from Team › Hours › Capacity). Revenue
+              carried = their share, by hours, of the fees of the clients they logged time on.
+            </p>
+            {people.length === 0 ? (
+              <p className="tp-muted">No hours or targets in this period.</p>
+            ) : (
+              <div className="table-scroll">
+                <table className="tx-table tx-table-labeled tp-table">
+                  <thead>
+                    <tr>
+                      <th>Person</th>
+                      <th className="num">Hours</th>
+                      <th className="num">Use</th>
+                      <th className="num">Revenue carried</th>
+                      <th className="num">Pay cost</th>
+                      {contracts.map((c) => (
+                        <th className="num" key={c.client_id}>{c.label} share</th>
+                      ))}
+                      <th className="num">MGB cost</th>
+                      <th className="num">Margin</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {people.map((p) => (
+                      <tr key={p.key}>
+                        <td data-primary="">
+                          {p.name}
+                          {!p.mapped && <span className="tp-muted">{p.former ? " · no longer on staff" : " · not matched to staff"}</span>}
+                          {p.mapped && p.former && <span className="tp-muted"> · no longer on staff</span>}
+                        </td>
+                        <td className="num" data-label="Hours">
+                          {hrs(p.minutes)}
+                          {p.targetMinutes != null && <span className="tp-muted"> / {hrs(p.targetMinutes)}</span>}
+                        </td>
+                        <td className="num" data-label="Use">{MH_capPct(p.utilization)}</td>
+                        <td className="num" data-label="Revenue carried">{MH_ohMoney(p.revenue)}</td>
+                        <td className="num" data-label="Pay cost">
+                          {money(p.pay)}
+                          {ratesSet && p.flags.estimated && <span className="tp-muted" title="Part costed at the average rate"> *</span>}
+                          {ratesSet && p.flags.uncosted && <span className="tp-muted" title="No rate and no average rate"> ?</span>}
+                        </td>
+                        {contracts.map((c) => (
+                          <td className="num" data-label={`${c.label} share`} key={c.client_id}>
+                            {ratesSet ? MH_ohMoney(p.contractCost[c.client_id]) : "–"}
+                            {p.pay ? <span className="tp-muted"> · {MH_capPct(p.contractCost[c.client_id] / p.pay)}</span> : null}
+                            {p.sources.fixed && <span className="tp-muted" title="A fixed share from the allocation rules"> (fixed)</span>}
+                            {p.flags.fallback && <span className="tp-muted" title="No logged hours in a month: the fallback share was used"> (fallback)</span>}
+                            {p.flags.noHours && <span className="tp-muted" title="No logged hours in a month and no fallback share: that month is all MGB"> ‡</span>}
+                          </td>
+                        ))}
+                        <td className="num" data-label="MGB cost">{money(p.mgbCost)}</td>
+                        <td className={"num" + (ratesSet && p.margin < 0 ? " mh-warn" : "")} data-label="Margin">
+                          {ratesSet ? MH_ohMoney(p.margin) : "–"}
+                          {ratesSet && p.marginPct != null && <span className="tp-muted"> · {MH_ohPctLabel(p.marginPct)}</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {(anyEst || anyNoHours || anyCapped || anyUncosted) && (
+              <ul className="tp-muted mh-small mh-cap-notes">
+                {anyEst && <li>* Part costed at the average rate: add the person's rate on Cost rates.</li>}
+                {anyUncosted && <li>? No cost rate at all yet, so no cost.</li>}
+                {anyNoHours && <li>‡ A month with no logged hours and no fallback share counts as all MGB. Add a fallback share below if that's wrong.</li>}
+                {anyCapped && <li>Fixed and fallback shares added up to more than 100% for someone, so they were scaled down. Check the rules below.</li>}
+              </ul>
+            )}
+            {anyFallback && <p className="tp-muted mh-small">(fallback) = a month with no logged hours, split by the stored fallback share.</p>}
+          </section>
+        </>
+      )}
+
+      <MH_CapacityRulesCard clients={clients} onChanged={reload} />
+    </div>
+  );
+}
+
+// Allocation rules: which clients are separate contracts, and fixed or
+// fallback shares per person. Grant holders only (RLS); every change audited.
+function MH_CapacityRulesCard({ clients, onChanged }) {
+  const today = typeof TP_ymd === "function" ? TP_ymd(new Date()) : new Date().toISOString().slice(0, 10);
+  const [st, setSt] = useState({ loading: true });
+  const [bump, setBump] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState(null);
+  const [newContract, setNewContract] = useState({ client_id: "", label: "" });
+  const [form, setForm] = useState({ staff_email: "", client_id: "", share: "100", method: "fixed", effective_from: today, note: "" });
+  const sb = window.mgbSupabase;
+  useEffect(() => {
+    if (!sb) {
+      setSt({ loading: false, error: "no client" });
+      return undefined;
+    }
+    let alive = true;
+    (async () => {
+      const [cc, al, staff] = await Promise.all([
+        MH_safe(sb.from("cost_contract_clients").select("client_id, label, note").order("label")),
+        MH_safe(sb.from("staff_cost_allocations").select("id, staff_email, client_id, share, method, effective_from, note").order("staff_email").order("effective_from", { ascending: false })),
+        MH_safe(sb.from("staff").select("email, name, active").eq("active", true).order("name")),
+      ]);
+      if (!alive) return;
+      setSt({ loading: false, error: cc.error || al.error || null, contracts: cc.data || [], allocs: al.data || [], staff: staff.data || [] });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [bump]);
+  const done = () => {
+    setBump((n) => n + 1);
+    if (onChanged) onChanged();
+  };
+  const nameOf = (email) => {
+    const s = (st.staff || []).find((x) => String(x.email || "").toLowerCase() === email);
+    return s ? s.name || s.email : email;
+  };
+  const labelOf = (cid) => {
+    const c = (st.contracts || []).find((x) => x.client_id === cid);
+    return c ? c.label : cid;
+  };
+  const clientName = (cid) => {
+    const c = (clients || []).find((x) => x && x.id === cid);
+    return c ? c.name : cid;
+  };
+  const run = async (p, what) => {
+    setSaving(true);
+    setErr(null);
+    const res = await MH_safe(p);
+    setSaving(false);
+    if (res.error) {
+      setErr(`Couldn't ${what}: ${res.error.message || res.error}`);
+      return false;
+    }
+    done();
+    return true;
+  };
+  const addContract = async () => {
+    const label = newContract.label.trim();
+    if (!newContract.client_id || !label) {
+      setErr("Pick a client and give it a short label.");
+      return;
+    }
+    if (await run(sb.from("cost_contract_clients").insert({ client_id: newContract.client_id, label: label.slice(0, 40) }), "add the contract client")) {
+      setNewContract({ client_id: "", label: "" });
+    }
+  };
+  const removeContract = async (c) => {
+    if (!window.confirm(`Stop treating ${c.label} as a separate contract? Its allocation rules are removed too.`)) return;
+    await run(sb.from("cost_contract_clients").delete().eq("client_id", c.client_id), "remove it");
+  };
+  const addAlloc = async () => {
+    const share = Number(form.share);
+    if (!form.staff_email || !form.client_id) {
+      setErr("Pick a person and a contract client.");
+      return;
+    }
+    if (form.share === "" || !isFinite(share) || share < 0 || share > 100) {
+      setErr("The share is a percentage from 0 to 100.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(form.effective_from || "")) {
+      setErr("Pick the date it takes effect.");
+      return;
+    }
+    const row = {
+      staff_email: form.staff_email.toLowerCase(),
+      client_id: form.client_id,
+      share: Math.round(share * 100) / 10000,
+      method: form.method === "fallback" ? "fallback" : "fixed",
+      effective_from: form.effective_from,
+      note: form.note.trim() || null,
+    };
+    const same = (st.allocs || []).find(
+      (a) => a.staff_email === row.staff_email && a.client_id === row.client_id && a.method === row.method && a.effective_from === row.effective_from,
+    );
+    if (same && !window.confirm("There's already a rule for this person, client, kind and date. Replace it?")) return;
+    if (await run(sb.from("staff_cost_allocations").upsert(row, { onConflict: "staff_email,client_id,method,effective_from" }), "save the rule")) {
+      setForm((f) => ({ ...f, note: "" }));
+    }
+  };
+  const removeAlloc = async (a) => {
+    if (!window.confirm(`Remove this rule for ${nameOf(a.staff_email)}?`)) return;
+    await run(sb.from("staff_cost_allocations").delete().eq("id", a.id), "remove the rule");
+  };
+  const taken = new Set((st.contracts || []).map((c) => c.client_id));
+  const pickable = (clients || []).filter((c) => c && c.isInternal !== true && c.testOnly !== true && !taken.has(c.id));
+
+  return (
+    <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-cap-rules" data-tour="mh-capacity-rules">
+      <h3 className="card-title" id="mh-cap-rules">Allocation rules</h3>
+      <p className="card-subtitle">
+        A contract client's staff cost is shown apart from MGB clients. For each person, a <b>fixed</b> share always applies
+        (for someone who works only on a contract). With no fixed share, cost follows the hours they logged on the contract
+        client that month. A <b>fallback</b> share is used only in a month with no logged hours. A newer rule takes over from
+        its date.
+      </p>
+      {st.loading ? (
+        <p className="tp-muted">Loading…</p>
+      ) : st.error ? (
+        <p className="tp-muted">Couldn't load the allocation rules.</p>
+      ) : (
+        <>
+          <h4 className="mh-cap-sub">Contract clients</h4>
+          {st.contracts.length === 0 ? (
+            <p className="tp-muted">None yet: every client counts as MGB.</p>
+          ) : (
+            <ul className="pf-rate-history mh-basis-history">
+              {st.contracts.map((c) => (
+                <li key={c.client_id}>
+                  <span>
+                    <b>{c.label}</b>
+                    <span className="tp-muted"> · {clientName(c.client_id)}</span>
+                  </span>
+                  <span />
+                  <button type="button" className="tp-q-link" onClick={() => removeContract(c)} disabled={saving}>
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="pf-fee-form">
+            <label>
+              <span>Client</span>
+              <select value={newContract.client_id} onChange={(ev) => setNewContract((x) => ({ ...x, client_id: ev.target.value }))}>
+                <option value="">Pick a client…</option>
+                {pickable.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name || c.id}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Short label</span>
+              <input type="text" maxLength={40} value={newContract.label} onChange={(ev) => setNewContract((x) => ({ ...x, label: ev.target.value }))} />
+            </label>
+            <button type="button" className="btn-secondary pf-btn" onClick={addContract} disabled={saving}>
+              Add contract client
+            </button>
+          </div>
+
+          <h4 className="mh-cap-sub">Shares by person</h4>
+          {st.allocs.length === 0 ? (
+            <p className="tp-muted">No rules: everyone's cost follows their logged hours.</p>
+          ) : (
+            <ul className="pf-rate-history mh-basis-history">
+              {st.allocs.map((a) => (
+                <li key={a.id}>
+                  <span>
+                    {nameOf(a.staff_email)}
+                    <span className="tp-muted">
+                      {" "}
+                      · from {typeof TP_PF_dateY === "function" ? TP_PF_dateY(a.effective_from) : a.effective_from}
+                      {a.note ? ` · ${a.note}` : ""}
+                    </span>
+                  </span>
+                  <span>
+                    {Math.round(Number(a.share) * 1000) / 10}% {labelOf(a.client_id)} · {a.method === "fallback" ? "fallback" : "fixed"}
+                  </span>
+                  <button type="button" className="tp-q-link" onClick={() => removeAlloc(a)} disabled={saving}>
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {st.contracts.length > 0 && (
+            <div className="pf-fee-form">
+              <label>
+                <span>Person</span>
+                <select value={form.staff_email} onChange={(ev) => setForm((f) => ({ ...f, staff_email: ev.target.value }))}>
+                  <option value="">Pick a person…</option>
+                  {(st.staff || []).map((s) => (
+                    <option key={s.email} value={String(s.email || "").toLowerCase()}>
+                      {s.name || s.email}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Contract client</span>
+                <select value={form.client_id} onChange={(ev) => setForm((f) => ({ ...f, client_id: ev.target.value }))}>
+                  <option value="">Pick…</option>
+                  {st.contracts.map((c) => (
+                    <option key={c.client_id} value={c.client_id}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Share %</span>
+                <input type="number" min="0" max="100" step="1" inputMode="decimal" value={form.share} onChange={(ev) => setForm((f) => ({ ...f, share: ev.target.value }))} />
+              </label>
+              <label>
+                <span>Kind</span>
+                <select value={form.method} onChange={(ev) => setForm((f) => ({ ...f, method: ev.target.value }))}>
+                  <option value="fixed">Fixed (always)</option>
+                  <option value="fallback">Fallback (months with no hours)</option>
+                </select>
+              </label>
+              <label>
+                <span>Effective from</span>
+                <input type="date" value={form.effective_from} onChange={(ev) => setForm((f) => ({ ...f, effective_from: ev.target.value }))} />
+              </label>
+              <label className="mh-basis-note">
+                <span>Note (optional)</span>
+                <input type="text" maxLength={500} value={form.note} onChange={(ev) => setForm((f) => ({ ...f, note: ev.target.value }))} />
+              </label>
+              <button type="button" className="btn-primary pf-btn" onClick={addAlloc} disabled={saving}>
+                {saving ? "Saving…" : "Save rule"}
+              </button>
+            </div>
+          )}
+          {err && <p className="tp-bad" style={{ marginTop: 8 }}>{err}</p>}
         </>
       )}
     </section>

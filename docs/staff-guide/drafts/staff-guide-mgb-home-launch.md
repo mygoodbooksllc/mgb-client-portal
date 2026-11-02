@@ -40,3 +40,9 @@ Deliberately NOT in the public What's new: any line naming MGB Home. Admins with
 - Gated (grant holders only): the **2027 fee change review** card, the `mgb-home` and `profitability` article lines and the `ann-mh-pricing` wording. The notice keeps 6 steps.
 - Deploy: the `master-sheet-sync` edge function must be redeployed for the card to work (until then the card says "unknown action"). The live `sync` path and the nightly run are unchanged.
 - Read only: the review writes nothing, not even a run log row, and does not log a usage event (`MGB_track` rows carry no client id, so admins without the grant could see them).
+
+## S6 Capacity (2026-11-02)
+
+- Nothing public changes, so there is no `whats-new` line: plain hours capacity stays on Team › Hours for every admin, and the money version lives only on MGB Home › Capacity (grant holders with MGB Home on).
+- Gated (grant holders only): the `mgb-capacity` page (`#/internal/capacity`), its ⌘K row and help-menu entry, the `mgb-home` article's Capacity section and keywords, the `cost_contract.*` / `cost_alloc.*` audit rows and the `ann-mh-capacity` step. The `mgb-home` notice keeps 6 steps: Cost rates is folded into the Capacity step (`ann-mh-costs` is gone). Usage rows for the page, the ⌘K jump and guide searches for capacity, allocation or IHH carry the internal client id, so admins without the grant never see them.
+- Seeded: IHH (Illumination Health and Home) as the one contract client and one fixed 100% share for the person who works only on IHH. Nobody else has a rule; anyone who splits time follows their logged hours on IHH each month. Before launch the owner checks the IHH split on Capacity and adds a fallback share only for someone whose months without logged hours should not count as all MGB.

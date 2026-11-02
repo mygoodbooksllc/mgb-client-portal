@@ -1,6 +1,6 @@
 # MGB Home (spec, 2026-10-31)
 
-Status: SPEC ONLY, nothing built. Owner decisions needed: see Open questions at the end.
+Status: BUILT (S0 to S6, 2026-11-02), behind the hidden preview. Open questions answered at the end (OQ7 in S6).
 Size: **Big** (money, permissions, routing, a hidden preview). Opus specs, builds money/permission slices, critiques and verifies; Sonnet builds UI-only slices; Haiku runs screenshot and grep sweeps.
 
 ## 1. Goal and non-goals
@@ -63,7 +63,7 @@ Since 2026-07-01: 1,501 h mapped to clients, **973 h unmapped**, of which **781 
 | Firm books ▾ (Overview, Close, Reports, Bank, Ledger review, Documents, SOP, Finances) | `#/internal/books/<tab>` → existing page keys | S1 (regroup only) |
 | Overhead | `#/internal/overhead` | S2 |
 | Cost rates | `#/internal/costs` | S3 |
-| Capacity | `#/internal/capacity` | S6 (pending OQ7) |
+| Capacity | `#/internal/capacity` | S6 (BUILT 2026-11-02) |
 
 Dropped for the internal client: Messages (no client users), Milestone (pricing for ourselves is meaningless), Client view menu, health dot, plan pill. Client setup stays behind the gear (QuickBooks connection lives there).
 
@@ -89,7 +89,7 @@ All tabs: mounted only when `MH_canOpen()` (section 6). Every query below is alr
 
 **Firm books.** Regroups the internal client's existing pages under one menu, unchanged components: Overview, Close (`month_close`, close checks), Reports (P&L, Balance Sheet from `qbo_*`), Bank, Ledger review, Documents, SOP, and Finances (`dashboard`, `budget`, `receivables`). No new data. Blocked on S0 for fresh numbers.
 
-**Capacity (later).** Hours per person (`qbo_hours_by_staff`, `staff_capacity`) next to the fee revenue of the clients they carry and their cost, plus allocation rules for people whose cost sits on another client (OQ7). Plain hours capacity stays on Team › Hours for every admin.
+**Capacity (BUILT 2026-11-02, S6).** One grant-only RPC, `capacity_inputs(from, to, basis)` (SECURITY DEFINER, 42501 without `can_view_internal()`, 22023 on a bad range or basis), returns months, people with targets, person-month minutes (and minutes per contract client), loaded rates, client fees and the allocation rules; `components/internal/MH_capacity.js` does the math (node tests). Pay cost = loaded rate (plus firm overhead per hour on Full cost) × paid hours, where paid hours = the target hours for the days covered, or the logged hours when more. Fee revenue of each client is shared by the hours people logged on it. Contract clients (`cost_contract_clients`, seeded with IHH) are shown apart from MGB clients; each person's cost is split by `staff_cost_allocations`: a **fixed** share always applies, otherwise the share of their logged hours on the contract client that month, and a **fallback** share only in a month with no logged hours. Both tables: RLS grant-only, RESTRICTIVE internal company lock, `updated_by` stamped, `cost_contract.*` / `cost_alloc.*` audit rows hidden from admins without the grant. Plain hours capacity stays on Team › Hours for every admin.
 
 ## 5. What moves out of Hours, and links
 
@@ -138,7 +138,7 @@ Never scatter raw checks. Money pieces keep `TP_PF_canSee(effectiveUser)` as a s
 | **S3** | Cost rates tab, `firm_cost_basis`, cost-basis toggle on Profitability (BUILT 2026-11-02) | 0.5 session | Opus builds + verifies (money) |
 | **S4** | Firm books polish after S0: close status card, last sync line, Reports default to firm P&L (BUILT 2026-11-02) | 0.25 session | Sonnet builds, Opus reviews |
 | **S5** | 2027 fee change review (`compare` action + tab) (BUILT 2026-11-02) | 0.5 session | Opus builds + verifies (edge function, money) |
-| **S6** | Capacity with money and allocation rules | 0.5 session, after OQ7 | Opus |
+| **S6** | Capacity with money and allocation rules (BUILT 2026-11-02) | 0.5 session, after OQ7 | Opus |
 
 S1 is the smallest slice that delivers the owner's ask: MGB Home looks different, holds the money, Hours carries none.
 
@@ -182,5 +182,5 @@ S1 is the smallest slice that delivers the owner's ask: MGB Home looks different
 4. **Which cost drives margin?** Recommend per-person loaded rates stay the default (the 40% target was set on them), with a "Full cost" toggle using the firm full-cost rate; Home shows both margins.
 5. **Map "My Good Books (Clock-in Option)" (781 h since July) to MGB (internal)?** Recommend yes, at S2 start; later ask staff to pick a QuickBooks Time service item (admin, training, sales) for internal time.
 6. **Hours money removal: ship with S1 ungated, or hold until launch?** Recommend ungated for non-grant admins (only Billable value, always blank), and for grant holders keep money on Hours until the switch flips, then remove.
-7. **What is "IHH", and how should Jesse's and Carmen's cost be allocated?** No portal client or QuickBooks customer matches "IHH". Recommend an allocation table (person, client, share, from) built in S6 once you say what IHH is.
+7. **What is "IHH", and how should Jesse's and Carmen's cost be allocated?** ANSWERED (owner, S6): IHH is Illumination Health and Home, a separate contract client. Carmen is 100% IHH (seeded as a fixed share). Jesse is split by his logged QuickBooks Time hours on IHH vs everything else (no row seeded for him). A stored fallback share applies only in a month with no logged hours. Loaded rates are reused.
 8. **Client Overview "Hourly rate · this month" card** (plan list price, effective rate, visible to staff): leave as is, or move to MGB Home too? Recommend leave it (list prices are public) and revisit after S1.

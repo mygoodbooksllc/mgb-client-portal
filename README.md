@@ -1345,6 +1345,19 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   UI: `MH_FeeReviewCard` on MGB Home › Pricing & fees (reads the sheet only on click; filter chips, sort, CSV);
   pure logic `components/internal/MH_fees.js` + `MH_fees.test.js`; logic tests in
   `supabase/functions/master-sheet-sync/logic.test.js`. Redeploy `master-sheet-sync` to turn it on.
+- **MGB Home, slice S6 Capacity (2026-11-02, SQL `supabase/mgb-home-s6.sql`, tests in `mgb-home-tests.sql`):**
+  new tab `#/internal/capacity` (page `mgb-capacity`, grant holders only; plain hours capacity stays on Team ›
+  Hours for every admin). Tables `cost_contract_clients` (contract clients shown apart from MGB clients; seeded
+  with IHH) and `staff_cost_allocations` (person, contract client, share 0..1, `fixed` or `fallback`, effective
+  from; one fixed row seeded), both RLS grant-only with the RESTRICTIVE internal company lock, `updated_by`
+  stamped by `firm_cost_basis__stamp()`, audited as `cost_contract.*` / `cost_alloc.*` (hidden from admins
+  without the grant by the audit_log policy). RPC `capacity_inputs(from, to, basis, default_fees)` (SECURITY
+  DEFINER; 42501 without `can_view_internal()`, 22023 on a bad range or basis) returns months, people with
+  targets, person-month minutes (and minutes per contract client), rates, client fees and the rules. The math is
+  pure in `components/internal/MH_capacity.js` (+ `MH_capacity.test.js`): paid hours = max(logged, target for
+  the days covered), cost share = fixed, else logged hours on the contract, else fallback in a month with no
+  hours, else all MGB (capped at 100%); fee revenue shared by hours. `MH_CapacityPage` + `MH_CapacityRulesCard`
+  in `MgbHome.jsx`; no usage event is logged with money in it.
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
   (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page

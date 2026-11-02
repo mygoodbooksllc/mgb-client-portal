@@ -176,8 +176,8 @@ function MH_useCanOpen(real, imp) {
 // Pages and routes (app.jsx parseHashRoute / buildHashRoute / effectivePage).
 // MGB Home is still the internal client: its own four pages plus the Firm
 // books menu, which regroups the internal client's existing pages unchanged.
-// Overhead came in S2, Cost rates in S3; Capacity is a later slice (not
-// built, no route).
+// Overhead came in S2, Cost rates in S3, Capacity in S6 (spec tab order puts
+// Capacity after Firm books; the tab row draws the Firm books menu before it).
 // ---------------------------------------------------------------------------
 var MH_TABS = [
   { key: "mgb-home", slug: "", label: "Home", tour: "mh-tab-home" },
@@ -185,6 +185,7 @@ var MH_TABS = [
   { key: "mgb-pricing", slug: "pricing", label: "Pricing & fees", tour: "mh-tab-pricing" },
   { key: "mgb-overhead", slug: "overhead", label: "Overhead", tour: "mh-tab-overhead" },
   { key: "mgb-costs", slug: "costs", label: "Cost rates", tour: "mh-tab-costs" },
+  { key: "mgb-capacity", slug: "capacity", label: "Capacity", tour: "mh-tab-capacity" },
 ];
 // #/internal/books/<slug> -> an existing page key. Labels are for the Firm
 // books menu; "fin" marks the Finances group (shown only when the internal

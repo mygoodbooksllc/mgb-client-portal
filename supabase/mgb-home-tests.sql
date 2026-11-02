@@ -1,7 +1,7 @@
--- MGB Home S1 to S4: tests for mgb-home-s1.sql, mgb-home-s2.sql,
--- mgb-home-s3.sql (and the locks MGB Home relies on; S4 adds no SQL, only
--- the reads behind the Firm books card and the firm Profit & Loss).
--- NOT a migration. Run AFTER all three have been applied, in the Supabase
+-- MGB Home S1 to S6: tests for mgb-home-s1.sql, mgb-home-s2.sql,
+-- mgb-home-s3.sql, mgb-home-s6.sql (and the locks MGB Home relies on; S4 adds
+-- no SQL, only the reads behind the Firm books card and the firm Profit & Loss).
+-- NOT a migration. Run AFTER all of them have been applied, in the Supabase
 -- SQL editor (or psql as postgres). Everything runs in one transaction that
 -- ends in ROLLBACK, so no fixture survives. A failing check is collected; the
 -- run ends by raising 'mgb-home tests FAILED: ...' listing every failure, or
@@ -650,6 +650,188 @@ begin
   -- Sync now for the firm: adm_no can't touch the firm connection row.
   v := pg_temp.dml(adm, format($q$update public.qbo_connections set updated_at = updated_at where client_id = %L$q$, iid));
   perform pg_temp.chk('S4 qbo_connections: adm_no updates no firm row', v = '0' or v like 'ERR:%', v);
+end $$;
+
+-- ===========================================================================
+-- S6 (mgb-home-s6.sql): Capacity. capacity_inputs() (grant holders only),
+-- cost_contract_clients and staff_cost_allocations (RLS on every command,
+-- stamp, audit, internal company lock), the seeds, and usage filing.
+-- Fixture: the S2/S3 April 1999 rows. The owner marks the mh-cli client as a
+-- contract (rolled back), so the owner's April has 60 contract minutes of 120.
+-- Seed checks run first, before the owner writes test rows.
+-- ===========================================================================
+do $$
+declare
+  own text := (select email from _who where k = 'owner');
+  adm text := (select email from _who where k = 'adm_no');
+  bk  text := (select email from _who where k = 'bk');
+  cli text := (select client_id from qbo_customer_client_map where realm_id = 'mh-test-realm-s2' and qbo_customer_id = 'mh-cli');
+  ci  text := $q$select public.capacity_inputs(date '1999-04-01', date '1999-04-30', %L)::text$q$;
+  t   text;
+  v   text;
+  n   bigint;
+  j   jsonb;
+begin
+  -- 1. Seeds (live rows): IHH is the one contract, Carmen 100% IHH, no
+  --    fallback seed and no row for Jesse or the adm_no persona.
+  perform pg_temp.chk('S6 seed: IHH is a contract client',
+    exists (select 1 from cost_contract_clients where client_id = 'illumination-health-home' and label = 'IHH'));
+  perform pg_temp.chk('S6 seed: Carmen fixed 100% IHH',
+    exists (select 1 from staff_cost_allocations al join staff s on lower(s.email) = al.staff_email
+             where s.name ilike 'Carmen%Delacruz%' and al.client_id = 'illumination-health-home'
+               and al.method = 'fixed' and al.share = 1));
+  perform pg_temp.chk('S6 seed: no fallback row seeded',
+    not exists (select 1 from staff_cost_allocations where method = 'fallback'));
+  perform pg_temp.chk('S6 seed: no allocation row for Jesse or adm_no',
+    not exists (select 1 from staff_cost_allocations al
+                 where al.staff_email = lower(adm)
+                    or al.staff_email in (select lower(s.email) from staff s where s.name ilike 'Jesse%')));
+
+  -- 2. capacity_inputs: grant holders only; bad input refused.
+  perform pg_temp.chk('S6 capacity_inputs: anon has no execute',
+    not has_function_privilege('anon', 'public.capacity_inputs(date,date,text,jsonb)', 'execute'));
+  v := pg_temp.probe(adm, format(ci, 'staff'));
+  perform pg_temp.chk('S6 capacity_inputs: refused 42501 for adm_no', v like 'ERR:42501:%', v);
+  v := pg_temp.probe(adm, format(ci, 'full'));
+  perform pg_temp.chk('S6 capacity_inputs: refused 42501 for adm_no (full basis)', v like 'ERR:42501:%', v);
+  v := pg_temp.probe(bk, format(ci, 'staff'));
+  perform pg_temp.chk('S6 capacity_inputs: refused 42501 for a bookkeeper', v like 'ERR:42501:%', v);
+  v := pg_temp.probe(own, format(ci, 'bogus'));
+  perform pg_temp.chk('S6 capacity_inputs: unknown basis refused 22023', v like 'ERR:22023:%', v);
+  v := pg_temp.probe(own, $q$select public.capacity_inputs(date '1999-04-30', date '1999-04-01')::text$q$);
+  perform pg_temp.chk('S6 capacity_inputs: reversed range refused 22023', v like 'ERR:22023:%', v);
+  v := pg_temp.probe(own, $q$select public.capacity_inputs(date '1999-01-01', date '2003-01-01')::text$q$);
+  perform pg_temp.chk('S6 capacity_inputs: range over 3 years refused 22023', v like 'ERR:22023:%', v);
+  v := pg_temp.probe(own, format(ci, 'full'));
+  perform pg_temp.chk('S6 capacity_inputs: owner runs the full basis (S3 basis rows in place)', v not like 'ERR:%', left(v, 120));
+
+  -- 3. The two tables: RLS, no anon, the restrictive lock, grant holders only.
+  foreach t in array array['cost_contract_clients', 'staff_cost_allocations'] loop
+    perform pg_temp.chk('S6 ' || t || ': RLS on',
+      (select relrowsecurity from pg_class where oid = ('public.' || t)::regclass));
+    perform pg_temp.chk('S6 ' || t || ': anon has no table privilege',
+      not has_table_privilege('anon', 'public.' || t, 'select') and not has_table_privilege('anon', 'public.' || t, 'insert'));
+    perform pg_temp.chk('S6 ' || t || ': RESTRICTIVE internal company lock',
+      exists (select 1 from pg_policies where schemaname = 'public' and tablename = t
+                and policyname = 'internal company lock' and permissive = 'RESTRICTIVE'));
+    execute format('select count(*) from public.%I', t) into n;
+    v := pg_temp.probe(own, format('select count(*) from public.%I', t));
+    perform pg_temp.chk('S6 ' || t || ': owner reads every row (' || n || ')', v = n::text, v);
+    v := pg_temp.probe(adm, format('select count(*) from public.%I', t));
+    perform pg_temp.chk('S6 ' || t || ': adm_no reads no row', v = '0', v);
+    v := pg_temp.probe(bk, format('select count(*) from public.%I', t));
+    perform pg_temp.chk('S6 ' || t || ': bookkeeper reads no row', v = '0', v);
+  end loop;
+
+  v := pg_temp.dml(adm, format($q$insert into public.cost_contract_clients (client_id, label) values (%L, 'mh-test')$q$, cli));
+  perform pg_temp.chk('S6 cost_contract_clients: adm_no insert refused', v like 'ERR:%', v);
+  v := pg_temp.dml(bk, format($q$insert into public.cost_contract_clients (client_id, label) values (%L, 'mh-test')$q$, cli));
+  perform pg_temp.chk('S6 cost_contract_clients: bookkeeper insert refused', v like 'ERR:%', v);
+  v := pg_temp.dml(adm, $q$insert into public.staff_cost_allocations (staff_email, client_id, share, effective_from)
+         values ('mh-test@example.invalid', 'illumination-health-home', 0.5, date '1999-04-01')$q$);
+  perform pg_temp.chk('S6 staff_cost_allocations: adm_no insert refused', v like 'ERR:%', v);
+  v := pg_temp.dml(bk, $q$insert into public.staff_cost_allocations (staff_email, client_id, share, effective_from)
+         values ('mh-test@example.invalid', 'illumination-health-home', 0.5, date '1999-04-01')$q$);
+  perform pg_temp.chk('S6 staff_cost_allocations: bookkeeper insert refused', v like 'ERR:%', v);
+  v := pg_temp.dml(adm, $q$update public.staff_cost_allocations set share = 0.5$q$);
+  perform pg_temp.chk('S6 staff_cost_allocations: adm_no updates no row', v = '0' or v like 'ERR:%', v);
+  v := pg_temp.dml(adm, $q$delete from public.staff_cost_allocations$q$);
+  perform pg_temp.chk('S6 staff_cost_allocations: adm_no deletes no row', v = '0' or v like 'ERR:%', v);
+  v := pg_temp.dml(adm, $q$delete from public.cost_contract_clients$q$);
+  perform pg_temp.chk('S6 cost_contract_clients: adm_no deletes no row', v = '0' or v like 'ERR:%', v);
+  perform pg_temp.chk('S6 seeds unchanged after adm_no attempts',
+    exists (select 1 from cost_contract_clients where client_id = 'illumination-health-home')
+    and exists (select 1 from staff_cost_allocations where client_id = 'illumination-health-home' and method = 'fixed' and share = 1));
+
+  -- 4. The owner writes: stamped, audited, checks enforced.
+  v := pg_temp.dml(own, format($q$insert into public.cost_contract_clients (client_id, label) values (%L, 'MHT')$q$, cli));
+  perform pg_temp.chk('S6 cost_contract_clients: owner insert', v = '1', v);
+  perform pg_temp.chk('S6 cost_contract_clients: updated_by stamped with the owner',
+    (select updated_by from cost_contract_clients where client_id = cli) = lower(own));
+  v := pg_temp.dml(own, format($q$insert into public.staff_cost_allocations (staff_email, client_id, share, method, effective_from)
+         values (%L, %L, 0.25, 'fallback', date '1999-04-01')$q$, 'MH-Test-Upper@Example.Invalid', cli));
+  perform pg_temp.chk('S6 staff_cost_allocations: mixed-case email refused (UI lower-cases first)', v = 'ERR:23514', v);
+  v := pg_temp.dml(own, format($q$insert into public.staff_cost_allocations (staff_email, client_id, share, method, effective_from)
+         values (%L, %L, 0.25, 'fallback', date '1999-04-01')$q$, lower(own), cli));
+  perform pg_temp.chk('S6 staff_cost_allocations: owner insert', v = '1', v);
+  perform pg_temp.chk('S6 staff_cost_allocations: updated_by stamped with the owner',
+    exists (select 1 from staff_cost_allocations where staff_email = lower(own) and client_id = cli
+              and method = 'fallback' and updated_by = lower(own)));
+  v := pg_temp.dml(own, format($q$insert into public.staff_cost_allocations (staff_email, client_id, share, effective_from)
+         values (%L, %L, 1.5, date '1999-05-01')$q$, own, cli));
+  perform pg_temp.chk('S6 staff_cost_allocations: share over 1 refused', v like 'ERR:%', v);
+  v := pg_temp.dml(own, format($q$insert into public.staff_cost_allocations (staff_email, client_id, share, method, effective_from)
+         values (%L, %L, 0.5, 'bogus', date '1999-05-01')$q$, own, cli));
+  perform pg_temp.chk('S6 staff_cost_allocations: unknown method refused', v like 'ERR:%', v);
+  v := pg_temp.dml(own, $q$insert into public.staff_cost_allocations (staff_email, client_id, share, effective_from)
+         values ('mh-test@example.invalid', 'mh-test-not-a-contract', 0.5, date '1999-05-01')$q$);
+  perform pg_temp.chk('S6 staff_cost_allocations: client must be a contract client', v like 'ERR:%', v);
+
+  perform pg_temp.chk('S6 audit: cost_contract.set written',
+    exists (select 1 from audit_log where action = 'cost_contract.set' and target_id = cli));
+  perform pg_temp.chk('S6 audit: cost_alloc.set written',
+    exists (select 1 from audit_log where action = 'cost_alloc.set' and target_id = lower(own)
+              and details ->> 'method' = 'fallback'));
+  v := pg_temp.probe(adm, $q$select count(*) from public.audit_log where action ~ '^(cost_contract|cost_alloc)\.'$q$);
+  perform pg_temp.chk('S6 audit: adm_no reads no cost_contract / cost_alloc row', v = '0', v);
+  v := pg_temp.probe(own, format($q$select count(*) from public.audit_log
+         where (action = 'cost_contract.set' and target_id = %L) or (action = 'cost_alloc.set' and target_id = %L)$q$, cli, lower(own)));
+  perform pg_temp.chk('S6 audit: owner reads both', v::int >= 2, v);
+
+  -- 5. capacity_inputs with the fixture (April 1999, staff basis).
+  v := pg_temp.probe(own, format(ci, 'staff'));
+  perform pg_temp.chk('S6 capacity_inputs: owner runs it', v not like 'ERR:%', left(v, 120));
+  if v not like 'ERR:%' then
+    j := v::jsonb;
+    perform pg_temp.chk('S6 capacity_inputs: every key present',
+      j ?& array['from', 'to', 'basis', 'rates_set', 'months', 'contracts', 'allocations', 'people',
+                 'person_months', 'clients', 'work'], left(v, 200));
+    perform pg_temp.chk('S6 capacity_inputs: one month, 30 covered days',
+      jsonb_array_length(j -> 'months') = 1 and (j -> 'months' -> 0 ->> 'covered_days') = '30',
+      (j -> 'months')::text);
+    perform pg_temp.chk('S6 capacity_inputs: the test contract is listed',
+      exists (select 1 from jsonb_array_elements(j -> 'contracts') c where c ->> 'client_id' = cli));
+    perform pg_temp.chk('S6 capacity_inputs: the fallback row is listed',
+      exists (select 1 from jsonb_array_elements(j -> 'allocations') a
+               where a ->> 'staff_email' = lower(own) and a ->> 'client_id' = cli and a ->> 'method' = 'fallback'));
+    perform pg_temp.chk('S6 capacity_inputs: owner April 120 minutes, 60 on the contract',
+      exists (select 1 from jsonb_array_elements(j -> 'person_months') p
+               where p ->> 'key' = lower(own) and p ->> 'month' = '1999-04-01'
+                 and p ->> 'minutes' = '120' and p -> 'contract_minutes' ->> cli = '60'),
+      (select string_agg(p::text, ' ') from jsonb_array_elements(j -> 'person_months') p where p ->> 'key' = lower(own)));
+    perform pg_temp.chk('S6 capacity_inputs: unmapped helper is estimated, gone person is former',
+      exists (select 1 from jsonb_array_elements(j -> 'person_months') p
+               where p ->> 'key' = 'unmapped:mh-test helper' and (p ->> 'estimated')::boolean)
+      and exists (select 1 from jsonb_array_elements(j -> 'person_months') p
+               where p ->> 'key' = 'unmapped:mh-test gone' and (p ->> 'former')::boolean),
+      (select string_agg(p::text, ' ') from jsonb_array_elements(j -> 'person_months') p where p ->> 'key' like 'unmapped:%'));
+    perform pg_temp.chk('S6 capacity_inputs: the internal client never appears in clients or work',
+      not exists (select 1 from jsonb_array_elements(j -> 'clients') c join clients x on x.id = c ->> 'client_id' and x.is_internal)
+      and not exists (select 1 from jsonb_array_elements(j -> 'work') w join clients x on x.id = w ->> 'client_id' and x.is_internal));
+    perform pg_temp.chk('S6 capacity_inputs: the contract client carries its contract flag',
+      exists (select 1 from jsonb_array_elements(j -> 'clients') c where c ->> 'client_id' = cli and (c ->> 'contract')::boolean));
+  end if;
+
+  -- 6. Usage: Capacity views, palette jumps and grant-holder searches are
+  --    filed under the internal client, so adm_no never reads them.
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'mgb-capacity', 'view', 'mh-test-cap-view')$q$);
+  perform pg_temp.chk('S6 usage_events: owner view of mgb-capacity is logged', v = '1', v);
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'today', 'action', 'cmdk-go:#/internal/capacity')$q$);
+  perform pg_temp.chk('S6 usage_events: owner palette jump to capacity is logged', v = '1', v);
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'today', 'action', 'guide-search:mh-test capacity')$q$);
+  perform pg_temp.chk('S6 usage_events: owner guide search for capacity is logged', v = '1', v);
+  v := pg_temp.probe(adm, $q$select count(*) from public.usage_events
+         where detail in ('mh-test-cap-view', 'cmdk-go:#/internal/capacity', 'guide-search:mh-test capacity')$q$);
+  perform pg_temp.chk('S6 usage_events: adm_no reads none of the three', v = '0', v);
+  v := pg_temp.probe(own, $q$select count(*) from public.usage_events
+         where detail in ('mh-test-cap-view', 'cmdk-go:#/internal/capacity', 'guide-search:mh-test capacity')$q$);
+  perform pg_temp.chk('S6 usage_events: owner reads all three', v::int >= 3, v);
+  perform pg_temp.chk('S6 usage_events: none of them lack a client',
+    not exists (select 1 from usage_events where client_id is null
+                  and detail in ('mh-test-cap-view', 'cmdk-go:#/internal/capacity', 'guide-search:mh-test capacity')));
 end $$;
 
 do $$
