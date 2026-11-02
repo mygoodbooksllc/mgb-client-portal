@@ -803,9 +803,12 @@ var ANN_REGISTRY = [
         id: "ann-quick",
         targets: ["tb-quick", "wb-rail-add"],
         wait: true,
-        title: "Try it from the + button",
+        title: typeof CM_createOn === "function" && CM_createOn() ? "Try it from the Create button" : "Try it from the + button",
         body: () =>
-          "Click + then New task (or press q) and type something like: Send the payroll summary for Sierra re Example Church by Friday. A Will add line shows who, which client and when, before you save.",
+          (typeof CM_createOn === "function" && CM_createOn()
+            ? "Click Create then Task (or press q)"
+            : "Click + then New task (or press q)") +
+          " and type something like: Send the payroll summary for Sierra re Example Church by Friday. A Will add line shows who, which client and when, before you save.",
       },
       {
         id: "ann-done",

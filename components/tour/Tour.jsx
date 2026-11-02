@@ -1056,6 +1056,15 @@ function TOUR_tabStep(place, tab, title, body, when) {
 // True when the Desk is live for this person AND the Desk additions are on for them
 // (WB_plus.js: preview checkbox or firm switch). False with the gate off, so tour text
 // and the step list stay exactly as before.
+// The "+ Create" button preview is on for this person (TB_create.js). The text that
+// names the + button reads "Create button" then. Off = the old wording, unchanged.
+function TOUR_createOn() {
+  try {
+    return typeof CM_createOn === "function" && !!CM_createOn();
+  } catch (e) {
+    return false;
+  }
+}
 function TOUR_deskPlusOn() {
   try {
     if (typeof WB_plusOn !== "function") return false;
@@ -1169,7 +1178,9 @@ function TOUR_bookkeeperSteps(ctx) {
       targets: ["tb-quick", "wb-rail-add"],
       title: "Add something for this client",
       body: () =>
-        (TOUR_deskPlusOn()
+        (TOUR_createOn()
+          ? "With a client open, the Create button adds a Task, a Note or a Request a document for them, or a Message" + (TOUR_deskPlusOn() ? ", Ask client… or Request time off" : "") + ". In a new task, plain words work: for Sierra, re Example Church, by Friday."
+          : TOUR_deskPlusOn()
           ? "With a client open, the + button adds a New task, a New note or a Request document for them, or opens Ask client…, Message… or Time off. In a new task, plain words work: for Sierra, re Example Church, by Friday."
           : "With a client open, the + button adds a New task, a New note or a Request document for them, or starts a Message. In a new task, plain words work: for Sierra, re Example Church, by Friday."),
     },

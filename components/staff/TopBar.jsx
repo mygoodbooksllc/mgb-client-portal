@@ -27,7 +27,9 @@
 //                              tasks assigned to me, blocked month-end close
 //            TB_TasksBadge     open tasks count (Work › Tasks), overdue in red
 //            TB_QuickAdd       "+" menu: task, note, document request
-//                              (StaffQuickActions' modals) and Message
+//                              (StaffQuickActions' modals) and Message.
+//                              Create preview (TB_create.js): the same slot
+//                              becomes the "+ Create" pill (TB_CreateMenu)
 //            TB_HelpButton     "?" menu: help for this page, the staff guide,
 //                              feedback (Feedback.jsx), what's new, the tour
 //                              (Tour.jsx TOUR_startStaff)
@@ -1361,6 +1363,9 @@ function TB_QuickAdd({ client, variant, tabIndex, deskOn, clients }) {
   useEffect(() => {
     if (!plusOn) setWbq(null);
   }, [plusOn]);
+  // "+ Create" menu (hidden preview, TB_create.js): off = everything below is the old menu.
+  const createOn = typeof CM_useCreateMenu === "function" ? CM_useCreateMenu() : false;
+  if (createOn) return <TB_CreateMenu client={client} variant={variant} tabIndex={tabIndex} tk={tk} plusOn={plusOn} clients={clients} />;
   if (!client && !tk && !plusOn) return null;
   const run = (kind) => {
     menu.close(false);
@@ -1430,6 +1435,176 @@ function TB_QuickAdd({ client, variant, tabIndex, deskOn, clients }) {
       )}
     </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// 6b. "+ Create" (hidden preview; gate in TB_create.js, rows from
+// CM_createItems). A labeled dark pill (a round "+" on phones and narrow bars)
+// and a roomier menu with an icon per row. Same flows as the old "+" menu:
+// Tasks quick add, StaffQuickActions' modals (tb:quick-add), the Desk
+// additions (WB_quickStart / WB_QuickHost) when their gate is on, and plain
+// navigation for the admin rows. variant "rail" keeps the icon button at the
+// foot of the Desk rail with the same menu.
+// ---------------------------------------------------------------------------
+function TB_CreateIcon({ name }) {
+  const p = {
+    width: 16,
+    height: 16,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true",
+  };
+  const paths = {
+    task: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M8.5 12.3l2.4 2.4 4.6-5" />
+      </>
+    ),
+    note: (
+      <>
+        <path d="M6 3h9l4 4v14H6z" />
+        <path d="M9 12h7M9 16h5" />
+      </>
+    ),
+    doc: (
+      <>
+        <path d="M6 3h9l4 4v14H6z" />
+        <path d="M14 3v5h5M12 11v6M9.5 14.5L12 17l2.5-2.5" />
+      </>
+    ),
+    message: <path d="M4 5h16v11H9l-5 4z" />,
+    ask: (
+      <>
+        <path d="M4 5h16v11H9l-5 4z" />
+        <path d="M9.8 9.2a2.2 2.2 0 0 1 4.2.7c0 1.4-2 1.6-2 2.7M12 14h.01" />
+      </>
+    ),
+    clock: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </>
+    ),
+    key: (
+      <>
+        <circle cx="8" cy="15" r="3.5" />
+        <path d="M10.5 12.5L19 4M16 7l2.5 2.5" />
+      </>
+    ),
+    building: (
+      <>
+        <path d="M5 21V4h9v17M14 9h5v12M3 21h18" />
+        <path d="M8.5 8h2M8.5 12h2M8.5 16h2" />
+      </>
+    ),
+    review: (
+      <>
+        <path d="M5 4h14v16H5z" />
+        <path d="M8.5 9l1.5 1.5L13 7.5M8.5 15h7" />
+      </>
+    ),
+    person: (
+      <>
+        <circle cx="10" cy="8" r="3.5" />
+        <path d="M3.5 20c.6-3.6 3.2-5.5 6.5-5.5M17 14v6M14 17h6" />
+      </>
+    ),
+  };
+  return <svg {...p}>{paths[name] || null}</svg>;
+}
+
+function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
+  const rail = variant === "rail";
+  const menu = TB_useMenu();
+  const [wbq, setWbq] = useState(null);
+  const ctx = React.useContext(typeof StaffToolsContext !== "undefined" ? StaffToolsContext : TB__noCtx());
+  const isAdmin = !!(ctx && ctx.staffUser && ctx.staffUser.role === "admin");
+  const timeOff = typeof WB_QuickHost === "function" && typeof WB_quickStart === "function" && typeof CV_MyTimeOffBody === "function";
+  const items = CM_createItems({ client, isAdmin, tk, deskPlus: !!plusOn && typeof WB_quickStart === "function", timeOff });
+  if (!items.length) return null;
+  const run = (it) => {
+    const kind = it.kind;
+    if (kind.indexOf("go:") === 0) {
+      menu.close(false);
+      TB_go(kind.slice(3));
+      return;
+    }
+    if (kind === "task") {
+      menu.close(false);
+      if (TB_tkQuickReady()) TB_tkQuickAdd(client ? { client_id: client.id } : {});
+      else window.dispatchEvent(new CustomEvent(TB_QUICK_ADD_EVENT, { detail: { kind: "task" } }));
+      return;
+    }
+    if (kind === "message" && !plusOn) {
+      menu.close(false);
+      window.dispatchEvent(new CustomEvent(TB_QUICK_ADD_EVENT, { detail: { kind: "message" } }));
+      return;
+    }
+    if (kind === "message" || kind === "ask" || kind === "timeoff") {
+      menu.close(kind !== "message");
+      setWbq(WB_quickStart(kind, client));
+      return;
+    }
+    menu.close(false);
+    window.dispatchEvent(new CustomEvent(TB_QUICK_ADD_EVENT, { detail: { kind } }));
+  };
+  const head = client ? `Add for ${client.name}` : "Add";
+  let first = true;
+  return (
+    <div
+      className={rail ? "wb-rail-add" : "tb-item tb-menu-wrap tb-quick tb-create"}
+      ref={menu.rootRef}
+      onKeyDown={menu.onMenuKeyDown}
+      data-tour={rail ? "wb-rail-add" : "tb-quick"}
+    >
+      <button
+        ref={menu.triggerRef}
+        type="button"
+        className={rail ? "wb-rail-btn wb-rail-plus" : "tb-create-btn"}
+        aria-label={rail ? head : "Create"}
+        title={head}
+        aria-haspopup="true"
+        aria-expanded={menu.open}
+        {...(rail ? { "data-wb-rail": "add", tabIndex: tabIndex == null ? -1 : tabIndex } : {})}
+        onClick={() => menu.setOpen(!menu.open)}
+      >
+        <TB_PlusIcon />
+        {!rail && <span className="tb-create-label">Create</span>}
+      </button>
+      {menu.open && (
+        <div className={rail ? "tb-panel tb-menu tb-create-menu wb-rail-menu" : "tb-panel tb-menu tb-create-menu"} role="menu" aria-label={head}>
+          <div className="tb-panel-head">{head}</div>
+          {items.map((it) => {
+            if (it.sep) return <div key={it.key} className="tb-create-sep" role="separator" />;
+            const af = first;
+            first = false;
+            return (
+              <button key={it.key} type="button" role="menuitem" className="tb-menu-item tb-create-item" autoFocus={af} onClick={() => run(it)}>
+                <span className="tb-create-ico">
+                  <TB_CreateIcon name={it.icon} />
+                </span>
+                <span className="tb-create-text">{it.label}</span>
+                {it.kbd && <span className="tb-kbd tb-create-kbd">{it.kbd}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {wbq && typeof WB_QuickHost === "function" && <WB_QuickHost kind={wbq} client={client} clients={clients} onClose={() => setWbq(null)} />}
+    </div>
+  );
+}
+// A context that never has a provider (StaffToolsContext is app.jsx's; this
+// only runs if it is missing). Made once, on first use.
+let TB__ctx = null;
+function TB__noCtx() {
+  if (!TB__ctx) TB__ctx = React.createContext(null);
+  return TB__ctx;
 }
 
 // ---------------------------------------------------------------------------

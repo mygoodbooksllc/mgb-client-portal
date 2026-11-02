@@ -1015,6 +1015,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by CM_previewOn / CM_useCreateMenu (components/staff/TB_create.js).
+    key: "mgb_create_preview",
+    label: "Create menu preview",
+    description:
+      "Turns on for you only, in this browser, while the firm-wide create_menu_enabled switch is off, a labeled Create button in the top bar in place of the small + icon, with a roomier menu: an icon per row, and the same things the + menu adds today. Admins also get Add a client, Start a team review and Invite staff, which only open the pages where those are done. Nothing is sent or created by the menu itself. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     // Read by MB_previewOn / MB_useGate (components/members/MB_gate.js).
     key: "mgb_members_preview",
     label: "Members area preview",
@@ -14137,7 +14145,7 @@ function resettableLocalStorageKeys() {
     // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
     // mgb_tk_slate_view_v1:<email> / :desk:<email>, and Slate Settings mgb_tk_prefs_v1:<email>: quick keys, density, open in, show older). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_classic, mgb_rhythm_preview,
-    // mgb_deskplus_preview, mgb_threadmenu_preview, mgb_slateplus_preview, mgb_home_preview). The retired personal previews
+    // mgb_deskplus_preview, mgb_create_preview, mgb_threadmenu_preview, mgb_slateplus_preview, mgb_home_preview). The retired personal previews
     // (mgb_wb_preview, mgb_nav_preview, mgb_lato_preview, mgb_brand_preview, mgb_hovernav_preview,
     // retired 2026-10-25, and mgb_slate_app_preview, mgb_orgprofile_preview plus the Classic opt-outs
     // mgb_lato_classic, mgb_brand_classic, mgb_hovernav_classic, mgb_nav_classic, mgb_slate_classic,
@@ -14152,6 +14160,8 @@ function resettableLocalStorageKeys() {
     // and sessionStorage mgb_op_later:<email> (the client's "Later" for this sign-in; not touched by Reset).
     // Desk additions (hidden preview): mgb_deskplus_preview (a flag, kept),
     // mgb_deskplus_cache (the firm switch deskplus_enabled as last read by WB_plus.js, cleared by Reset).
+    // Create menu (hidden preview): mgb_create_preview (a flag, kept),
+    // mgb_create_cache (the firm switch create_menu_enabled as last read by TB_create.js, cleared by Reset).
     // Members area (hidden preview): mgb_members_preview (a flag, kept),
     // mgb_members_cache (the firm switch members_staff_enabled as last read by MB_gate.js, cleared by Reset).
     // Slate plus (hidden preview): mgb_slateplus_preview (a flag, kept),
@@ -15702,6 +15712,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more)."],
             ["threadmenu_enabled", "Message thread menu for all staff (owner only)", "Off = only people with the Thread menu preview flag see it. Off (or missing, the default) keeps Messages and the Desk Inbox exactly as they are: no right-click menu or ⋯ on threads, no Done, Snoozed or Hidden chips, no thread tags. Owner turns it on (true) from the SQL editor (override first; see the README Thread menu launch checklist), never from here. Never shown to clients; off in View as."],
             ["slateplus_enabled", "Slate plus for all staff (owner only)", "Launched 2026-10-28 (label 2026-10-28w): the guide articles are already synced (they describe Slate plus on, so flip promptly); the slate-plus next-visit notice, the Slate plus tour and its tips appear for everyone once this is true. True turns Slate plus on for every staff member. Off = only people with the Slate plus preview flag see it. Off (or missing, the default) keeps Slate exactly as it is for everyone: task comment @mentions work as before (full @ list, no note after posting, no highlight of your own name), the Slate page keeps its own search box and client filter (no filter bar, no Saved filters, no top-bar search across clients, tasks, projects and people), and there is no Team load or 4-week bars anywhere (Slate, Team › People or profiles). No person profiles (#/tasks/person/<key>), no profile links on assignees, Team or shout-outs, no separate reassign button, no profile customization, manager or direct reports view, and no Teams card on Team › People (saved profile settings and teams stay stored, unseen). No Blocked by section, chip, Blocked group, Close order step or Ready to start notice (dependencies someone added with the preview still hold their task until done or removed). Slate keeps its text sidebar (no icon rail, hover menus or lists panel). No hours used / budget chip beside a client or in the Assign to menu. No Calendar button (month grid of tasks by due date) on Slate lists. No project status updates on project pages and no Portfolio page (#/tasks/portfolio); updates already posted stay stored, unseen. No Rules page (#/tasks/rules) and no rule ever runs, switched on or not; saved rules stay stored, unseen. No Fields button on project or client headers, no custom field rows in task details and no field chips on rows (fields and values already saved stay stored, unseen). The New project form stays as it is (no people, client, color, description, due date, Start from or visibility summary; descriptions and due dates already saved stay stored, unseen). Owner turns it on (true) from the SQL editor (override first; see the README Slate plus launch checklist), never from here. Never shown to clients; off in View as; Team load is read only (admins and account managers see everyone's load, others only their own)."],
+            ["create_menu_enabled", "Create menu for all staff (owner only)", "Off (or missing, the default) keeps the small + icon in the top bar for everyone. Owner turns it on (true) from the SQL editor, never from here, to give every staff member the labeled Create button and its roomier menu. Each person can try it early with Create menu preview in Feature flags. There is no Classic opt-out yet. The app only reads this; it never sets it."],
             ["deskplus_enabled", "Desk additions for staff", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk exactly as it is for everyone: no Ledger chip in the Inbox, no Waiting on client, recent messages or recent files on the Client tab, no Ask client or Message buttons there, and no Ask client…, Message… or Time off in the + menu. Owner turns it on (true) from the SQL editor (override first; see the README Desk additions launch checklist), never from here, to give those to every staff member who has the Desk. Each person can try it early with Desk additions preview in Feature flags. Needs the Desk on (wb_enabled, unless the person picked Classic Today)."],
             ["members_staff_enabled", "Members area for staff (owner only)", "Owner-only; off = hidden. Off (or missing, the default) hides HR › Members area from every staff member. The owner turns it on (true) from the SQL editor, never from here; until then each person with the permission can try it with Members area preview in Feature flags. Even when on, only admins the owner allowed can list customers. The app only reads it."],
             ["members_area_open", "Members area: customer data open to members (owner only)", "Owner-only; off = closed. Off (or missing, the default) means members and the members-file download can read nothing from the members area except the owner's allowlisted email. The owner turns it on (true) from the SQL editor when the customer-facing members area launches, never from here. Separate from members_staff_enabled, which only shows the staff tab."],

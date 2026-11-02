@@ -1140,3 +1140,98 @@ a.tb-pill-btn {
     width: auto;
   }
 }
+
+/* ==========================================================================
+   "+ Create" (hidden preview, TB_create.js / TB_CreateMenu in TopBar.jsx):
+   a dark pill with a plus and the word Create, and a roomier menu with an
+   icon per row. Only present while the Create preview is on; the old "+"
+   (.tb-icon-btn) is untouched. Under 760px, or when the bar gets tight, the
+   word hides and the pill becomes the round "+" the old button was.
+   ========================================================================== */
+.tb-create-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px 0 11px;
+  border: 1px solid var(--text);
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--surface);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tb-create-btn:hover {
+  opacity: 0.9;
+}
+.tb-create-btn:focus-visible {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 2px;
+}
+.tb-create-menu {
+  min-width: 260px;
+  padding: 8px;
+}
+.tb-create-item {
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 10px;
+}
+.tb-create-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--warm-bg);
+  color: var(--text-muted);
+}
+.tb-create-ico svg {
+  width: 16px;
+  height: 16px;
+}
+.tb-create-item:hover .tb-create-ico,
+.tb-create-item:focus-visible .tb-create-ico {
+  background: var(--surface);
+  color: var(--text);
+}
+.tb-create-text {
+  flex: 1;
+  min-width: 0;
+}
+.tb-create-kbd {
+  margin-left: auto;
+}
+.tb-create-sep {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--border);
+}
+@media (max-width: 760px) {
+  .tb-create-btn {
+    width: 34px;
+    padding: 0;
+  }
+  .tb-create-label {
+    display: none;
+  }
+  .tb-quick .tb-create-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+@container tb (max-width: 730px) {
+  .tb-create-btn {
+    width: 34px;
+    padding: 0;
+  }
+  .tb-create-label {
+    display: none;
+  }
+}
