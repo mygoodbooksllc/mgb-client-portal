@@ -152,6 +152,8 @@ function CM_useCreateMenu() {
 //   deskPlus    the Desk additions gate is on (Ask client, chat-drawer Message)
 //   timeOff     the existing time-off flow can be opened (WB_QuickHost + CV_MyTimeOffBody)
 //   template    the Slate plus New project form (with its Start from picker) can be opened
+//   slate       the Slate app window: Slate's own rows (New project, Recurring task) and no portal-only
+//               Admin group (those pages open in the portal window, so they don't belong here)
 // }
 // Returns [{ key, label, kind, icon, kbd?, sep? }] where a row with sep:true
 // is a separator before the next group and a row with kind "label" is a small
@@ -174,10 +176,12 @@ function CM_createItems(opts) {
     // Off a client page Message opens the chat drawer's own list.
     items.push({ key: "message", label: "Message a client", kind: "message", icon: "message" });
   }
+  if (o.slate && o.template && !client) items.push({ key: "project", label: "New project", kind: "template", icon: "template" });
+  if (o.slate && o.tk) items.push({ key: "recurring", label: "Recurring task", kind: "recurring", icon: "template" });
   if (o.deskPlus) items.push({ key: "ask", label: "Ask client…", kind: "ask", icon: "ask" });
   if (o.timeOff) items.push({ key: "timeoff", label: "Request time off", kind: "timeoff", icon: "clock" });
   var admin = [];
-  if (o.isAdmin) {
+  if (o.isAdmin && !o.slate) {
     if (client) admin.push({ key: "invite-login", label: "Invite a client login", kind: "go:#/client-access", icon: "key" });
     admin.push({ key: "add-client", label: "Add a client", kind: "go:#/client-access", icon: "building" });
     admin.push({ key: "team-review", label: "Start a team review", kind: "go:#/hr/reviews", icon: "review" });

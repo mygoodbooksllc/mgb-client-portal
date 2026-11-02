@@ -1573,7 +1573,8 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
   const slatePlus = typeof TKP_useOn === "function" ? TKP_useOn() : false;
   const template = !!tk && slatePlus && typeof TKPF_NewProjectModal === "function" && typeof TK_NewProjectModal === "function";
   const timeOff = !!plusOn && typeof WB_QuickHost === "function" && typeof WB_quickStart === "function" && typeof CV_MyTimeOffBody === "function";
-  const items = CM_createItems({ client, isAdmin, tk, deskPlus: !!plusOn && typeof WB_quickStart === "function", timeOff, template });
+  const inSlate = typeof TK_slateInApp === "function" && TK_slateInApp();
+  const items = CM_createItems({ client, isAdmin, tk, deskPlus: !!plusOn && typeof WB_quickStart === "function", timeOff, template, slate: inSlate });
   if (!items.length) return null;
   const run = (it) => {
     const kind = it.kind;
@@ -1595,6 +1596,11 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
     if (kind === "template") {
       menu.close(false);
       setProjOpen(true);
+      return;
+    }
+    if (kind === "recurring") {
+      menu.close(false);
+      if (typeof TK_navigate === "function") TK_navigate({ view: "templates" });
       return;
     }
     if (kind === "task") {
@@ -1665,13 +1671,13 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
         </div>
       )}
       {wbq && typeof WB_QuickHost === "function" && <WB_QuickHost kind={wbq} client={client} clients={clients} onClose={() => setWbq(null)} />}
-      {projOpen && template && client && typeof ReactDOM !== "undefined" && ReactDOM.createPortal(
+      {projOpen && template && (client || inSlate) && typeof ReactDOM !== "undefined" && ReactDOM.createPortal(
         <div onKeyDown={(e) => e.stopPropagation()}>
         <TK_NewProjectModal
           isAdmin={isAdmin}
           kind="internal"
           clients={clients}
-          defaultClientId={client.id}
+          defaultClientId={client ? client.id : undefined}
           focusTemplate={true}
           staffUser={ctx && ctx.staffUser}
           onClose={() => {

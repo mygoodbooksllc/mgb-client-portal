@@ -102,3 +102,11 @@ t("navigation rows carry a hash", () => {
     .forEach((i) => assert.ok(/^go:#\//.test(i.kind)));
 });
 console.log("TB_create.test.js: " + n + " tests passed");
+
+t("Slate app: New project and Recurring task rows, and no Admin group", () => {
+  const k = (a) => a.map((i) => i.key);
+  const s = C.CM_createItems({ client: null, isAdmin: true, tk: true, template: true, deskPlus: true, timeOff: true, slate: true });
+  assert.deepStrictEqual(k(s), ["task", "message", "project", "recurring", "ask", "timeoff"]);
+  const p = C.CM_createItems({ client: null, isAdmin: true, tk: true, template: true, deskPlus: true, timeOff: true });
+  assert.ok(k(p).includes("add-client") && !k(p).includes("recurring") && !k(p).includes("project"));
+});
