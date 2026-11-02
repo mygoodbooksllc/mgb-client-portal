@@ -1084,7 +1084,7 @@ function ST_firmGroups(isAdmin, hasTempAdminAccess) {
     {
       title: "People and work",
       rows: [
-        { key: "templates", page: "task-templates", label: "Task templates", sub: "Recurring tasks for each client, now in Slate › Recurring.", icon: icon("RepeatIcon"), show: anyAdmin },
+        { key: "templates", page: "task-templates", hash: "#/tasks/templates", label: "Task templates", sub: "Recurring tasks for each client, now in Slate › Recurring.", icon: icon("RepeatIcon"), show: anyAdmin },
         { key: "roster", page: "client-access", label: "Client roster", sub: "Who at each organization is registered to sign in.", icon: icon("ClientRosterIcon"), show: anyAdmin },
         // L1 left sidebar (StaffSidebar.jsx): real admins only (RLS lets only
         // is_active_staff_admin() write layout_defaults), and only while the gate is on.
@@ -1547,6 +1547,8 @@ function ST_FirmSettings({ groups, isAdmin, onSelectPage, isOwner }) {
                     onClick={() =>
                       r.inline
                         ? setOpenInline(openInline === r.key ? null : r.key)
+                        : r.hash
+                        ? (window.location.hash = r.hash)
                         : r.tab && typeof NAV_go === "function"
                           ? NAV_go(r.page, r.tab)
                           : onSelectPage(r.page)
