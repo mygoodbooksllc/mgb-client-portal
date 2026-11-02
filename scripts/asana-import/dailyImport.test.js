@@ -79,6 +79,45 @@ t("a subtask of a held-back parent is held back too", function () {
   assert.ok(r.heldBack.some(function (h) { return h.asana_gid === "s1" && h.why === "parent_held_back"; }));
 });
 
+// Recurring templates: a period a template already covers is held back (recurring asana overlap).
+var COVER = { covered: [{ c: "grace-city", t: "monthly close", n: 13, d: "2026-11-15" }] };
+
+t("a task a recurring template already covers is held back", function () {
+  var r = plan([task("rc1", "Monthly  Close", { due_on: "2026-11-03" })], COVER);
+  assert.strictEqual(r.tasks.length, 0);
+  assert.strictEqual(r.heldBack[0].why, "template_covers_period");
+  assert.strictEqual(r.counts.held_back, 1);
+  assert.strictEqual(r.counts.held_back_template, 1);
+});
+
+t("a task outside the template's period window is staged", function () {
+  var r = plan([task("rc2", "Monthly close", { due_on: "2026-12-15" })], COVER);
+  assert.strictEqual(r.tasks.length, 1);
+  assert.strictEqual(r.counts.held_back_template, 0);
+});
+
+t("a covered title for another client, or with no due date, is staged", function () {
+  var other = { covered: [{ c: "other-client", t: "monthly close", n: 13, d: "2026-11-15" }] };
+  assert.strictEqual(plan([task("rc3", "Monthly close")], other).tasks.length, 1);
+  assert.strictEqual(plan([task("rc4", "Monthly close", { due_on: null })], COVER).tasks.length, 1);
+});
+
+t("a subtask of a covered parent is held back with it", function () {
+  var r = plan([task("rc5", "Monthly close"), task("rs5", "Bank 1", { parent: { gid: "rc5" }, memberships: [] })], COVER);
+  assert.strictEqual(r.tasks.length, 0);
+  assert.ok(r.heldBack.some(function (h) { return h.asana_gid === "rs5" && h.why === "parent_held_back"; }));
+});
+
+t("an older context without covered rows behaves as before", function () {
+  var r = plan([task("rc6", "Monthly close")], { covered: undefined });
+  assert.strictEqual(r.tasks.length, 1);
+  assert.strictEqual(r.counts.held_back_template, 0);
+});
+
+t("context SQL asks for the template covers", function () {
+  assert.ok(/tk__asana_cover_rows\(null, current_date - 200\)/.test(D.contextSql("2026-11-02")));
+});
+
 t("a subtask whose parent is missing asks for the parent first", function () {
   var r = plan([task("s2", "Bank 2", { parent: { gid: "par9" }, memberships: [] })]);
   assert.deepStrictEqual(r.needParents, ["par9"]);

@@ -60,6 +60,12 @@ function norm(s) {
     .trim()
     .toLowerCase();
 }
+// "YYYY-MM-DD" (or an ISO timestamp) -> whole days since epoch, UTC. null when not a date.
+function dayNum(s) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s == null ? "" : s));
+  if (!m) return null;
+  return Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000);
+}
 
 // ---------- start ----------
 function cmdStart() {
@@ -209,6 +215,9 @@ function contextSql(today) {
     "    from staff_reminders where deleted_at is null and not coalesce(done, false) and (client_id is not null or source = 'asana')),",
     " 'templates', (select json_agg(json_build_object('c', client_ids, 'cad', cadence, 't', lower(regexp_replace(btrim(title), '\\s+', ' ', 'g'))))",
     "    from task_templates where coalesce(status, '') <> 'retired'),",
+    // Periods an activated Asana-mirrored recurring template already has a task for (recurring asana overlap).
+    " 'covered', (select json_agg(json_build_object('c', client_id, 't', title_norm, 'n', match_days, 'd', anchor_due))",
+    "    from public.tk__asana_cover_rows(null, current_date - 200)),",
     " 'batches', (select json_agg(report ->> 'batch') from tk_import_runs where report ->> 'batch' like 'asana-daily-" + today + "%'),",
     " 'outbox', (select json_build_object('n', count(*), 'max_id', max(id)) from notification_outbox)",
     ") as ctx;",
@@ -369,6 +378,23 @@ function planDaily(snap, db, opts) {
     if (o.c) openSet[o.c + "|" + o.t] = true;
     else if (o.src === "asana") openSet["|" + o.t] = true;
   });
+  // Template covers: client|title -> [{ n: window days, d: anchor due }]. Missing (older context) = no guard.
+  var coverMap = {};
+  (db.covered || []).forEach(function (cv) {
+    if (!cv || !cv.c || !cv.d) return;
+    var k = cv.c + "|" + norm(cv.t);
+    (coverMap[k] = coverMap[k] || []).push({ n: Number(cv.n) || 0, d: dayNum(cv.d) });
+  });
+  function coveredByTemplate(t) {
+    if (t.parent_gid || !t.client_id || !t.due_date) return false;
+    var list = coverMap[t.client_id + "|" + norm(t.title)];
+    if (!list) return false;
+    var due = dayNum(t.due_date);
+    if (due == null) return false;
+    return list.some(function (cv) {
+      return cv.d != null && Math.abs(due - cv.d) <= cv.n;
+    });
+  }
   var tplSet = {};
   (db.templates || []).forEach(function (x) {
     (x.c || [null]).forEach(function (c) {
@@ -395,6 +421,11 @@ function planDaily(snap, db, opts) {
     }
     if (!t.parent_gid && openSet[(t.client_id || "") + "|" + norm(t.title)]) {
       heldBack.push({ asana_gid: t.asana_gid, client_id: t.client_id, title: t.title, why: "same_title_open_in_portal" });
+      return;
+    }
+    // A recurring template already has this client's task for this period (made or adopted by tk_generate).
+    if (coveredByTemplate(t)) {
+      heldBack.push({ asana_gid: t.asana_gid, client_id: t.client_id, title: t.title, why: "template_covers_period" });
       return;
     }
     // History check: an Asana project must keep feeding the same client as before.
@@ -438,6 +469,7 @@ function planDaily(snap, db, opts) {
     unassigned: tasks.filter(function (t) { return !t.assignee_email; }).length,
     no_client: tasks.filter(function (t) { return !t.client_id; }).length,
     held_back: heldBack.length,
+    held_back_template: heldBack.filter(function (h) { return h.why === "template_covers_period"; }).length,
     already_imported: plan.tasks.length - newTasks.length,
     skipped_by_planner: plan.skipped.length,
     new_projects: projects.length,
@@ -594,7 +626,9 @@ function cmdFinish() {
     "new=" + (res.tasks_created != null ? res.tasks_created : 0),
     "planned=" + (c.new_tasks || 0),
     "skipped=" + ((c.already_imported || 0) + (c.skipped_by_planner || 0) + (res.skipped || 0)),
-    "held_back=" + (c.held_back || 0),
+    "held_back=" + ((c.held_back || 0) + (res.held_back_template || 0)),
+    // Template covers, plan time + apply time (recurring asana overlap). Included in held_back above.
+    "held_template=" + ((c.held_back_template || 0) + (res.held_back_template || 0)),
     "unassigned=" + (res.tasks_unassigned != null ? res.tasks_unassigned : c.unassigned || 0),
     "templates=" + (res.templates_created || 0),
     "errors=" + (plan ? plan.errors.length : 0),

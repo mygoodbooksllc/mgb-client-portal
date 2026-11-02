@@ -30,6 +30,7 @@ Each run does these steps:
    - which client each Asana project fed before
    - every key already imported
    - open portal tasks
+   - periods that turned-on recurring templates already have a task for (`covered`)
    - the switch value
    - the size of the notification outbox
 5. **Plan.** `dailyImport.js plan` returns one of four statuses:
@@ -61,6 +62,11 @@ Each run does these steps:
   - This usually happens when Asana made the next instance of a recurring task and the portal copy is still open.
   - Held-back tasks are not written to the map. They import on a later morning, once the portal copy is closed.
   - Subtasks of a held-back task are held back too.
+- **Recurring-template guard** (added 2026-11-02, see `docs/recurring-asana-overlap.md`). A new top-level task is held back with `why: template_covers_period` when a turned-on Asana-mirrored recurring template already has a task (made or adopted by `tk_generate`) for that client, the same title, and a due date within the period window (week 3 days, month 13, quarter 44, year 120).
+  - Counted in `held_back` and in `held_back_template`. (`held_back_templates` is a different count: Asana templates not staged.)
+  - Checked twice: at plan time from `covered`, and again inside `tk_import_asana_apply` (skip reason `template_covers_period`), so a task the generator made between plan and apply is still caught.
+  - No map row is written. If the template task is trashed, the Asana task imports the next morning.
+  - Until a template is turned on there are no covers, so this changes nothing today.
 - **Templates are not imported**, the same as in the 2026-10-21 run. Admins confirm templates in the portal.
 - **Unmatched owner.** A task with no Asana assignee lands on the unassigned list, where anyone can claim it. The owner comes from the client's bookkeeper, else Holden.
 - **Old parents.** A parent fetched only to place a new subtask is never imported by itself.
@@ -76,7 +82,7 @@ Each run does these steps:
 
 ## Check on it
 
-- **Log:** `~/Desktop/Mygoodbooks-app-code/asana-daily-runs/asana-daily-import-log.txt`, one line per run. Each line includes `new`, `skipped`, `held_back`, `unassigned`, `errors`, `switch` and `run`.
+- **Log:** `~/Desktop/Mygoodbooks-app-code/asana-daily-runs/asana-daily-import-log.txt`, one line per run. Each line includes `new`, `skipped`, `held_back`, `held_template` (part of `held_back`: tasks a recurring template already covers, plan + apply time), `unassigned`, `errors`, `switch` and `run`.
 - **Claude app:** Scheduled > asana-daily-import > Runs. Each run ends with a one-line summary.
 - **Database (admin):**
   ```sql
