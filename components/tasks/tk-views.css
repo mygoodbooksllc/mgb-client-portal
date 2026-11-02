@@ -1635,6 +1635,20 @@ li.tk-empty-inline {
   background: var(--topbar-bg, var(--surface));
 }
 
+/* The portal's Create button at the top of this rail. The rail scrolls, so its menu is
+   fixed to the window instead of absolute (it would be clipped). */
+.tkr-rail .tb-create-nav {
+  margin-bottom: 6px;
+}
+.tkr-rail .tb-create-nav-btn {
+  color: var(--topbar-text, var(--text));
+}
+.tkr-rail .tb-create-nav-menu {
+  position: fixed;
+  top: 120px;
+  left: 84px;
+}
+
 .tkr-list {
   display: flex;
   flex-direction: column;

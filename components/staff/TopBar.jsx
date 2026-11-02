@@ -115,6 +115,11 @@ const TB_ADMIN_ARTICLES = new Set([
 const TB_lc = (s) => String(s || "").toLowerCase();
 
 function TB_go(hash) {
+  // In the Slate app window a portal place opens in the portal window, never here.
+  if (typeof TK_slateInApp === "function" && TK_slateInApp() && typeof TK_slateForwardHash === "function") {
+    TK_slateForwardHash(hash);
+    return;
+  }
   if (window.location.hash !== hash) window.location.hash = hash;
 }
 
