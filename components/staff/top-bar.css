@@ -1265,37 +1265,51 @@ a.tb-pill-btn {
 }
 .tb-create-nav-btn svg {
   box-sizing: content-box;
-  width: 18px;
-  height: 18px;
-  padding: 7px;
+  width: 16px;
+  height: 16px;
+  padding: 9px;
   border-radius: 50%;
-  background: var(--gold);
-  color: #1b1b1b;
+  border: 1px solid rgba(199, 174, 134, 0.55);
+  background: linear-gradient(145deg, #ecd9b0 0%, #c7ae86 45%, #9c7c45 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18),
+    0 1px 3px rgba(5, 8, 13, 0.35);
+  color: #1a1206;
 }
 .tb-create-nav-btn:hover {
-  color: var(--sidebar-text-active);
+  color: #ecd9b0;
+}
+.tb-create-nav-btn:hover svg {
+  filter: brightness(1.08);
 }
 .tb-create-nav-btn:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
   border-radius: 8px;
 }
+/* Expanded rail: the Milestone badge's pill, navy with a gold hairline and the gold medallion. */
 .staff-rail.expanded .tb-create-nav-btn {
   flex-direction: row;
-  justify-content: center;
-  gap: 8px;
-  padding: 6px 12px;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 3px 14px 3px 3px;
+  border: 1px solid rgba(199, 174, 134, 0.55);
   border-radius: 999px;
-  background: var(--gold);
-  color: #1b1b1b;
+  background: var(--navy-deep);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(5, 8, 13, 0.18);
+  color: #f5efe3;
   font-size: 14px;
   font-weight: 600;
 }
+.staff-rail.expanded .tb-create-nav-btn:hover {
+  border-color: #d8c39f;
+  color: #f5efe3;
+}
 .staff-rail.expanded .tb-create-nav-btn svg {
-  padding: 0;
-  width: 16px;
-  height: 16px;
-  background: transparent;
+  padding: 8px;
 }
 .tb-create-nav-menu {
   position: absolute;
