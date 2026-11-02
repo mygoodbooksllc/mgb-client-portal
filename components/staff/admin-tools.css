@@ -1044,9 +1044,22 @@
 }
 
 @media (min-width: 761px) {
+  /* Fixed layout with percentage widths so the Admins and Bookkeepers cards
+     line up column for column. Below 980px the wrapper scrolls sideways
+     instead of squeezing the controls. */
   .staff-roster-card .tx-table {
-    min-width: 0;
+    table-layout: fixed;
+    width: 100%;
+    min-width: 980px;
   }
+  .staff-roster-card .tx-table th:nth-child(1) { width: 20%; }
+  .staff-roster-card .tx-table th:nth-child(2) { width: 10%; }
+  .staff-roster-card .tx-table th:nth-child(3) { width: 13.5%; }
+  .staff-roster-card .tx-table th:nth-child(4) { width: 11.5%; }
+  .staff-roster-card .tx-table th:nth-child(5) { width: 10%; }
+  .staff-roster-card .tx-table th:nth-child(6) { width: 12.5%; }
+  .staff-roster-card .tx-table th:nth-child(7) { width: 16.5%; }
+  .staff-roster-card .tx-table th:nth-child(8) { width: 6%; }
   .staff-roster-card .tx-table th {
     padding: 0 10px 8px 0;
     white-space: nowrap;
@@ -1075,7 +1088,24 @@
     height: 30px;
   }
   .staff-roster-card input.st-date {
-    width: 124px;
+    width: 102px;
+    padding: 4px 4px 4px 6px;
+  }
+  .staff-roster-card .st-monthday-compact select {
+    padding-left: 6px;
+    padding-right: 2px;
+  }
+  .staff-roster-card .st-monthday-clear {
+    padding: 2px 4px;
+  }
+  .staff-roster-card .staff-role-cell select,
+  .staff-roster-card .staff-temp-access-cell select {
+    width: auto;
+    max-width: 100%;
+    padding: 4px 2px 4px 6px;
+  }
+  .staff-roster-card .staff-role-cell select {
+    font-size: 12px;
   }
   .staff-roster-card .btn-secondary {
     padding: 4px 11px;
@@ -1092,7 +1122,6 @@
     font-size: 11.5px;
   }
   .staff-roster-card .staff-temp-access-cell {
-    flex-wrap: nowrap;
     gap: 6px;
   }
   .staff-roster-card .staff-row-actions {
@@ -1111,7 +1140,7 @@
     flex: none;
     flex-direction: column;
     gap: 3px;
-    min-width: 58px;
+    min-width: 46px;
     margin: 0;
     padding: 2px;
   }

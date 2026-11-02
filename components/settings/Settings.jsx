@@ -884,7 +884,7 @@ function ST_MonthDayInput({ value, disabled, onSave, ariaLabel, compact }) {
     commit(month, d);
   };
   return (
-    <div className={"st-monthday" + (compact ? " st-monthday-compact" : "")} style={{ display: "flex", gap: compact ? 4 : 8, alignItems: "center", flexWrap: "wrap" }}>
+    <div className={"st-monthday" + (compact ? " st-monthday-compact" : "")} style={{ display: "flex", gap: compact ? 4 : 8, alignItems: "center", flexWrap: compact && !err ? "nowrap" : "wrap" }}>
       <select className="st-input" style={{ width: "auto" }} value={month} disabled={disabled} aria-label={(ariaLabel || "Birthday") + " month"} onChange={(e) => pickMonth(e.target.value)}>
         <option value="">Month</option>
         {months.map((name, i) => (
