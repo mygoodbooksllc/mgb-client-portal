@@ -35,13 +35,13 @@ The app doesn't send invitations, and there's no invite button. Once someone is 
 
 ### The Staff roster
 
-The roster is two cards: **Admins** and **Bookkeepers**, each with a headcount, people A to Z. Deactivated people stay in their role's card, dimmed, at the bottom. A bookkeeper with temporary admin access stays in **Bookkeepers** with a small **Temp admin** tag. Each row has Name, Photo, Email, Role, Active, Clients and Temp admin access. The **Photo** column shows each person's profile photo and whether it still needs an edit; click it to download, replace or restore it. See [How do I manage staff profile photos?](#/help/staff-photos). You can't change your own row. Change someone's **Role** and they move to the other card.
+The roster is two cards: **Admins** and **Bookkeepers**, each with a headcount, people A to Z. Deactivated people stay in their role's card, dimmed, at the bottom. A bookkeeper with temporary admin access stays in **Bookkeepers** with a small **Temp admin** tag. Each person gets one tidy row: their photo and name with the email under it, then Role (with the **Active** tick under it), Birthday, Start date, Clients, Access, and a few small buttons (**View as**, **Last seen**, **Offboard**) and **Remove** at the end. A small badge under each photo shows whether it still needs an edit; click the photo to download, replace or restore it. See [How do I manage staff profile photos?](#/help/staff-photos). You can't change your own row. Change someone's **Role** and they move to the other card.
 
-The owner also sees an **MGB (internal)** column on admin rows: untick it to stop that admin opening MyGoodBooks' own books. It's on for every admin by default and nobody else sees the column. See [What is MGB (internal), and who can open it?](#/help/mgb-internal).
+The owner also sees an **MGB (internal)** tick in the **Access** column on admin rows: untick it to stop that admin opening MyGoodBooks' own books. It's on for every admin by default and nobody else sees it. See [What is MGB (internal), and who can open it?](#/help/mgb-internal).
 
 - **Role**: switch between bookkeeper and admin.
 - **Active**: untick to deactivate someone (they can no longer sign in). To move their work to someone else first, use **Offboard**. See [How do I offboard a staff member?](#/help/offboarding).
-- **×** removes the person. They lose portal access immediately.
+- **Remove** (at the end of the row) removes the person. They lose portal access immediately.
 
 ### Assign clients to a bookkeeper
 
@@ -53,10 +53,10 @@ The workload hint next to it shows how busy they are (**Has room** / **Overloade
 
 Give a bookkeeper short-term access to the admin pages, for example while you're away.
 
-1. On their row, pick **1 hour**, **1 day** or **1 week** in **Temp admin access**.
+1. On their row, pick **1 hour**, **1 day** or **1 week** in the **Access** column.
 2. Click **Grant**.
 
-The cell then shows **Until {date, time}** with a **Revoke** button. It ends on its own at that time.
+The cell then shows **Temp admin until {date, time}** with a **Revoke** button. It ends on its own at that time.
 
 It unlocks the admin tabs of **Team** and **HR** (the Members tab opens **read-only**, with no **View as** or **Last seen**), and **Task templates**, **Client roster**, **Usage stats** and **Developer tools** under **Settings → Firm settings**. Task templates (Slate › Recurring), Client roster and Developer tools open **read-only**. **Audit log**, **Emails**, **Feedback** and the QuickBooks API usage card stay real-admin-only. Offboarding also ends it.
 

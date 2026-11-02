@@ -1428,7 +1428,7 @@ var ANN_REGISTRY = [
         "hr",
         "members",
         "HR › Members",
-        "The Photo column shows who still needs an edit. Click a photo to download it, replace it with your edited version or restore the original.",
+        "Each photo's badge shows who still needs an edit. Click a photo to download it, replace it with your edited version or restore the original.",
         // A temporary admin sees Members but can't act on photos.
         (c) => !!(c && c.isAdmin),
       ),

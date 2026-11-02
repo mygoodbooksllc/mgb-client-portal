@@ -964,3 +964,181 @@
   border-radius: 8px;
   background: #fff;
 }
+
+/* ---- HR > Members roster layout (2026-11-02, layout only) ----
+   One tidy row per person in both cards (Admins, Bookkeepers): avatar with a
+   small photo badge, name and email | role over Active | birthday | start date
+   | clients | access (temp admin or MGB (internal)) | actions | Remove. The
+   tables size to their content and fit a 1280px window without scrolling;
+   .table-scroll is only the safety net below that. Phones (<=760px) keep the
+   stacked, labeled card layout from .tx-table-labeled. */
+.staff-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.staff-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.staff-person-text {
+  min-width: 0;
+}
+.staff-person-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.staff-person-name .staff-roster-temp {
+  margin-left: 0;
+}
+.staff-person-email {
+  margin-top: 1px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 210px;
+}
+.staff-role-cell,
+.staff-access-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+.st-monthday-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.st-monthday-clear:hover {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+.staff-remove-btn {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  padding: 4px 8px;
+}
+
+@media (min-width: 761px) {
+  .staff-roster-card .tx-table {
+    min-width: 0;
+  }
+  .staff-roster-card .tx-table th {
+    padding: 0 10px 8px 0;
+    white-space: nowrap;
+  }
+  .staff-roster-card .tx-table td {
+    padding: 9px 10px 9px 0;
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  .staff-roster-card .tx-table td.row-remove-cell {
+    padding-right: 0;
+    text-align: right;
+    white-space: nowrap;
+  }
+  /* Compact controls, one size across the row. */
+  .staff-roster-card :is(select, input[type="date"]) {
+    padding: 4px 8px;
+    font-size: 12.5px;
+    line-height: 1.4;
+    height: 30px;
+    box-sizing: border-box;
+  }
+  .staff-roster-card .st-input {
+    padding: 4px 8px;
+    font-size: 12.5px;
+    height: 30px;
+  }
+  .staff-roster-card input.st-date {
+    width: 124px;
+  }
+  .staff-roster-card .btn-secondary {
+    padding: 4px 11px;
+    font-size: 12px;
+    border-width: 1px;
+  }
+  .staff-roster-card .st-monthday-compact [role="alert"] {
+    flex-basis: 100%;
+    font-size: 11px;
+  }
+  .staff-roster-card .staff-clients-btn + .tp-cap-hint {
+    margin: 4px 0 0;
+    gap: 4px;
+    font-size: 11.5px;
+  }
+  .staff-roster-card .staff-temp-access-cell {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .staff-roster-card .staff-row-actions {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .staff-roster-card .staff-row-actions > button {
+    min-width: 0;
+  }
+  .staff-roster-card .staff-active-toggle {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  /* Photo status as a small badge under the avatar. */
+  .staff-person .spa-cell {
+    flex: none;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 58px;
+    margin: 0;
+    padding: 2px;
+  }
+  .staff-person .spa-chip {
+    font-size: 9.5px;
+    padding: 1px 7px;
+    line-height: 1.4;
+  }
+}
+
+@media (max-width: 760px) {
+  /* "Remove" sits top right on the stacked card; keep the name clear of it. */
+  .staff-roster-card td.staff-person-cell {
+    padding-right: 64px;
+  }
+  .staff-person .spa-cell {
+    flex: none;
+    margin: 0;
+  }
+  .staff-person-email {
+    max-width: none;
+  }
+  .staff-role-cell,
+  .staff-access-cell {
+    align-items: flex-end;
+  }
+  .staff-roster-card .staff-row-actions {
+    justify-content: flex-end;
+  }
+}

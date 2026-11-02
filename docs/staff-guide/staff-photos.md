@@ -7,9 +7,9 @@ sort: 515
 ---
 Every active staff member adds a profile photo. You tidy the background so the whole team matches. It all happens on **HR › Members** (`#/hr/members`).
 
-### The Photo column
+### The photo badge
 
-Each person has a photo and a status:
+On each row of **HR › Members**, the person's photo shows with a small status badge under it. Click the photo to open it. The badge is one of:
 
 - **Missing**: they haven't added a photo yet. Their task list carries a reminder, but nothing blocks them.
 - **Needs edit**: they added their own photo and nobody has edited it yet.
@@ -41,7 +41,7 @@ The **Profile photos** card above the roster has a **Download all (zip)** button
 
 ### Who can do what
 
-Only admins can download originals or change photos. A bookkeeper with temporary admin access sees the Photo column but can't download or change anything. Nobody's stored photos are ever deleted.
+Only admins can download originals or change photos. A bookkeeper with temporary admin access sees the photos and badges but can't download or change anything. Nobody's stored photos are ever deleted.
 
 ### What gets logged
 

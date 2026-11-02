@@ -842,8 +842,10 @@ function ST_DateInput({ value, disabled, min, max, onSave, ariaLabel }) {
 // Birthday field: month and day only, never a year (owner request
 // 2026-10-27; rules in components/staff/birthdayLogic.js). Saves as soon as
 // both are picked; "Clear" saves an empty birthday. A year already stored on
-// the row is kept out of sight and never shown. Also used by HR › Members.
-function ST_MonthDayInput({ value, disabled, onSave, ariaLabel }) {
+// the row is kept out of sight and never shown. Also used by HR › Members,
+// which passes compact: short month names and a small Clear icon so the pair
+// sits on one line in the roster. Values and saving are the same either way.
+function ST_MonthDayInput({ value, disabled, onSave, ariaLabel, compact }) {
   const parsed = typeof BDAY_parse === "function" ? BDAY_parse(value) : null;
   const [month, setMonth] = React.useState(parsed ? String(parsed.month) : "");
   const [day, setDay] = React.useState(parsed ? String(parsed.day) : "");
@@ -882,12 +884,12 @@ function ST_MonthDayInput({ value, disabled, onSave, ariaLabel }) {
     commit(month, d);
   };
   return (
-    <div className="st-monthday" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+    <div className={"st-monthday" + (compact ? " st-monthday-compact" : "")} style={{ display: "flex", gap: compact ? 4 : 8, alignItems: "center", flexWrap: "wrap" }}>
       <select className="st-input" style={{ width: "auto" }} value={month} disabled={disabled} aria-label={(ariaLabel || "Birthday") + " month"} onChange={(e) => pickMonth(e.target.value)}>
         <option value="">Month</option>
         {months.map((name, i) => (
           <option key={name} value={String(i + 1)}>
-            {name}
+            {compact ? String(name).slice(0, 3) : name}
           </option>
         ))}
       </select>
@@ -902,7 +904,9 @@ function ST_MonthDayInput({ value, disabled, onSave, ariaLabel }) {
       {(month || day) && !disabled && (
         <button
           type="button"
-          className="btn-secondary"
+          className={compact ? "st-monthday-clear" : "btn-secondary"}
+          aria-label={compact ? (ariaLabel || "Birthday") + ": clear" : undefined}
+          title={compact ? "Clear birthday" : undefined}
           onClick={() => {
             setMonth("");
             setDay("");
@@ -910,7 +914,7 @@ function ST_MonthDayInput({ value, disabled, onSave, ariaLabel }) {
             if (value) onSave(null);
           }}
         >
-          Clear
+          {compact ? "\u00d7" : "Clear"}
         </button>
       )}
       {err && (

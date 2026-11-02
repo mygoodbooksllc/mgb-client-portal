@@ -9,6 +9,12 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-11-02: HR › Members roster is tidier
+- **One compact row per person**, in both **Admins** and **Bookkeepers**: photo (with a small status badge) and name with the email under it, **Role** with the **Active** tick under it, **Birthday**, **Start date**, **Clients**, **Access**, then **View as**, **Last seen**, **Offboard** and **Remove**.
+- **Birthday** is a short month and a day side by side, with a small **×** to clear it.
+- **Access** holds the temporary admin controls on bookkeeper rows and the owner's **MGB (internal)** tick on admin rows.
+- The old unlabeled **×** at the end of a row now reads **Remove**. Nothing about who can do what has changed. See [Staff and access](#/help/staff-management).
+
 ### 2026-11-02: Slate is simpler to use
 - **Mark done** is a big button at the top of an open task (or press **x**). It works like the circle on the row: review, recurring tasks and **Undo** all behave the same. See [What's in a task's details?](#/help/task-details).
 - **One new-task button per screen.** Use **Create** (or **q**); the extra **+ Add** and **Add task** buttons are gone wherever **Create** is there. The **Add task** row at the bottom of each group stays.

@@ -24,9 +24,9 @@ Click **MGB (internal)** in the left rail (under **Clients**). It opens like any
 ### Give or take away the permission (owner only)
 
 1. Go to **HR → Members**.
-2. In the **MGB (internal)** column, untick an admin to take the permission away, or tick them to give it back.
+2. In the **Access** column, use the **MGB (internal)** tick: untick an admin to take the permission away, or tick them to give it back.
 
-Only the owner sees that column. The change takes effect the next time that admin loads the page, and the server enforces it, so hiding the link isn't the only protection.
+Only the owner sees that tick. The change takes effect the next time that admin loads the page, and the server enforces it, so hiding the link isn't the only protection.
 
 ### What it never counts in
 

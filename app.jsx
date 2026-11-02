@@ -15056,21 +15056,19 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
               <thead>
                 <tr>
                   <th>Name</th>
-                  {canSeePhotos && <th>Photo</th>}
-                  <th>Email</th>
+                  <th>Role</th>
                   <th>Birthday</th>
                   <th>Start date</th>
-                  <th>Role</th>
-                  <th>Active</th>
                   <th>Clients</th>
-                  <th>Temp admin access</th>
-                  {isInternalOwner && (
-                    <th title="Opens MGB (internal) and every fee, staff cost rate, cost and margin figure (client profitability).">
-                      MGB (internal)
-                    </th>
-                  )}
-                  <th></th>
-                  <th></th>
+                  <th title={isInternalOwner ? "Temporary admin access for bookkeepers. The owner also sees the MGB (internal) switch on admin rows: it opens MGB (internal) and every fee, staff cost rate, cost and margin figure (client profitability)." : undefined}>
+                    Access
+                  </th>
+                  <th className="staff-th-actions">
+                    <span className="staff-sr-only">Actions</span>
+                  </th>
+                  <th className="staff-th-remove">
+                    <span className="staff-sr-only">Remove</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -15088,35 +15086,69 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                       className={row.active === false ? "staff-roster-inactive" : undefined}
                       data-photo-row={String(row.email).toLowerCase()}
                     >
-                      <td data-primary="">
-                        {row.name}
-                        {tempActive && row.role !== "admin" && (
-                          <span className="staff-roster-temp" title="Has temporary admin access">Temp admin</span>
-                        )}
-                        {row.active && missingAuthSet.has(String(row.email).toLowerCase()) && (
-                          <span
-                            className="staff-roster-temp staff-roster-nosignin"
-                            title="No sign-in account yet: use Fix sign-in at the top of this page"
-                          >
-                            Can't sign in
-                          </span>
-                        )}
+                      <td data-primary="" className="staff-person-cell">
+                        <div className="staff-person">
+                          {canSeePhotos && (
+                            <SPA_PhotoCell
+                              row={spByEmail[String(row.email).toLowerCase()]}
+                              profileName={row.name}
+                              canAct={canActPhotos}
+                              onOpen={setPhotoEmail}
+                              tour={grp.key === (rows.some((r) => r.role === "admin") ? "admin" : "bookkeeper") && list[0] === row}
+                            />
+                          )}
+                          <div className="staff-person-text">
+                            <div className="staff-person-name">
+                              <span>{row.name}</span>
+                              {tempActive && row.role !== "admin" && (
+                                <span className="staff-roster-temp" title="Has temporary admin access">Temp admin</span>
+                              )}
+                              {row.active && missingAuthSet.has(String(row.email).toLowerCase()) && (
+                                <span
+                                  className="staff-roster-temp staff-roster-nosignin"
+                                  title="No sign-in account yet: use Fix sign-in at the top of this page"
+                                >
+                                  Can't sign in
+                                </span>
+                              )}
+                            </div>
+                            <div className="staff-person-email" title={row.email}>{row.email}</div>
+                          </div>
+                        </div>
                       </td>
-                      {canSeePhotos && (
-                        <td data-label="Photo">
-                          <SPA_PhotoCell
-                            row={spByEmail[String(row.email).toLowerCase()]}
-                            profileName={row.name}
-                            canAct={canActPhotos}
-                            onOpen={setPhotoEmail}
-                            tour={grp.key === (rows.some((r) => r.role === "admin") ? "admin" : "bookkeeper") && list[0] === row}
-                          />
-                        </td>
-                      )}
-                      <td data-label="Email">{row.email}</td>
+                      <td data-label="Role">
+                        <div className="staff-role-cell">
+                          <select
+                            value={row.role}
+                            disabled={isSelf || busy || readOnly}
+                            aria-label={`Role for ${row.name}`}
+                            onChange={(e) =>
+                              updateRow(row, { role: e.target.value })
+                            }
+                          >
+                            {STAFF_ROLES.map((r) => (
+                              <option key={r} value={r}>
+                                {r}
+                              </option>
+                            ))}
+                          </select>
+                          <label className="staff-active-toggle">
+                            <input
+                              type="checkbox"
+                              checked={row.active}
+                              disabled={isSelf || busy || readOnly}
+                              onChange={(e) =>
+                                updateRow(row, { active: e.target.checked })
+                              }
+                            />
+                            <span>{row.active ? "Active" : "Deactivated"}</span>
+                          </label>
+                        </div>
+                      </td>
                       <td data-label="Birthday">
                         {typeof ST_MonthDayInput === "function" ? (
                           <ST_MonthDayInput
+                            compact
                             value={(profiles[row.email] || {}).birthday}
                             disabled={readOnly}
                             ariaLabel={`Birthday for ${row.name}`}
@@ -15138,34 +15170,6 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                           "—"
                         )}
                       </td>
-                      <td data-label="Role">
-                        <select
-                          value={row.role}
-                          disabled={isSelf || busy || readOnly}
-                          onChange={(e) =>
-                            updateRow(row, { role: e.target.value })
-                          }
-                        >
-                          {STAFF_ROLES.map((r) => (
-                            <option key={r} value={r}>
-                              {r}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td data-label="Active">
-                        <label className="staff-active-toggle">
-                          <input
-                            type="checkbox"
-                            checked={row.active}
-                            disabled={isSelf || busy || readOnly}
-                            onChange={(e) =>
-                              updateRow(row, { active: e.target.checked })
-                            }
-                          />
-                          <span>{row.active ? "Active" : "Deactivated"}</span>
-                        </label>
-                      </td>
                       <td data-label="Clients">
                         {row.role === "admin" ? (
                           <span className="staff-self-note">All (admin)</span>
@@ -15183,91 +15187,94 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                           <TP_WorkloadHint email={row.email} />
                         )}
                       </td>
-                      <td data-label="Temp admin access">
-                        {readOnly ? (
-                          tempActive ? (
-                            <span className="staff-self-note">
-                              Until{" "}
-                              {formatTempAccessExpiry(tempAccess.expires_at)}
-                            </span>
-                          ) : (
-                            <span className="staff-self-note">—</span>
-                          )
-                        ) : row.role === "admin" ? (
-                          <span className="staff-self-note">—</span>
-                        ) : (
-                          <div className="staff-temp-access-cell" data-tour="members-temp">
-                            {tempActive ? (
-                              <React.Fragment>
+                      <td data-label="Access">
+                        {/* One Access column. Temp admin access applies to non-admin rows and the
+                            owner-only MGB (internal) switch to admin rows, so one of the two is
+                            always a dash; a dash is shown once, not twice. */}
+                        {(() => {
+                          const showTemp = readOnly ? !!tempActive : row.role !== "admin";
+                          const showInternal = isInternalOwner && row.role === "admin";
+                          if (!showTemp && !showInternal) {
+                            return <span className="staff-self-note">—</span>;
+                          }
+                          return (
+                            <div className="staff-access-cell">
+                              {showTemp && (readOnly ? (
                                 <span className="staff-self-note">
-                                  Until{" "}
-                                  {formatTempAccessExpiry(
-                                    tempAccess.expires_at,
-                                  )}
+                                  Temp admin until{" "}
+                                  {formatTempAccessExpiry(tempAccess.expires_at)}
                                 </span>
-                                <button
-                                  className="btn-secondary"
-                                  disabled={tempBusy}
-                                  onClick={() => revokeTempAccess(row)}
-                                >
-                                  Revoke
-                                </button>
-                              </React.Fragment>
-                            ) : (
-                              <React.Fragment>
-                                <select
-                                  value={
-                                    tempAccessDurationFor[row.id] ||
-                                    TEMP_ACCESS_DURATIONS[0].ms
-                                  }
-                                  onChange={(e) =>
-                                    setTempAccessDurationFor((prev) => ({
-                                      ...prev,
-                                      [row.id]: Number(e.target.value),
-                                    }))
-                                  }
-                                >
-                                  {TEMP_ACCESS_DURATIONS.map((d) => (
-                                    <option key={d.label} value={d.ms}>
-                                      {d.label}
-                                    </option>
-                                  ))}
-                                </select>
-                                <button
-                                  className="btn-secondary"
-                                  disabled={tempBusy}
-                                  onClick={() => grantTempAccess(row)}
-                                >
-                                  Grant
-                                </button>
-                              </React.Fragment>
-                            )}
-                          </div>
-                        )}
+                              ) : (
+                                <div className="staff-temp-access-cell" data-tour="members-temp">
+                                  {tempActive ? (
+                                    <React.Fragment>
+                                      <span className="staff-self-note">
+                                        Temp admin until{" "}
+                                        {formatTempAccessExpiry(
+                                          tempAccess.expires_at,
+                                        )}
+                                      </span>
+                                      <button
+                                        className="btn-secondary"
+                                        disabled={tempBusy}
+                                        onClick={() => revokeTempAccess(row)}
+                                      >
+                                        Revoke
+                                      </button>
+                                    </React.Fragment>
+                                  ) : (
+                                    <React.Fragment>
+                                      <select
+                                        value={
+                                          tempAccessDurationFor[row.id] ||
+                                          TEMP_ACCESS_DURATIONS[0].ms
+                                        }
+                                        aria-label={`Temp admin access length for ${row.name}`}
+                                        onChange={(e) =>
+                                          setTempAccessDurationFor((prev) => ({
+                                            ...prev,
+                                            [row.id]: Number(e.target.value),
+                                          }))
+                                        }
+                                      >
+                                        {TEMP_ACCESS_DURATIONS.map((d) => (
+                                          <option key={d.label} value={d.ms}>
+                                            {d.label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <button
+                                        className="btn-secondary"
+                                        disabled={tempBusy}
+                                        onClick={() => grantTempAccess(row)}
+                                      >
+                                        Grant
+                                      </button>
+                                    </React.Fragment>
+                                  )}
+                                </div>
+                              ))}
+                              {showInternal && (
+                                (internalGrants[String(row.email).toLowerCase()] || {}).is_owner ? (
+                                  <span className="staff-self-note">Owner</span>
+                                ) : (
+                                  <label className="staff-active-toggle" data-tour="members-internal" title="Opens MGB (internal) and every fee, staff cost rate, cost and margin figure (client profitability).">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!internalGrants[String(row.email).toLowerCase()]}
+                                      disabled={internalBusyId === row.id || !row.active}
+                                      aria-label={`Let ${row.name} open MGB (internal) and see client profitability`}
+                                      onChange={(e) => toggleInternalAccess(row, e.target.checked)}
+                                    />
+                                    <span>MGB (internal)</span>
+                                  </label>
+                                )
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
-                      {isInternalOwner && (
-                        <td data-label="MGB (internal)">
-                          {row.role !== "admin" ? (
-                            <span className="staff-self-note">—</span>
-                          ) : (internalGrants[String(row.email).toLowerCase()] || {}).is_owner ? (
-                            <span className="staff-self-note">Owner</span>
-                          ) : (
-                            <label className="staff-active-toggle" data-tour="members-internal">
-                              <input
-                                type="checkbox"
-                                checked={!!internalGrants[String(row.email).toLowerCase()]}
-                                disabled={internalBusyId === row.id || !row.active}
-                                aria-label={`Let ${row.name} open MGB (internal) and see client profitability`}
-                                onChange={(e) => toggleInternalAccess(row, e.target.checked)}
-                              />
-                              <span>
-                                {internalGrants[String(row.email).toLowerCase()] ? "Can open" : "No access"}
-                              </span>
-                            </label>
-                          )}
-                        </td>
-                      )}
-                      <td data-label="">
+                      <td data-label="" className="staff-actions-cell">
                         <div className="staff-row-actions">
                         {!isSelf && row.role !== "admin" && row.active && (
                           <button
@@ -15291,12 +15298,13 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                           <span className="staff-self-note">You</span>
                         ) : (
                           <button
-                            className="row-remove-btn"
+                            className="row-remove-btn staff-remove-btn"
                             onClick={() => removeRow(row)}
                             disabled={busy || readOnly}
                             aria-label={`Remove ${row.name}`}
+                            title={`Remove ${row.name} from the staff roster`}
                           >
-                            ×
+                            Remove
                           </button>
                         )}
                       </td>

@@ -5,7 +5,7 @@ audience: admin
 keywords: [mgb home, pricing and fees, profitability, profit, margin, target margin, fee, monthly fee, tier default, hourly cost, loaded cost, cost rate, effective from, revenue, effective rate, internal, mgb internal, who sees profit]
 sort: 540
 ---
-Profit figures are internal. Only admins the owner has given the **MGB (internal)** permission (**HR › Members**, the **MGB (internal)** column) see them. Other admins and all other staff see no fees, hourly costs, cost, profit or margins anywhere, and can't open this article. Nothing tells them it's hidden.
+Profit figures are internal. Only admins the owner has given the **MGB (internal)** permission (**HR › Members**, the **MGB (internal)** tick in the **Access** column) see them. Other admins and all other staff see no fees, hourly costs, cost, profit or margins anywhere, and can't open this article. Nothing tells them it's hidden.
 
 **MGB Home (preview).** If **MGB Home** is on for you (the rail item that used to say **MGB (internal)**), everything below that says **Team › Hours** lives in MGB Home instead: fees, cost and margin by client in **MGB Home › Profitability**, staff cost rates and the firm cost basis in **MGB Home › Cost rates**, and the fee list, **Master Data sync**, the **2027 fee change review** and milestone tiers in **MGB Home › Pricing & fees**. Team › Hours then shows hours only. See [What is MGB Home?](#/help/mgb-home).
 
