@@ -110,3 +110,9 @@ t("Slate app: New project and Recurring task rows, and no Admin group", () => {
   const p = C.CM_createItems({ client: null, isAdmin: true, tk: true, template: true, deskPlus: true, timeOff: true });
   assert.ok(k(p).includes("add-client") && !k(p).includes("recurring") && !k(p).includes("project"));
 });
+
+t("Slate page in the portal: Slate rows plus the Admin group", () => {
+  const k = (a) => a.map((i) => i.key);
+  const s = C.CM_createItems({ client: null, isAdmin: true, tk: true, template: true, slatePage: true });
+  assert.ok(k(s).includes("project") && k(s).includes("recurring") && k(s).includes("add-client"));
+});

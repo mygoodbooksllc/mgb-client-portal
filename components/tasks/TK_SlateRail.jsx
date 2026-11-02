@@ -859,8 +859,8 @@ function TKR_Rail(props) {
   return (
     <nav className={"tk-sidebar tkr" + (shown ? " has-panel" : "") + (prefs.pinned ? " is-pinned" : "")} aria-label="Task lists" data-tour="tk-sidebar" ref={rootRef}>
       <div className="tkr-rail" ref={railRef} onKeyDown={onRailKey}>
-        {/* The portal's Create button (hidden preview, TB_create.js): renders nothing with its gate off. */}
-        {typeof TB_NavCreate === "function" ? <TB_NavCreate clients={props.clients} currentClientId={null} /> : null}
+        {/* Create, only in the Slate app window; in the portal the left nav's Create carries Slate's rows. */}
+        {typeof TB_NavCreate === "function" && typeof TK_slateInApp === "function" && TK_slateInApp() ? <TB_NavCreate clients={props.clients} currentClientId={null} /> : null}
         <ul className="tkr-list">
           <TKR_Link id="my" route={{ view: "my" }} label="Slate" icon="home" active={active === "my"} onGo={go} />
           <TKR_Link id="review" route={{ view: "review" }} label="Review" icon="check" count={props.reviewCount} tour="tk-review-nav" active={active === "review"} onGo={go} />

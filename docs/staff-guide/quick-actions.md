@@ -24,7 +24,7 @@ On a staff page with no client open (Today, Work, Team and so on), the menu is h
 
 *Admins only:* below a line and a small **Admin** heading, **Create** also has **Invite a client login** (with a client open) and **Add a client**, which open the Client roster, **Start a team review**, which opens **HR › Reviews**, and **Invite staff**, which opens **HR › Members**. These only take you to the page; nothing is created until you finish there.
 
-In the Slate app window, **Create** has Slate's own rows: **Task**, **New project** (with Slate plus) and **Recurring task**, and no Admin group. The Desk's rail no longer has a **+** of its own; **Create** replaces it. See [How do I use the Desk?](#/help/workbench).
+On a Slate page in the portal, the left nav's **Create** also has **New project** (with Slate plus) and **Recurring task**. In the Slate app window, **Create** is at the top of Slate's icon rail with those same rows and no Admin group. The Desk's rail no longer has a **+** of its own; **Create** replaces it. See [How do I use the Desk?](#/help/workbench).
 
 ### Task
 

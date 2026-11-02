@@ -152,6 +152,7 @@ function CM_useCreateMenu() {
 //   deskPlus    the Desk additions gate is on (Ask client, chat-drawer Message)
 //   timeOff     the existing time-off flow can be opened (WB_QuickHost + CV_MyTimeOffBody)
 //   template    the Slate plus New project form (with its Start from picker) can be opened
+//   slatePage   a Slate page in the portal: the same Slate rows, with the Admin group kept
 //   slate       the Slate app window: Slate's own rows (New project, Recurring task) and no portal-only
 //               Admin group (those pages open in the portal window, so they don't belong here)
 // }
@@ -176,8 +177,9 @@ function CM_createItems(opts) {
     // Off a client page Message opens the chat drawer's own list.
     items.push({ key: "message", label: "Message a client", kind: "message", icon: "message" });
   }
-  if (o.slate && o.template && !client) items.push({ key: "project", label: "New project", kind: "template", icon: "template" });
-  if (o.slate && o.tk) items.push({ key: "recurring", label: "Recurring task", kind: "recurring", icon: "template" });
+  var slateRows = o.slate || o.slatePage;
+  if (slateRows && o.template && !client) items.push({ key: "project", label: "New project", kind: "template", icon: "template" });
+  if (slateRows && o.tk) items.push({ key: "recurring", label: "Recurring task", kind: "recurring", icon: "template" });
   if (o.deskPlus) items.push({ key: "ask", label: "Ask client…", kind: "ask", icon: "ask" });
   if (o.timeOff) items.push({ key: "timeoff", label: "Request time off", kind: "timeoff", icon: "clock" });
   var admin = [];

@@ -1575,7 +1575,9 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
   const template = !!tk && slatePlus && typeof TKPF_NewProjectModal === "function" && typeof TK_NewProjectModal === "function";
   const timeOff = !!plusOn && typeof WB_QuickHost === "function" && typeof WB_quickStart === "function" && typeof CV_MyTimeOffBody === "function";
   const inSlate = typeof TK_slateInApp === "function" && TK_slateInApp();
-  const items = CM_createItems({ client, isAdmin, tk, deskPlus: !!plusOn && typeof WB_quickStart === "function", timeOff, template, slate: inSlate });
+  // A Slate page in the portal gets Slate's rows here too (its own rail has no Create there).
+  const slatePage = !inSlate && /^#\/tasks(\/|$)/.test(window.location.hash || "");
+  const items = CM_createItems({ client, isAdmin, tk, deskPlus: !!plusOn && typeof WB_quickStart === "function", timeOff, template, slate: inSlate, slatePage });
   if (!items.length) return null;
   const run = (it) => {
     const kind = it.kind;
@@ -1672,7 +1674,7 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
         </div>
       )}
       {wbq && typeof WB_QuickHost === "function" && <WB_QuickHost kind={wbq} client={client} clients={clients} onClose={() => setWbq(null)} />}
-      {projOpen && template && (client || inSlate) && typeof ReactDOM !== "undefined" && ReactDOM.createPortal(
+      {projOpen && template && (client || inSlate || slatePage) && typeof ReactDOM !== "undefined" && ReactDOM.createPortal(
         <div onKeyDown={(e) => e.stopPropagation()}>
         <TK_NewProjectModal
           isAdmin={isAdmin}
