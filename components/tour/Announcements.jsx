@@ -282,6 +282,8 @@ function ANN_Root({ staffUser, impersonating, isPreviewingUser, hasTempAdminAcce
     if (id) ANN_store.record(id, "show");
   }, [id]);
 
+  const [showMore, setShowMore] = React.useState(false);
+  React.useEffect(() => { setShowMore(false); }, [id]);
   if (!next) return null;
   const startTour = () => {
     // A `tourKey` entry runs a staff tour that saves its own seen flag (and may
@@ -299,7 +301,17 @@ function ANN_Root({ staffUser, impersonating, isPreviewingUser, hasTempAdminAcce
       <div className="ann-text">
         <span className="ann-kicker">New</span>
         <strong className="ann-title">{next.title}</strong>
-        <span className="ann-summary">{next.summary}</span>
+        <button
+          type="button"
+          className="ann-more"
+          aria-expanded={showMore}
+          aria-label={showMore ? "Hide details" : "Show details"}
+          title={showMore ? "Hide details" : "Show details"}
+          onClick={() => setShowMore((v) => !v)}
+        >
+          {showMore ? "×" : "i"}
+        </button>
+        {showMore && <span className="ann-summary ann-summary-open">{next.summary}</span>}
       </div>
       <div className="ann-actions">
         <button type="button" className="btn-primary" onClick={startTour}>

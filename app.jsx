@@ -932,6 +932,29 @@ const BOOKKEEPER_VIEW = "__bookkeeper__";
 // Team's People/Hours/... and HR's Handbook/Reviews/Onboarding/... are tabs
 // INSIDE those places (#/work/close, #/hr/reviews), not pages of their own
 // any more.
+// A long page subtitle shows on one line with an info button; the button
+// opens the full text in place. Short ones render as plain text.
+function APP_InfoText({ text }) {
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => { setOpen(false); }, [text]);
+  if (typeof text !== "string" || text.length <= 110) return text || null;
+  return (
+    <span className={"info-text" + (open ? " is-open" : "")}>
+      <span className="info-text-body">{text}</span>
+      <button
+        type="button"
+        className="info-text-btn"
+        aria-expanded={open}
+        aria-label={open ? "Hide the full description" : "Show the full description"}
+        title={open ? "Hide details" : "Show details"}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {open ? "×" : "i"}
+      </button>
+    </span>
+  );
+}
+
 const NON_CLIENT_PAGES = new Set([
   "today",
   "inbox",
@@ -31451,7 +31474,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     ? STAFF_isRealAdmin(effectiveStaffUser)
                       ? "Only staff see this page. It holds who can sign in, client details and plan."
                       : "Only staff see this page. It holds who can sign in, client details, plan and milestone."
-                    : meta.subtitle}
+                    : <APP_InfoText text={meta.subtitle} />}
               </div>
             </div>
             <div className="page-header-actions-stack">

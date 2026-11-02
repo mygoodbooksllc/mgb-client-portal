@@ -167,3 +167,48 @@
   margin-top: 2px;
   color: var(--text-muted);
 }
+
+/* Details sit behind an info button so the strip stays one line. */
+.ann-more,
+.info-text-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font: italic 700 12px/1 var(--font-body);
+  cursor: pointer;
+}
+.ann-more:hover,
+.info-text-btn:hover {
+  color: var(--ink-strong);
+  border-color: var(--gold);
+}
+.ann-summary-open {
+  flex-basis: 100%;
+}
+.info-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  max-width: 100%;
+}
+.info-text:not(.is-open) .info-text-body {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.info-text.is-open {
+  display: flex;
+  align-items: flex-start;
+}
+.info-text-btn {
+  flex: none;
+  align-self: center;
+}
