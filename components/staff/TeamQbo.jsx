@@ -33,6 +33,8 @@ const TP_Q_DAYS_PER_MONTH = 30.44;
 const TP_Q_ACT_COLS =
   "qbo_id, txn_date, name_of, employee_qbo_id, employee_name, vendor_qbo_id, vendor_name, customer_qbo_id, customer_name, minutes, billable_status, description, item_name";
 // hourly_rate is left out on purpose (MGB Home S1): no money on Team › Hours.
+// The database also refuses it (supabase/qbo-hourly-rate-lock.sql): never use
+// select("*") on qbo_time_activities, it fails 42501 for every signed-in user.
 
 // "missing" = the migration isn't applied (function/table not found),
 // "auth" = signed out or not an admin, "other" = anything else.

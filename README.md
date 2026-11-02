@@ -2757,6 +2757,14 @@ Team Reviews files.
 - The `qbo_*` tables have no write policies at all.
 - `qbo_tokens` has no policies, so browsers can't reach it; it's reached only through
   security-definer functions and edge functions.
+- **QuickBooks Time billing rates** (`qbo_time_activities.hourly_rate`) are grant-only
+  (`supabase/qbo-hourly-rate-lock.sql`, 2026-11-02). Signed-in users get column-level SELECT on
+  every column except `hourly_rate` (no table-wide grant, nothing for anon), so a direct read of
+  the rate or `select *` fails 42501 for every admin. `qbo_hours_by_client` / `qbo_hours_by_staff`
+  are SECURITY DEFINER (admin check inside; `billable_value` stays null without
+  `can_view_internal()`). The only rate read is `qbo_time_activity_rates(p_from, p_to)`, grant
+  holders only. App code must name its columns when it selects from this table; a new column is
+  unreadable until it is added to the grant. Tests: `supabase/qbo-hourly-rate-lock-tests.sql`.
 - **CSP is report-only.** `vercel.json` sends `Content-Security-Policy-Report-Only`. After one
   real staff session and one client session show no console violations, rename the header to
   `Content-Security-Policy` to enforce it.

@@ -835,6 +835,11 @@ returns table (
 )
 language plpgsql
 stable
+-- SUPERSEDED: do not re-run this definition. The live function is SECURITY
+-- DEFINER with the MGB Home S1/S2 patches (money gated by can_view_internal(),
+-- internal customers dropped); see supabase/mgb-home-s1.sql, mgb-home-s2.sql and
+-- supabase/qbo-hourly-rate-lock.sql. Re-running this older body as invoker makes
+-- it raise 42501 for everyone (hourly_rate is not granted to authenticated).
 security invoker
 set search_path = public
 as $$
@@ -918,6 +923,11 @@ returns table (
 )
 language plpgsql
 stable
+-- SUPERSEDED: do not re-run this definition. The live function is SECURITY
+-- DEFINER with the MGB Home S1/S2 patches (money gated by can_view_internal(),
+-- internal customers dropped); see supabase/mgb-home-s1.sql, mgb-home-s2.sql and
+-- supabase/qbo-hourly-rate-lock.sql. Re-running this older body as invoker makes
+-- it raise 42501 for everyone (hourly_rate is not granted to authenticated).
 security invoker
 set search_path = public
 as $$

@@ -164,7 +164,7 @@ S1 is the smallest slice that delivers the owner's ask: MGB Home looks different
 - **Leak to Jesse** through a side door: Usage Stats (null client_id), Dev Tools rows, What's new, guide search, ⌘K, tour step text, digest. Each is in the gate table; S1 verify signs in as Jesse.
 - **Two token sets on one realm** (firm Time + internal client). If Intuit rotation ever invalidates one, either sync breaks. S0 should confirm the 400 is a report-parameter issue, not auth.
 - **Hours numbers shift** when the 781 h internal customer is mapped: Jesse's Unmapped bucket shrinks and those hours disappear from his view (by design of the lock). Tell the owner before mapping.
-- `qbo_time_activities.hourly_rate` stays readable by any admin; harmless while QuickBooks Time sends no rates. Revisit if billing rates are ever set.
+- ~~`qbo_time_activities.hourly_rate` stays readable by any admin~~ Fixed 2026-11-02 (`supabase/qbo-hourly-rate-lock.sql`): column privilege revoked for every signed-in user; grant holders read rates only through `qbo_time_activity_rates()`; the hours RPCs are SECURITY DEFINER. Any new or replaced `qbo_hours_by_*` must keep SECURITY DEFINER.
 - The client Overview "Hourly rate · this month" card shows plan list price and an effective rate to any staff who opens a client; out of scope here (OQ8).
 - Large surface in `app.jsx`; other sessions edit it. Ship from a worktree, rebase often.
 
