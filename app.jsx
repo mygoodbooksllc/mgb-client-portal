@@ -1038,14 +1038,6 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
-    // Read by CM_previewOn / CM_useCreateMenu (components/staff/TB_create.js).
-    key: "mgb_create_preview",
-    label: "Create menu preview (launched 2026-11-02; can be removed)",
-    description:
-      "Launched 2026-11-02: the firm-wide create_menu_enabled switch is on, so every staff member already has the Create button and this box changes nothing now. It stays for a couple of weeks as a rollback aid and can be removed. If the switch is ever turned off again, ticking it shows you only, in this browser, the Create button (top of the left nav, a round + in the top bar on a phone) with its roomier menu. The page reloads when you toggle it.",
-    reloads: true,
-  },
-  {
     // Read by MB_previewOn / MB_useGate (components/members/MB_gate.js).
     key: "mgb_members_preview",
     label: "Members area preview",
