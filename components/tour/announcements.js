@@ -801,7 +801,7 @@ var ANN_REGISTRY = [
       },
       {
         id: "ann-quick",
-        targets: ["tb-quick", "wb-rail-add"],
+        targets: ["nav-create", "tb-quick", "wb-rail-add"],
         wait: true,
         title: typeof CM_createOn === "function" && CM_createOn() ? "Try it from the + (Create) button" : "Try it from the + button",
         body: () =>

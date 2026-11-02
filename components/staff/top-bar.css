@@ -1239,3 +1239,74 @@ a.tb-pill-btn {
     display: none;
   }
 }
+
+/* "+ Create" at the top of the staff left nav (TB_NavCreate): a gold round plus with the word
+   under it in the 72px rail, a full-width pill when the rail is expanded. Where this rail is up
+   (desktop or a mouse) it stands in for the top bar pill; on a phone the top bar keeps its own. */
+.tb-create-nav {
+  position: relative;
+  width: 100%;
+  flex: none;
+  margin-bottom: 8px;
+}
+.tb-create-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--sidebar-text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.tb-create-nav-btn svg {
+  box-sizing: content-box;
+  width: 18px;
+  height: 18px;
+  padding: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: #1b1b1b;
+}
+.tb-create-nav-btn:hover {
+  color: var(--sidebar-text-active);
+}
+.tb-create-nav-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.staff-rail.expanded .tb-create-nav-btn {
+  flex-direction: row;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #1b1b1b;
+  font-size: 14px;
+  font-weight: 600;
+}
+.staff-rail.expanded .tb-create-nav-btn svg {
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  background: transparent;
+}
+.tb-create-nav-menu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 12px);
+  right: auto;
+  z-index: 1500;
+  cursor: default;
+}
+@media (min-width: 761px), (hover: hover) and (pointer: fine) {
+  .tb-bar .tb-create {
+    display: none;
+  }
+}

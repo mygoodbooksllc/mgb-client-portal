@@ -16,17 +16,17 @@ checkbox `mgb_create_preview` shows the feature to one person without these).
 Where: `docs/staff-guide/quick-actions.md` (the + menu article) and `tips.md`; sync with a targeted `UPDATE staff_guide ... replace(...)`.
 
 > ### Create (the + button)
-> The **+ Create** button in the top bar adds things without leaving the page. On a phone it is a round **+**.
+> The **+ Create** button at the top of the left nav, under the logo, adds things without leaving the page. On a phone it is a round **+** in the top bar.
 >
 > With a client open the menu header says **Add for <client>** and everything is filled in for that client: **Task** (press **q** anywhere), **Note**, **Request a document** and **Message**. Off a client page you can add a **Task**; if the Desk additions are on you also get **Message a client**, **Ask client…** and **Request time off**.
 >
 > *Admins only:* below a line, **Invite a client login** (with a client open) and **Add a client** open Client roster, **Start a team review** opens HR › Reviews, and **Invite staff** opens HR › Members. These only take you to the page; nothing is created until you finish there.
 
 ## What's new (draft, not inserted)
-- **2026-11-DD: A clearer Create button.** The small + in the top bar is now a labeled **Create** button with a roomier menu: Task, Note, Request a document and Message, with an icon on each row. Admins also find Add a client, Start a team review and Invite staff there.
+- **2026-11-DD: A clearer Create button.** The small + in the top bar is now a **Create** button at the top of the left nav (still in the top bar on a phone) with a roomier menu: Task, Note, Request a document and Message, with an icon on each row. Admins also find Add a client, Start a team review and Invite staff there.
 
 ## Next-visit notice and tour (draft)
-Notice title: "Meet the Create button". Body: "The + in the top bar is now a labeled Create button with a bigger menu. About 30 seconds."
+Notice title: "Meet the Create button". Body: "The + is now a Create button at the top of the left nav with a bigger menu. About 30 seconds."
 Tour stops (target `tb-quick`, wait true):
 1. "Add things from Create": "Click Create to add a task, note, document request or message for the client you have open. Press q for a task from anywhere."
 2. (admins only, same target) "More for admins": "Below the line: Add a client, Start a team review and Invite staff. They open the right page."

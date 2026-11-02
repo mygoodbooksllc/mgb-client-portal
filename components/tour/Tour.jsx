@@ -1175,7 +1175,7 @@ function TOUR_bookkeeperSteps(ctx) {
       when: (c) => !!c.myClient,
       go: openClient,
       // The Desk rail's + while the Desk is docked (the top-bar + steps aside, Desk R3).
-      targets: ["tb-quick", "wb-rail-add"],
+      targets: ["nav-create", "tb-quick", "wb-rail-add"],
       title: "Add something for this client",
       body: () =>
         (TOUR_createOn()

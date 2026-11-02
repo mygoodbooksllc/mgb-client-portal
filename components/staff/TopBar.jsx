@@ -1518,8 +1518,33 @@ function TB_CreateIcon({ name }) {
   return <svg {...p}>{paths[name] || null}</svg>;
 }
 
+// The same menu at the top of the staff left nav, under the logo (preview only: null with
+// the gate off). The rail passes the clients list and the client page it is on.
+function TB_NavCreate({ clients, currentClientId }) {
+  const createOn = typeof CM_useCreateMenu === "function" ? CM_useCreateMenu() : false;
+  const [tk, setTk] = useState(TB_tkQuickReady);
+  useEffect(() => {
+    const on = () => setTk(TB_tkQuickReady());
+    window.addEventListener("tk:quick-add-ready", on);
+    on();
+    return () => window.removeEventListener("tk:quick-add-ready", on);
+  }, []);
+  const deskOn = (() => {
+    try {
+      return typeof WB_store !== "undefined" && !!WB_store.getState().on;
+    } catch (e) {
+      return false;
+    }
+  })();
+  const plusOn = typeof WB_useDeskPlus === "function" ? WB_useDeskPlus(deskOn) : false;
+  if (!createOn) return null;
+  const c = currentClientId && clients ? clients.find((x) => x.id === currentClientId) : null;
+  const client = c ? { id: c.id, name: c.name } : null;
+  return <TB_CreateMenu client={client} variant="nav" tk={tk} plusOn={plusOn} clients={clients} />;
+}
 function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
   const rail = variant === "rail";
+  const nav = variant === "nav";
   const menu = TB_useMenu();
   const [wbq, setWbq] = useState(null);
   const ctx = React.useContext(typeof StaffToolsContext !== "undefined" ? StaffToolsContext : TB__noCtx());
@@ -1557,15 +1582,15 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
   let first = true;
   return (
     <div
-      className={rail ? "wb-rail-add" : "tb-item tb-menu-wrap tb-quick tb-create"}
+      className={rail ? "wb-rail-add" : nav ? "tb-create-nav" : "tb-item tb-menu-wrap tb-quick tb-create"}
       ref={menu.rootRef}
       onKeyDown={menu.onMenuKeyDown}
-      data-tour={rail ? "wb-rail-add" : "tb-quick"}
+      data-tour={rail ? "wb-rail-add" : nav ? "nav-create" : "tb-quick"}
     >
       <button
         ref={menu.triggerRef}
         type="button"
-        className={rail ? "wb-rail-btn wb-rail-plus" : "tb-create-btn"}
+        className={rail ? "wb-rail-btn wb-rail-plus" : nav ? "tb-create-nav-btn" : "tb-create-btn"}
         aria-label={rail ? head : "Create"}
         title={head}
         aria-haspopup="true"
@@ -1574,10 +1599,10 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
         onClick={() => menu.setOpen(!menu.open)}
       >
         <TB_PlusIcon />
-        {!rail && <span className="tb-create-label">Create</span>}
+        {!rail && <span className={nav ? "tb-create-nav-label" : "tb-create-label"}>Create</span>}
       </button>
       {menu.open && (
-        <div className={rail ? "tb-panel tb-menu tb-create-menu wb-rail-menu" : "tb-panel tb-menu tb-create-menu"} role="menu" aria-label={head}>
+        <div className={rail ? "tb-panel tb-menu tb-create-menu wb-rail-menu" : nav ? "tb-panel tb-menu tb-create-menu tb-create-nav-menu" : "tb-panel tb-menu tb-create-menu"} role="menu" aria-label={head}>
           <div className="tb-panel-head">{head}</div>
           {items.map((it) => {
             if (it.sep) return <div key={it.key} className="tb-create-sep" role="separator" />;

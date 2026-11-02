@@ -2747,6 +2747,7 @@ function StaffRail({
           <span className="staff-rail-mark" role="img" aria-label="MyGoodBooks" />
         )}
       </div>
+      {typeof TB_NavCreate === "function" && <TB_NavCreate clients={clients} currentClientId={currentClientId} />}
       {/* Picking a client happens on the Clients page and in the top bar's
           client picker. The classic rail lists only places; with the L1 gate
           on (ss), Pinned and Recent clients and the alerts slot follow them. */}
