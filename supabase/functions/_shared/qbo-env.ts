@@ -181,3 +181,10 @@ export const INTUIT_TID_RE = /^[0-9A-Za-z-]{8,64}$/;
 export function sanitizeIntuitTid(x: unknown): string | null {
   return typeof x === "string" && INTUIT_TID_RE.test(x) ? x : null;
 }
+
+/** Intuit company ids (realmId) are digits only. Anything else in the
+ *  callback's query string is refused before it is stored or put in a URL. */
+export const REALM_ID_RE = /^\d{1,20}$/;
+export function isRealmId(x: unknown): x is string {
+  return typeof x === "string" && REALM_ID_RE.test(x);
+}

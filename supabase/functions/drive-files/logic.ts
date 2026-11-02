@@ -327,14 +327,17 @@ async function hmacKey(secret: string) {
   );
 }
 
-export async function makeLinkToken(fileId: string, secret: string, nowSec: number, ttl = LINK_TTL_SEC): Promise<string> {
-  const payload = b64url(JSON.stringify({ f: fileId, e: nowSec + ttl }));
+export async function makeLinkToken(fileId: string, email: string, secret: string, nowSec: number, ttl = LINK_TTL_SEC): Promise<string> {
+  // u = the signed-in person the link was made for. The download re-checks
+  // that this person may still open the file (W-20261019-4).
+  const payload = b64url(JSON.stringify({ f: fileId, u: String(email || "").trim().toLowerCase(), e: nowSec + ttl }));
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", await hmacKey(secret), new TextEncoder().encode(payload)));
   return `${payload}.${b64url(sig)}`;
 }
 
-/** The client_files id the token is for, or null if it's forged or expired. */
-export async function verifyLinkToken(token: string, secret: string, nowSec: number): Promise<string | null> {
+/** The file id and the person the token was made for, or null if it's
+ *  forged, expired, or an old token without a person. */
+export async function verifyLinkToken(token: string, secret: string, nowSec: number): Promise<{ f: string; u: string } | null> {
   const parts = String(token || "").split(".");
   if (parts.length !== 2) return null;
   let ok = false;
@@ -347,8 +350,18 @@ export async function verifyLinkToken(token: string, secret: string, nowSec: num
   try {
     const p = JSON.parse(new TextDecoder().decode(b64urlDecode(parts[0])));
     if (typeof p.f !== "string" || !UUID_RE.test(p.f) || typeof p.e !== "number" || p.e < nowSec) return null;
-    return p.f;
+    if (typeof p.u !== "string" || !p.u.includes("@") || p.u.length > 320) return null;
+    return { f: p.f, u: p.u };
   } catch (_e) {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Copy legacy files: an old messages/<email>/ attachment keeps the message's
+// visibility. Internal-note attachments stay internal; an attachment with no
+// matching message also stays internal (fail closed) (W-20261019-3).
+// ---------------------------------------------------------------------------
+export function legacyMessageVisibility(path: string, internalByPath: Map<string, boolean>): "message" | "internal" {
+  return internalByPath.get(path) === false ? "message" : "internal";
 }

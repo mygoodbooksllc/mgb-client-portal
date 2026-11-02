@@ -985,6 +985,7 @@ async function syncClient(
 
   try {
     if (!realmId) throw new Error("connection has no realm_id — reconnect QuickBooks");
+    if (!/^\d{1,20}$/.test(realmId)) throw new Error("connection has an invalid realm_id — reconnect QuickBooks");
     const accessToken = await getAccessToken(admin, clientId, apiEnv);
 
     const today = new Date();

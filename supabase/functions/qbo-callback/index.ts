@@ -8,6 +8,7 @@ import {
   QboKeysMissingError,
   qboRedirectUri,
   sanitizeIntuitTid,
+  isRealmId,
 } from "../_shared/qbo-env.ts";
 
 // Handles Intuit's OAuth redirect after a bookkeeper clicks "Connect
@@ -187,6 +188,9 @@ async function handle(req: Request): Promise<Response> {
 
   if (err) return redirect("cancelled");
   if (!code || !realmId || !stateToken) return redirect("invalid");
+  // The realmId comes straight from the browser's address bar: only an
+  // Intuit-shaped id (digits) is ever stored or used.
+  if (!isRealmId(realmId)) return redirect("invalid");
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
@@ -242,6 +246,31 @@ async function handle(req: Request): Promise<Response> {
   const { data: existing } = await supabase.from("qbo_connections").select("client_id").eq("client_id", clientId).maybeSingle();
   if (!existing) {
     await supabase.from("qbo_connections").upsert({ client_id: clientId });
+  }
+
+  // One live QuickBooks company belongs to one client. Connecting a company
+  // that is already linked to a different client would show that client
+  // another organization's books, so it is refused (sandbox test companies
+  // may be shared between test clients).
+  if (env === "production") {
+    const { data: dup } = await supabase
+      .from("qbo_connections")
+      .select("client_id")
+      .eq("realm_id", realmId)
+      .neq("client_id", clientId)
+      .limit(1);
+    if (dup && dup.length) {
+      await supabase
+        .from("qbo_connections")
+        .update({
+          status: "error",
+          last_error: `[${env}] that QuickBooks company is already connected to another client. Sign in to the right company, or ask an admin.`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("client_id", clientId);
+      console.log(`qbo-callback: client ${clientId} connect refused, realm already linked to another client`);
+      return redirect("error");
+    }
   }
 
   let keys;
