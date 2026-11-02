@@ -1884,7 +1884,7 @@ var ANN_REGISTRY = [
     date: "2026-10-31",
     title: "MGB Home",
     summary:
-      "MGB (internal) is now MGB Home: the firm's margin, fees, internal time, Master Data sync and our own books in one place. Team › Hours now shows hours only.",
+      "MGB (internal) is now MGB Home: the firm's margin, fees, internal time, cost rates, Master Data sync and our own books in one place. Team › Hours now shows hours only.",
     roles: ["admin"],
     hash: "#/internal",
     visible: (ctx) => ANN_mgbHomeLaunchOn(ctx),
@@ -1915,7 +1915,7 @@ var ANN_REGISTRY = [
         wait: true,
         title: "Profitability",
         body: () =>
-          "Fees, cost, profit and margin by client, the target margin, and staff cost rates. Click a client for its fee and profit card. Team › Hours keeps the hours, without the money.",
+          "Fees, cost, profit and margin by client against the target margin. Cost basis switches margins between Staff cost and Full cost. Click a client for its fee and profit card. Team › Hours keeps the hours, without the money.",
       },
       {
         id: "ann-mh-pricing",
@@ -1940,11 +1940,15 @@ var ANN_REGISTRY = [
           "Time logged to the firm itself (the clock-in customer in QuickBooks Time): hours and cost by month, by person and by category, and the top descriptions. Pick a period at the top; CSV downloads it.",
       },
       {
-        id: "ann-mh-books",
-        targets: ["mh-books"],
-        title: "Firm books",
+        id: "ann-mh-costs",
+        go: () => {
+          if (!/^#\/internal\/costs(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/internal/costs";
+        },
+        targets: ["mh-costs"],
+        wait: true,
+        title: "Cost rates",
         body: () =>
-          "Firm books opens our own Overview, Close, Reports, Bank, Ledger review, Documents and SOP. To see this again, press ? and pick the launch, or read What is MGB Home? in Help.",
+          "Each person's loaded hourly cost with its history, who still needs a rate, and the firm cost basis that Full cost uses. Firm books, at the end of the tab row, opens our own Overview, Close, Reports, Bank, Ledger review, Documents and SOP. To see this again, press ? and pick the launch, or read What is MGB Home? in Help.",
       },
     ],
   },

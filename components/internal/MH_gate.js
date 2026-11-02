@@ -176,14 +176,15 @@ function MH_useCanOpen(real, imp) {
 // Pages and routes (app.jsx parseHashRoute / buildHashRoute / effectivePage).
 // MGB Home is still the internal client: its own four pages plus the Firm
 // books menu, which regroups the internal client's existing pages unchanged.
-// Overhead came in S2; Cost rates and Capacity are later slices (not built,
-// no route).
+// Overhead came in S2, Cost rates in S3; Capacity is a later slice (not
+// built, no route).
 // ---------------------------------------------------------------------------
 var MH_TABS = [
   { key: "mgb-home", slug: "", label: "Home", tour: "mh-tab-home" },
   { key: "mgb-profitability", slug: "profitability", label: "Profitability", tour: "mh-tab-profit" },
   { key: "mgb-pricing", slug: "pricing", label: "Pricing & fees", tour: "mh-tab-pricing" },
   { key: "mgb-overhead", slug: "overhead", label: "Overhead", tour: "mh-tab-overhead" },
+  { key: "mgb-costs", slug: "costs", label: "Cost rates", tour: "mh-tab-costs" },
 ];
 // #/internal/books/<slug> -> an existing page key. Labels are for the Firm
 // books menu; "fin" marks the Finances group (shown only when the internal
@@ -249,6 +250,99 @@ function MH_movedLineOn() {
   return MH_movedLineShows(first, now);
 }
 
+// ---------------------------------------------------------------------------
+// Cost basis (S3): which cost Profitability margins and Overhead use.
+// "staff" = each person's loaded hourly cost (staff_cost_rates, the default);
+// "full"  = that plus the firm uplift (firm_cost_basis full_rate - staff_rate,
+// the row in effect on the hour's date). Per browser in mgb_home_cost_basis
+// (cleared by Reset local state, so it falls back to staff); window event
+// mgb:mhbasis fires when it changes. The server does the math
+// (client_profitability / internal_hours p_basis) and refuses "full" while
+// firm_cost_basis is empty.
+// ---------------------------------------------------------------------------
+var MH_BASIS_KEY = "mgb_home_cost_basis";
+var MH_BASIS_EVENT = "mgb:mhbasis";
+function MH_basisOf(raw) {
+  return raw === "full" ? "full" : "staff";
+}
+function MH_getBasis() {
+  return MH_basisOf(MH__ls(MH_BASIS_KEY));
+}
+function MH_setBasis(b) {
+  var v = MH_basisOf(b);
+  if (v === "full") MH__lsSet(MH_BASIS_KEY, "full");
+  else {
+    try {
+      window.localStorage.removeItem(MH_BASIS_KEY);
+    } catch (e) {
+      /* storage blocked: stays staff */
+    }
+  }
+  try {
+    window.dispatchEvent(new Event(MH_BASIS_EVENT));
+  } catch (e) {
+    /* no window (tests) */
+  }
+  return v;
+}
+// The basis to ask the server for: "full" only when it was picked AND a firm
+// cost basis row exists; otherwise "staff" (never a 22023 round trip).
+function MH_effectiveBasis(picked, hasFirmBasis) {
+  return MH_basisOf(picked) === "full" && !!hasFirmBasis ? "full" : "staff";
+}
+
+// firm_cost_basis rows -> the row in effect on ymd (latest effective_from <=
+// ymd); before the first row, the earliest row (the server does the same).
+// null when there are no rows.
+function MH_firmBasisAt(rows, ymd) {
+  var list = (rows || []).filter(function (r) {
+    return r && /^\d{4}-\d{2}-\d{2}$/.test(String(r.effective_from || ""));
+  });
+  if (!list.length) return null;
+  list.sort(function (a, b) {
+    return a.effective_from < b.effective_from ? -1 : a.effective_from > b.effective_from ? 1 : 0;
+  });
+  var hit = null;
+  for (var i = 0; i < list.length; i++) if (list[i].effective_from <= ymd) hit = list[i];
+  return hit || list[0];
+}
+
+// Cost rates people list. staff: [{email, name, active}], rates:
+// [{staff_email, effective_from, hourly_cost}], today YYYY-MM-DD.
+// -> [{email, name, current: rate row or null, history: rows newest first,
+//      needsRate}] for ACTIVE staff only, needs-rate first, then by name.
+// Inactive staff never appear (no rate row is asked of anyone who left).
+function MH_ratePeople(staff, rates, today) {
+  var byEmail = {};
+  (rates || []).forEach(function (r) {
+    var e = String((r && r.staff_email) || "").toLowerCase();
+    if (!e) return;
+    (byEmail[e] = byEmail[e] || []).push(r);
+  });
+  var seen = {};
+  var out = [];
+  (staff || []).forEach(function (s) {
+    var e = String((s && s.email) || "").toLowerCase();
+    if (!e || seen[e] || !s.active) return;
+    seen[e] = true;
+    var hist = (byEmail[e] || []).slice().sort(function (a, b) {
+      return a.effective_from < b.effective_from ? 1 : a.effective_from > b.effective_from ? -1 : 0;
+    });
+    var cur = null;
+    for (var i = 0; i < hist.length; i++)
+      if (hist[i].effective_from <= today) {
+        cur = hist[i];
+        break;
+      }
+    out.push({ email: e, name: s.name || e, current: cur, history: hist, needsRate: !cur });
+  });
+  out.sort(function (a, b) {
+    if (a.needsRate !== b.needsRate) return a.needsRate ? -1 : 1;
+    return String(a.name).localeCompare(String(b.name));
+  });
+  return out;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     MH_isOn: MH_isOn,
@@ -271,5 +365,11 @@ if (typeof module !== "undefined" && module.exports) {
     MH_hashFor: MH_hashFor,
     MH_movedLineShows: MH_movedLineShows,
     MH_MOVED_KEY: MH_MOVED_KEY,
+    MH_BASIS_KEY: MH_BASIS_KEY,
+    MH_BASIS_EVENT: MH_BASIS_EVENT,
+    MH_basisOf: MH_basisOf,
+    MH_effectiveBasis: MH_effectiveBasis,
+    MH_firmBasisAt: MH_firmBasisAt,
+    MH_ratePeople: MH_ratePeople,
   };
 }

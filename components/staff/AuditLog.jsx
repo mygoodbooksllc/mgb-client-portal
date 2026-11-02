@@ -33,6 +33,9 @@ const AL_ACTIONS = {
   "cost_rate.set": "Cost rate set",
   "cost_rate.changed": "Cost rate changed",
   "cost_rate.removed": "Cost rate removed",
+  "firm_cost.set": "Firm cost basis set",
+  "firm_cost.changed": "Firm cost basis changed",
+  "firm_cost.removed": "Firm cost basis removed",
   "profitability.target_changed": "Target margin changed",
   "qbo_customer_map.insert": "QuickBooks customer mapped",
   "qbo_customer_map.update": "QuickBooks customer mapping changed",
@@ -93,6 +96,7 @@ const AL_ACTION_GROUPS = [
   // (the server hides those rows from anyone else; profitability-internal-only.sql).
   { value: "client_fee.", label: "Client fees", money: true },
   { value: "cost_rate.", label: "Cost rates", money: true },
+  { value: "firm_cost.", label: "Firm cost basis", money: true },
   { value: "profitability.", label: "Profitability settings", money: true },
   { value: "qbo_", label: "QuickBooks" },
   { value: "client.", label: "Clients" },
@@ -136,6 +140,8 @@ function AL_summary(row) {
   }
   if (a.startsWith("client_fee.")) return `${AL_money(d.from)} → ${AL_money(d.to)}${row.actor_email === "master-sheet-sync" ? " (Master Data sync)" : ""}`;
   if (a.startsWith("cost_rate.")) return `${AL_money(d.from)} → ${AL_money(d.to)}/h from ${d.effective_from || "?"}`;
+  if (a.startsWith("firm_cost."))
+    return `staff ${AL_money(d.staff_from)} → ${AL_money(d.staff_to)}/h, full ${AL_money(d.full_from)} → ${AL_money(d.full_to)}/h from ${d.effective_from || "?"}`;
   if (a === "profitability.target_changed") return `${d.from ?? "?"}% → ${d.to ?? "?"}%`;
   if (a === "client.plan_changed" || a === "client.tier_changed") return `${d.from ?? "none"} → ${d.to ?? "none"}`;
   if (a === "client.bookkeeper_changed")

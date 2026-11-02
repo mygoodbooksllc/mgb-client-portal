@@ -7,7 +7,7 @@ sort: 540
 ---
 Profit figures are internal. Only admins the owner has given the **MGB (internal)** permission (**HR › Members**, the **MGB (internal)** column) see them. Other admins and all other staff see no fees, hourly costs, cost, profit or margins anywhere, and can't open this article. Nothing tells them it's hidden.
 
-**MGB Home (preview).** If **MGB Home** is on for you (the rail item that used to say **MGB (internal)**), everything below that says **Team › Hours** lives in MGB Home instead: fees, cost and margin by client and staff cost rates in **MGB Home › Profitability**, and the fee list, **Master Data sync** and milestone tiers in **MGB Home › Pricing & fees**. Team › Hours then shows hours only. See [What is MGB Home?](#/help/mgb-home).
+**MGB Home (preview).** If **MGB Home** is on for you (the rail item that used to say **MGB (internal)**), everything below that says **Team › Hours** lives in MGB Home instead: fees, cost and margin by client in **MGB Home › Profitability**, staff cost rates and the firm cost basis in **MGB Home › Cost rates**, and the fee list, **Master Data sync** and milestone tiers in **MGB Home › Pricing & fees**. Team › Hours then shows hours only. See [What is MGB Home?](#/help/mgb-home).
 
 They combine three things you set up once:
 
@@ -65,6 +65,8 @@ To read **Bookkeeping fee now** instead of 2027, ask the developer to switch the
 
 ### Set a staff member's hourly cost
 
+With MGB Home on, open **MGB Home › Cost rates** and click the person (anyone without a rate shows **needs rate**). Otherwise:
+
 1. On **Team**, click the person.
 2. In **Loaded hourly cost** (pay plus taxes and overhead), enter the **Hourly cost** and an **Effective from** date, then **Save rate**.
 
@@ -81,15 +83,15 @@ In the summary strip (Revenue, Cost, Profit, Blended margin), click **Edit** nex
 - **Client overview → Billing and time**: monthly fee, cost, profit and margin.
 - **Client health**: **Margin below target** takes 15 points off. Only people with the permission have it in their score, so their score for a client can be lower than another admin's.
 - **Weekly digest**: the **Price review** and **Revenue snapshot** sections, and the fee and margin bits of the headline, go only to recipients with the permission. Everyone else on the list gets the same digest without them. **Preview** shows you the version you would get.
-- **Audit log**: every fee, rate and target change, in the **Client fees**, **Cost rates** and **Profitability settings** groups. Only people with the permission see those entries or groups. Fee changes made by the sync show the actor **master-sheet-sync** and **(Master Data sync)**; overrides and sheet matches are logged there too.
+- **Audit log**: every fee, rate, firm cost basis and target change, in the **Client fees**, **Cost rates**, **Firm cost basis** and **Profitability settings** groups. Only people with the permission see those entries or groups. Fee changes made by the sync show the actor **master-sheet-sync** and **(Master Data sync)**; overrides and sheet matches are logged there too.
 
 Turning the permission off for an admin hides all of this from them at once, in the database as well as on screen.
 
 ### Troubleshooting
 
 - **"Connect QuickBooks Time to see cost and profit. Fees are shown alone."** See [How do I connect the firm's QuickBooks Time?](#/help/firm-quickbooks).
-- **"Set staff rates to see profit."** Add a loaded hourly cost for each person with hours.
-- **"Cost (part estimated)" or "…couldn't be costed (no rates)."** Someone worked on the client without an hourly cost set for that date.
+- **"Set staff rates to see profit."** Add a loaded hourly cost for each person with hours (on **MGB Home › Cost rates** when MGB Home is on).
+- **"Cost (part estimated)" or "…couldn't be costed (no rates)."** A current staff member worked on the client without an hourly cost set for that date. Time by people no longer on staff is costed at the average rate and tagged **former staff** instead; it needs no rate.
 - **"Profitability isn't set up on the server yet."** A database update is missing. Tell the owner.
 - **Master Data sync says "not connected yet".** The one-time setup isn't finished, or the key saved in `GOOGLE_SA_KEY` doesn't work (**Details** says why).
 - **"Google says the service account can't open the sheet."** Share MGB_Master_Data with the service account's email as Viewer again.

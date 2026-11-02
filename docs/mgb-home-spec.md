@@ -135,7 +135,7 @@ Never scatter raw checks. Money pieces keep `TP_PF_canSee(effectiveUser)` as a s
 | **S0** | Fix `mygoodbooks` QuickBooks sync (TransactionList 400) in `qbo-sync`. Independent of the preview. | 0.5 session | Sonnet investigates + fixes, Opus reviews (edge function) |
 | **S1 (first useful slice)** | Gate file, preview flag, owner-only switch, rail relabel, MGB Home header + tab row, Home cards (without overhead card), Profitability + Pricing & fees (moved components, no new SQL), Firm books menu (regroup), Hours hours-only, `qbo_hours_by_client` null-out, digest links, staff_guide policy list, Dev Tools `internalOnly`, upkeep drafts | 1 long session | Opus builds, Opus critique + verify (preview on/off × holden/Jesse/bookkeeper), Haiku screenshot sweep |
 | **S2** | Overhead: owner maps internal QuickBooks customers, `internal_hours()` RPC + tests, tab, Home card | 0.5 session | Opus builds + verifies |
-| **S3** | Cost rates tab, `firm_cost_basis`, cost-basis toggle on Profitability | 0.5 session | Opus builds + verifies (money) |
+| **S3** | Cost rates tab, `firm_cost_basis`, cost-basis toggle on Profitability (BUILT 2026-11-02) | 0.5 session | Opus builds + verifies (money) |
 | **S4** | Firm books polish after S0: close status card, last sync line, Reports default to firm P&L | 0.25 session | Sonnet builds, Opus reviews |
 | **S5** | 2027 fee change review (`compare` action + tab) | 0.5 session | Opus builds + verifies (edge function, money) |
 | **S6** | Capacity with money and allocation rules | 0.5 session, after OQ7 | Opus |

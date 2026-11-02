@@ -85,14 +85,18 @@ function TP_PF_MarginChip({ margin, target }) {
 // ---------------------------------------------------------------------------
 // enabled: load at all (admins only; never pass true for a bookkeeper).
 // range: {from, to} YYYY-MM-DD. version: bump to refetch.
-function TP_PF_useProfit(enabled, range, version) {
+// basis (MGB Home S3, optional): "staff" or "full"; omitted = the server
+// default (staff). Pass "full" only when a firm cost basis row exists
+// (MH_effectiveBasis): the server refuses it otherwise.
+function TP_PF_useProfit(enabled, range, version, basis) {
   const [state, setState] = useState({ loading: !!enabled, kind: null, error: null, rows: [], byId: {}, target: TP_PF_DEFAULT_TARGET, rates: [], fees: {}, tierFees: {} });
   const [bump, setBump] = useState(0);
   const reload = useCallback(() => setBump((n) => n + 1), []);
   useEffect(() => {
     const supabase = window.mgbSupabase;
     if (!enabled || !supabase) {
-      setState((s) => ({ ...s, loading: false }));
+      // No client at all: record the basis so the stale check below settles.
+      setState((s) => ({ ...s, loading: false, ...(enabled ? { basis: basis || "staff" } : {}) }));
       return undefined;
     }
     let alive = true;
@@ -105,7 +109,12 @@ function TP_PF_useProfit(enabled, range, version) {
         if (fee != null) tierFees[r.client_id] = fee;
       });
       const [p, s, rt, f] = await Promise.all([
-        TP_PF_safe(supabase.rpc("client_profitability", { p_from: range.from, p_to: range.to, p_default_fees: tierFees })),
+        TP_PF_safe(
+          supabase.rpc(
+            "client_profitability",
+            basis ? { p_from: range.from, p_to: range.to, p_default_fees: tierFees, p_basis: basis } : { p_from: range.from, p_to: range.to, p_default_fees: tierFees },
+          ),
+        ),
         TP_PF_safe(supabase.from("profitability_settings").select("target_margin_pct").limit(1)),
         TP_PF_safe(supabase.from("staff_cost_rates").select("staff_email, effective_from, hourly_cost").order("staff_email").order("effective_from", { ascending: false })),
         TP_PF_safe(supabase.from("client_fees").select("client_id, monthly_fee, needs_review, review_note, source, sheet_override, synced_at")),
@@ -126,6 +135,8 @@ function TP_PF_useProfit(enabled, range, version) {
         total_minutes: Number(r.total_minutes || 0),
         estimated_minutes: Number(r.estimated_minutes || 0),
         uncosted_minutes: Number(r.uncosted_minutes || 0),
+        former_minutes: Number(r.former_minutes || 0),
+        former_cost: TP_PF_num(r.former_cost),
         staff_costs: Array.isArray(r.staff_costs) ? r.staff_costs : [],
       }));
       const byId = {};
@@ -157,13 +168,18 @@ function TP_PF_useProfit(enabled, range, version) {
         feeReview,
         feeSheet,
         tierFees,
+        basis: basis || "staff",
       });
     })();
     return () => {
       alive = false;
     };
-  }, [enabled, range.from, range.to, version, bump]);
-  return { ...state, ready: !state.loading && !state.kind, hasRates: state.rates.length > 0, reload };
+  }, [enabled, range.from, range.to, version, bump, basis]);
+  // Rows from another basis (toggle just changed, or the hook was just
+  // enabled) count as loading until the refetch lands: costs never show
+  // under the wrong Staff / Full cost label.
+  const loading = state.loading || (!!enabled && state.basis !== (basis || "staff"));
+  return { ...state, loading, ready: !loading && !state.kind, hasRates: state.rates.length > 0, reload };
 }
 
 // "2026-09-01" -> "Sep 1, 2026" (rate history needs the year).
@@ -196,9 +212,14 @@ function TP_PF_blocker(profit, qboOn) {
   if (profit.loading) return null;
   if (profit.kind === "missing") return "Profitability isn't set up on the server yet.";
   if (profit.kind === "auth") return null; // no grant: render nothing, say nothing
+  if (profit.kind && /firm cost basis/i.test(String((profit.error && profit.error.message) || "")))
+    return "There's no firm cost basis any more, so Full cost can't be shown. Pick Staff cost, or add a basis on Cost rates.";
   if (profit.kind) return `Couldn't load profit. ${String((profit.error && profit.error.message) || "")}`.trim();
   if (!qboOn) return "Connect QuickBooks Time to see cost and profit. Fees are shown alone.";
-  if (!profit.hasRates) return "Set staff rates to see profit. Open a person below to add their loaded hourly cost.";
+  if (!profit.hasRates)
+    return typeof MH_on === "function" && MH_on()
+      ? "Set staff cost rates in MGB Home › Cost rates to see profit."
+      : "Set staff rates to see profit. Open a person below to add their loaded hourly cost.";
   return null;
 }
 
@@ -452,7 +473,8 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
       <h3 className="card-title">Profitability</h3>
       <p className="card-subtitle">
         Revenue is the monthly fee × months in the period (partial months by days). Cost is QuickBooks Time hours × each
-        person's loaded hourly cost on the day. Admins only.
+        person's loaded hourly cost on the day
+        {profit && profit.basis === "full" ? ", plus the firm overhead per hour (Full cost)" : ""}. Admins only.
       </p>
       {profit.loading ? (
         <p className="tp-muted">Loading…</p>
@@ -556,6 +578,11 @@ function TP_PF_ClientProfitCard({ clientId, profit, qboOn }) {
                             {s.estimated && (
                               <span className="pf-fee-tag" title={s.staff_email ? "No rate in effect on some entries: costed at the average rate" : "Not mapped to a staff member: costed at the average rate"}>
                                 estimated
+                              </span>
+                            )}
+                            {s.former && !s.estimated && (
+                              <span className="pf-fee-tag" title="No longer on staff: costed at the average rate">
+                                former staff
                               </span>
                             )}
                           </td>
@@ -1035,7 +1062,7 @@ function TP_PF_csvCells(profit, qboOn, clientId) {
   const staff =
     v.cost != null && r
       ? r.staff_costs
-          .map((s) => `${s.staff_name || s.staff_email || "No person"}: ${Math.round(Number(s.cost || 0))}${s.estimated ? " (est.)" : ""}`)
+          .map((s) => `${s.staff_name || s.staff_email || "No person"}: ${Math.round(Number(s.cost || 0))}${s.estimated ? " (est.)" : s.former ? " (former)" : ""}`)
           .join("; ")
       : "";
   return [

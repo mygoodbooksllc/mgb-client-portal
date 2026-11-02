@@ -42,7 +42,8 @@ t("routes: #/internal sub-paths map to MGB Home pages and Firm books pages", () 
   assert.strictEqual(P.MH_pageFromPath(["books", "overview"]), "client-overview");
   assert.strictEqual(P.MH_pageFromPath(["books", "finances"]), "dashboard");
   // Later slices are not routes yet; unknown lands like a bare open.
-  ["costs", "capacity", "nope", ""].forEach((x) => assert.strictEqual(P.MH_pageFromPath([x]), null, x));
+  assert.strictEqual(P.MH_pageFromPath(["costs"]), "mgb-costs");
+  ["capacity", "nope", ""].forEach((x) => assert.strictEqual(P.MH_pageFromPath([x]), null, x));
   assert.strictEqual(P.MH_pageFromPath(["books"]), null);
   assert.strictEqual(P.MH_pageFromPath(["books", "messages"]), null);
 });
@@ -61,8 +62,57 @@ t("routes: every page builds the hash that parses back to it", () => {
   });
   ["client-settings", "messages", "milestone", "today", null].forEach((p) => assert.strictEqual(P.MH_hashFor(p), null));
   assert.ok(P.MH_isPage("mgb-pricing") && !P.MH_isPage("client-close") && P.MH_isPage("mgb-overhead") && !P.MH_isPage("mgb-capacity"));
-  assert.deepStrictEqual(P.MH_TABS.map((x) => x.key), ["mgb-home", "mgb-profitability", "mgb-pricing", "mgb-overhead"]);
+  assert.deepStrictEqual(P.MH_TABS.map((x) => x.key), ["mgb-home", "mgb-profitability", "mgb-pricing", "mgb-overhead", "mgb-costs"]);
   assert.strictEqual(P.MH_hashFor("mgb-overhead"), "#/internal/overhead");
+  assert.strictEqual(P.MH_hashFor("mgb-costs"), "#/internal/costs");
+  assert.strictEqual(P.MH_pageFromPath(["costs"]), "mgb-costs");
+  assert.ok(P.MH_isPage("mgb-costs"));
+});
+
+t("cost basis: only 'full' is full; full needs a firm basis row", () => {
+  ["full"].forEach((v) => assert.strictEqual(P.MH_basisOf(v), "full"));
+  [null, undefined, "", "staff", "FULL", "1", {}].forEach((v) => assert.strictEqual(P.MH_basisOf(v), "staff"));
+  assert.strictEqual(P.MH_effectiveBasis("full", true), "full");
+  assert.strictEqual(P.MH_effectiveBasis("full", false), "staff");
+  assert.strictEqual(P.MH_effectiveBasis("staff", true), "staff");
+  assert.strictEqual(P.MH_effectiveBasis(null, true), "staff");
+  assert.strictEqual(P.MH_BASIS_KEY.indexOf("mgb_"), 0); // Reset local state clears it
+});
+
+t("firm basis in effect on a date (before the first row: the earliest)", () => {
+  const rows = [
+    { effective_from: "2026-03-01", staff_rate: 40, full_rate: 80 },
+    { effective_from: "2026-01-01", staff_rate: 40, full_rate: 70 },
+    { effective_from: "bad" },
+  ];
+  assert.strictEqual(P.MH_firmBasisAt([], "2026-02-01"), null);
+  assert.strictEqual(P.MH_firmBasisAt(null, "2026-02-01"), null);
+  assert.strictEqual(P.MH_firmBasisAt(rows, "2026-02-01").full_rate, 70);
+  assert.strictEqual(P.MH_firmBasisAt(rows, "2026-03-01").full_rate, 80);
+  assert.strictEqual(P.MH_firmBasisAt(rows, "2025-06-01").full_rate, 70);
+});
+
+t("rate people: active staff only, needs-rate first, current = latest on or before today", () => {
+  const staff = [
+    { email: "A@x.com", name: "Amy", active: true },
+    { email: "b@x.com", name: "Bo", active: true },
+    { email: "gone@x.com", name: "Gone", active: false },
+    { email: "c@x.com", name: "Cy", active: true },
+    { email: "a@x.com", name: "Amy dup", active: true },
+  ];
+  const rates = [
+    { staff_email: "a@x.com", effective_from: "2026-01-01", hourly_cost: 30 },
+    { staff_email: "a@x.com", effective_from: "2026-06-01", hourly_cost: 35 },
+    { staff_email: "a@x.com", effective_from: "2027-01-01", hourly_cost: 40 },
+    { staff_email: "c@x.com", effective_from: "2027-01-01", hourly_cost: 50 },
+    { staff_email: "gone@x.com", effective_from: "2026-01-01", hourly_cost: 20 },
+  ];
+  const out = P.MH_ratePeople(staff, rates, "2026-11-02");
+  assert.deepStrictEqual(out.map((p) => p.email), ["b@x.com", "c@x.com", "a@x.com"]);
+  assert.strictEqual(out.find((p) => p.email === "a@x.com").current.hourly_cost, 35);
+  assert.strictEqual(out.find((p) => p.email === "a@x.com").history.length, 3);
+  assert.strictEqual(out.find((p) => p.email === "c@x.com").needsRate, true); // only a future rate
+  assert.ok(!out.some((p) => p.email === "gone@x.com"));
 });
 
 t("moved line: shows for 30 days from the first time, then never", () => {

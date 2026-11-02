@@ -1,6 +1,6 @@
--- MGB Home S1 + S2: tests for mgb-home-s1.sql, mgb-home-s2.sql (and the locks
--- MGB Home relies on).
--- NOT a migration. Run AFTER both have been applied, in the Supabase
+-- MGB Home S1 + S2 + S3: tests for mgb-home-s1.sql, mgb-home-s2.sql,
+-- mgb-home-s3.sql (and the locks MGB Home relies on).
+-- NOT a migration. Run AFTER all three have been applied, in the Supabase
 -- SQL editor (or psql as postgres). Everything runs in one transaction that
 -- ends in ROLLBACK, so no fixture survives. A failing check is collected; the
 -- run ends by raising 'mgb-home tests FAILED: ...' listing every failure, or
@@ -258,9 +258,9 @@ begin
   v := pg_temp.probe(null, q);
   perform pg_temp.chk('internal_hours: refused 42501 with no jwt', v like 'ERR:42501:%', v);
   perform pg_temp.chk('internal_hours: anon has no execute',
-    not has_function_privilege('anon', 'public.internal_hours(date,date)', 'execute'));
+    not has_function_privilege('anon', 'public.internal_hours(date,date,text)', 'execute'));
   perform pg_temp.chk('internal_hours: security definer',
-    (select prosecdef from pg_proc where oid = 'public.internal_hours(date,date)'::regprocedure));
+    (select prosecdef from pg_proc where oid = 'public.internal_hours(date,date,text)'::regprocedure));
   v := pg_temp.probe(own, $q$select public.internal_hours(date '1999-03-31', date '1999-02-01')::text$q$);
   perform pg_temp.chk('internal_hours: reversed range refused 22023', v like 'ERR:22023:%', v);
   v := pg_temp.probe(own, $q$select public.internal_hours(date '1990-01-01', date '1999-03-31')::text$q$);
@@ -402,6 +402,211 @@ begin
     exists (select 1 from qbo_customer_client_map m join clients c on c.id = m.client_id and c.is_internal
              where m.realm_id = (select realm_id from qbo_firm_connection where id = true)
                and m.customer_name = 'My Good Books (Clock-in Option)'));
+end $$;
+
+-- ===========================================================================
+-- S3 (mgb-home-s3.sql): Cost rates. firm_cost_basis (RLS, stamp, audit),
+-- the cost basis on client_profitability / internal_hours, and people no
+-- longer on staff counted as "former" instead of "estimated".
+-- ===========================================================================
+-- Fixtures, in the S2 test realm, April 1999 (the owner's rate is 50/hour,
+-- the only rate on file before 2026, so the firm average is 50 too):
+--   employee mh-e3   QuickBooks mapping ignored (left the firm, no login)
+--   t5  mh-e1  mh-int  1999-04-05  60 min
+--   t6  mh-e3  mh-int  1999-04-06  60 min   former
+--   t7  mh-e2  mh-int  1999-04-07  30 min   unmapped, estimated
+--   t8  mh-e3  mh-cli  1999-04-08  60 min   former
+--   t9  mh-e1  mh-cli  1999-04-09  60 min
+-- Firm cost basis rows (entered by the owner below): 1999-04-06 staff 40 /
+-- full 70 (uplift 30), 1999-04-08 staff 40 / full 80 (uplift 40). t5 is
+-- before the first row and uses it.
+-- Expected, staff basis: internal 150 min, cost 50 + 50 + 25 = 125,
+--   estimated 30 min / 25, former 60 min / 50; client mh-cli 120 min, cost 100,
+--   former 60, estimated 0.
+-- Full basis: internal 80 + 80 + 40 = 200 (estimated 40, former 80); client
+--   mh-cli 90 + 90 = 180.
+-- Guard: the delete below wipes the owner's real basis unless it is rolled
+-- back. SAVEPOINT errors outside an explicit transaction block (begin at the
+-- top), so a stray run without it stops here.
+savepoint mh_tx_guard;
+release savepoint mh_tx_guard;
+delete from firm_cost_basis;  -- rolled back; lets the "no basis yet" checks run even after the owner enters values
+insert into qbo_employee_staff_map (realm_id, qbo_entity_type, qbo_id, display_name, staff_email, ignored, manual)
+  values ('mh-test-realm-s2', 'Employee', 'mh-e3', 'mh-test gone', null, true, true);
+insert into qbo_time_activities (realm_id, qbo_id, txn_date, minutes, employee_qbo_id, employee_name,
+                                 customer_qbo_id, customer_name, item_name, description, billable_status)
+  values ('mh-test-realm-s2', 'mh-test-s3-5', date '1999-04-05', 60, 'mh-e1', 'mh-test owner',  'mh-int', 'mh-test internal', 'Hours', 'Admin', 'NotBillable'),
+         ('mh-test-realm-s2', 'mh-test-s3-6', date '1999-04-06', 60, 'mh-e3', 'mh-test gone',   'mh-int', 'mh-test internal', 'Hours', 'Admin', 'NotBillable'),
+         ('mh-test-realm-s2', 'mh-test-s3-7', date '1999-04-07', 30, 'mh-e2', 'mh-test helper', 'mh-int', 'mh-test internal', 'Hours', 'Admin', 'NotBillable'),
+         ('mh-test-realm-s2', 'mh-test-s3-8', date '1999-04-08', 60, 'mh-e3', 'mh-test gone',   'mh-cli', 'mh-test client',   'Hours', null,    'Billable'),
+         ('mh-test-realm-s2', 'mh-test-s3-9', date '1999-04-09', 60, 'mh-e1', 'mh-test owner',  'mh-cli', 'mh-test client',   'Hours', null,    'Billable');
+
+do $$
+declare
+  own text := (select email from _who where k = 'owner');
+  adm text := (select email from _who where k = 'adm_no');
+  bk  text := (select email from _who where k = 'bk');
+  cli text := (select client_id from qbo_customer_client_map where realm_id = 'mh-test-realm-s2' and qbo_customer_id = 'mh-cli');
+  ih  text := $q$select public.internal_hours(date '1999-04-01', date '1999-04-30', %L)::text$q$;
+  cp  text := $q$select row_to_json(p)::text from public.client_profitability(date '1999-04-01', date '1999-04-30', '{}'::jsonb, %L) p where p.client_id = %L$q$;
+  v text;
+  j jsonb;
+begin
+  -- 1. Signatures: the old ones are gone, the new ones are not for anon.
+  perform pg_temp.chk('S3 signatures: old client_profitability(date,date,jsonb) dropped',
+    to_regprocedure('public.client_profitability(date,date,jsonb)') is null);
+  perform pg_temp.chk('S3 signatures: old internal_hours(date,date) dropped',
+    to_regprocedure('public.internal_hours(date,date)') is null);
+  perform pg_temp.chk('S3 signatures: anon has no execute on either',
+    not has_function_privilege('anon', 'public.client_profitability(date,date,jsonb,text)', 'execute')
+    and not has_function_privilege('anon', 'public.internal_hours(date,date,text)', 'execute'));
+  perform pg_temp.chk('S3 signatures: client_profitability stays security invoker',
+    not (select prosecdef from pg_proc where oid = 'public.client_profitability(date,date,jsonb,text)'::regprocedure));
+
+  -- 2. firm_cost_basis: grant holders only, every command.
+  perform pg_temp.chk('firm_cost_basis: RLS on',
+    (select relrowsecurity from pg_class where oid = 'public.firm_cost_basis'::regclass));
+  perform pg_temp.chk('firm_cost_basis: anon has no table privilege',
+    not has_table_privilege('anon', 'public.firm_cost_basis', 'select')
+    and not has_table_privilege('anon', 'public.firm_cost_basis', 'insert'));
+
+  v := pg_temp.probe(own, format(ih, 'full'));
+  perform pg_temp.chk('internal_hours full: refused 22023 while no basis is set', v like 'ERR:22023:%', v);
+  v := pg_temp.probe(own, format(cp, 'full', cli));
+  perform pg_temp.chk('client_profitability full: refused 22023 while no basis is set', v like 'ERR:22023:%', v);
+
+  v := pg_temp.dml(adm, $q$insert into public.firm_cost_basis (effective_from, staff_rate, full_rate) values (date '1999-04-06', 1, 2)$q$);
+  perform pg_temp.chk('firm_cost_basis: adm_no insert refused', v like 'ERR:%', v);
+  v := pg_temp.dml(bk, $q$insert into public.firm_cost_basis (effective_from, staff_rate, full_rate) values (date '1999-04-06', 1, 2)$q$);
+  perform pg_temp.chk('firm_cost_basis: bookkeeper insert refused', v like 'ERR:%', v);
+  v := pg_temp.dml(null, $q$insert into public.firm_cost_basis (effective_from, staff_rate, full_rate) values (date '1999-04-06', 1, 2)$q$);
+  perform pg_temp.chk('firm_cost_basis: no-jwt insert refused', v like 'ERR:%', v);
+  v := pg_temp.dml(own, $q$insert into public.firm_cost_basis (effective_from, staff_rate, full_rate) values (date '1999-04-06', 50, 40)$q$);
+  perform pg_temp.chk('firm_cost_basis: full below staff refused (check)', v = 'ERR:23514', v);
+  v := pg_temp.dml(own, $q$insert into public.firm_cost_basis (effective_from, staff_rate, full_rate, note, updated_by)
+         values (date '1999-04-06', 40, 70, 'mh-test', 'spoof@example.com'), (date '1999-04-08', 40, 80, 'mh-test', null)$q$);
+  perform pg_temp.chk('firm_cost_basis: owner inserts 2 rows', v = '2', v);
+  perform pg_temp.chk('firm_cost_basis: updated_by is the signed-in owner, never what was sent',
+    (select bool_and(updated_by = lower(own)) from firm_cost_basis where note = 'mh-test'),
+    (select string_agg(coalesce(updated_by, 'null'), ',') from firm_cost_basis where note = 'mh-test'));
+
+  v := pg_temp.probe(adm, $q$select count(*) from public.firm_cost_basis$q$);
+  perform pg_temp.chk('firm_cost_basis: adm_no reads nothing', v = '0', v);
+  v := pg_temp.probe(bk, $q$select count(*) from public.firm_cost_basis$q$);
+  perform pg_temp.chk('firm_cost_basis: bookkeeper reads nothing', v = '0', v);
+  v := pg_temp.probe(own, $q$select count(*) from public.firm_cost_basis where note = 'mh-test'$q$);
+  perform pg_temp.chk('firm_cost_basis: owner reads both rows', v = '2', v);
+  v := pg_temp.dml(adm, $q$update public.firm_cost_basis set full_rate = 999 where note = 'mh-test'$q$);
+  perform pg_temp.chk('firm_cost_basis: adm_no update touches nothing', v = '0' or v like 'ERR:%', v);
+  v := pg_temp.dml(adm, $q$delete from public.firm_cost_basis where note = 'mh-test'$q$);
+  perform pg_temp.chk('firm_cost_basis: adm_no delete touches nothing', v = '0' or v like 'ERR:%', v);
+  perform pg_temp.chk('firm_cost_basis: rows unchanged after adm_no attempts',
+    (select count(*) from firm_cost_basis where note = 'mh-test' and full_rate in (70, 80)) = 2);
+
+  -- 3. Audit: firm_cost.* rows exist and only grant holders read them.
+  perform pg_temp.chk('audit: firm_cost.set written for both rows',
+    (select count(*) from audit_log where action = 'firm_cost.set' and target_id in ('1999-04-06', '1999-04-08')) = 2);
+  v := pg_temp.probe(adm, $q$select count(*) from public.audit_log where action like 'firm_cost.%'$q$);
+  perform pg_temp.chk('audit: adm_no reads no firm_cost row', v = '0', v);
+  v := pg_temp.probe(own, $q$select count(*) from public.audit_log where action = 'firm_cost.set' and target_id in ('1999-04-06', '1999-04-08')$q$);
+  perform pg_temp.chk('audit: owner reads the firm_cost rows', v = '2', v);
+
+  -- 4. Basis argument checks and refusals.
+  v := pg_temp.probe(own, format(ih, 'bogus'));
+  perform pg_temp.chk('internal_hours: unknown basis refused 22023', v like 'ERR:22023:%', v);
+  v := pg_temp.probe(own, format(cp, 'bogus', cli));
+  perform pg_temp.chk('client_profitability: unknown basis refused 22023', v like 'ERR:22023:%', v);
+  v := pg_temp.probe(adm, format(ih, 'full'));
+  perform pg_temp.chk('internal_hours full: refused 42501 for adm_no', v like 'ERR:42501:%', v);
+  v := pg_temp.probe(adm, format(cp, 'full', cli));
+  perform pg_temp.chk('client_profitability full: refused 42501 for adm_no', v like 'ERR:42501:%', v);
+  v := pg_temp.probe(bk, format(cp, 'staff', cli));
+  perform pg_temp.chk('client_profitability: refused 42501 for a bookkeeper', v like 'ERR:42501:%', v);
+
+  -- 5. internal_hours, staff basis: former is not estimated.
+  v := pg_temp.probe(own, format(ih, 'staff'));
+  perform pg_temp.chk('internal_hours staff: runs for owner', v not like 'ERR:%', left(v, 120));
+  if v not like 'ERR:%' then
+    j := v::jsonb;
+    perform pg_temp.chk('internal_hours staff: 150 min, cost 125', (j->'totals'->>'minutes') = '150' and (j->'totals'->>'cost')::numeric = 125, (j->'totals')::text);
+    perform pg_temp.chk('internal_hours staff: estimated 30 min / 25 (unmapped helper only)',
+      (j->'totals'->>'estimated_minutes') = '30' and (j->'totals'->>'estimated_cost')::numeric = 25, (j->'totals')::text);
+    perform pg_temp.chk('internal_hours staff: former 60 min / 50',
+      (j->'totals'->>'former_minutes') = '60' and (j->'totals'->>'former_cost')::numeric = 50, (j->'totals')::text);
+    perform pg_temp.chk('internal_hours staff: basis echoed', (j->>'basis') = 'staff', j->>'basis');
+    perform pg_temp.chk('internal_hours staff: person who left is former, not estimated',
+      exists (select 1 from jsonb_array_elements(j->'people') p
+               where p->>'name' = 'mh-test gone' and (p->>'former') = 'true' and (p->>'estimated') = 'false'
+                 and (p->>'cost')::numeric = 50),
+      (j->'people')::text);
+    perform pg_temp.chk('internal_hours staff: unmapped current person still estimated',
+      exists (select 1 from jsonb_array_elements(j->'people') p
+               where p->>'name' = 'mh-test helper' and (p->>'estimated') = 'true' and (p->>'former') = 'false'),
+      (j->'people')::text);
+  end if;
+
+  -- 6. internal_hours, full basis: rate + firm uplift at the entry date.
+  v := pg_temp.probe(own, format(ih, 'full'));
+  perform pg_temp.chk('internal_hours full: runs for owner', v not like 'ERR:%', left(v, 120));
+  if v not like 'ERR:%' then
+    j := v::jsonb;
+    perform pg_temp.chk('internal_hours full: cost 200 (80 + 80 + 40)', (j->'totals'->>'cost')::numeric = 200, (j->'totals')::text);
+    perform pg_temp.chk('internal_hours full: estimated 40, former 80',
+      (j->'totals'->>'estimated_cost')::numeric = 40 and (j->'totals'->>'former_cost')::numeric = 80, (j->'totals')::text);
+    perform pg_temp.chk('internal_hours full: minutes unchanged (150)', (j->'totals'->>'minutes') = '150', (j->'totals')::text);
+    perform pg_temp.chk('internal_hours full: basis echoed', (j->>'basis') = 'full', j->>'basis');
+  end if;
+
+  -- 7. client_profitability per client, both bases.
+  v := pg_temp.probe(own, format(cp, 'staff', cli));
+  perform pg_temp.chk('client_profitability staff: runs for owner', v not like 'ERR:%' and v <> 'null', left(v, 160));
+  if v not like 'ERR:%' and v <> 'null' then
+    j := v::jsonb;
+    perform pg_temp.chk('client_profitability staff: 120 min, cost 100',
+      (j->>'total_minutes') = '120' and (j->>'cost')::numeric = 100, v);
+    perform pg_temp.chk('client_profitability staff: former 60 min, nothing estimated',
+      (j->>'former_minutes') = '60' and (j->>'former_cost')::numeric = 50
+      and (j->>'estimated_minutes') = '0' and (j->>'estimated_cost')::numeric = 0, v);
+    perform pg_temp.chk('client_profitability staff: per-person former flag',
+      exists (select 1 from jsonb_array_elements(j->'staff_costs') s
+               where s->>'staff_name' = 'mh-test gone' and (s->>'former') = 'true' and (s->>'estimated') = 'false'), v);
+    perform pg_temp.chk('client_profitability staff: basis column', (j->>'basis') = 'staff', v);
+  end if;
+  v := pg_temp.probe(own, format(cp, 'full', cli));
+  perform pg_temp.chk('client_profitability full: runs for owner', v not like 'ERR:%' and v <> 'null', left(v, 160));
+  if v not like 'ERR:%' and v <> 'null' then
+    j := v::jsonb;
+    perform pg_temp.chk('client_profitability full: cost 180 (90 + 90)', (j->>'cost')::numeric = 180, v);
+    perform pg_temp.chk('client_profitability full: basis column', (j->>'basis') = 'full', v);
+  end if;
+  v := pg_temp.probe(own, $q$select count(*) from public.client_profitability(date '1999-04-01', date '1999-04-30')$q$);
+  perform pg_temp.chk('client_profitability: 2-arg named-style call still works (default basis)', v not like 'ERR:%' and v::int > 0, v);
+  v := pg_temp.probe(own, $q$select count(*) from public.client_health()$q$);
+  perform pg_temp.chk('client_health: still runs (positional 3-arg client_profitability call)', v not like 'ERR:%', v);
+
+  -- 8. Cost rates page usage is filed under the internal client.
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'mgb-costs', 'action', 'mh-test-s3')$q$);
+  perform pg_temp.chk('usage_events: owner action on Cost rates logged', v = '1', v);
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'today', 'action', 'cmdk-go:#/internal/costs')$q$);
+  perform pg_temp.chk('usage_events: owner action naming #/internal/costs logged', v = '1', v);
+  v := pg_temp.dml(own, $q$insert into public.usage_events (actor_email, actor_role, client_id, page, kind, detail)
+         values ((auth.jwt()->>'email'), 'staff', null, 'today', 'action', 'guide-search:mh-test cost rate')$q$);
+  v := pg_temp.probe(adm, $q$select count(*) from public.usage_events
+         where detail in ('mh-test-s3', 'cmdk-go:#/internal/costs', 'guide-search:mh-test cost rate')$q$);
+  perform pg_temp.chk('usage_events: adm_no reads none of the Cost rates rows', v = '0', v);
+  v := pg_temp.probe(own, $q$select count(*) from public.usage_events
+         where detail in ('mh-test-s3', 'cmdk-go:#/internal/costs', 'guide-search:mh-test cost rate')$q$);
+  perform pg_temp.chk('usage_events: owner reads all three', v = '3', v);
+
+  -- 9. Rates: adm_no never reads one; no rate row for anyone off staff.
+  v := pg_temp.probe(adm, $q$select count(*) from public.staff_cost_rates$q$);
+  perform pg_temp.chk('staff_cost_rates: adm_no reads nothing', v = '0', v);
+  perform pg_temp.chk('live: every stored rate belongs to a staff row (no rows for people who left)',
+    not exists (select 1 from staff_cost_rates r
+                 where coalesce(r.updated_by, '') <> 'mh-test'
+                   and not exists (select 1 from staff s where lower(s.email) = lower(r.staff_email))));
 end $$;
 
 do $$

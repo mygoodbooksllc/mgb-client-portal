@@ -1073,9 +1073,11 @@ function TP_MyBackupsCard({ staffUser, clients }) {
 
 // mode: "hours" (Team › Hours, the default) or "profit" (MGB Home ›
 // Profitability, components/internal/MgbHome.jsx: the clients table with fees,
-// cost and margin, the client drill and the staff cost rates; no people,
-// capacity, usage or QuickBooks Time panel).
-function TP_TeamPage({ clients, mode }) {
+// cost and margin, the client drill and a link to MGB Home › Cost rates,
+// where the staff cost rates moved in S3; no people, capacity, usage or
+// QuickBooks Time panel).
+// basis (MGB Home S3, profit mode only): "staff" | "full" for margins.
+function TP_TeamPage({ clients, mode, basis }) {
   const profitMode = mode === "profit";
   const lateOn = TK_useLateCounts();
   const supabase = window.mgbSupabase;
@@ -1119,7 +1121,7 @@ function TP_TeamPage({ clients, mode }) {
   const mhGate = typeof MH_useCanOpen === "function" ? MH_useCanOpen(staffUser, null) : false;
   const mhOwnsMoney = canMoney && mhGate === true;
   const showMoney = canMoney && (profitMode || !mhOwnsMoney);
-  const profit = TP_PF_useProfit(showMoney, range, qboVersion);
+  const profit = TP_PF_useProfit(showMoney, range, qboVersion, profitMode ? basis : undefined);
   const money = showMoney ? profit : null;
   // "Fees and margin are in MGB Home" line on Hours: 30 days from first shown.
   const movedLine = useMemo(
@@ -1254,7 +1256,8 @@ function TP_TeamPage({ clients, mode }) {
   function exportClients() {
     if (!data) return;
     TP_qExportClients(
-      `team_clients_${fileSuffix}.csv`,
+      // Profitability names the cost basis, so Staff and Full cost exports differ.
+      `team_clients_${profitMode && money && money.basis === "full" ? "full-cost_" : profitMode && money ? "staff-cost_" : ""}${fileSuffix}.csv`,
       { clientRows: data.clientRows, hours: qHours, range, today },
       avg.label,
       qboOn,
@@ -1423,22 +1426,6 @@ function TP_TeamPage({ clients, mode }) {
       </div>
     );
   }
-  if (profitMode && view && view.type === "rate" && data) {
-    const p = data.people.find((x) => x.email === view.key);
-    return (
-      <div className="tp-page" data-tour="mh-profit">
-        <TP_QboDetail
-          title={(p && p.name) || view.key}
-          subtitle={[p && p.role && TP_roleLabel(p.role), view.key].filter(Boolean).join(" · ")}
-          backLabel="Back to Profitability"
-          onBack={backToTeam}
-          showQbo={false}
-        >
-          {money && <TP_PF_RateCard email={view.key} name={p ? p.name : view.key} profit={money} today={today} />}
-        </TP_QboDetail>
-      </div>
-    );
-  }
   if (qPerson && !profitMode) {
     const q = qPerson.q;
     const mins = Number((q && q.total_minutes) || 0);
@@ -1573,14 +1560,6 @@ function TP_TeamPage({ clients, mode }) {
         </div>
       );
     }
-    const ratePeople = data
-      ? data.people
-          .filter((p) => {
-            const s = data.staffByEmail[TP_lower(p.email)];
-            return (s && s.active !== false) || TP_PF_currentRate(money && money.rates, p.email, null);
-          })
-          .sort((a, b) => a.name.localeCompare(b.name))
-      : null;
     return (
       <div className="tp-page" data-tour="mh-profit">
         {periodCard}
@@ -1598,49 +1577,20 @@ function TP_TeamPage({ clients, mode }) {
           onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
           onOpenMapping={openMapping}
         />
-        <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-rates-title">
-          <h3 className="card-title" id="mh-rates-title">Staff cost rates</h3>
-          <p className="card-subtitle">
-            The loaded hourly cost used to cost QuickBooks Time hours. Open a person to add or change a rate.
-          </p>
-          {!ratePeople || !money || money.loading ? (
-            <p className="tp-muted">Loading…</p>
-          ) : money.kind ? (
-            <p className="tp-muted">{TP_PF_blocker(money, true)}</p>
-          ) : ratePeople.length === 0 ? (
-            <p className="tp-muted">No staff yet.</p>
-          ) : (
-            <div className="table-scroll">
-              <table className="tx-table tx-table-labeled tp-table">
-                <thead>
-                  <tr>
-                    <th>Person</th>
-                    <th>Role</th>
-                    <th className="num">Hourly cost</th>
-                    <th>Since</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ratePeople.map((p) => {
-                    const cur = TP_PF_currentRate(money.rates, p.email, today);
-                    return (
-                      <tr key={p.email}>
-                        <td>
-                          <button type="button" className="tp-q-link" onClick={() => setView({ type: "rate", key: p.email })}>
-                            {p.name}
-                          </button>
-                        </td>
-                        <td data-label="Role">{p.role ? TP_roleLabel(p.role) : "–"}</td>
-                        <td className="num" data-label="Hourly cost">{cur ? `${fmtMoney(cur.hourly_cost)}/h` : <span className="tp-muted">not set</span>}</td>
-                        <td data-label="Since">{cur ? TP_PF_dateY(cur.effective_from) : "–"}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+        <p className="tp-muted" style={{ margin: "0 0 20px" }}>
+          Staff cost rates and the firm cost basis are on{" "}
+          <a
+            href="#/internal/costs"
+            className="link-btn"
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.hash = "#/internal/costs";
+            }}
+          >
+            Cost rates
+          </a>
+          .
+        </p>
       </div>
     );
   }

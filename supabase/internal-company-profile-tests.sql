@@ -390,7 +390,7 @@ begin
     ('public.usage_summary(integer)', 'is_roster_client_id'),
     ('public.qbo_firm_auto_match(text)', 'is_roster_client'),
     ('public.client_health(jsonb)', 'is_internal'),
-    ('public.client_profitability(date,date,jsonb)', 'is_roster_client'),
+    ('public.client_profitability(date,date,jsonb,text)', 'is_roster_client'),
     ('public.client_reply_times(date,date)', 'is_roster_client_id'),
     ('public.qbo_hours_by_client(date,date)', 'is_roster_client_id'),
     ('public.qbo_hours_by_staff(date,date)', 'is_roster_client_id'),

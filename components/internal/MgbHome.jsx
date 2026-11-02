@@ -1,29 +1,44 @@
 // ----------------------------------------------------------------------------
-// MGB Home, slices S1 + S2 (docs/mgb-home-spec.md): the firm's own home on
+// MGB Home, slices S1 + S2 + S3 (docs/mgb-home-spec.md): the firm's own home on
 // the internal client (MyGoodBooks). app.jsx renders these only when mhHere
 // (MH_canOpen on the internal client, components/internal/MH_gate.js):
 //
-//   MH_TabRow             Home · Profitability · Pricing & fees · Overhead,
+//   MH_TabRow             Home · Profitability · Pricing & fees · Overhead ·
+//                         Cost rates,
 //                         then the Firm books ▾ menu (the internal client's
 //                         existing pages, regrouped), the lock and the gear.
 //   MH_HomePage           #/internal: four cards (margin this month vs
-//                         target, Master Data sync, Firm books close + last
-//                         QuickBooks sync, overhead hours this month).
+//                         target, staff and full cost once a firm cost basis
+//                         exists; Master Data sync; Firm books close + last
+//                         QuickBooks sync; overhead hours this month).
 //   MH_OverheadPage       #/internal/overhead (S2): the firm's own time from
 //                         internal_hours() (supabase/mgb-home-s2.sql): hours,
 //                         share and loaded cost by person, category, month
 //                         and description. Cost only, no revenue. Pure logic
 //                         in MH_overhead.js.
-//   MH_ProfitabilityPage  #/internal/profitability: TP_TeamPage mode="profit"
-//                         (clients table with fees, cost and margin, client
-//                         drill, staff cost rates).
+//   MH_ProfitabilityPage  #/internal/profitability: the cost basis toggle,
+//                         then TP_TeamPage mode="profit" (clients table with
+//                         fees, cost and margin, client drill; a link to Cost
+//                         rates).
+//   MH_CostsPage          #/internal/costs (S3): staff cost rates (active
+//                         staff, current rate, history, "needs rate"; the
+//                         editor is TP_PF_RateCard, moved here from
+//                         Profitability), people not on staff (no rate
+//                         needed), and the firm cost basis (staff and full
+//                         rate per hour by effective date, table
+//                         firm_cost_basis, supabase/mgb-home-s3.sql).
+//   MH_useCostBasis       firm_cost_basis rows + the picked basis
+//                         (MH_getBasis, per browser) -> the basis to ask for.
+//   MH_BasisToggle        Staff cost / Full cost, on Profitability and
+//                         Overhead. Full is off until a basis row exists.
 //   MH_PricingPage        #/internal/pricing: fee list, Master Data sync strip
 //                         and unmatched rows, milestone tiers (read-only).
 //   MH_pageTitle          header title for an MGB Home page or a Firm books page.
 //
 // Every money piece keeps TP_PF_canSee(effective user) as a second guard and
 // every query behind it is refused server-side without can_view_internal().
-// Cost rates and Capacity tabs are later slices: nothing for them.
+// No rate values live in code: every figure is read from the database, and
+// a missing rate shows as "needs rate". Capacity is a later slice.
 //
 // Loaded after TeamPage.jsx / TeamProfit.jsx and before app.jsx; shares the
 // global scope, so top-level names carry the MH_ prefix and app.jsx globals
@@ -221,6 +236,102 @@ function MH_safe(p) {
   );
 }
 
+// Cost basis (S3). on = the caller may load money (TP_PF_canSee); false = no
+// request at all. firm_cost_basis is refused (RLS) without the grant.
+function MH_useCostBasis(on) {
+  const [rows, setRows] = useState({ loading: !!on, list: [], error: null });
+  const [picked, setPicked] = useState(() => (typeof MH_getBasis === "function" ? MH_getBasis() : "staff"));
+  const [bump, setBump] = useState(0);
+  const reload = useCallback(() => setBump((n) => n + 1), []);
+  useEffect(() => {
+    const hit = () => setPicked(MH_getBasis());
+    const onStorage = (e) => {
+      if (!e || !e.key || e.key === MH_BASIS_KEY) hit();
+    };
+    window.addEventListener(MH_BASIS_EVENT, hit);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(MH_BASIS_EVENT, hit);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  useEffect(() => {
+    const sb = window.mgbSupabase;
+    if (!on || !sb) {
+      setRows({ loading: false, list: [], error: null });
+      return undefined;
+    }
+    let alive = true;
+    setRows((r) => ({ ...r, loading: true }));
+    MH_safe(
+      sb.from("firm_cost_basis").select("effective_from, staff_rate, full_rate, note, updated_by, updated_at").order("effective_from", { ascending: false }),
+    ).then((r) => {
+      if (!alive) return;
+      setRows({
+        loading: false,
+        list: (r.data || []).map((x) => ({ ...x, staff_rate: Number(x.staff_rate), full_rate: Number(x.full_rate) })),
+        error: r.error || null,
+      });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [on, bump]);
+  const hasBasis = rows.list.length > 0;
+  return { ...rows, hasBasis, picked, basis: MH_effectiveBasis(picked, hasBasis), setPicked: MH_setBasis, reload };
+}
+
+function MH_BasisToggle({ cb }) {
+  if (!cb || cb.loading) return null;
+  const full = cb.basis === "full";
+  return (
+    <div className="mh-basis" data-tour="mh-basis">
+      <span className="mh-basis-label">Cost basis</span>
+      <div className="modal-tabs" style={{ marginTop: 0 }} role="group" aria-label="Cost basis">
+        <button type="button" className={"modal-tab" + (!full ? " active" : "")} aria-pressed={!full} onClick={() => cb.setPicked("staff")}>
+          Staff cost
+        </button>
+        <button
+          type="button"
+          className={"modal-tab" + (full ? " active" : "")}
+          aria-pressed={full}
+          disabled={!cb.hasBasis}
+          title={cb.hasBasis ? undefined : "Set the firm cost basis on Cost rates first"}
+          onClick={() => cb.setPicked("full")}
+        >
+          Full cost
+        </button>
+      </div>
+      <span className="tp-muted mh-small">
+        {full
+          ? "Each person's loaded hourly cost plus the firm overhead per hour (firm cost basis)."
+          : cb.hasBasis
+          ? "Each person's loaded hourly cost."
+          : "Each person's loaded hourly cost. Full cost needs a firm cost basis on Cost rates."}
+      </span>
+    </div>
+  );
+}
+
+// Month-to-date margin from a TP_PF_useProfit state, the same sums as
+// TP_PF_SummaryStrip. -> { margin, note }.
+function MH_marginOf(profit, qboOn) {
+  if (profit.loading) return { margin: null, note: "Loading…" };
+  if (profit.kind) return { margin: null, note: TP_PF_blocker(profit, qboOn) || "Couldn't load profit." };
+  if (!qboOn) return { margin: null, note: "Connect QuickBooks Time to see cost and margin." };
+  if (!profit.hasRates) return { margin: null, note: "Set staff cost rates on Cost rates to see margin." };
+  const excl = typeof CF_excludedIds === "function" ? CF_excludedIds() : new Set();
+  let cost = 0;
+  let rev = 0;
+  profit.rows.forEach((r) => {
+    if (excl.has(r.client_id) || r.cost == null || r.revenue == null) return;
+    cost += r.cost;
+    rev += r.revenue;
+  });
+  const margin = rev > 0 ? ((rev - cost) / rev) * 100 : null;
+  return { margin, note: margin == null ? "No costed revenue yet this month." : null };
+}
+
 // ---------------------------------------------------------------------------
 // Home
 // ---------------------------------------------------------------------------
@@ -239,11 +350,15 @@ function MH_Card({ title, children, go, goLabel }) {
 function MH_HomePage({ clients, onSelectPage }) {
   const { canMoney } = MH_useMoneyUser();
   const monthRange = useMemo(() => TP_periodRange("month"), []);
-  const profit = TP_PF_useProfit(canMoney, monthRange, 0);
+  const cb = MH_useCostBasis(canMoney);
+  // Staff-cost margin always; the full-cost one only once a firm cost basis
+  // exists (OQ4: Home shows both). Overhead cost follows the picked basis.
+  const profit = TP_PF_useProfit(canMoney, monthRange, 0, "staff");
+  const profitFull = TP_PF_useProfit(canMoney && !cb.loading && cb.hasBasis, monthRange, 0, "full");
   const qbo = TP_useQboStatus();
   const qboOn = !!qbo.available;
   const ohRange = useMemo(() => MH_ohRange("month"), []);
-  const oh = MH_useInternalHours(canMoney, ohRange);
+  const oh = MH_useInternalHours(canMoney, ohRange, cb.basis, cb.loading);
   const [sync, setSync] = useState({ loading: true });
   const [books, setBooks] = useState({ loading: true });
   const internal = typeof STAFF_internalClient === "function" ? STAFF_internalClient() : null;
@@ -301,25 +416,8 @@ function MH_HomePage({ clients, onSelectPage }) {
 
   if (!canMoney) return <MH_NoAccess />;
 
-  // Month-to-date margin, the same sums as TP_PF_SummaryStrip.
-  let margin = null;
-  let marginNote = null;
-  if (profit.loading) marginNote = "Loading…";
-  else if (profit.kind) marginNote = TP_PF_blocker(profit, qboOn) || "Couldn't load profit.";
-  else if (!qboOn) marginNote = "Connect QuickBooks Time to see cost and margin.";
-  else if (!profit.hasRates) marginNote = "Set staff cost rates to see margin.";
-  else {
-    const excl = typeof CF_excludedIds === "function" ? CF_excludedIds() : new Set();
-    let cost = 0;
-    let rev = 0;
-    profit.rows.forEach((r) => {
-      if (excl.has(r.client_id) || r.cost == null || r.revenue == null) return;
-      cost += r.cost;
-      rev += r.revenue;
-    });
-    margin = rev > 0 ? ((rev - cost) / rev) * 100 : null;
-    if (margin == null) marginNote = "No costed revenue yet this month.";
-  }
+  const { margin, note: marginNote } = MH_marginOf(profit, qboOn);
+  const full = cb.hasBasis ? MH_marginOf(profitFull, qboOn) : null;
 
   const closeLabel = (() => {
     if (books.loading) return "Loading…";
@@ -346,13 +444,28 @@ function MH_HomePage({ clients, onSelectPage }) {
         <MH_Card title="Margin this month" go={() => onSelectPage("mgb-profitability")} goLabel="Profitability">
           {margin != null ? (
             <p className="mh-big">
+              {full && <span className="tp-muted">Staff cost </span>}
               <TP_PF_MarginChip margin={margin} target={profit.target} />
               <span className="tp-muted"> vs target {TP_PF_fmtPct(profit.target)}</span>
             </p>
           ) : (
             <p className="tp-muted">{marginNote}</p>
           )}
-          <p className="tp-muted mh-small">Month to date, from QuickBooks Time hours and loaded cost rates.</p>
+          {full && margin != null && (
+            full.margin != null ? (
+              <p className="mh-big">
+                <span className="tp-muted">Full cost </span>
+                {/* No color: the target margin was set on staff cost, so it
+                    isn't a fair bar for full cost. */}
+                <b>{TP_PF_fmtPct(full.margin)}</b>
+              </p>
+            ) : (
+              <p className="tp-muted">Full cost: {full.note}</p>
+            )
+          )}
+          <p className="tp-muted mh-small">
+            Month to date, from QuickBooks Time hours and loaded cost rates{full ? "; full cost adds the firm overhead per hour" : ""}.
+          </p>
         </MH_Card>
         <MH_Card title="Master Data sync" go={() => onSelectPage("mgb-pricing")} goLabel="Pricing & fees">
           <p>{runLine}</p>
@@ -390,7 +503,9 @@ function MH_HomePage({ clients, onSelectPage }) {
                 )}
               </p>
               <p className="tp-muted">
-                {oh.data.rates_set ? `Cost ${MH_ohMoney(oh.data.totals && oh.data.totals.cost)}` : "Set staff cost rates to see cost."}
+                {oh.data.rates_set
+                  ? `${oh.data.basis === "full" ? "Full cost" : "Cost"} ${MH_ohMoney(oh.data.totals && oh.data.totals.cost)}`
+                  : "Set staff cost rates on Cost rates to see cost."}
               </p>
             </>
           )}
@@ -405,27 +520,42 @@ function MH_HomePage({ clients, onSelectPage }) {
 // Overhead (S2): the firm's own time, from internal_hours(). Refused
 // server-side without can_view_internal(); `on` false = no request at all.
 // ---------------------------------------------------------------------------
-function MH_useInternalHours(on, range) {
+// basis: "staff" | "full" (MH_useCostBasis().basis; full only once a firm
+// cost basis row exists, or the server refuses). wait: true while the cost
+// basis is still loading (shows Loading, sends nothing).
+function MH_useInternalHours(on, range, basis, wait) {
   const [st, setSt] = useState({ loading: !!on });
+  const b = basis === "full" ? "full" : "staff";
   const from = range && range.from;
   const to = range && range.to;
+  const key = `${from}|${to}|${b}`;
   useEffect(() => {
-    if (!on || !from || !to || typeof TP_qRpc !== "function") {
-      setSt({ loading: false });
+    if (!on || wait || !from || !to || typeof TP_qRpc !== "function") {
+      setSt({ loading: !!(on && wait) });
       return undefined;
     }
     let alive = true;
     // Drop the old period's answer so the page and CSV never show it under the new period.
     setSt({ loading: true });
-    TP_qRpc("internal_hours", { p_from: from, p_to: to }).then((r) => {
+    TP_qRpc("internal_hours", { p_from: from, p_to: to, p_basis: b }).then((r) => {
       if (!alive) return;
-      setSt({ loading: false, data: r.error ? null : r.data || null, error: r.error || null, status: r.status });
+      setSt({ loading: false, key, data: r.error ? null : r.data || null, error: r.error || null, status: r.status, message: MH_basisErrorText(r.error) });
     });
     return () => {
       alive = false;
     };
-  }, [on, from, to]);
+  }, [on, wait, from, to, b]);
+  // Until the effect runs for a new period or basis (or while the basis
+  // loads), never show the previous answer under the new labels.
+  if (on && (wait || (!st.loading && st.key !== key))) return { loading: true };
   return st;
+}
+
+// The server's "no firm cost basis" refusal (22023: Full cost picked in one
+// tab after the last basis row was removed in another), in plain words.
+function MH_basisErrorText(err) {
+  const m = String((err && err.message) || "");
+  return /firm cost basis/i.test(m) ? "There's no firm cost basis any more, so Full cost can't be shown. Pick Staff cost, or add a basis on Cost rates." : null;
 }
 
 function MH_ohHours(min) {
@@ -442,12 +572,14 @@ function MH_OverheadPage() {
   const { canMoney } = MH_useMoneyUser();
   const [period, setPeriod] = useState("month");
   const range = useMemo(() => MH_ohRange(period), [period]);
-  const res = MH_useInternalHours(canMoney, range);
+  const cb = MH_useCostBasis(canMoney);
+  const res = MH_useInternalHours(canMoney, range, cb.basis, cb.loading);
   if (!canMoney) return <MH_NoAccess />;
 
   const d = res.data;
   const tot = (d && d.totals) || {};
   const ratesSet = !!(d && d.rates_set);
+  const fullBasis = !!(d && d.basis === "full");
   const people = (d && d.people) || [];
   const lines = (d && d.lines) || [];
   const months = d ? MH_ohMonths(d.months, range.from, range.to) : [];
@@ -460,7 +592,7 @@ function MH_OverheadPage() {
   const csv = () => {
     if (!d || typeof TP_downloadCsv !== "function") return;
     TP_downloadCsv(
-      `mgb-overhead-${range.from}-to-${range.to}.csv`,
+      `mgb-overhead-${fullBasis ? "full-cost" : "staff-cost"}-${range.from}-to-${range.to}.csv`,
       ["Section", "Name", "Item", "Hours", "Share %", "Cost"],
       [
         ...people.map((p) => ["Person", p.name || p.staff_email || "", "", (p.minutes / 60).toFixed(2), MH_ohPct(p.minutes, p.all_minutes) ?? "", ratesSet && p.cost != null ? p.cost : ""]),
@@ -486,18 +618,20 @@ function MH_OverheadPage() {
             Download CSV
           </button>
         </div>
+        <MH_BasisToggle cb={cb} />
       </div>
 
       <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-oh-title">
         <h3 className="card-title" id="mh-oh-title">Overhead</h3>
         <p className="card-subtitle">
           The firm's own time: QuickBooks Time hours on customers matched to MyGoodBooks (internal), such as My Good Books
-          (Clock-in Option), with their cost at each person's loaded cost rate. Cost only; no revenue.
+          (Clock-in Option), with their cost at each person's loaded cost rate
+          {fullBasis ? " plus the firm overhead per hour (Full cost)" : ""}. Cost only; no revenue.
         </p>
         {res.loading && !d ? (
           <p className="tp-muted">Loading…</p>
         ) : res.error ? (
-          <p className="tp-muted">{typeof TP_qErrorText === "function" ? TP_qErrorText("overhead hours", res.error, res.status) : "Couldn't load overhead hours."}</p>
+          <p className="tp-muted">{res.message || (typeof TP_qErrorText === "function" ? TP_qErrorText("overhead hours", res.error, res.status) : "Couldn't load overhead hours.")}</p>
         ) : !d ? (
           <p className="tp-muted">Nothing to show.</p>
         ) : (
@@ -505,14 +639,24 @@ function MH_OverheadPage() {
             <div className="tp-stats">
               <TP_Stat label="Overhead hours" value={MH_ohHours(tot.minutes)} />
               <TP_Stat label="Share of all logged hours" value={MH_ohPctLabel(MH_ohPct(tot.minutes, tot.all_minutes))} />
-              <TP_Stat label={tot.estimated_minutes ? "Cost (part estimated)" : "Cost"} value={ratesSet ? MH_ohMoney(tot.cost) : "–"} />
+              <TP_Stat
+                label={(fullBasis ? "Full cost" : "Cost") + (tot.estimated_minutes ? " (part estimated)" : "")}
+                value={ratesSet ? MH_ohMoney(tot.cost) : "–"}
+              />
               <TP_Stat label="People" value={String(tot.people || 0)} />
             </div>
-            {!ratesSet && <p className="tp-muted">Set staff cost rates (Profitability › Staff cost rates) to see cost.</p>}
+            {!ratesSet && <p className="tp-muted">Set staff cost rates on Cost rates to see cost.</p>}
             {ratesSet && tot.estimated_minutes > 0 && (
               <p className="tp-muted mh-small">
                 {MH_ohHours(tot.estimated_minutes)} of these hours ({MH_ohMoney(tot.estimated_cost)}) are costed at the average
-                rate: the person has no cost rate for that date, or isn't matched to a staff member.
+                rate: the person has no cost rate for that date, or isn't matched to a staff member. Add the rate on Cost rates,
+                or match the person on the QuickBooks Time mapping page.
+              </p>
+            )}
+            {ratesSet && tot.former_minutes > 0 && (
+              <p className="tp-muted mh-small">
+                {MH_ohHours(tot.former_minutes)} ({MH_ohMoney(tot.former_cost)}) is time by people no longer on staff, costed at
+                the average rate. No rate is needed for them.
               </p>
             )}
             {!tot.minutes && <p className="tp-muted">No internal time in this period.</p>}
@@ -562,13 +706,16 @@ function MH_OverheadPage() {
                     <tr key={p.key}>
                       <td data-label="Person">
                         {p.name || p.staff_email || "Unknown"}
-                        {!p.mapped && <span className="tp-muted"> · not matched to staff</span>}
+                        {!p.mapped && <span className="tp-muted">{p.former ? " · no longer on staff" : " · not matched to staff"}</span>}
                       </td>
                       <td className="num" data-label="Hours">{MH_ohHours(p.minutes)}</td>
                       <td className="num" data-label="Share of their hours">{MH_ohPctLabel(MH_ohPct(p.minutes, p.all_minutes))}</td>
                       <td className="num" data-label="Cost">
                         {ratesSet ? MH_ohMoney(p.cost) : "–"}
                         {ratesSet && p.estimated && <span className="tp-muted" title="Part costed at the average rate"> *</span>}
+                        {ratesSet && p.former && !p.estimated && (
+                          <span className="tp-muted" title="No longer on staff: costed at the average rate"> †</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -649,8 +796,307 @@ function MH_OverheadPage() {
 // ---------------------------------------------------------------------------
 function MH_ProfitabilityPage({ clients }) {
   const { canMoney } = MH_useMoneyUser();
+  const cb = MH_useCostBasis(canMoney);
   if (!canMoney) return <MH_NoAccess />;
-  return <TP_TeamPage clients={clients} mode="profit" />;
+  if (cb.loading) return <p className="tp-muted">Loading…</p>;
+  return (
+    <>
+      <div className="card tp-toolbar-card mh-basis-card" style={{ marginBottom: 20 }}>
+        <MH_BasisToggle cb={cb} />
+      </div>
+      <TP_TeamPage clients={clients} mode="profit" basis={cb.basis} />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Cost rates (S3)
+// ---------------------------------------------------------------------------
+// Staff cost rates (staff_cost_rates) and the firm cost basis
+// (firm_cost_basis). Both are refused server-side (RLS) without
+// can_view_internal(); writes are audited (cost_rate.*, firm_cost.*, hidden
+// from anyone without the grant). Nothing is pre-filled: every figure comes
+// from the database and a missing one reads "needs rate".
+function MH_CostsPage() {
+  const { canMoney } = MH_useMoneyUser();
+  const cb = MH_useCostBasis(canMoney);
+  const [st, setSt] = useState({ loading: !!canMoney });
+  const [bump, setBump] = useState(0);
+  const [open, setOpen] = useState(null); // staff email whose rate editor is open
+  const reload = useCallback(() => setBump((n) => n + 1), []);
+  const today = typeof TP_ymd === "function" ? TP_ymd(new Date()) : new Date().toISOString().slice(0, 10);
+
+  useEffect(() => {
+    const sb = window.mgbSupabase;
+    if (!canMoney || !sb) {
+      setSt({ loading: false });
+      return undefined;
+    }
+    let alive = true;
+    (async () => {
+      const [staff, rates, ign] = await Promise.all([
+        MH_safe(sb.from("staff").select("email, name, role, active").order("name")),
+        MH_safe(sb.from("staff_cost_rates").select("staff_email, effective_from, hourly_cost").order("staff_email").order("effective_from", { ascending: false })),
+        MH_safe(sb.from("qbo_employee_staff_map").select("display_name, qbo_entity_type, staff_email").eq("ignored", true).order("display_name")),
+      ]);
+      if (!alive) return;
+      setSt({
+        loading: false,
+        error: staff.error || rates.error || null,
+        staff: staff.data || [],
+        rates: (rates.data || []).map((r) => ({ ...r, staff_email: String(r.staff_email || "").toLowerCase(), hourly_cost: TP_PF_num(r.hourly_cost) })),
+        ignored: ign.error ? [] : ign.data || [],
+      });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [canMoney, bump]);
+
+  if (!canMoney) return <MH_NoAccess />;
+
+  const people = st.staff ? MH_ratePeople(st.staff, st.rates, today) : [];
+  const roleOf = {};
+  (st.staff || []).forEach((x) => {
+    roleOf[String(x.email || "").toLowerCase()] = x.role;
+  });
+  const needs = people.filter((p) => p.needsRate).length;
+  // Former people: inactive staff, plus QuickBooks Time people set to
+  // "ignored" in the mapping (never given a portal login). Names only.
+  const formerNames = [];
+  const seenName = {};
+  (st.staff || []).forEach((x) => {
+    if (x.active) return;
+    const n = x.name || x.email;
+    if (n && !seenName[n.toLowerCase()]) {
+      seenName[n.toLowerCase()] = true;
+      formerNames.push(n);
+    }
+  });
+  (st.ignored || []).forEach((x) => {
+    const n = x.display_name;
+    if (n && !seenName[n.toLowerCase()]) {
+      seenName[n.toLowerCase()] = true;
+      formerNames.push(n);
+    }
+  });
+  formerNames.sort((a, b) => a.localeCompare(b));
+
+  if (open) {
+    const p = people.find((x) => x.email === open);
+    const shim = { loading: st.loading, kind: null, rates: st.rates || [], reload };
+    return (
+      <div className="tp-page mh-costs">
+        <button type="button" className="link-btn" style={{ marginBottom: 12 }} onClick={() => setOpen(null)}>
+          ← Back to Cost rates
+        </button>
+        <TP_PF_RateCard email={open} name={p ? p.name : open} profit={shim} today={today} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="tp-page mh-costs" data-tour="mh-costs">
+      <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-costs-staff">
+        <h3 className="card-title" id="mh-costs-staff">Staff cost rates</h3>
+        <p className="card-subtitle">
+          What an hour of each person costs the firm (pay plus taxes and benefits). Used to cost QuickBooks Time hours on
+          Profitability and Overhead. A new rate starts on its date; earlier hours keep the old rate. Open a person to add or
+          change a rate.
+        </p>
+        {st.loading ? (
+          <p className="tp-muted">Loading…</p>
+        ) : st.error ? (
+          <p className="tp-muted">Couldn't load cost rates.</p>
+        ) : people.length === 0 ? (
+          <p className="tp-muted">No active staff.</p>
+        ) : (
+          <>
+            {needs > 0 && (
+              <p className="mh-warn mh-small" style={{ marginTop: 0 }}>
+                {needs} {needs === 1 ? "person needs" : "people need"} a rate. Until then their hours are costed at the average
+                rate and marked estimated.
+              </p>
+            )}
+            <div className="table-scroll">
+              <table className="tx-table tx-table-labeled tp-table">
+                <thead>
+                  <tr>
+                    <th>Person</th>
+                    <th>Role</th>
+                    <th className="num">Hourly cost</th>
+                    <th>Since</th>
+                    <th className="num">Changes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {people.map((p) => (
+                    <tr key={p.email}>
+                      <td data-primary="">
+                        <button type="button" className="tp-q-link" onClick={() => setOpen(p.email)}>
+                          {p.name}
+                        </button>
+                      </td>
+                      <td data-label="Role">{roleOf[p.email] && typeof TP_roleLabel === "function" ? TP_roleLabel(roleOf[p.email]) : "–"}</td>
+                      <td className="num" data-label="Hourly cost">
+                        {p.current ? `${fmtMoney(p.current.hourly_cost)}/h` : <span className="pf-fee-tag">needs rate</span>}
+                      </td>
+                      <td data-label="Since">{p.current ? TP_PF_dateY(p.current.effective_from) : "–"}</td>
+                      <td className="num" data-label="Changes">{p.history.length || "–"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
+
+      {!st.loading && !st.error && formerNames.length > 0 && (
+        <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-costs-former">
+          <h3 className="card-title" id="mh-costs-former">Not on staff</h3>
+          <p className="card-subtitle">
+            People who are inactive in the portal or set to "ignored" in the QuickBooks Time mapping, such as people who have
+            left. No rate is needed: any time they logged without a rate is costed at the average rate and shown as former
+            staff, not estimated.
+          </p>
+          <p style={{ margin: 0 }}>{formerNames.join(", ")}</p>
+        </section>
+      )}
+
+      <MH_FirmBasisCard cb={cb} today={today} />
+    </div>
+  );
+}
+
+// Firm cost basis editor: the owner's two blended figures per hour, by
+// effective date. Full cost on Profitability and Overhead adds (full rate -
+// staff rate) to each person's own rate for hours on or after that date.
+function MH_FirmBasisCard({ cb, today }) {
+  const [from, setFrom] = useState(today);
+  const [staffRate, setStaffRate] = useState("");
+  const [fullRate, setFullRate] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState(null);
+  const sb = window.mgbSupabase;
+  const current = cb.hasBasis ? MH_firmBasisAt(cb.list, today) : null;
+  const save = async () => {
+    const a = Number(staffRate);
+    const b = Number(fullRate);
+    if (staffRate === "" || fullRate === "" || !isFinite(a) || !isFinite(b) || a < 0 || b < 0) {
+      setErr("Enter both rates per hour, 0 or more.");
+      return;
+    }
+    if (a >= 10000 || b >= 10000) {
+      setErr("Rates must be under $10,000 per hour.");
+      return;
+    }
+    if (b < a) {
+      setErr("The full rate can't be lower than the staff rate.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from || "")) {
+      setErr("Pick the date it takes effect.");
+      return;
+    }
+    // Same date as a saved row: replace it only on a yes, and keep its note
+    // when the note box is left blank.
+    const same = (cb.list || []).find((r) => r.effective_from === from);
+    if (same && !window.confirm(`There's already a firm cost basis from ${TP_PF_dateY(from)}. Replace it?`)) return;
+    const n = note.trim() || (same ? same.note || null : null);
+    setSaving(true);
+    setErr(null);
+    const res = await MH_safe(
+      sb.from("firm_cost_basis").upsert({ effective_from: from, staff_rate: a, full_rate: b, note: n }, { onConflict: "effective_from" }),
+    );
+    setSaving(false);
+    if (res.error) {
+      setErr(`Couldn't save: ${res.error.message || res.error}`);
+      return;
+    }
+    setStaffRate("");
+    setFullRate("");
+    setNote("");
+    cb.reload();
+  };
+  const remove = async (r) => {
+    if (!window.confirm(`Remove the firm cost basis from ${TP_PF_dateY(r.effective_from)}?`)) return;
+    setSaving(true);
+    setErr(null);
+    const res = await MH_safe(sb.from("firm_cost_basis").delete().eq("effective_from", r.effective_from));
+    setSaving(false);
+    if (res.error) setErr(`Couldn't delete: ${res.error.message || res.error}`);
+    else cb.reload();
+  };
+  return (
+    <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-costs-basis" data-tour="mh-costs-basis">
+      <h3 className="card-title" id="mh-costs-basis">Firm cost basis</h3>
+      <p className="card-subtitle">
+        Two firm-wide figures per hour: the staff rate (what staff time costs on average) and the full rate (that plus owner
+        pay, retirement and other overhead). Full cost on Profitability and Overhead adds the difference to each person's own
+        rate. Staff cost stays the default.
+      </p>
+      {cb.loading ? (
+        <p className="tp-muted">Loading…</p>
+      ) : cb.error ? (
+        <p className="tp-muted">Couldn't load the firm cost basis.</p>
+      ) : (
+        <>
+          <p style={{ margin: "0 0 10px" }}>
+            {current ? (
+              <>
+                Current: staff <b>{fmtMoney(current.staff_rate)}/h</b>, full <b>{fmtMoney(current.full_rate)}/h</b>
+                <span className="tp-muted"> since {TP_PF_dateY(current.effective_from)}</span>
+              </>
+            ) : (
+              <span className="tp-muted">Not set yet, so Full cost is off.</span>
+            )}
+          </p>
+          <div className="pf-fee-form">
+            <label>
+              <span>Staff rate per hour</span>
+              <input type="number" min="0" step="0.5" inputMode="decimal" value={staffRate} onChange={(ev) => setStaffRate(ev.target.value)} />
+            </label>
+            <label>
+              <span>Full rate per hour</span>
+              <input type="number" min="0" step="0.5" inputMode="decimal" value={fullRate} onChange={(ev) => setFullRate(ev.target.value)} />
+            </label>
+            <label>
+              <span>Effective from</span>
+              <input type="date" value={from} onChange={(ev) => setFrom(ev.target.value)} />
+            </label>
+            <label className="mh-basis-note">
+              <span>Note (optional)</span>
+              <input type="text" maxLength={500} value={note} onChange={(ev) => setNote(ev.target.value)} />
+            </label>
+            <button type="button" className="btn-primary pf-btn" onClick={save} disabled={saving}>
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+          {err && <p className="tp-bad" style={{ marginTop: 8 }}>{err}</p>}
+          {cb.list.length > 0 && (
+            <ul className="pf-rate-history mh-basis-history">
+              {cb.list.map((r) => (
+                <li key={r.effective_from}>
+                  <span>
+                    {TP_PF_dateY(r.effective_from)}
+                    {r.note ? <span className="tp-muted"> · {r.note}</span> : null}
+                  </span>
+                  <span>
+                    {fmtMoney(r.staff_rate)}/h · {fmtMoney(r.full_rate)}/h
+                  </span>
+                  <button type="button" className="tp-q-link" onClick={() => remove(r)} disabled={saving}>
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </section>
+  );
 }
 
 // ---------------------------------------------------------------------------

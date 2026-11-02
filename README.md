@@ -1312,6 +1312,20 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   an internal row without the grant. Also: `mgb_home_enabled` is back in `tk__owner_only_key`, and the
   `usage_events_mh_internal` trigger files `mgb-*` page events under the internal client so the company lock hides
   them. Categories are a keyword guess (`MH_ohCategory`); most clock-in time has no description.
+- **MGB Home, slice S3 Cost rates (2026-11-02, SQL `supabase/mgb-home-s3.sql`, tests in `mgb-home-tests.sql`):**
+  `#/internal/costs` (`MH_CostsPage`) lists active staff with their current loaded rate (`staff_cost_rates`) or a
+  "needs rate" tag, opens `TP_PF_RateCard` to add or change one, and lists people no longer on staff. The
+  Profitability "Staff cost rates" list moved here (Profitability now links to it). New table `firm_cost_basis
+  (effective_from pk, staff_rate, full_rate, note, updated_by, updated_at)`: RLS needs `is_active_staff_admin()` and
+  `can_view_internal()`, writes are audited as `firm_cost.set / changed / removed` (restricted in the audit_log
+  RESTRICTIVE policy, group "Firm cost basis"). Values are entered by the owner on the page, never in code.
+  `client_profitability(..., p_basis)` and `internal_hours(..., p_basis)` take `'staff'` (default) or `'full'`;
+  full adds the firm uplift (`full_rate - staff_rate` from the row in effect, else the earliest row) to each hour
+  and raises 22023 when no basis row exists. A Staff cost / Full cost toggle (`MH_BasisToggle`) on Profitability,
+  Overhead and Home is stored per browser in localStorage `mgb_home_cost_basis` (event `mgb:mhbasis`; helpers in
+  `MH_gate.js`); Full cost stays disabled until a basis row exists. Time by people no longer on staff (no rate, and
+  their QuickBooks Time person is ignored or mapped to an inactive staff row) is costed at the firm average and
+  reported as `former_*`, not as estimated.
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
   (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page

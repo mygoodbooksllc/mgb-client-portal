@@ -121,3 +121,30 @@
     text-align: left;
   }
 }
+
+/* Cost basis toggle (S3): Profitability and Overhead. */
+.mh-basis {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.tp-toolbar + .mh-basis {
+  margin-top: 12px;
+}
+.mh-basis-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+/* Cost rates (S3): firm cost basis note field and history. */
+.pf-fee-form .mh-basis-note input {
+  width: 220px;
+  max-width: 100%;
+}
+@media (max-width: 560px) {
+  .pf-fee-form .mh-basis-note,
+  .pf-fee-form .mh-basis-note input {
+    width: 100%;
+  }
+}
