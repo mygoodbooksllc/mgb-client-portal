@@ -324,7 +324,8 @@ export function compareFlags(now, next, statusKind) {
 /**
  * Now vs 2027 for every sheet row matched to a portal client. Matching follows
  * planSync's rules (hand map first, "not a client" rows skipped, a unique name
- * match otherwise; test and internal clients skipped), but EVERY status is
+ * match otherwise; test and internal clients skipped; a Lost / Paused / Gone
+ * row with no portal client counted as skipped, not unmatched), but EVERY status is
  * kept (Lost / Paused / Gone are flagged, not dropped) and blank fees are
  * kept as a flag. Nothing here writes.
  * Returns {error} or {headers, rows, errors, counts}.
@@ -392,7 +393,10 @@ export function planCompare({ values, clients, map }) {
     } else {
       const cands = byKey.get(r.key) || [];
       if (cands.length !== 1) {
-        unmatched++;
+        // Same rule as planSync: a Lost / Paused / Gone row with no portal
+        // client is skipped, not unmatched (it never lands in the sync list).
+        if (r.status === "lost" || r.status === "gone" || r.status === "paused") skipped++;
+        else unmatched++;
         continue;
       }
       client = cands[0];

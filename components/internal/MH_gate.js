@@ -176,8 +176,9 @@ function MH_useCanOpen(real, imp) {
 // Pages and routes (app.jsx parseHashRoute / buildHashRoute / effectivePage).
 // MGB Home is still the internal client: its own four pages plus the Firm
 // books menu, which regroups the internal client's existing pages unchanged.
-// Overhead came in S2, Cost rates in S3, Capacity in S6 (spec tab order puts
-// Capacity after Firm books; the tab row draws the Firm books menu before it).
+// Overhead came in S2, Cost rates in S3, Capacity in S6. The tab row draws
+// these six tabs in this order, then the Firm books menu after them (so
+// Capacity sits before Firm books, not after it as the spec's OQ3 suggested).
 // ---------------------------------------------------------------------------
 var MH_TABS = [
   { key: "mgb-home", slug: "", label: "Home", tour: "mh-tab-home" },

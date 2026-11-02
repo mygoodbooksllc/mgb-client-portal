@@ -1,5 +1,5 @@
 -- MGB Home S1 to S6: tests for mgb-home-s1.sql, mgb-home-s2.sql,
--- mgb-home-s3.sql, mgb-home-s6.sql (and the locks MGB Home relies on; S4 adds
+-- mgb-home-s3.sql, mgb-home-s6.sql, mgb-home-s6b.sql (and the locks MGB Home relies on; S4 adds
 -- no SQL, only the reads behind the Firm books card and the firm Profit & Loss).
 -- NOT a migration. Run AFTER all of them have been applied, in the Supabase
 -- SQL editor (or psql as postgres). Everything runs in one transaction that
@@ -832,6 +832,95 @@ begin
   perform pg_temp.chk('S6 usage_events: none of them lack a client',
     not exists (select 1 from usage_events where client_id is null
                   and detail in ('mh-test-cap-view', 'cmdk-go:#/internal/capacity', 'guide-search:mh-test capacity')));
+end $$;
+
+-- ===========================================================================
+-- S6b (mgb-home-s6b.sql): Capacity prices by date. A made-up mid-month raise
+-- for the owner (50 -> 80 from 1999-04-09, fake figures, rolled back): the
+-- owner's April is cut into segments at the raise (and, on Full cost, at the
+-- S3 basis rows of 04-06 and 04-08), each with the rate on its first day, and
+-- the contract minutes priced that way match client_profitability exactly.
+-- Runs after S6, so the mh-cli contract row and the fallback rule are in place.
+-- ===========================================================================
+insert into staff_cost_rates (staff_email, effective_from, hourly_cost, updated_by)
+  values (lower((select email from _who where k = 'owner')), date '1999-04-09', 80, 'mh-test');
+
+do $$
+declare
+  own text := (select email from _who where k = 'owner');
+  adm text := (select email from _who where k = 'adm_no');
+  cli text := (select client_id from qbo_customer_client_map where realm_id = 'mh-test-realm-s2' and qbo_customer_id = 'mh-cli');
+  ci  text := $q$select public.capacity_inputs(date '1999-04-01', date '1999-04-30', %L)::text$q$;
+  cp  text := $q$select row_to_json(p)::text from public.client_profitability(date '1999-04-01', date '1999-04-30', '{}'::jsonb, %L) p where p.client_id = %L$q$;
+  b   text;
+  v   text;
+  j   jsonb;
+  pm  jsonb;
+  segs jsonb;
+  cap numeric;
+  prof numeric;
+begin
+  perform pg_temp.chk('S6b capacity_inputs: still refused 42501 for adm_no',
+    pg_temp.probe(adm, format(ci, 'staff')) like 'ERR:42501:%');
+  perform pg_temp.chk('S6b capacity_inputs: anon still has no execute',
+    not has_function_privilege('anon', 'public.capacity_inputs(date,date,text,jsonb)', 'execute'));
+  perform pg_temp.chk('S6b capacity_inputs: still security definer',
+    (select prosecdef from pg_proc where oid = 'public.capacity_inputs(date,date,text,jsonb)'::regprocedure));
+
+  foreach b in array array['staff', 'full'] loop
+    v := pg_temp.probe(own, format(ci, b));
+    perform pg_temp.chk('S6b capacity_inputs ' || b || ': owner runs it', v not like 'ERR:%', left(v, 120));
+    continue when v like 'ERR:%';
+    j := v::jsonb;
+    select p into pm from jsonb_array_elements(j -> 'person_months') p
+     where p ->> 'key' = lower(own) and p ->> 'month' = '1999-04-01';
+    segs := pm -> 'segments';
+    perform pg_temp.chk('S6b ' || b || ': month-level keys kept (rate is the month-end rate)',
+      pm ?& array['minutes', 'contract_minutes', 'rate', 'estimated', 'former']
+      and (pm ->> 'rate')::numeric = case b when 'staff' then 80 else 120 end, pm::text);
+    perform pg_temp.chk('S6b ' || b || ': segments cover the month, minutes add up',
+      (select min((s ->> 'from')::date) = date '1999-04-01' and max((s ->> 'to')::date) = date '1999-04-30'
+              and sum((s ->> 'days')::int) = 30 and sum((s ->> 'minutes')::bigint) = (pm ->> 'minutes')::bigint
+         from jsonb_array_elements(segs) s), segs::text);
+    if b = 'staff' then
+      perform pg_temp.chk('S6b staff: cut at the raise only (2 segments)', jsonb_array_length(segs) = 2, segs::text);
+      perform pg_temp.chk('S6b staff: before the raise 60 min at 50, none on the contract',
+        exists (select 1 from jsonb_array_elements(segs) s
+                 where s ->> 'from' = '1999-04-01' and s ->> 'to' = '1999-04-08'
+                   and (s ->> 'rate')::numeric = 50 and s ->> 'minutes' = '60'
+                   and coalesce(s -> 'contract_minutes' ->> cli, '0') = '0'), segs::text);
+      perform pg_temp.chk('S6b staff: from the raise 60 min at 80, all on the contract',
+        exists (select 1 from jsonb_array_elements(segs) s
+                 where s ->> 'from' = '1999-04-09' and s ->> 'to' = '1999-04-30'
+                   and (s ->> 'rate')::numeric = 80 and s ->> 'minutes' = '60'
+                   and s -> 'contract_minutes' ->> cli = '60'), segs::text);
+    else
+      perform pg_temp.chk('S6b full: cut at the two basis dates and the raise (4 segments)', jsonb_array_length(segs) = 4, segs::text);
+      perform pg_temp.chk('S6b full: each segment priced at the rate on its first day (80, 80, 90, 120)',
+        (select string_agg(round((s ->> 'rate')::numeric)::text, ',' order by (s ->> 'from')::date)
+           from jsonb_array_elements(segs) s) = '80,80,90,120', segs::text);
+    end if;
+    -- Contract minutes priced by segment = what client_profitability charges the owner on that client.
+    select sum((s -> 'contract_minutes' ->> cli)::numeric / 60 * (s ->> 'rate')::numeric) into cap
+      from jsonb_array_elements(segs) s where s -> 'contract_minutes' ? cli;
+    v := pg_temp.probe(own, format(cp, b, cli));
+    select (sc ->> 'cost')::numeric into prof
+      from jsonb_array_elements((v::jsonb) -> 'staff_costs') sc where sc ->> 'staff_email' = lower(own);
+    perform pg_temp.chk('S6b ' || b || ': owner contract cost matches client_profitability (by date)',
+      cap is not null and round(cap, 2) = prof, coalesce(cap::text, 'null') || ' vs ' || coalesce(prof::text, 'null'));
+  end loop;
+
+  -- A rule that starts mid-month cuts the month too.
+  insert into staff_cost_allocations (staff_email, client_id, share, method, effective_from)
+    values (lower(own), cli, 1, 'fixed', date '1999-04-20');
+  v := pg_temp.probe(own, format(ci, 'staff'));
+  j := v::jsonb;
+  select p -> 'segments' into segs from jsonb_array_elements(j -> 'person_months') p
+   where p ->> 'key' = lower(own) and p ->> 'month' = '1999-04-01';
+  perform pg_temp.chk('S6b staff: a fixed rule from 04-20 adds a cut there (3 segments)',
+    jsonb_array_length(segs) = 3
+    and exists (select 1 from jsonb_array_elements(segs) s where s ->> 'from' = '1999-04-20' and (s ->> 'rate')::numeric = 80),
+    segs::text);
 end $$;
 
 do $$

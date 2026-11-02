@@ -1431,13 +1431,19 @@ function MH_CapacityPage({ clients }) {
         ) : (
           <>
             <div className="tp-stats">
-              <TP_Stat label="Hours logged" value={hrs(tot.minutes)} />
+              <TP_Stat label="Hours logged" value={hrs(tot.allMinutes != null ? tot.allMinutes : tot.minutes)} />
               <TP_Stat label="Use of target hours" value={MH_capPct(tot.utilization)} />
               <TP_Stat label="Fee revenue" value={MH_ohMoney(tot.revenue)} />
               <TP_Stat label={(fullBasis ? "Full pay cost" : "Pay cost") + (anyEst ? " (part estimated)" : "")} value={money(tot.pay)} />
               <TP_Stat label="Margin" value={ratesSet ? `${MH_ohMoney(tot.margin)} · ${MH_ohPctLabel(tot.marginPct)}` : "–"} bad={ratesSet && tot.margin < 0} />
             </div>
             {!ratesSet && <p className="tp-muted">Set staff cost rates on Cost rates to see cost.</p>}
+            {tot.otherMinutes > 0 && (
+              <p className="tp-muted mh-small">
+                Use of target hours counts only people with a weekly target. Other time ({hrs(tot.otherMinutes)} by former staff and
+                people with no target or not matched to a staff member) is in Hours logged but not in that figure.
+              </p>
+            )}
             {(uncarriedMgb > 0 || uncarriedContract > 0) && (
               <p className="tp-muted mh-small">
                 {MH_ohMoney(uncarriedMgb + uncarriedContract)} of fee revenue is from clients nobody logged time on in a month. It
@@ -2010,7 +2016,8 @@ function MH_FeeReviewCard({ ready }) {
       <h3 className="card-title" id="mh-fr-title">2027 fee change review</h3>
       <p className="card-subtitle">
         Each client's “Bookkeeping fee now” next to its “Bookkeeping fee 2027” in the MGB_Master_Data sheet, with the change in dollars
-        and percent. Read only: this never changes a fee. Rows not matched to a client stay in the Master Data sync list above.
+        and percent. Read only: this never changes a fee. Sheet rows with no portal client aren't shown: active ones are listed to
+        match in the Master Data sync above, and Lost, Paused or Gone ones are skipped there too.
       </p>
       <div className="mh-fr-bar">
         <button type="button" className="btn-secondary pf-btn" onClick={load} disabled={res.busy}>

@@ -265,6 +265,8 @@ test("planCompare keeps every status, flags rows, never touches unmatched or tes
     row("MyGoodBooks", "Active", "$50", "$50"), // internal
     row("Twin Church", "Active", "$80", "$80"), // two portal clients: unmatched
     row("Override Org", "Active", "$5,000", "$100"), // override does not hide it in the review
+    row("Old Gone Client", "Gone", "$100", "$100"), // no portal client and gone: skipped, as in planSync
+    row("Old Paused Client", "Paused", "$100", "$100"), // no portal client and paused: skipped too
   ];
   const p = planCompare({ values: v, clients, map });
   assert.equal(p.error, undefined);
@@ -281,7 +283,7 @@ test("planCompare keeps every status, flags rows, never touches unmatched or tes
   assert.equal(by["the-way"].sheet_name, "The Way Community Church");
   assert.deepEqual(by.over.flags, ["big_move"]);
   assert.deepEqual(p.counts, {
-    rows_read: 12,
+    rows_read: 14,
     matched: 7,
     big_move: 2,
     missing_2027: 1,
@@ -289,9 +291,13 @@ test("planCompare keeps every status, flags rows, never touches unmatched or tes
     lost_paused: 2,
     duplicate: 0,
     unmatched: 2,
-    skipped: 3,
+    skipped: 5,
     errors: 0,
   });
+  // The same sheet through planSync: its unmatched list matches the compare count.
+  const s = planSync({ values: v, clients, fees: [], map, feeColumn: "2027" });
+  assert.equal(s.error, undefined);
+  assert.equal(s.unmatched.length, p.counts.unmatched);
   // sorted by client name
   assert.deepEqual(p.rows.map((r) => r.client_name), [...p.rows.map((r) => r.client_name)].sort((a, b) => a.localeCompare(b)));
 });

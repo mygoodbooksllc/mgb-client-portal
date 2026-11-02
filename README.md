@@ -1358,6 +1358,10 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   the days covered), cost share = fixed, else logged hours on the contract, else fallback in a month with no
   hours, else all MGB (capped at 100%); fee revenue shared by hours. `MH_CapacityPage` + `MH_CapacityRulesCard`
   in `MgbHome.jsx`; no usage event is logged with money in it.
+  S6b fix (2026-11-02, SQL `supabase/mgb-home-s6b.sql`): `capacity_inputs` also returns `segments` per
+  person-month, cut at each rate, firm cost basis (Full cost) or allocation rule start date, so Capacity prices
+  hours at the rate on their date (matching `client_profitability`) and applies rules from their date. Use of
+  target hours counts only people with a target; other time shows apart.
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
   (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page

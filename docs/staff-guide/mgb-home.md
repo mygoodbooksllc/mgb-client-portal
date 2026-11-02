@@ -32,7 +32,7 @@ On **Pricing & fees**, **2027 fee change review** puts each client's **Bookkeepi
 4. Use the chips (**All**, **Flagged**, **Over 25%**, **No 2027 fee**, **Lost / Paused**) to narrow the list, and click a column header to sort.
 5. **Download CSV** saves what is on screen (fee now, fee 2027, change, %, flags and notes). **Read the sheet again** after you edit the sheet.
 
-Sheet rows not matched to a client are not in this list; match them in the **Master Data sync** strip above. If the sheet is missing the **Bookkeeping fee now** or **Bookkeeping fee 2027** column, the review says which one and shows nothing.
+Sheet rows with no portal client are not in this list: active ones are listed to match in the **Master Data sync** strip above, and Lost, Paused or Gone ones are skipped there too. If the sheet is missing the **Bookkeeping fee now** or **Bookkeeping fee 2027** column, the review says which one and shows nothing.
 
 ### Staff cost or Full cost
 
@@ -48,8 +48,8 @@ The weekly digest's **Price review** and **Revenue snapshot** link to **MGB Home
 
 **Capacity** puts each person's QuickBooks Time hours next to the money: the fee revenue of the clients they work on and what their time costs. Pick a period at the top (as on Overhead); **Cost basis** works as on Profitability, and **Download CSV** saves the people and the contract split.
 
-- The summary shows **Hours logged**, **Use of target hours** (logged hours against each person's weekly target for the days in the period), **Fee revenue**, **Pay cost** and **Margin**.
-- **Pay cost** is each person's loaded rate (**Cost rates**) × their paid hours: the target hours for the days so far, or the logged hours when they logged more. On **Full cost** the firm overhead per hour is added. A person with no rate is costed at the average and marked *.
+- The summary shows **Hours logged**, **Use of target hours** (logged hours against each person's weekly target for the days in the period; only people with a target count, and other time, such as hours by former staff or people with no target, is shown on its own line), **Fee revenue**, **Pay cost** and **Margin**.
+- **Pay cost** is each person's loaded rate (**Cost rates**) × their paid hours: the target hours for the days so far, or the logged hours when they logged more. Each logged hour is priced at the rate in effect on its date, so a raise mid-month applies from its date; target hours not logged are spread evenly over the days. On **Full cost** the firm overhead per hour is added. A person with no rate is costed at the average and marked *.
 - **Fee revenue** is each client's monthly fee, shared between the people who logged time on that client that month, by hours. Revenue from a client nobody logged time on that month counts in the split but isn't carried by anyone.
 - **Contract clients vs MGB clients**: contract clients (such as **IHH**, Illumination Health and Home) are shown apart. Each side shows its fee revenue, the pay cost allocated to it and the margin. **MGB clients** includes the firm's own time.
 - **By person**: hours, use of target, revenue carried, pay cost, each contract client's share of it, the MGB cost and the margin. *(fixed)* marks a fixed share, *(fallback)* a month with no logged hours split by the fallback share, and ‡ a month with no hours and no fallback share (counted as all MGB).
@@ -57,6 +57,6 @@ The weekly digest's **Price review** and **Revenue snapshot** link to **MGB Home
 **Allocation rules** (at the bottom) decide how a person's pay cost is split:
 
 1. **Contract clients**: pick a client and a short label, then **Add contract client**. Every other client counts as MGB.
-2. **Shares by person**: pick a person, a contract client, a **Share %**, a **Kind** and an **Effective from** date, then **Save rule**. **Fixed (always)** applies every month (for someone who works only on that contract). With no fixed share, the person's cost follows the hours they logged on the contract client that month. **Fallback (months with no hours)** is used only in a month when they logged no hours at all. A newer rule takes over from its date; **Remove** deletes one.
+2. **Shares by person**: pick a person, a contract client, a **Share %**, a **Kind** and an **Effective from** date, then **Save rule**. **Fixed (always)** applies every month (for someone who works only on that contract). With no fixed share, the person's cost follows the hours they logged on the contract client that month. **Fallback (months with no hours)** is used only in a month when they logged no hours at all. A newer rule takes over from its date, even mid-month; **Remove** deletes one.
 
 If fixed and fallback shares add up to more than 100% for someone, they are scaled down and the page says so. Plain hours capacity (no money) stays on **Team › Hours** for every admin.

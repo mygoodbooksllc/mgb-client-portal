@@ -2,21 +2,29 @@
 // MH_capacity: the pure logic behind MGB Home › Capacity (docs/mgb-home-spec.md,
 // slice S6, OQ7). The page is MH_CapacityPage in MgbHome.jsx; its one read is
 // capacity_inputs(p_from, p_to, p_basis, p_default_fees)
-// (supabase/mgb-home-s6.sql), which refuses anyone without the MGB (internal)
-// grant. No pay figures live here: rates come from that read only.
+// (supabase/mgb-home-s6.sql, replaced by mgb-home-s6b.sql), which refuses
+// anyone without the MGB (internal) grant. No pay figures live here: rates
+// come from that read only.
 //
 // Per person and month:
 //   paid hours   target hours for the days covered (weekly target x days / 7),
 //                or the logged hours when more; logged hours alone for someone
 //                with no target (former staff, people not on staff)
-//   pay cost     loaded rate (+ full-cost uplift) x paid hours, to the cent
-//   contract     share of that cost on each contract client (IHH):
+//   pay cost     loaded rate (+ full-cost uplift) x paid hours, to the cent.
+//                Priced by date: the read cuts the month into segments where
+//                the person's rate, the firm cost basis or one of their rules
+//                changes; logged hours use their segment's rate, unlogged
+//                target hours are spread over the segments by days
+//   contract     share of that cost on each contract client (IHH), segment
+//                by segment, using the rules in effect on its first day:
 //                  1. a 'fixed' allocation row in effect wins (Carmen 100% IHH)
 //                  2. else logged contract hours / all logged hours (Jesse)
 //                  3. else, in a month with no logged hours, a 'fallback' row
 //                  4. else 0 (all MGB), flagged "no hours"
 //                shares above 100% in total are scaled down and flagged.
 //   MGB cost     pay cost minus the contract costs (so the split sums exactly)
+// Use of target hours (firm-wide) counts only people with a weekly target;
+// time by anyone else is totals.otherMinutes.
 // Fee revenue per client and month (monthly fee x days covered / days) is
 // shared among the people who logged time on that client, by minutes;
 // revenue of a client nobody logged time on is "not carried by anyone".
@@ -27,6 +35,9 @@
 //   MH_capPaidMinutes(minutes, weeklyTarget, coveredDays)
 //   MH_capSplitCost(total, shares, contractIds)  -> { contract: {cid: $}, mgb }
 //   MH_capSplitRevenue(revenue, parts)           -> [$ per part], sums exactly
+//   MH_capSegments(pm, month)                    -> the priced pieces of a month
+//   MH_capPriceMonth(pm, segs, paid, allocs, contractIds, email)
+//                                                -> { pay, contract, mgb, flags }
 //   MH_capCompute(data)                          -> { people, split, totals, ... }
 //
 // Browser file (plain JS, no JSX); loads after MH_gate.js. Node tests:
@@ -137,6 +148,89 @@ function MH_capSplitRevenue(revenue, weights) {
   return parts;
 }
 
+// The priced pieces of one person-month. capacity_inputs() (mgb-home-s6b.sql)
+// cuts each month at every date the person's rate, the firm cost basis (Full
+// cost) or one of their allocation rules changes, so each segment has one
+// rate and one set of rules: { from, to, days, minutes, contract_minutes,
+// rate, estimated, former }. An older read with no segments is one segment
+// for the whole month at the month-end rate and rules.
+function MH_capSegments(pm, mo) {
+  var segs = pm && Array.isArray(pm.segments) ? pm.segments : null;
+  if (segs && segs.length) {
+    return segs.map(function (s) {
+      return {
+        from: String(s.from || "").slice(0, 10),
+        days: Math.max(0, MH__capNum(s.days) || 0),
+        minutes: Math.max(0, MH__capNum(s.minutes) || 0),
+        contract_minutes: s.contract_minutes || {},
+        rate: MH__capNum(s.rate),
+        estimated: !!s.estimated,
+        former: !!s.former,
+      };
+    });
+  }
+  return [{
+    from: mo ? mo.end : "",
+    days: mo ? mo.covered : 0,
+    minutes: Math.max(0, MH__capNum(pm && pm.minutes) || 0),
+    contract_minutes: (pm && pm.contract_minutes) || {},
+    rate: MH__capNum(pm && pm.rate),
+    estimated: !!(pm && pm.estimated),
+    former: !!(pm && pm.former),
+  }];
+}
+
+// Prices one person-month. Logged minutes are priced in the segment they were
+// logged in (the rate on their date, as client_profitability does); paid
+// minutes above the logged ones (target hours not logged) are spread over the
+// segments by days. Each segment's cost is split by the rules in effect on
+// its first day; with no hours in the segment, the month's hours ratio is
+// used, and the fallback share only when the whole month has no hours.
+// Returns { pay, contract: {cid: $}, mgb, costed, flags..., sources }, with
+// the contract parts and MGB summing exactly to pay.
+function MH_capPriceMonth(pm, segs, paid, allocs, contractIds, email) {
+  var cids = contractIds || [];
+  var monthMins = Math.max(0, MH__capNum(pm && pm.minutes) || 0);
+  var monthCm = (pm && pm.contract_minutes) || {};
+  var pad = Math.max(0, (MH__capNum(paid) || 0) - monthMins);
+  var totalDays = 0;
+  (segs || []).forEach(function (s) { totalDays += s.days; });
+  var out = { pay: 0, contract: {}, mgb: 0, costed: false, uncosted: false, estimated: false, former: false,
+              capped: false, fallback: false, noHours: false, sources: {} };
+  var rawPay = 0;
+  var rawContract = {};
+  cids.forEach(function (c) { rawContract[c] = 0; });
+  (segs || []).forEach(function (s, i) {
+    var segPad = totalDays > 0 ? (pad * s.days) / totalDays : i === 0 ? pad : 0;
+    var segPaid = s.minutes + segPad;
+    if (s.rate == null) {
+      if (segPaid > 0) out.uncosted = true;
+      return;
+    }
+    out.costed = true;
+    if (s.estimated) out.estimated = true;
+    if (s.former) out.former = true;
+    var cost = (segPaid / 60) * s.rate;
+    var basis = s.minutes > 0 ? { minutes: s.minutes, contract_minutes: s.contract_minutes }
+                              : { minutes: monthMins, contract_minutes: monthCm };
+    var sh = MH_capShares(basis, allocs, cids, email, s.from);
+    if (sh.capped) out.capped = true;
+    out.sources[sh.source] = true;
+    if (sh.source === "fallback") out.fallback = true;
+    if (sh.source === "none" && segPaid > 0 && cids.length) out.noHours = true;
+    rawPay += cost;
+    cids.forEach(function (c) { rawContract[c] += cost * (sh.shares[c] || 0); });
+  });
+  out.pay = MH_capRound2(rawPay);
+  var used = 0;
+  cids.forEach(function (c) {
+    out.contract[c] = MH_capRound2(rawContract[c]);
+    used += out.contract[c];
+  });
+  out.mgb = MH_capRound2(out.pay - used);
+  return out;
+}
+
 function MH__capMonthEnd(month, days, to) {
   var m = String(month || "").slice(0, 7);
   var end = m + "-" + String(MH__capNum(days) || 28).padStart(2, "0");
@@ -188,7 +282,7 @@ function MH_capCompute(data) {
     order.push(p.key);
   });
 
-  // Cost, person by month.
+  // Cost, person by month, priced segment by segment (see MH_capPriceMonth).
   (d.person_months || []).forEach(function (pm) {
     var p = people[pm.key];
     var mk = String(pm.month).slice(0, 10);
@@ -201,23 +295,18 @@ function MH_capCompute(data) {
     }
     var paid = MH_capPaidMinutes(mins, p.weeklyTarget, mo.covered);
     p.paidMinutes += paid;
-    var rate = MH__capNum(pm.rate);
-    if (rate == null) {
-      if (paid > 0) p.flags.uncosted = true;
-      return;
-    }
-    if (pm.estimated) p.flags.estimated = true;
-    if (pm.former) p.flags.former = true;
-    var pay = MH_capRound2((paid / 60) * rate);
-    var sh = MH_capShares(pm, allocs, cids, p.email, mo.end);
-    if (sh.capped) p.flags.capped = true;
-    p.sources[sh.source] = true;
-    if (sh.source === "fallback") p.flags.fallback = true;
-    if (sh.source === "none" && paid > 0 && cids.length) p.flags.noHours = true;
-    var split = MH_capSplitCost(pay, sh.shares, cids);
-    p.pay = MH_capRound2(p.pay + pay);
-    cids.forEach(function (c) { p.contractCost[c] = MH_capRound2(p.contractCost[c] + split.contract[c]); });
-    p.mgbCost = MH_capRound2(p.mgbCost + split.mgb);
+    var m = MH_capPriceMonth(pm, MH_capSegments(pm, mo), paid, allocs, cids, p.email);
+    if (m.uncosted) p.flags.uncosted = true;
+    if (m.estimated) p.flags.estimated = true;
+    if (m.former) p.flags.former = true;
+    if (m.capped) p.flags.capped = true;
+    if (m.fallback) p.flags.fallback = true;
+    if (m.noHours) p.flags.noHours = true;
+    Object.keys(m.sources).forEach(function (k) { p.sources[k] = true; });
+    if (!m.costed) return;
+    p.pay = MH_capRound2(p.pay + m.pay);
+    cids.forEach(function (c) { p.contractCost[c] = MH_capRound2(p.contractCost[c] + m.contract[c]); });
+    p.mgbCost = MH_capRound2(p.mgbCost + m.mgb);
   });
 
   // Revenue, client by month, shared by minutes.
@@ -285,9 +374,13 @@ function MH_capCompute(data) {
                revenue: mgbRevenue, cost: mgbCost, margin: MH_capRound2(mgbRevenue - mgbCost),
                marginPct: mgbRevenue ? Math.round(((mgbRevenue - mgbCost) / mgbRevenue) * 1000) / 10 : null });
 
-  var totals = { minutes: 0, targetMinutes: 0, paidMinutes: 0, pay: 0, revenue: 0 };
+  // Use of target hours compares like with like: only people with a target
+  // count in minutes; everyone else's logged time is otherMinutes.
+  var totals = { minutes: 0, otherMinutes: 0, allMinutes: 0, targetMinutes: 0, paidMinutes: 0, pay: 0, revenue: 0 };
   list.forEach(function (p) {
-    totals.minutes += p.minutes;
+    if (p.targetMinutes != null) totals.minutes += p.minutes;
+    else totals.otherMinutes += p.minutes;
+    totals.allMinutes += p.minutes;
     totals.targetMinutes += p.targetMinutes || 0;
     totals.paidMinutes += p.paidMinutes;
     totals.pay = MH_capRound2(totals.pay + p.pay);
@@ -309,6 +402,8 @@ if (typeof module !== "undefined" && module.exports) {
     MH_capPaidMinutes: MH_capPaidMinutes,
     MH_capSplitCost: MH_capSplitCost,
     MH_capSplitRevenue: MH_capSplitRevenue,
+    MH_capSegments: MH_capSegments,
+    MH_capPriceMonth: MH_capPriceMonth,
     MH_capCompute: MH_capCompute,
   };
 }

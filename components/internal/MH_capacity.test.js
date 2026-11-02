@@ -211,6 +211,104 @@ t("compute: utilization against target minutes", () => {
   assert.strictEqual(c.targetMinutes, 9000 + 9300);
   assert.strictEqual(c.utilization, 1);
 });
+t("compute: firm use of target hours counts only people with a target", () => {
+  const r = C.MH_capCompute(fixture());
+  // C 9000+9300 and J 10000+0 have targets; Z's 600 is other time.
+  assert.strictEqual(r.totals.minutes, 9000 + 9300 + 10000);
+  assert.strictEqual(r.totals.otherMinutes, 600);
+  assert.strictEqual(r.totals.allMinutes, 9000 + 9300 + 10000 + 600);
+  assert.strictEqual(r.totals.targetMinutes, (9000 + 9300) * 2);
+  assert.strictEqual(r.totals.utilization, (9000 + 9300 + 10000) / ((9000 + 9300) * 2));
+});
+t("compute: lots of untargeted time never pushes use of target past the targeted hours", () => {
+  const f = fixture();
+  f.person_months.find((pm) => pm.key === "unmapped:Z").minutes = 100000;
+  const r = C.MH_capCompute(f);
+  assert.strictEqual(r.totals.utilization, (9000 + 9300 + 10000) / ((9000 + 9300) * 2));
+  assert.strictEqual(r.totals.otherMinutes, 100000);
+});
+
+// Mid-month changes (segments from capacity_inputs, mgb-home-s6b.sql) -------------
+// Made-up figures: rate 10/h until the 16th, 20/h from the 16th (a raise).
+function midMonth(extra) {
+  return Object.assign({
+    from: "2026-09-01",
+    to: "2026-09-30",
+    basis: "staff",
+    months: [{ month: "2026-09-01", days: 30, covered_days: 30 }],
+    contracts: [{ client_id: K, label: "X", name: "Contract X" }],
+    allocations: [],
+    people: [{ key: "h@test", staff_email: "h@test", name: "H", active: true, mapped: true, former: false, weekly_target: null }],
+    person_months: [{
+      key: "h@test", month: "2026-09-01", minutes: 1200, contract_minutes: { [K]: 600 }, rate: 20,
+      segments: [
+        { from: "2026-09-01", to: "2026-09-15", days: 15, minutes: 600, contract_minutes: { [K]: 600 }, rate: 10 },
+        { from: "2026-09-16", to: "2026-09-30", days: 15, minutes: 600, contract_minutes: {}, rate: 20 },
+      ],
+    }],
+    clients: [],
+    work: [],
+  }, extra || {});
+}
+t("mid-month raise: logged hours priced at the rate on their date", () => {
+  const h = C.MH_capCompute(midMonth()).people[0];
+  // 10h at 10 + 10h at 20 = 300 (the month-end rate alone would say 400).
+  assert.strictEqual(h.pay, 300);
+  // Hours split per segment: first half all contract, second half all MGB.
+  assert.strictEqual(h.contractCost[K], 100);
+  assert.strictEqual(h.mgbCost, 200);
+});
+t("mid-month raise: unlogged target hours spread over the days", () => {
+  const f = midMonth();
+  f.people[0].weekly_target = 7; // 7h/week x 30/7 = 30h = 1800 min; logged 1200, 600 padding
+  const h = C.MH_capCompute(f).people[0];
+  // 300 for the logged time + 5h at 10 + 5h at 20 = 450.
+  assert.strictEqual(h.paidMinutes, 1800);
+  assert.strictEqual(h.pay, 450);
+  assert.strictEqual(Math.round((h.contractCost[K] + h.mgbCost) * 100), 45000);
+});
+t("mid-month rule: a fixed rule from the 16th covers only the second half", () => {
+  const f = midMonth();
+  f.allocations = [{ staff_email: "h@test", client_id: K, share: 1, method: "fixed", effective_from: "2026-09-16" }];
+  const h = C.MH_capCompute(f).people[0];
+  // First half by hours (all contract, 100), second half fixed 100% (200).
+  assert.strictEqual(h.contractCost[K], 300);
+  assert.strictEqual(h.mgbCost, 0);
+  assert.ok(h.sources.fixed && h.sources.hours);
+});
+t("mid-month: a segment with no hours uses the month's hours ratio, not the fallback", () => {
+  const f = midMonth();
+  f.people[0].weekly_target = 7;
+  f.allocations = [{ staff_email: "h@test", client_id: K, share: 0.9, method: "fallback", effective_from: "2026-01-01" }];
+  f.person_months[0].segments[1].minutes = 0;
+  f.person_months[0].minutes = 600;
+  const h = C.MH_capCompute(f).people[0];
+  assert.ok(!h.flags.fallback);
+  // Month ratio 600/600 contract: the whole paid month sits on the contract.
+  assert.strictEqual(h.mgbCost, 0);
+  assert.strictEqual(h.contractCost[K], h.pay);
+});
+t("mid-month: a rate that starts mid-month leaves the first half estimated / uncosted", () => {
+  const f = midMonth();
+  f.person_months[0].segments[0].rate = null;
+  const h = C.MH_capCompute(f).people[0];
+  assert.ok(h.flags.uncosted);
+  assert.strictEqual(h.pay, 200);
+  f.person_months[0].segments[0].rate = 15;
+  f.person_months[0].segments[0].estimated = true;
+  const e = C.MH_capCompute(f).people[0];
+  assert.ok(e.flags.estimated && !e.flags.uncosted);
+  assert.strictEqual(e.pay, 350);
+});
+t("segments: no segments falls back to one month-long piece at the month-end rate", () => {
+  const f = midMonth();
+  delete f.person_months[0].segments;
+  const h = C.MH_capCompute(f).people[0];
+  assert.strictEqual(h.pay, 400);
+  const s = C.MH_capSegments({ minutes: 5, rate: 3 }, { end: "2026-09-30", covered: 30 });
+  assert.deepStrictEqual([s.length, s[0].from, s[0].days, s[0].rate], [1, "2026-09-30", 30, 3]);
+});
+
 t("compute: empty input is safe", () => {
   const r = C.MH_capCompute({});
   assert.deepStrictEqual(r.people, []);
