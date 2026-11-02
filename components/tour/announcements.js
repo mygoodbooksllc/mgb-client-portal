@@ -199,6 +199,20 @@ function ANN_clientDropLaunchOn() {
   }
 }
 
+// Create menu launch (components/staff/TB_create.js): true once the owner has switched
+// tk_settings.create_menu_enabled on for the firm (cached as mgb_create_cache by CM_readSwitch),
+// the menu is on for this person (CM_createOn) and never during View as. Deliberately not the
+// per-person preview mgb_create_preview alone: a preview person sees no launch text.
+function ANN_createLaunchOn() {
+  try {
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
+    if (typeof CM_createOn !== "function" || !CM_createOn()) return false;
+    return window.localStorage.getItem("mgb_create_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 // True when the left sidebar's Pinned and Recent clients are on for this person.
 function ANN_sidebarOn() {
   try {
@@ -1727,7 +1741,7 @@ var ANN_REGISTRY = [
     date: "2026-10-25",
     title: "More on the Desk",
     summary:
-      "The Desk's Client tab now shows what is waiting on the client, their recent messages and recent files, with Ask client and Message buttons. The + menu has Ask client…, Message… and Time off, and the Inbox has a Ledger chip.",
+      "The Desk's Client tab now shows what is waiting on the client, their recent messages and recent files, with Ask client and Message buttons. The Create menu has Ask client…, Message… and Time off, and the Inbox has a Ledger chip.",
     roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
     hash: "#/today",
     visible: () => ANN_deskPlusLaunchOn(),
@@ -1751,7 +1765,7 @@ var ANN_REGISTRY = [
           id: "ann-welcome",
           title: "More on the Desk",
           body: () =>
-            "The Desk has new ways to work with a client without leaving the page: a Ledger chip in the Inbox, more on the Client tab, and three new lines in the + menu. About a minute.",
+            "The Desk has new ways to work with a client without leaving the page: a Ledger chip in the Inbox, more on the Client tab, and three new lines in the Create menu. About a minute.",
         },
         {
           id: "ann-ledger",
@@ -1783,10 +1797,13 @@ var ANN_REGISTRY = [
         {
           id: "ann-plus",
           when: () => ANN_deskOn(),
-          targets: ["wb-rail-add", "tb-quick"],
+          targets: ["nav-create", "wb-rail-add", "tb-quick"],
           wait: true,
-          title: "The + menu",
-          body: () => "Click + for three new lines next to New task: Ask client…, Message… and Time off (your own days away, with backups for your tasks).",
+          title: typeof CM_createOn === "function" && CM_createOn() ? "The Create menu" : "The + menu",
+          body: () =>
+            (typeof CM_createOn === "function" && CM_createOn()
+              ? "Click Create for three new lines next to Task: Ask client…, Message a client and Request time off (your own days away, with backups for your tasks)."
+              : "Click + for three new lines next to New task: Ask client…, Message… and Time off (your own days away, with backups for your tasks)."),
         },
       ];
     },
@@ -2347,6 +2364,61 @@ var ANN_REGISTRY = [
           "Click a name to open a profile, and use the small button beside it to reassign. To see everything, pick Slate plus tour in the ? menu, or read What's in Slate plus? in Help.",
       },
     ],
+  },
+  {
+    // Create menu launch, LAUNCHED 2026-11-02 (the owner set tk_settings.create_menu_enabled to true that
+    // day): visible only while the menu is on for this person from the firm switch (cached as
+    // mgb_create_cache), never in View as and never for the per-person preview alone (ANN_createLaunchOn).
+    // `date` is the launch day, because the notice stops showing 60 days after `date` and people hired
+    // after it never get it. The first stop points at the nav button (desktop), then the top-bar button
+    // (phone or touch, where the left nav is a menu), then the Desk rail + (which the Create button
+    // replaces, so normally absent); only a visible target is used. Guide text: quick-actions, top-bar,
+    // getting-started and the other articles named in the 2026-11-02 What's new entry.
+    id: "create-menu",
+    date: "2026-11-02",
+    title: "Meet the Create button",
+    summary:
+      "The + is now a Create button at the top of the left nav (a round + in the top bar on a phone) with a roomier menu: Task, Note, Request a document, Upload a file, Message and Start from a template. Admins also find Add a client, Start a team review and Invite staff.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/today",
+    visible: () => ANN_createLaunchOn(),
+    steps: (ctx) => {
+      const isAdmin = !!(ctx && ctx.isAdmin);
+      return [
+        {
+          id: "ann-welcome",
+          title: "Meet the Create button",
+          body: () =>
+            "The small + is now a Create button with a bigger menu. It adds things without leaving the page you are on. About 30 seconds.",
+        },
+        {
+          id: "ann-create",
+          targets: ["nav-create", "tb-quick", "wb-rail-add"],
+          wait: true,
+          title: "Add things from Create",
+          body: () =>
+            "Click Create to add a task, note, document request, file upload or message for the client you have open, or start a project from a template. With no client open it adds a task. Press q for a task from anywhere. On a phone, Create is the round + in the top bar.",
+        },
+        ...(isAdmin
+          ? [
+              {
+                id: "ann-admin",
+                targets: ["nav-create", "tb-quick", "wb-rail-add"],
+                wait: true,
+                title: "More for admins",
+                body: () =>
+                  "Under the Admin heading in the same menu: Add a client, Invite a client login (with a client open), Start a team review and Invite staff. They open the right page; nothing is created until you finish there.",
+              },
+            ]
+          : []),
+        {
+          id: "ann-done",
+          title: "See it again",
+          body: () =>
+            "To see this again, press ? and pick New: Meet the Create button tour, or read How do I add a task, note or document request, or message a client? in Help.",
+        },
+      ];
+    },
   },
 ];
 

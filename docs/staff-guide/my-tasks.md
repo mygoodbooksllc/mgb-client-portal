@@ -107,7 +107,7 @@ The quickest way is the **Add task** row at the bottom of **Today**, **This week
 
 Or:
 
-Press **q** on any staff page (not while you're typing in a box), click **Add task**, or use **+** → **New task** in the top bar (with the Desk on, the **+** at the foot of its rail). The **+** button works with or without a client open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
+Press **q** on any staff page (not while you're typing in a box), click **Add task**, or use **Create** → **Task** at the top of the left nav (the round **+** in the top bar on a phone). **Create** works with or without a client open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
 
 Type the task in one line. The portal picks out the details and shows them as chips under the box:
 

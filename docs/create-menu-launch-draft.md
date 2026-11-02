@@ -1,9 +1,20 @@
-# Create menu: launch draft (NOT published)
+# Create menu: LAUNCHED 2026-11-02
 
-Built hidden on 2026-11-02 (label 2026-11-02b). The staff guide, What's new
-entry, next-visit notice and tour below are drafts. Do not publish any of this
-until the owner flips `tk_settings.create_menu_enabled` to true (the preview
-checkbox `mgb_create_preview` shows the feature to one person without these).
+The owner set `tk_settings.create_menu_enabled` to true on 2026-11-02. Version label 2026-11-02k.
+The text below is kept as the record of what was drafted; where it differs from the shipped text, the
+repo files win (the nav button now lives at the top of the staff left nav, there is an Admin group,
+Upload a file and Start from a template, and the Slate app rail has its own Create menu).
+
+Status of the launch steps:
+- DONE in the launch commit: staff guide md edits (quick-actions, top-bar, getting-started, bookkeeper-guide,
+  document-requests, my-tasks, inbox, notes, preview-as, workbench, add-documents, tasks-own-window, whats-new),
+  the `create-menu` next-visit notice and tour (`components/tour/announcements.js`, title "Meet the Create button",
+  date 2026-11-02, gated by `ANN_createLaunchOn()`), the `tk-quick-plain` tip re-pointed to `nav-create`,
+  Developer tools rows (switch row says ON; preview row marked launched), `MGB_VERSION` 2026-11-02k, README.
+- PENDING (lead, after review): sync the guide to the `staff_guide` table with the targeted SQL
+  (`create-guide-sync.sql`, kept in the session scratchpad; regenerate by hand from the md diff if lost).
+- KEPT on purpose: the preview flag `mgb_create_preview`, the gate code and the rollback (set the switch to false).
+  Offer to remove the preview flag in about two weeks (around 2026-11-16).
 
 ## Launch steps
 1. Final check with the preview on and off.

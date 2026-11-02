@@ -59,8 +59,13 @@
 //   staff-rail-collapse  the rail's Expand / Collapse button (app.jsx StaffRail)
 //   tb-avatar        the top-right avatar menu (Settings, Sign out; TopBar.jsx)
 //   tb-search        the ⌘K search box (components/staff/TopBar.jsx)
-//   tb-quick         the "+" menu (TopBar.jsx), on every staff page
-//                    (hidden while the Desk rail shows; wb-rail-add is its + then)
+//   nav-create       the Create button at the top of the staff left nav and of the Slate
+//                    app's icon rail (TopBar.jsx TB_NavCreate), on every staff page where the
+//                    left nav shows (a computer or mouse); the menu launched 2026-11-02
+//   tb-quick         the top bar's Create button (a round "+" on a phone,
+//                    where the left nav is a menu; TopBar.jsx), or the old "+" menu if the
+//                    Create switch is turned off (hidden while the Desk rail shows;
+//                    wb-rail-add is its + then)
 //   wb-glance, wb-rightnow  the open Desk's counts and "Right now" card (WB_Hub.jsx, Desk R3)
 //   tb-help          the "?" menu (components/staff/TopBar.jsx)
 //   clients-filters  Mine / All / Needs attention (components/staff/ClientsPage.jsx)

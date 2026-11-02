@@ -48,7 +48,8 @@
 // themselves live in the rail (app.jsx StaffRail) and the breadcrumb; the
 // bar only jumps to them through ⌘K.
 //
-// Tour hooks (Tour.jsx): data-tour="tb-search", "tb-bell", "tb-quick",
+// Tour hooks (Tour.jsx): data-tour="tb-search", "tb-bell", "tb-quick" (and "nav-create" on the
+// left nav's Create button),
 // "tb-help", "tb-avatar" on the matching wrappers; "tb-sync" on the sync
 // pill (a tip, components/tour/Tips.jsx).
 //

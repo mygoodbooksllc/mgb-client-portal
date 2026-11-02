@@ -13,7 +13,7 @@ Use a document request when you need a statement, receipt or anything else from 
 
 Either:
 
-- click **+** in the top bar on any client page and choose **Request document**, or
+- click **Create** at the top of the left nav on any client page (the round **+** in the top bar on a phone) and choose **Request a document**, or
 - open the client's **Documents** tab and use the **Document requests** card.
 
 Then fill in:

@@ -34,7 +34,7 @@ Every page looks the same: a title, one row of tabs, and the content. The tab is
 
 ### The top bar
 
-Across the top: the client picker, the sync pill (client pages), search (**Ctrl+K** / **⌘K**, which also jumps to any page or action), the bell, **Slate**, **+** (add a task, note or document request, or message the client), **?** (help for this page, the staff guide, **Send feedback**, **What's new**, **Tips while you learn** and the tours) and your picture or initials, the account menu (**Settings**, dark mode, Preview as and **Sign out**). **Settings** holds your profile, notifications, theme, start page and signature, and admins also find the firm-wide pages there; see [How do I change my settings?](#/help/staff-settings). See [What's on the bar at the top of the page?](#/help/top-bar).
+At the top of the left nav, under the logo, **Create** adds a task, note, document request, file or message without leaving the page (on a phone it is the round **+** in the top bar). Across the top: the client picker, the sync pill (client pages), search (**Ctrl+K** / **⌘K**, which also jumps to any page or action), the bell, **Slate**, **?** (help for this page, the staff guide, **Send feedback**, **What's new**, **Tips while you learn** and the tours) and your picture or initials, the account menu (**Settings**, dark mode, Preview as and **Sign out**). **Settings** holds your profile, notifications, theme, start page and signature, and admins also find the firm-wide pages there; see [How do I change my settings?](#/help/staff-settings). See [What's on the bar at the top of the page?](#/help/top-bar).
 
 ### Inside a client
 
@@ -42,7 +42,7 @@ Open a client and the title becomes **Clients › {client} › {tab}**, with one
 
 ### On a phone
 
-The top bar keeps the client picker, search, the bell, **+** and **?**. Tap the menu button at the top left to open the five places, **Settings** and **Sign out**. Inside a client, the tab row scrolls sideways.
+The top bar keeps the client picker, search, the bell, **Create** (the round **+**) and **?**. Tap the menu button at the top left to open the five places, **Settings** and **Sign out**. Inside a client, the tab row scrolls sideways.
 
 ### Who sees what
 

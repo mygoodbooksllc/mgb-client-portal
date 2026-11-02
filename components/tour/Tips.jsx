@@ -551,8 +551,9 @@ const TIPS_CATALOG = [
     id: "tk-quick-plain",
     roles: "all",
     match: (r) => r.page === "tasks",
-    // The top-bar + steps aside while the Desk's rail shows (Desk R3): the rail's + then.
-    target: ["tb-quick", "wb-rail-add"],
+    // The Create button at the top of the left nav (a computer or mouse); the top bar's own button
+    // on a phone; the Desk rail's + only if the Create switch is turned off.
+    target: ["nav-create", "tb-quick", "wb-rail-add"],
     snug: true,
     text: "Add a task in plain words: Send the payroll summary for Sierra re Example Church by Friday. Quick add shows what it understood before you save.",
     slug: "quick-actions",

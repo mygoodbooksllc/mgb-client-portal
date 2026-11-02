@@ -11,7 +11,7 @@ Think of it this way: the portal is where you act on the task in front of you. T
 
 ### Open it
 
-On the Slate page (`#/tasks/my`), or on the **Slate** tab of the Desk, click **Open Slate app** at the top right. A window opens with just Slate: no rail and no top bar. It remembers its size next time. The button is there on a computer; on a phone or tablet, use Slate inside the portal.
+On the Slate page (`#/tasks/my`), or on the **Slate** tab of the Desk, click **Open Slate app** at the top right. A window opens with just Slate: no rail and no top bar. At the top of Slate's own icon rail there is a **Create** button with Slate's rows (**Task**, **New project**, **Recurring task**). It remembers its size next time. The button is there on a computer; on a phone or tablet, use Slate inside the portal.
 
 You can also type the portal's address with `/slate` at the end (for example in a bookmark). It opens the same app after you sign in.
 

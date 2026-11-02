@@ -10,7 +10,7 @@ Client notes are **staff-only**. Clients never see them. The same notes show up 
 ### Where to add a note
 
 - **Work › Notes & SOPs → Notes** card (`#/work/notes`; it used to sit under Work › Slate): pick a **Client** and a **Category** (General, Status, Handoff, Call or Meeting), type the note and click **Add note**.
-- **+** → **New note** in the top bar on any client page. In ⌘K, **New note** with no client open goes to **Work › Notes & SOPs**.
+- **Create** → **Note** at the top of the left nav on any client page (the round **+** in the top bar on a phone). In ⌘K, **New note** with no client open goes to **Work › Notes & SOPs**.
 - **Client details → Notes** (the client's **Client setup** gear → **Access and details** → **Client details**): a scratchpad for things like billing quirks or how a client likes to be contacted.
 - **Client overview → Activity → Log a call**: saves a quick call note.
 - **Client overview → Pinned notes**: pinned notes show here. **All notes** lists every note for the client, and you can edit or pin one without leaving the Overview. **Remove** isn't here: do that in **Client setup › Client details › Notes**.

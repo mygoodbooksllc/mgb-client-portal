@@ -16,7 +16,7 @@ Inside a client, **View as client…** at the bottom of the **Client view** menu
 3. A bar appears: "Previewing as {name} — {role}. This is exactly what they see when they sign in."
 4. Click **Exit preview** when you're done.
 
-While previewing, staff-only things are hidden: the top bar (with **+**), the staff tabs (Overview, Close, SOP and so on), **Client setup** and the staff note icons. Bank only shows if that person's plan has it, so a Basic client's person still has no Bank page, even though staff see Bank on every client. The client's **Settings** show read-only, since their personal settings belong to them.
+While previewing, staff-only things are hidden: the top bar and the **Create** button, the staff tabs (Overview, Close, SOP and so on), **Client setup** and the staff note icons. Bank only shows if that person's plan has it, so a Basic client's person still has no Bank page, even though staff see Bank on every client. The client's **Settings** show read-only, since their personal settings belong to them.
 
 ### View as a bookkeeper (admins)
 

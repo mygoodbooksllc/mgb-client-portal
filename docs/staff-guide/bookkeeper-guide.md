@@ -11,7 +11,7 @@ As a bookkeeper you look after your own clients: you keep their books, answer th
 
 - It starts by itself once, the first time you open the portal. If you did the older staff tour, you still get this one, because it's new.
 - Run it again any time from **?** → **Bookkeeper tour**, from **Ctrl+K** (**⌘K** on a Mac) by typing "bookkeeper tour", or from **Settings › Help**.
-- It opens each part of your day in turn and points at it: **Today**, **Clients**, a client's **Overview** and **Close** tab, the **+** button, the **Inbox**, **Work › Slate** and **Close** (which points you to **Deadlines**), **Team › People**, **HR › Reviews** and **Handbook**, search and the **?** menu. About three minutes.
+- It opens each part of your day in turn and points at it: **Today**, **Clients**, a client's **Overview** and **Close** tab, the **Create** button, the **Inbox**, **Work › Slate** and **Close** (which points you to **Deadlines**), **Team › People**, **HR › Reviews** and **Handbook**, search and the **?** menu. About three minutes.
 - Admins can run it from the **?** menu too. During **View as**, it walks that bookkeeper's whole app, read-only. Their Inbox, Reviews and Handbook are private, so those stops show a placeholder or are skipped.
 
 If you're also a client's account manager, the **Account manager tour** comes next. If you have temporary admin access, you'll get the **Temporary admin tour** first. See [Account manager guide](#/help/account-manager-guide) and [Temporary access](#/help/temporary-access).
@@ -30,9 +30,9 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 
 See [How do I use the Clients page?](#/help/clients-page), [What does the Client overview show?](#/help/client-overview), [What's on a client's Close tab?](#/help/client-close) and [How do I write or update a client's SOP?](#/help/client-sops).
 
-### 3. The + button
+### 3. The Create button
 
-With a client open, **+** in the top bar adds something for that client without leaving the page: **New task**, **New note**, **Request document** or **Message**. A document request shows on the client's **Documents** tab until they upload it.
+With a client open, **Create** at the top of the left nav (the round **+** in the top bar on a phone) adds something for that client without leaving the page: a **Task**, **Note**, **Request a document**, **Upload a file** or **Message**, or a project **Start from a template**. A document request shows on the client's **Documents** tab until they upload it.
 
 See [How do I add a task, note or document request, or message a client?](#/help/quick-actions) and [How do I request a document from a client?](#/help/document-requests).
 

@@ -19,6 +19,8 @@ While you drag, the page shows **Drop to add to {client}'s documents**. Let go a
 
 You can drop up to 10 files at a time. Each file can be up to 25 MB, and must be a PDF, image (PNG, JPEG, HEIC), CSV, text, Excel or Word file. Files that don't fit are crossed out in the box with the reason, and the rest still upload.
 
+Another way in: with a client open, **Create** → **Upload a file** (top of the left nav) takes you to that client's **Documents** page, on the upload box.
+
 Files are stored in the firm's Google Drive (**~ MGB: Client Files (Portal)**). On the Documents page, staff pick the Drive folder next to **Drive folder** before uploading, and each Drive file's row has **Open in Drive** (staff only). If the upload box ever says *File storage isn't connected yet; tell the owner.*, Drive has been disconnected; tell the owner.
 
 ### Folders
