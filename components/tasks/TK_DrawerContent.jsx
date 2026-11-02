@@ -1978,6 +1978,26 @@ function TK_DrawerContent(props) {
               </button>
             </div>
           </div>
+          {task && !deleted && canEdit && status !== "ready_for_review" ? (
+            // Ease-of-use pass (2026-11-02): one big Mark done at the top, the same
+            // completion path as the list circle and the x key (toggleDone: report
+            // pick, review routing, recurring roll-forward and the Undo toast).
+            <div className="tk-dw-done-row">
+              <button
+                type="button"
+                className={"tk-dw-done-btn" + (status === "done" ? " is-done" : "")}
+                data-tour="tk-dw-done"
+                aria-pressed={status === "done" ? "true" : "false"}
+                aria-keyshortcuts="x"
+                disabled={!online}
+                title={!online ? "You're offline" : status === "done" ? "Mark not done (x)" : "Mark done (x)"}
+                onClick={toggleDone}
+              >
+                <TK_vIcon name="check" size={16} />
+                <span>{status === "done" ? "Completed" : "Mark done"}</span>
+              </button>
+            </div>
+          ) : null}
           {task && (
             <div className="tk-dw-title-row">
               <h2 className="tk-dw-title-h" id={labelId}>

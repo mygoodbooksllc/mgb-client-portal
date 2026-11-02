@@ -29,7 +29,7 @@ Click a group's heading to fold or open it. The portal remembers which groups yo
 
 Every row shows the same few things, and you can change most of them without opening the task:
 
-- **Assignee**: a round badge with the person's initials. Click it to open their profile (see [Profiles, one search and Team load](#/help/slate-profiles)). To change who it's assigned to, use the small **Reassign** button (two arrows) next to it. A task nobody is on shows a dashed empty circle (hover it, or tab to it, to see *Assign*). Only the task's owner or an admin can reassign, and people who can't see the client are grayed out. On a client with a monthly hours budget, the top of the menu shows this month's hours against it.
+- **Assignee**: a round badge with the person's initials. Click it to change who it's assigned to. The first item in that menu, **Open {name}'s profile**, opens their profile (see [Profiles, one search and Team load](#/help/slate-profiles)); if you can't reassign the task, the badge opens the profile straight away. A task nobody is on shows a dashed empty circle (hover it, or tab to it, to see *Assign*). Only the task's owner or an admin can reassign, and people who can't see the client are grayed out. On a client with a monthly hours budget, the top of the menu shows this month's hours against it.
 - **Due date**: a chip that is red when the task is overdue, amber when it is due today and plain otherwise. With no date it's a faint calendar icon. Click it to pick **Today**, **Tomorrow**, **Next Monday**, **Pick a date…** or **Clear date**.
 - **Priority**: **High**, **Normal** or **Low**, always shown. Click it to change it.
 - **Status**: the pill on the right, as before.
@@ -87,7 +87,7 @@ A small bar above the list changes how Slate is laid out. Nothing changes until 
 
 In the Slate app, the **gear** opens **Settings**, where you pick the view Slate opens with, row density and quick keys. See [How do I change my Slate settings?](#/help/slate-settings).
 
-The toolbar has **Add task**, **Calendar**, **Show done** and, once Show done is on, **Show older**. (The client filter is in the filter bar.) Done tasks finished more than 12 months ago stay hidden unless you turn on **Show older**. Nothing is deleted.
+The toolbar has **Calendar**, **Show done** and, once Show done is on, **Show older**, plus **Add task** when there's no **Create** button in the left nav. (The client filter is in the filter bar.) Done tasks finished more than 12 months ago stay hidden unless you turn on **Show older**. Nothing is deleted.
 
 ### Unassigned tasks and Claim
 
@@ -108,7 +108,7 @@ The quickest way is the **Add task** row at the bottom of **Today**, **This week
 
 Or:
 
-Press **q** on any staff page (not while you're typing in a box), click **Add task**, or use **Create** → **Task** at the top of the left nav (the round **+** in the top bar on a phone). **Create** works with or without a client open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
+Press **q** on any staff page (not while you're typing in a box), or use the one new-task button the screen shows: **Create** → **Task** at the top of the left nav (the round **+** in the top bar on a phone), **+ Add** in the Slate app's top bar when its rail has no **Create**, or **Add task** in the toolbar when there's no **Create** at all. **Create** works with or without a client open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
 
 Type the task in one line. The portal picks out the details and shows them as chips under the box:
 
@@ -143,10 +143,10 @@ To add a reminder instead, use ⌘K → **New reminder**, or set **Type** to **R
 
 ### Work with a task
 
-- Click the done box on a row to mark a task done, and again to undo. On a task that needs review, your Done sends it to an admin instead. See [What's in a task's details?](#/help/task-details) and [How does task review work?](#/help/task-review). The message that follows has **Undo** for 10 seconds (or press **Ctrl+Z** / **⌘Z**).
+- Click the done box on a row to mark a task done, and again to undo. On a task that needs review, your Done sends it to an admin instead. See [What's in a task's details?](#/help/task-details) and [How does task review work?](#/help/task-review). The message that follows has **Undo** for 10 seconds (or press **Ctrl+Z** / **⌘Z**). In an open task, the **Mark done** button at the top does the same (or press **x**).
 - To change several tasks at once, tick the small select box at the far left of each row (it shows when you point at the row), or press **v**. A bar at the bottom completes, reopens, reassigns, moves, reschedules or deletes them together. See [How do I change many tasks at once, and undo a change?](#/help/select-many-tasks).
 - Click the status (for example **To do**) to change it.
-- Click the task's name to open its details: dates, priority, comments, files, subtasks, the checklist and its history.
+- Click a task's row (its name, or anywhere that isn't a button or menu) to open its details: dates, priority, comments, files, subtasks, the checklist and its history.
 - A task with checklist steps shows its progress, such as **3/5**.
 - A task with subtasks shows a small arrow and how many are done, such as **2/5**. See *Subtasks* below.
 - A task that belongs to a project shows the project's name with its color dot. See [How do client task lists and projects work?](#/help/task-lists-and-projects).
@@ -155,9 +155,8 @@ To add a reminder instead, use ⌘K → **New reminder**, or set **Type** to **R
 
 A task with subtasks has a small arrow and a count, such as **2/5** (2 of its 5 subtasks are done), next to its name.
 
-- **Click the row** (anywhere that isn't its name, a button or a menu) and the subtasks open right under it, indented. Click the row again to close them.
-- **Click the task's name** to open its details instead. That's the one click that goes to the drawer; a row without subtasks opens the drawer from anywhere on the row.
-- You can also click the arrow itself, or focus the row and press **→** to open and **←** to close.
+- **Click the arrow** and the subtasks open right under it, indented. Click it again to close them. Or focus the row and press **→** to open and **←** to close.
+- **Click anywhere else on the row** (its name included) to open the task's details, the same as a row without subtasks.
 - Each subtask has its own check box (click to mark it done, again to undo), its name, who it's assigned to and its due date. Click a subtask's name to open its details.
 - The portal remembers which tasks you opened, in this browser. A subtask that is done still shows under its parent while the parent is open, whatever the list's **Show done** says.
 - A subtask shows only under its parent. If its parent is in a different group or hidden (for example, the parent is due later), the subtask keeps its own row as well, so it never goes missing.
@@ -204,7 +203,8 @@ When an admin uses **View as** on someone, Slate is a read-only snapshot of that
 
 ### Troubleshooting
 
-- **Clicking a row opened its subtasks, not the details.** That's how a task with subtasks works: click the row to open or close its subtasks, and click the task's name to open its details.
+- **Clicking a row opened the task, not its subtasks.** Only the small arrow next to the name opens or closes the subtasks (or press **→** and **←** on the row). A click anywhere else on the row opens the task. Before November 2, 2026, a row click opened the subtasks.
+- **I can't find the Reassign button (two arrows).** It's gone: click the person's initials on the row instead. Their profile is the first item in that menu.
 - **Notes and SOPs used to be here.** They moved to **Work › Notes & SOPs**. See [How do I keep notes on a client?](#/help/notes).
 - **The By client view is gone.** Each client now has its own list in the Slate sidebar, with the client's people, SOP and Drive folder at the top. Handoff summaries moved to **Work › Notes & SOPs → Handoff summaries**.
 - **"Slate is being set up"**: the update is still finishing. Your tasks are safe; use the page again in a few minutes.

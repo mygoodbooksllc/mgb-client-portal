@@ -196,7 +196,30 @@
   outline-offset: 1px;
 }
 
-/* ---- Name opens the profile; a separate reassign control ---- */
+/* ---- Row person: one button opens "Assign to"; the profile is the menu's first item (2026-11-02) ---- */
+.tk-menu-sep {
+  display: block;
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+.tk-menu-profile .tk-icon {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+/* The Slate bar's avatar menu: the signed-in name at the top (TK_StandaloneBar.jsx). */
+.tk-sbar-who {
+  font-weight: 600;
+  color: var(--text);
+}
+/* A ticked item in that menu (Follow my client when it is on). */
+.tk-sbar-check {
+  display: inline-flex;
+  margin-right: 6px;
+  color: var(--good, var(--accent));
+}
+
+/* ---- Name opens the profile; a separate reassign control (drawer and older layouts) ---- */
 .tkp-asg-wrap {
   display: inline-flex;
   align-items: center;

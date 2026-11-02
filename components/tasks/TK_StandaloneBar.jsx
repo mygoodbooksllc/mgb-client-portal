@@ -2,18 +2,20 @@
 // TK_StandaloneBar.jsx — the slim bar on top of the Tasks shell (Row 11.2)
 // and the portal side of Dock.
 //
-// TK_StandaloneBar({ staffUser, clients })
-//   The gold logo badge on navy deep, the "Tasks" wordmark, a search button
-//   (#/tasks/search), the "Follow my client" switch (a menu item on touch
-//   screens; mgb_tk_follow_v1; TK_useFollowClient in TK_ClientDrawer.jsx),
-//   "Dock in portal", and an avatar menu with "Open full portal" and
-//   "Help". Inside the Slate app (TK_slateInApp, TK_SlateBridge.jsx) Dock,
-//   Open full portal and Help go to a portal window over the "mgb-slate"
-//   channel instead, and the install strip shows on /slate?install=1.
-//   The app's size modes (TK_SlateModes.jsx) shape the bar: compact has the
-//   logo, a search button, + Add and a menu (Follow my client, the size
-//   presets, Dock in portal, Open full portal, Help); regular and full add a
-//   search box, the size buttons, the Follow switch and the Dock button.
+// TK_StandaloneBar({ staffUser, clients, theme, onToggleTheme, isAdmin, onSignOut })
+//   The gold logo badge on navy deep, the "Slate" wordmark, search, one
+//   "+ Add" (app only, and only where the rail has no Create and there is no
+//   phone bottom bar: TK_useNewTaskButtons), the Settings gear (app), and the
+//   avatar menu: the one stop (Slate UX review, Stage A, 2026-11-02) for My
+//   profile and Notifications (portal Settings), Dark/Light mode, the window
+//   controls (the size presets, Dock in portal, Follow my client:
+//   mgb_tk_follow_v1, TK_useFollowClient in TK_ClientDrawer.jsx), Open full
+//   portal, Help, the Slate tour, Admin settings (admins: portal HR ›
+//   Members) and Sign out. Inside the Slate app (TK_slateInApp,
+//   TK_SlateBridge.jsx) portal pages open in a portal window over the
+//   "mgb-slate" channel instead, and the install strip shows on
+//   /slate?install=1. Back, Forward and Refresh (AN_AppNav) show only in an
+//   app window with no browser toolbar (TK_vNeedsAppNav).
 //   While mounted it adds body.tk-shell (which hides the
 //   chat button) and, when the window has an opener, remembers its size in
 //   mgb_tk_popout_v1 (debounced 500 ms).
@@ -158,6 +160,45 @@ function TK_vDock(hash) {
   return finish;
 }
 
+// Back, Forward and Refresh are needed only where the window has no browser
+// toolbar: an installed app window (AN_AppNav shows itself there) or the
+// Slate pop-up (window.toolbar.visible is false). In an ordinary browser tab
+// the browser's own buttons do the same thing, so the bar leaves them out.
+function TK_vNeedsAppNav() {
+  try {
+    return !!(window.toolbar && window.toolbar.visible === false);
+  } catch (e) {
+    return false;
+  }
+}
+
+// Which Slate add button shows here (TK_newTaskButtons in TK_viewLogic.js):
+// { bar, head }. Used by the bar's + Add and by My Tasks' header Add task, so
+// each screen has one New task button (plus q and the in-list Add task rows).
+function TK_useNewTaskButtons(embedded) {
+  var inApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
+  var sm = typeof TK_useSlateMode === "function" ? TK_useSlateMode() : null;
+  var createOn = typeof CM_useCreateMenu === "function" ? CM_useCreateMenu() : false;
+  var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  var touch = TK_vUseTouch();
+  var mode = inApp && sm ? sm.mode : null;
+  var lay = mode && typeof TK_slateLayout === "function" ? TK_slateLayout(mode, touch) : null;
+  var railCreate = !!(inApp && lay && lay.rail && plusOn && createOn && typeof TKR_Rail === "function" && typeof TB_NavCreate === "function");
+  var shell = false;
+  try {
+    shell = window.MGB_SHELL === "tasks";
+  } catch (e) {}
+  if (typeof TK_newTaskButtons !== "function") return { bar: !!mode, head: !mode };
+  return TK_newTaskButtons({
+    inApp: !!mode,
+    railCreate: railCreate,
+    bottomBar: !!(lay && lay.bottomBar),
+    createOn: createOn,
+    shell: shell,
+    embedded: !!embedded,
+  });
+}
+
 function TK_StandaloneBar(props) {
   var staffUser = props.staffUser || {};
   var width = TK_vUseWidth();
@@ -173,7 +214,9 @@ function TK_StandaloneBar(props) {
   var presets = typeof TK_useSlatePresets === "function" ? TK_useSlatePresets() : { ok: false };
   var route = TK_useRoute();
   var phone = slm ? !slWide : width <= 760;
-  var followInMenu = touch || (!!slm && !slWide);
+  // Window controls (sizes, Dock in portal, Follow my client) live in the
+  // avatar menu (Slate UX review, Stage A item 4).
+  var addBtns = TK_useNewTaskButtons(false);
   // Slate plus Profile 2: the unified search replaces the bar's search box
   // while the gate is on. Off, the old box / link render exactly as before.
   var tksOn = (typeof TKP_useOn === "function" ? TKP_useOn() : false) && typeof TKS_SearchBox === "function";
@@ -254,6 +297,34 @@ function TK_StandaloneBar(props) {
     }
     cancelRef.current = TK_vDock(currentHash());
   };
+  // A portal page: in the app it goes to a portal window (TK_slateForwardHash);
+  // in a plain Tasks pop-out the opener goes there (like Help); with no opener
+  // this window leaves the shell for it.
+  var goPortal = function (hash) {
+    if (inApp) {
+      TK_slateForwardHash(hash);
+      return;
+    }
+    var op = null;
+    try {
+      op = window.opener && !window.opener.closed ? window.opener : null;
+    } catch (e) {
+      op = null;
+    }
+    if (op) {
+      try {
+        op.location.hash = hash;
+        op.focus();
+        return;
+      } catch (e) {}
+    }
+    TK_vClearShellFlag();
+    try {
+      window.location.assign("/" + hash);
+    } catch (e) {}
+  };
+  // Open full portal keeps its old behavior: outside the app this window
+  // itself becomes the portal.
   var openPortal = function () {
     if (inApp) {
       TK_slateForwardHash("#/today");
@@ -304,7 +375,7 @@ function TK_StandaloneBar(props) {
         </span>
         <span className="tk-sbar-word">Slate</span>
       </a>
-      {!phone && typeof AN_AppNav === "function" && TK_slateInApp() ? <AN_AppNav variant="sbar" always /> : null}
+      {!phone && typeof AN_AppNav === "function" && TK_slateInApp() ? <AN_AppNav variant="sbar" always={TK_vNeedsAppNav()} /> : null}
       <span className="tk-sbar-live tk-sr" aria-live="polite">
         {follow.liveText}
       </span>
@@ -328,11 +399,12 @@ function TK_StandaloneBar(props) {
             <TK_vIcon name="search" size={18} />
           </a>
         )}
-        {slm ? (
+        {slm && addBtns.bar ? (
           <button
             type="button"
             className="tk-sbar-btn tk-sbar-add"
-            title="Add a task"
+            data-tour="tk-sbar-add"
+            title="Add a task (q)"
             aria-label="Add a task"
             onClick={function () {
               try {
@@ -361,25 +433,9 @@ function TK_StandaloneBar(props) {
             <TK_vIcon name="gear" size={17} />
           </a>
         ) : null}
-        {slWide && typeof TK_SlateSizeButtons === "function" ? <TK_SlateSizeButtons /> : null}
-        {slm && slm.mode === "compact" && presets.ok ? (
-          <button type="button" className="tk-sbar-btn tk-slate-size" title="Back to the full page" onClick={function () { presets.apply("full"); }}>
-            Full page
-          </button>
-        ) : null}
-        {followInMenu ? null : (
-          <span className="tk-sbar-follow-wrap" title="Show the tasks for the client open in your portal window">
-            <TK_vSwitch className="tk-sbar-follow" label="Follow my client" checked={followOn} onChange={setFollow} />
-          </span>
-        )}
-        {showDock && !phone ? (
-          <button type="button" className="tk-sbar-btn tk-sbar-dock" onClick={dock} title="Dock in portal">
-            <TK_vIcon name="dock" size={17} />
-            <span>Dock in portal</span>
-          </button>
-        ) : null}
         <TK_vMenuButton
           className="tk-sbar-avatar"
+          tour="tk-sbar-avatar"
           ariaLabel="Account menu"
           title="Account menu"
           menuLabel="Account"
@@ -387,117 +443,79 @@ function TK_StandaloneBar(props) {
           label={<TK_vAvatar name={name} size="sm" decorative />}
         >
           {function (close) {
+            // One stop for the person's own things (Slate UX review, Stage A):
+            // profile, notifications and theme; the window controls; portal,
+            // help and tour; Admin settings for admins; Sign out.
             var items = [];
-            if (showDock && phone && !slm) {
-              items.push(
+            var item = function (key, label, onPick, extra) {
+              return (
                 <button
-                  key="dock"
+                  key={key}
                   type="button"
-                  role="menuitem"
+                  role={(extra && extra.role) || "menuitem"}
+                  aria-checked={extra && extra.checked != null ? (extra.checked ? "true" : "false") : undefined}
+                  title={(extra && extra.title) || undefined}
                   className="tk-menu-item"
                   onClick={function () {
                     close();
-                    dock();
+                    onPick();
                   }}
                 >
-                  Dock in portal
-                </button>,
+                  {extra && extra.checked ? (
+                    <span className="tk-sbar-check" aria-hidden="true">
+                      <TK_vIcon name="check" size={14} />
+                    </span>
+                  ) : null}
+                  {label}
+                </button>
               );
-            }
-            if (followInMenu) {
+            };
+            var sep = function (key) {
+              return <span key={key} className="tk-menu-sep" role="separator" aria-hidden="true" />;
+            };
+            if (name) {
               items.push(
-                <button
-                  key="follow"
-                  type="button"
-                  role="menuitemcheckbox"
-                  aria-checked={followOn ? "true" : "false"}
-                  className="tk-menu-item"
-                  onClick={function () {
-                    close();
-                    setFollow(!followOn);
-                  }}
-                >
-                  Follow my client
-                </button>,
-              );
-            }
-            if (slm && !slWide && presets.ok && typeof TK_SLATE_PRESET_ITEMS !== "undefined") {
-              TK_SLATE_PRESET_ITEMS.forEach(function (it) {
-                items.push(
-                  <button
-                    key={"size-" + it.id}
-                    type="button"
-                    role="menuitem"
-                    className="tk-menu-item"
-                    onClick={function () {
-                      close();
-                      presets.apply(it.id);
-                    }}
-                  >
-                    {"Size: " + it.label}
-                  </button>,
-                );
-              });
-            }
-            if (showDock && phone && slm) {
-              items.push(
-                <button
-                  key="dock"
-                  type="button"
-                  role="menuitem"
-                  className="tk-menu-item"
-                  onClick={function () {
-                    close();
-                    dock();
-                  }}
-                >
-                  Dock in portal
-                </button>,
+                <div key="who" className="tk-menu-note tk-sbar-who">
+                  {name}
+                </div>,
               );
             }
             items.push(
-              <button
-                key="portal"
-                type="button"
-                role="menuitem"
-                className="tk-menu-item"
-                onClick={function () {
-                  close();
-                  openPortal();
-                }}
-              >
-                Open full portal
-              </button>,
-              <button
-                key="help"
-                type="button"
-                role="menuitem"
-                className="tk-menu-item"
-                onClick={function () {
-                  close();
-                  help();
-                }}
-              >
-                Help
-              </button>,
+              item("profile", "My profile", function () { goPortal("#/settings?tab=profile"); }, { title: "Name, title, photo and phone (portal Settings)" }),
+              item("notify", "Notifications", function () { goPortal("#/settings?tab=notifications"); }, { title: "Which emails and bell alerts you get (portal Settings)" }),
             );
+            if (typeof props.onToggleTheme === "function") {
+              items.push(item("theme", props.theme === "dark" ? "Light mode" : "Dark mode", props.onToggleTheme));
+            }
+            items.push(item("display", "Display settings", function () { goPortal("#/settings?tab=appearance"); }, { title: "Theme and start page (portal Settings)" }));
+            // Window controls.
+            var win = [];
+            if (slm && presets.ok && typeof TK_SLATE_PRESET_ITEMS !== "undefined") {
+              TK_SLATE_PRESET_ITEMS.forEach(function (it) {
+                win.push(item("size-" + it.id, "Size: " + it.label, function () { presets.apply(it.id); }));
+              });
+            }
+            if (showDock) win.push(item("dock", "Dock in portal", dock));
+            win.push(
+              item("follow", "Follow my client", function () { setFollow(!followOn); }, {
+                role: "menuitemcheckbox",
+                checked: followOn,
+                title: "Show the tasks for the client open in your portal window",
+              }),
+            );
+            items.push(sep("sep-win"));
+            items = items.concat(win);
+            items.push(sep("sep-help"), item("portal", "Open full portal", openPortal), item("help", "Help", help));
             // The presenter tour, run right here in the app (Tour.jsx).
             if (inApp && typeof window.TK_replaySlateTour === "function") {
-              items.push(
-                <button
-                  key="tour"
-                  type="button"
-                  role="menuitem"
-                  className="tk-menu-item"
-                  onClick={function () {
-                    close();
-                    window.TK_replaySlateTour();
-                  }}
-                >
-                  Take the Slate tour
-                </button>,
-              );
+              items.push(item("tour", "Take the Slate tour", function () { window.TK_replaySlateTour(); }));
             }
+            var tail = [];
+            // Admins: the portal's staff access page (HR › Members). Nothing
+            // about staff, pay or access is edited inside Slate itself.
+            if (props.isAdmin) tail.push(item("admin", "Admin settings", function () { goPortal("#/hr/members"); }, { title: "Staff and their access (portal HR › Members)" }));
+            if (typeof props.onSignOut === "function") tail.push(item("signout", "Sign out", props.onSignOut));
+            if (tail.length) items = items.concat([sep("sep-acct")], tail);
             return items;
           }}
         </TK_vMenuButton>

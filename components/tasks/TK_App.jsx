@@ -255,7 +255,7 @@ function TK_App(props) {
               navigate({ view: "my" });
             }}
           >
-            <TK_vIcon name="home" size={20} />
+            <TK_vIcon name="layout-list" size={20} />
             <span>Slate</span>
           </a>
           <button

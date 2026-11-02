@@ -732,8 +732,8 @@ t("subNestGroups feeds focusIds only the visible rows", () => {
   const view = L.TK_subNestGroups([{ key: "g", collapsed: false, tasks: [p, a, tk("z")] }], L.TK_subIndex([a]));
   assert.deepStrictEqual(L.TK_focusIds(view), ["p", "z"]);
 });
-t("subRowClickAction: body toggles when there are subtasks, else opens; title and controls do nothing here", () => {
-  assert.strictEqual(L.TK_subRowClickAction(true, "body"), "toggle");
+t("subRowClickAction: the body always opens the task (only the arrow opens subtasks); title and controls do nothing here", () => {
+  assert.strictEqual(L.TK_subRowClickAction(true, "body"), "open");
   assert.strictEqual(L.TK_subRowClickAction(false, "body"), "open");
   assert.strictEqual(L.TK_subRowClickAction(true, "title"), "none");
   assert.strictEqual(L.TK_subRowClickAction(false, "title"), "none");
@@ -1492,6 +1492,18 @@ t("slateTaskHost: pane in full, drawer in compact and regular, none in a sliver"
     assert.ok(["pane", "drawer", "none"].indexOf(h) >= 0);
   });
 });
+t("newTaskButtons: exactly one top add button", () => {
+  const b = L.TK_newTaskButtons;
+  assert.deepStrictEqual(b({ embedded: true, createOn: true }), { bar: false, head: true });
+  assert.deepStrictEqual(b({ inApp: true, railCreate: true }), { bar: false, head: false });
+  assert.deepStrictEqual(b({ inApp: true, railCreate: false }), { bar: true, head: false });
+  assert.deepStrictEqual(b({ inApp: true, bottomBar: true }), { bar: false, head: false });
+  assert.deepStrictEqual(b({ inApp: false, createOn: true }), { bar: false, head: false });
+  assert.deepStrictEqual(b({ inApp: false, createOn: false }), { bar: false, head: true });
+  assert.deepStrictEqual(b({ inApp: false, shell: true, createOn: true }), { bar: false, head: true });
+  assert.deepStrictEqual(b(null), { bar: false, head: true });
+});
+
 t("slateLayout per mode", () => {
   const f = L.TK_slateLayout("full", false);
   assert.deepStrictEqual(f, { mode: "full", rail: true, railW: 240, bottomBar: false, compact: false, canEdit: true, pane: true, list: true });

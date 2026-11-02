@@ -1356,9 +1356,9 @@ var ANN_REGISTRY = [
         },
         targets: ["tk-subtoggle", "tk-groups"],
         wait: true,
-        title: "Click a task to see its subtasks",
+        title: "Click the arrow to see its subtasks",
         body: () =>
-          "A task with subtasks shows a small arrow and a count like 2/5. Click the row, or the arrow, to open them underneath; click again to close. Tick a subtask right there. Click the task name to open the full details. The portal remembers what you left open.",
+          "A task with subtasks shows a small arrow and a count like 2/5. Click the arrow to open them underneath; click it again to close. Tick a subtask right there. Click anywhere else on the row to open the full details. The portal remembers what you left open.",
       },
       {
         id: "ann-colors",
@@ -2416,6 +2416,72 @@ var ANN_REGISTRY = [
           title: "See it again",
           body: () =>
             "To see this again, press ? and pick New: Meet the Create button tour, or read How do I add a task, note or document request, or message a client? in Help.",
+        },
+      ];
+    },
+  },
+  {
+    // Slate UX review, Stage A (2026-11-02): Mark done in an open task, one New
+    // task button, predictable row clicks (the arrow alone opens subtasks; the
+    // initials reassign) and the Slate avatar menu as the one stop for profile,
+    // notifications, theme and the window controls. Guide: my-tasks,
+    // tasks-own-window, slate-profiles, task-details, tips.
+    id: "slate-easier",
+    date: "2026-11-02",
+    // The avatar menu step is about the Slate app, so wait for the app switch
+    // (on since 2026-10-25); the profile line depends on Slate plus (TKP_on).
+    visible: () => ANN_slateLaunchOn(),
+    title: "Slate is simpler to use",
+    summary:
+      "An open task has a Mark done button, each Slate screen has one New task button, a row click always opens the task, and the Slate avatar menu holds your profile, notifications, theme and window controls.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    steps: () => {
+      const toMy = () => {
+        if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+      };
+      return [
+        {
+          id: "ann-welcome",
+          title: "Slate is simpler to use",
+          body: () => "Four small changes that make Slate quicker and less surprising. About a minute.",
+        },
+        {
+          id: "ann-clicks",
+          go: toMy,
+          targets: ["tkp-reassign", "tk-subtoggle", "tk-groups"],
+          wait: true,
+          title: "Clicks do what you expect",
+          body: () =>
+            "Click a row and the task opens, every time. Only the small arrow opens a task's subtasks. Click someone's initials to reassign the task" +
+            (typeof TKP_on === "function" && TKP_on() ? "; their profile is at the top of that menu." : "."),
+        },
+        {
+          id: "ann-markdone",
+          go: toMy,
+          targets: ["tk-dw-done", "tk-groups"],
+          wait: true,
+          title: "Mark done from the open task",
+          body: () =>
+            "Open a task and the Mark done button sits at the top. It works like the circle on the row: work that needs review goes to its reviewer, and Undo is on the message. Press x for the same thing.",
+        },
+        {
+          id: "ann-newtask",
+          go: toMy,
+          targets: ["tk-add", "tk-sbar-add", "nav-create"],
+          wait: true,
+          title: "One New task button",
+          body: () =>
+            "Each Slate screen now has one button for a new task: Create (New task) when you have it, otherwise Add. The Add task row in each group and the q key still work.",
+        },
+        {
+          id: "ann-avatar",
+          go: toMy,
+          targets: ["tk-sbar-avatar", "tk-groups"],
+          wait: true,
+          title: "Your avatar menu",
+          body: () =>
+            "In the Slate app, your avatar menu is the one stop for My profile, Notifications, Display settings, Dark mode, the window sizes, Dock in portal and Follow my client. Admins also get Admin settings. Back, Forward and Refresh show only in a window with no browser buttons.",
         },
       ];
     },

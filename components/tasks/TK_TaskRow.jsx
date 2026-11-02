@@ -691,6 +691,13 @@ function TK_vIcon(props) {
   if (name === "user") return <svg {...common}><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20c.7-3.6 3.4-5.5 7-5.5s6.3 1.9 7 5.5" /></svg>;
   if (name === "gear") return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
   if (name === "folder") return <svg {...common}><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" /></svg>;
+  // Slate's own nav glyphs (Tabler-style), so no two Slate rail or sidebar items share one:
+  // layout-list (Slate home; the portal's Today keeps its house), eye-check (Review, not the
+  // done check), folder-cog (Manage projects, beside the Projects folder), grid (Portfolio).
+  if (name === "layout-list") return <svg {...common}><rect x="4" y="4" width="16" height="6" rx="2" /><rect x="4" y="14" width="16" height="6" rx="2" /></svg>;
+  if (name === "eye-check") return <svg {...common}><circle cx="12" cy="12" r="2" /><path d="M11.1 17.96C7.9 17.67 5.2 15.68 3 12c2.4-4 5.4-6 9-6s6.6 2 9 6c-.22.37-.45.72-.68 1.06" /><polyline points="15 19 17 21 21 17" /></svg>;
+  if (name === "folder-cog") return <svg {...common}><path d="M12 19H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4l3 3h7a2 2 0 0 1 2 2v1.5" /><circle cx="18.5" cy="17.5" r="2" /><path d="M18.5 14v1.5M18.5 19.5V21M21.5 15.75l-1.3.75M16.8 18.5l-1.3.75M15.5 15.75l1.3.75M20.2 18.5l1.3.75" /></svg>;
+  if (name === "grid") return <svg {...common}><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></svg>;
   if (name === "swap") return <svg {...common}><polyline points="16 4 20 8 16 12" /><line x1="20" y1="8" x2="6" y2="8" /><polyline points="8 12 4 16 8 20" /><line x1="4" y1="16" x2="18" y2="16" /></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="8" /></svg>;
 }
@@ -1344,46 +1351,26 @@ function TK_vRowAssignee(props) {
     }
     TK_vRowSave(task, { assignee_email: p.email });
   };
-  // Slate plus (gate on): the name/face opens the profile and a small, separate
-  // button opens the "Assign to" menu. Off, the single menu button is unchanged.
+  // Clicking the person (face or name) always opens the "Assign to" menu
+  // (ease-of-use pass, 2026-11-02). With Slate plus on, their profile is the
+  // first item in that menu instead of a separate link and reassign button.
   var plusRow = typeof TKP_PersonLink === "function" && typeof TKP_on === "function" && TKP_on();
-  var trigger = plusRow ? (
-    <React.Fragment>
-      {email ? (
-        <TKP_PersonLink email={email} className="tkp-asg-link" title={"Open " + name + "'s profile"}>
-          {face}
-          {shownName}
-        </TKP_PersonLink>
-      ) : null}
+  var openProfile = function (e) {
+    if (e) e.stopPropagation();
+    menu.close(false);
+    if (typeof TKP_openPerson === "function") TKP_openPerson(email);
+  };
+  return (
+    <span className="tk-pop-wrap tk-asg-wrap">
       <button
         type="button"
         ref={menu.btnRef}
-        className={"tkp-reassign" + (email ? "" : " is-empty")}
-        data-tour="tkp-reassign"
-        aria-haspopup="menu"
-        aria-expanded={menu.open ? "true" : "false"}
-        aria-label={email ? "Reassign. Assigned to " + name : "Assign someone"}
-        title={email ? "Reassign" : "Assign someone"}
-        onClick={function (e) {
-          e.stopPropagation();
-          menu.setOpen(!menu.open);
-        }}
-      >
-        {email ? <TK_vIcon name="swap" size={13} /> : face}
-        {hint}
-      </button>
-    </React.Fragment>
-  ) : null;
-  return (
-    <span className={"tk-pop-wrap tk-asg-wrap" + (plusRow ? " tkp-asg-wrap" : "")}>
-      {plusRow ? trigger : <button
-        type="button"
-        ref={menu.btnRef}
         className={"tk-cellbtn tk-asg" + (email ? "" : " is-empty")}
+        data-tour={plusRow ? "tkp-reassign" : undefined}
         aria-haspopup="menu"
         aria-expanded={menu.open ? "true" : "false"}
         aria-label={email ? "Assignee: " + name + ". Change assignee" : "No assignee. Assign someone"}
-        title={email ? name : "Assign someone"}
+        title={email ? name + ": change assignee" : "Assign someone"}
         onClick={function (e) {
           e.stopPropagation();
           menu.setOpen(!menu.open);
@@ -1392,13 +1379,22 @@ function TK_vRowAssignee(props) {
         {face}
         {shownName}
         {hint}
-      </button>}
+      </button>
       {menu.open ? (
         <div className="tk-menu" role="menu" aria-label="Assign to" ref={menu.menuRef} onKeyDown={menu.onKeyDown}>
           {task.client_id && typeof TK_HoursChip === "function" && typeof TKP_on === "function" && TKP_on() ? (
             <span className="tk-menu-note tkh-menu-note">
               <TK_HoursChip clientId={task.client_id} />
             </span>
+          ) : null}
+          {plusRow && email && typeof TKP_openPerson === "function" ? (
+            <React.Fragment>
+              <button type="button" role="menuitem" className="tk-menu-item tk-menu-profile" onClick={openProfile}>
+                <TK_vIcon name="user" size={14} />
+                <span className="tk-menu-label">{"Open " + name + "'s profile"}</span>
+              </button>
+              <span className="tk-menu-sep" role="separator" aria-hidden="true" />
+            </React.Fragment>
           ) : null}
           {people === null ? <span className="tk-menu-note">Loading…</span> : null}
           {list.map(function (p) {
@@ -1765,8 +1761,8 @@ function TK_TaskRow(props) {
     e.preventDefault();
     if (props.onOpen) props.onOpen(id);
   };
-  // Tasks p3: subtasks inline. A row with subtasks opens/closes them from its
-  // body; the title link still opens the drawer.
+  // Tasks p3: subtasks inline. Only the arrow button opens/closes them; a click
+  // anywhere else on the row opens the task (ease-of-use pass, 2026-11-02).
   var subs = props.subs || null;
   var kids = subs && subs.kidsOf && subs.kidsOf[String(id)] ? subs.kidsOf[String(id)] : null;
   var hasKids = !!(kids && kids.length);

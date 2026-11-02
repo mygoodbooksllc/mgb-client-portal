@@ -132,6 +132,43 @@
   font-size: 22px;
 }
 
+/* Mark done at the top of the open task (2026-11-02). */
+.tk-dw-done-row {
+  margin-top: 10px;
+}
+.tk-dw-done-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 16px 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tk-dw-done-btn:hover:not(:disabled) {
+  border-color: var(--good);
+  color: var(--good);
+}
+.tk-dw-done-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tk-dw-done-btn.is-done {
+  border-color: var(--good);
+  background: var(--good);
+  color: var(--surface);
+}
+.tk-dw-done-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .tk-dw-title-row {
   display: flex;
   align-items: flex-start;

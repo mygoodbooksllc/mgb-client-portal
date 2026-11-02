@@ -1585,13 +1585,14 @@ function ST_FirmSettings({ groups, isAdmin, onSelectPage, isOwner }) {
   );
 }
 
-// A portal window opened straight at #/settings?tab=notifications (the Slate
-// app's Settings page, with no portal open yet): App's route sync can drop
+// A portal window opened straight at #/settings?tab=notifications,
+// ?tab=profile or ?tab=appearance (the Slate app's Settings page and avatar
+// menu, with no portal open yet): App's route sync can drop
 // the query before this page first renders, so the tab is read when this
 // file loads and used once.
 let ST_loadHashTab = (() => {
   try {
-    const m = /^#\/settings(?:\/[^?]*)?\?(?:[^#]*&)?tab=(notifications)\b/.exec(window.location.hash || "");
+    const m = /^#\/settings(?:\/[^?]*)?\?(?:[^#]*&)?tab=(profile|notifications|appearance)\b/.exec(window.location.hash || "");
     return m ? m[1] : null;
   } catch (e) {
     return null;
@@ -1614,10 +1615,10 @@ function ST_StaffSettingsPage({
   const ro = !!readOnlyReason;
   // Re-render when the L1 sidebar gate resolves, so the Sidebar defaults row appears.
   if (typeof SS_useOn === "function") SS_useOn();
-  // #/settings?tab=notifications opens that tab (the Slate app's Settings page links here).
+  // #/settings?tab=notifications, ?tab=profile or ?tab=appearance opens that tab (the Slate app's Settings page and avatar menu link here).
   const hashTab = () => {
     try {
-      const m = /[?&]tab=(notifications)\b/.exec(window.location.hash || "");
+      const m = /[?&]tab=(profile|notifications|appearance)\b/.exec(window.location.hash || "");
       return m ? m[1] : null;
     } catch (e) {
       return null;

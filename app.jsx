@@ -31316,7 +31316,16 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         )}
         <main className="main">
           {/* Tasks shell: the slim bar replaces the rail and the top bar. */}
-          {tkShell && <TK_StandaloneBar staffUser={staffUser} clients={visibleClients} />}
+          {tkShell && (
+            <TK_StandaloneBar
+              staffUser={staffUser}
+              clients={visibleClients}
+              theme={effectiveTheme}
+              onToggleTheme={() => chooseTheme(effectiveTheme === "dark" ? "light" : "dark")}
+              isAdmin={staffIsAdmin}
+              onSignOut={signOutApp}
+            />
+          )}
           {/* Staff top bar (components/staff/TopBar.jsx): shown wherever the
               staff sidebar is, so clients and client-user previews never see it. */}
           {showStaffTopBar && (

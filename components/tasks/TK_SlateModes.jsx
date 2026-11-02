@@ -617,7 +617,9 @@ var TK_SLATE_PRESET_ITEMS = [
   { id: "full", label: "Full page" },
 ];
 
-// The size buttons in the bar (regular and full).
+// The size buttons (Sliver, List, Full page). Since Slate UX Stage A
+// (2026-11-02) the bar no longer shows them: the sizes are items in the
+// avatar menu (TK_StandaloneBar.jsx). Kept for Stage B's layout work.
 function TK_SlateSizeButtons() {
   var pr = TK_useSlatePresets();
   if (!pr.ok) return null;

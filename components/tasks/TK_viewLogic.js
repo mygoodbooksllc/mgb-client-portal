@@ -21,6 +21,7 @@
 //   small display helpers                 TK_initials, TK_canManageProjectHint, TK_listScopeOf, TK_searchRowToTask
 //   Slate app (preview, spec-desk-fullpage) TK_slateAppIsOn, TK_slateMode, TK_slateCurrent,
 //                                         TK_slateSizePreset, TK_slateDeepHref (and the app minimum in TK_popOutSize)
+//   one New task button                   TK_newTaskButtons (app top bar + Add vs list-header Add task)
 //   Slate app bridge (S2)                 TK_slateForwardOk, TK_slateDockPick, TK_slateIsTasksHash,
 //                                         TK_slateDockHashOk, TK_slateAppUrl, TK_slateLaunchItems
 //   Slate app P3 (preview)                TK_validateViewName, TK_mergeSavedViews, TK_activeSavedViewId (named saved views);
@@ -916,10 +917,12 @@ function TK_subNestGroups(groups, kidsOf) {
 
 // What a click on a row does. hasKids: the row has subtasks. kind: "interactive"
 // (a button, link, input or menu inside the row), "title" (the title link) or
-// "body" (anything else). A row without subtasks opens the drawer from its body.
+// "body" (anything else). The body always opens the task (Slate ease-of-use,
+// 2026-11-02): only the arrow button opens or closes subtasks, so a row click
+// never surprises anyone. hasKids is kept for callers and tests.
 function TK_subRowClickAction(hasKids, kind) {
   if (kind === "interactive" || kind === "title") return "none";
-  return hasKids ? "toggle" : "open";
+  return "open";
 }
 
 // Arrow keys on a focused row: right opens its subtasks, left closes them.
@@ -2095,6 +2098,27 @@ function TK_slateLaunchItems(o) {
 }
 
 // ---- Slate app: what each size mode shows (S3, spec 3.3) ------------------------
+// One "New task" button per screen (Slate UX review, Stage A item 2). Which
+// of the two Slate add buttons shows; the in-list "Add task" rows, the phone
+// bottom bar's Add and the q key are not part of this and always stay.
+//   o.inApp      the Slate app window (TK_slateInApp)
+//   o.railCreate the app's rail shows Create (Create gate on and the Slate plus
+//                icon rail is up in a regular or full window)
+//   o.bottomBar  the app's phone bottom bar is up (it has its own Add)
+//   o.createOn   the Create gate (CM_createOn): on the portal page the left
+//                nav and the top bar carry Create, with New task in it
+//   o.shell      the slim Tasks shell outside the app (no portal nav, no
+//                rail Create), which keeps the header button
+//   o.embedded   My Tasks inside the Desk (keeps its button)
+// Returns { bar, head }: bar = the "+ Add" in the app's top bar, head = the
+// "Add task" button in the list header.
+function TK_newTaskButtons(o) {
+  var x = o || {};
+  if (x.embedded) return { bar: false, head: true };
+  if (x.inApp) return { bar: !x.railCreate && !x.bottomBar, head: false };
+  return { bar: false, head: !!x.shell || !x.createOn };
+}
+
 // Only the Slate app (TK_slateInApp) uses these; the portal page keeps
 // TK_shellLayout.
 
@@ -2298,6 +2322,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_slateLaunchItems: TK_slateLaunchItems,
     TK_slateTaskHost: TK_slateTaskHost,
     TK_slateLayout: TK_slateLayout,
+    TK_newTaskButtons: TK_newTaskButtons,
     TK_slateModeClasses: TK_slateModeClasses,
     TK_slatePresetsAllowed: TK_slatePresetsAllowed,
     TK_slateSizeHit: TK_slateSizeHit,

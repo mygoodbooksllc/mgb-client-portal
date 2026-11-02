@@ -360,6 +360,7 @@ function TK_vMenuButton(props) {
         type="button"
         ref={btnRef}
         className={props.className || "tk-tool-btn"}
+        data-tour={props.tour || undefined}
         aria-haspopup="menu"
         aria-expanded={open ? "true" : "false"}
         aria-label={props.ariaLabel || undefined}
@@ -822,6 +823,8 @@ function TK_vMyTasksBody(props) {
   var emailTemplates = typeof TK_useEmailTemplates === "function" ? TK_useEmailTemplates() : null;
   // Slate app P3: named saved views, only inside the Slate app.
   var slateApp = typeof TK_useSlateInApp === "function" ? TK_useSlateInApp() : false;
+  // One New task button per screen (TK_useNewTaskButtons, TK_StandaloneBar.jsx).
+  var addBtns = typeof TK_useNewTaskButtons === "function" ? TK_useNewTaskButtons(embedded) : { head: true };
   var groupBy = sv.groupBy;
   var built =
     typeof TK_slateBuildView === "function"
@@ -1258,10 +1261,12 @@ function TK_vMyTasksBody(props) {
       <div className="tk-view-head">
         {embedded ? null : <h2 className="tk-view-title">Slate</h2>}
         <div className="tk-toolbar" role="toolbar" aria-label="Slate options">
-          <button type="button" className="btn-primary tk-add-btn" data-tour="tk-add" onClick={addTask}>
-            <TK_vIcon name="plus" size={15} />
-            <span>Add task</span>
-          </button>
+          {addBtns.head ? (
+            <button type="button" className="btn-primary tk-add-btn" data-tour="tk-add" onClick={addTask}>
+              <TK_vIcon name="plus" size={15} />
+              <span>Add task</span>
+            </button>
+          ) : null}
           {!embedded && !unifiedOn && typeof TK_SlateListSearch === "function" ? (
             <TK_SlateListSearch
               value={searchText}

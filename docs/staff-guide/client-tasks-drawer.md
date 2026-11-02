@@ -52,7 +52,7 @@ The task just moves up; nothing is hidden, and it never shows twice. The portal 
 
 ### Follow my client
 
-In the Slate app (see [How do I use the Slate app?](#/help/tasks-own-window)), turn on **Follow my client** and its list switches to whichever client you open in the portal. On a phone or tablet the switch is in the account menu. Your choice is remembered in that browser.
+In the Slate app (see [How do I use the Slate app?](#/help/tasks-own-window)), turn on **Follow my client** and its list switches to whichever client you open in the portal. It's in the app's avatar menu (your initials, top right). Your choice is remembered in that browser.
 
 ### Troubleshooting
 

@@ -471,8 +471,22 @@ t("registry: slate-view-bar (rhythm slice 0) is ungated and tours the Slate view
   // client-org-profile-launch, do not compete while their switch is off. The
   // admins-only view-as-whole-app notice is newer but no bookkeeper gets it. custom-repeat, 2026-10-25, is a
   // newer ungated notice and is excluded here: it is its own check above.)
-  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.id !== "celebration-heads-up" && x.id !== "slate-single-home" && x.id !== "custom-repeat" && x.id !== "client-agreements" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
+  const newest = ANN_REGISTRY.filter((x) => typeof x.visible !== "function" && x.id !== "celebration-heads-up" && x.id !== "slate-single-home" && x.id !== "custom-repeat" && x.id !== "client-agreements" && x.id !== "slate-easier" && x.roles.includes("bookkeeper")).reduce((m, x) => (x.date > m ? x.date : m), "");
   assert.strictEqual(a.date, newest);
+});
+
+t("registry: slate-easier (Slate UX Stage A) waits for the Slate app switch and tours the new spots", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "slate-easier");
+  assert.ok(a);
+  assert.strictEqual(typeof a.visible, "function");
+  assert.ok(/ANN_slateLaunchOn\(\)/.test(a.visible.toString()));
+  assert.strictEqual(a.hash, "#/tasks/my");
+  const steps = a.steps({});
+  assert.ok(steps.length >= 3 && steps.length <= 6);
+  assert.deepStrictEqual(steps.map((s) => s.id), ["ann-welcome", "ann-clicks", "ann-markdone", "ann-newtask", "ann-avatar"]);
+  assert.deepStrictEqual(steps[3].targets, ["tk-add", "tk-sbar-add", "nav-create"]);
+  const text = JSON.stringify([a.title, a.summary].concat(steps.map((x) => x.body())));
+  assert.ok(!/colour/i.test(text));
 });
 
 t("registry: client-agreements waits for the card and tours it", () => {
@@ -772,7 +786,7 @@ t("order: with Slate, Month rhythm and the org profile all on: Slate, the Slate 
         rows[pick.id] = { status: "dismissed", later_count: 0 };
       }
     });
-    const s = seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up" && id !== "slate-single-home" && id !== "slate-search");
+    const s = seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up" && id !== "slate-single-home" && id !== "slate-search" && id !== "slate-easier");
     assert.deepStrictEqual(s.slice(0, 4), ["slate-app-launch", "slate-start-to-finish", "month-rhythm-launch", "client-org-profile-launch"]);
   });
 });
@@ -799,7 +813,7 @@ function walk(ctx, store, narrow, first) {
     }
   });
   // The admins-only View as notice (2026-10-23) is newer than these; leave it out of the order checks.
-  return seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up" && id !== "slate-single-home" && id !== "slate-search");
+  return seq.filter((id) => id !== "view-as-whole-app" && id !== "celebration-heads-up" && id !== "slate-single-home" && id !== "slate-search" && id !== "slate-easier");
 }
 
 t("order: with all three eligible, slate-app-launch comes first and supersedes the view bar", () => {

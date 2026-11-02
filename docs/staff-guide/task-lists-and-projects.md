@@ -23,7 +23,7 @@ The **Slate** page (the **Slate** button in the top bar, or `#/tasks/my`) has a 
 
 ### A list
 
-A task with subtasks has an arrow and a count (for example **2/5**). Click the row to open its subtasks right under it; click the task's name to open its details (in the Desk, when the Desk is on; **← Back** or **Esc** returns to the list). See [How do I use my Slate?](#/help/my-tasks).
+A task with subtasks has an arrow and a count (for example **2/5**). Click the arrow to open its subtasks right under it; click anywhere else on the row to open its details (in the Desk, when the Desk is on; **← Back** or **Esc** returns to the list). See [How do I use my Slate?](#/help/my-tasks).
 
 Each list shows its tasks with **Task**, **Assignee**, **Due**, **Status** and **Priority** columns, grouped into sections. Click a column heading to sort by it. Each section ends with an **Add task** row: click it, type a name and press **Enter** (**Esc** cancels), and the new task lands in that section. Each row's assignee, due date and priority change in place with a click; see [How do I use my Slate?](#/help/my-tasks).
 

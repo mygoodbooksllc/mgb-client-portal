@@ -18,7 +18,7 @@ To see them on screen, click **?** in the top bar and pick **Slate plus tour** (
 
 ### People
 
-- **Profiles.** Click a person's name on a task row, in a task, in a comment, on Team or on a shout-out to see their week, their tasks and the clients they cover. The small button next to a name on a row reassigns the task.
+- **Profiles.** Click a person's name in a task, in a comment, on Team or on a shout-out to see their week, their tasks and the clients they cover. On a task row, click the person's initials to reassign the task; their profile is the first item in that menu.
 - **Your own profile.** Add a status, your time zone, pinned clients and projects, goals for the quarter, About me, favorites and out of office, and choose the order of the sections.
 - **Team load moved.** Open, due this week and late for each person, the Unassigned count and the next 4 weeks now live on **Team › People**, not on the Slate page.
 

@@ -28,7 +28,7 @@ The app changes what it shows to fit the window, so you can shrink it to a slive
 - **Regular** (about 720 to 1100 wide): the full list with a left rail of lists and projects. A task opens in a drawer over the list.
 - **Full** (about 1100 wide and up): the rail, the list and a **detail pane** side by side. Click a task, or move with **j** and **k**, and its details show in the pane; **Esc** clears it.
 
-Drag the window's edge to any size, or click **Sliver**, **List** or **Full page** (in the bar, or in the menu in a compact window) to jump to one. The size buttons need the app window, so they do not show in an ordinary browser tab; there, drag the edge. If a size click does not land and the buttons disappear, drag the window larger and they come back at once (or wait 2 minutes).
+Drag the window's edge to any size, or open the avatar menu (your initials, top right) and pick **Size: Sliver**, **Size: List** or **Size: Full page** to jump to one. The sizes need the app window, so they do not show in an ordinary browser tab; there, drag the edge. If a size click does not land and the sizes disappear from the menu, drag the window larger and they come back at once (or wait 2 minutes).
 
 ### The sliver: your current task
 
@@ -59,12 +59,23 @@ These work in the Slate app only, on My tasks and on project, client and person 
 - **Swipes on a touch screen.** Swipe a task right to mark it done, or left to snooze it a day. Press and hold to pick a task up and drag it.
 - **Swipe back.** Swipe two fingers right on a trackpad (or from the left edge of a touch screen) to close the open menu, then the open task, then go to the previous page. In Safari, the trackpad swipe is Safari's own Back.
 - **Undo.** In the app, **Undo** (or **Cmd+Z**) works for 9 minutes after a change, instead of 10 seconds, and **Cmd+Z** steps back through your last 5 changes, newest first (the Undo button on the message always undoes the newest). Undoing a duplicate or a paste deletes the copies, the same way **Delete** does. If someone changed the task since (you or a teammate), a late **Undo** leaves it alone and says so, so it never wipes out newer work.
-- **Back, Forward and Refresh.** The app has no browser buttons, so three round buttons sit beside the Slate logo (not in the sliver or compact sizes). **Back** and **Forward** walk the pages you have opened (grayed out when there is nowhere to go), and **Refresh** reloads the window where you are.
+- **Back, Forward and Refresh.** When the window has no browser buttons of its own (an installed app or a window without a toolbar), three round buttons sit beside the Slate logo (not in the sliver or compact sizes). A window that has the browser's own buttons doesn't repeat them. **Back** and **Forward** walk the pages you have opened (grayed out when there is nowhere to go), and **Refresh** reloads the window where you are.
 
 ### Settings and the tour
 
 - The **gear** in the app's top bar opens **Settings**: how Slate opens, which window **Open Slate app** uses, row density, quick keys and where your task notifications are set. See [How do I change my Slate settings?](#/help/slate-settings).
 - The avatar menu has **Take the Slate tour**, which runs **Slate, start to finish**. See [How do I take the Slate tour?](#/help/slate-tour).
+
+### The avatar menu
+
+Click your initials at the top right of the app. Everything about you and the window is in this one menu:
+
+- **My profile**, **Notifications** and **Display settings** open those tabs of **Settings** in your portal window (name, title, photo and phone; which emails and bell alerts you get; theme and start page).
+- **Dark mode** / **Light mode** switches this window's theme. Other open windows pick it up when they reload.
+- **Size: Sliver**, **Size: List** and **Size: Full page** (app window only), **Dock in portal** and **Follow my client**.
+- **Open full portal**, **Help** and **Take the Slate tour**.
+- **Admin settings** (admins and temporary admins) opens **HR › Members** in the portal, where admins manage staff and their access (temporary admins can look but not change). Nothing about staff, pay or access is changed inside Slate.
+- **Sign out**.
 
 ### Links open in the portal
 
@@ -72,18 +83,19 @@ A client's page, a chat or a file opens in your portal window and the app stays 
 
 ### Follow my client
 
-- The **Follow my client** switch is in the app's top bar (in the menu in a compact window).
+- **Follow my client** is in the avatar menu (your initials, top right). It shows a check mark when it is on.
 - When it is on, opening a client in the portal switches the app to that client's list.
 - It is remembered in this browser, and both windows need to be open in the same browser.
 
 ### Dock it back
 
-Click **Dock in portal**. Your portal window opens Slate on the same list and the app window closes. If no portal window is open, a new tab opens with it. If the browser will not close the app window, it stays open; close it yourself.
+Open the avatar menu and click **Dock in portal**. Your portal window opens Slate on the same list and the app window closes. If no portal window is open, a new tab opens with it. If the browser will not close the app window, it stays open; close it yourself.
 
 ### Troubleshooting
 
 - **"Your browser blocked the new window. Allow pop-ups for this site and try again."** Allow pop-ups for the portal's address in your browser's settings, then click **Open Slate app** again.
 - **I don't see Open Slate app.** Use a computer; on a phone or tablet, use Slate inside the portal. If you still see **Open in own window** on a computer, tell an admin: the Slate app switch may have been turned off.
 - **I'd rather use the old window.** The old slim window is gone (the Classic tasks page choice was removed on October 28, 2026). Use **Compact** or **Sliver** in the Slate app for a smaller window; the Slate page in the portal is the same either way.
-- **Templates, projects or bulk edits are grayed out.** Make the window wider (Regular or Full) or click **Full page**.
-- **The size buttons are missing.** They only work in the app window. In a normal browser tab, drag the window's edge instead.
+- **Templates, projects or bulk edits are grayed out.** Make the window wider (Regular or Full), or pick **Size: Full page** in the avatar menu.
+- **The sizes are missing from the avatar menu.** They only work in the app window. In a normal browser tab, drag the window's edge instead.
+- **Where did Dock in portal, Follow my client and the size buttons go?** Into the avatar menu (your initials, top right), since November 2, 2026.

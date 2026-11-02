@@ -330,8 +330,8 @@ function TK_Sidebar(props) {
   return (
     <nav className="tk-sidebar" aria-label="Task lists" data-tour="tk-sidebar">
       <ul className="tk-nav">
-        <TK_vNavItem route={{ view: "my" }} label="Slate" icon="home" active={route.view === "my"} onNavigate={nav} />
-        <TK_vNavItem route={{ view: "review" }} label="Review" icon="check" count={reviewCount} tour="tk-review-nav" active={route.view === "review"} onNavigate={nav} />
+        <TK_vNavItem route={{ view: "my" }} label="Slate" icon="layout-list" active={route.view === "my"} onNavigate={nav} />
+        <TK_vNavItem route={{ view: "review" }} label="Review" icon="eye-check" count={reviewCount} tour="tk-review-nav" active={route.view === "review"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "waiting" }} label="Waiting on client" icon="hourglass" count={waitCount} tour="tk-waiting-nav" active={route.view === "waiting"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "templates" }} label="Recurring" icon="repeat" tour="tk-recurring-nav" active={route.view === "templates"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "search" }} label="Search" icon="search" active={route.view === "search"} onNavigate={nav} />
@@ -402,7 +402,7 @@ function TK_Sidebar(props) {
         </button>
         {isAdmin && props.staffUser && props.staffUser.role === "admin" ? (
           <ul className="tk-nav">
-            <TK_vNavItem route={{ view: "manage" }} label="Manage projects" icon="folder" tour="tk-manage-nav" active={route.view === "manage"} onNavigate={nav} />
+            <TK_vNavItem route={{ view: "manage" }} label="Manage projects" icon="folder-cog" tour="tk-manage-nav" active={route.view === "manage"} onNavigate={nav} />
             {plusOn && typeof TK_Rules === "function" ? (
               <TK_vNavItem route={{ view: "rules" }} label="Rules" icon="gear" tour="tk-rules-nav" active={route.view === "rules"} onNavigate={nav} />
             ) : null}
@@ -410,7 +410,7 @@ function TK_Sidebar(props) {
         ) : null}
         {plusOn && typeof TKPU_Portfolio === "function" ? (
           <ul className="tk-nav">
-            <TK_vNavItem route={{ view: "portfolio" }} label="Portfolio" icon="list" tour="tk-portfolio-nav" active={route.view === "portfolio"} onNavigate={nav} />
+            <TK_vNavItem route={{ view: "portfolio" }} label="Portfolio" icon="grid" tour="tk-portfolio-nav" active={route.view === "portfolio"} onNavigate={nav} />
           </ul>
         ) : null}
       </div>

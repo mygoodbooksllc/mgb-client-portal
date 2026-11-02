@@ -11,6 +11,7 @@ With the Desk on, the details open inside the Desk column instead, beside the pa
 
 ### The header
 
+- **Mark done**: the button at the top finishes the task the same way as the circle on its row (or press **x**). On a task that needs review it sends it for review instead, a recurring task makes its next one, and the message has **Undo**. On a done task it reads **Completed**; click it to reopen. It's hidden while the task waits for review and when you can't edit the task.
 - **Title**: click to edit.
 - **Copy link**: copies a link that opens this task after sign-in. You'll see *Link copied.* Links in older emails keep working too.
 - **More actions**: **Save as template** (admins) or **Suggest as template** (everyone else), and **Delete**. See [How do I use my Slate?](#/help/my-tasks).

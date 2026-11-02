@@ -200,9 +200,14 @@
 //                    client's team, Subtasks, Checklist, the comments and
 //                    activity thread, Copy link; only while a task is open
 //   tk-sbar-nav, tk-sbar-gear  the Slate app bar's Back / Forward / Refresh
-//                    (app.jsx AN_AppNav variant sbar) and its Settings gear
+//                    (app.jsx AN_AppNav variant sbar; only in a window with no
+//                    browser toolbar) and its Settings gear
 //                    (TK_StandaloneBar.jsx), app only
-//   tk-slate-sizes   the app's Sliver / List / Full page buttons (TK_SlateModes.jsx)
+//   tk-sbar-avatar   the Slate bar's avatar menu (TK_StandaloneBar.jsx): profile,
+//                    notifications, theme, sizes, Dock in portal, Follow my
+//                    client, Admin settings (admins), Sign out
+//   tk-sbar-add      the Slate app bar's + Add, only when the rail has no Create
+//   tk-dw-done       the open task's Mark done button (TK_DrawerContent.jsx)
 //   tk-set-view, tk-set-layout, tk-set-keys, tk-set-undo, tk-set-notify,
 //   tk-set-help      the Slate app's Settings cards (TK_SlateSettings.jsx)
 // A role-tour step can `go` somewhere first (NAV_go to a place and tab, or
@@ -1554,13 +1559,15 @@ function TOUR_tasksSteps() {
     {
       id: "tk-add",
       go: TOUR_tasksOpen(),
-      targets: ["tk-add"],
+      // One New task button per screen (TK_newTaskButtons): the list's Add
+      // task, the Slate app bar's + Add, or New task in the Create menu.
+      targets: ["tk-add", "tk-sbar-add", "nav-create"],
       wait: true,
       title: "Add a task",
       body: () =>
         touch
-          ? "Tap Add task and type what needs doing. Add @name to assign it, #client to file it under a client, a date such as fri, and !high for priority."
-          : "Add task, or press q on any staff page. Type what needs doing, then @name to assign it, #client for the client, a date such as fri, and !high for priority.",
+          ? "Tap Add (or New task in Create) and type what needs doing. Add @name to assign it, #client to file it under a client, a date such as fri, and !high for priority."
+          : "Add task (or New task in Create), or press q on any staff page. Type what needs doing, then @name to assign it, #client for the client, a date such as fri, and !high for priority.",
     },
     {
       id: "tk-groups",
@@ -1577,7 +1584,7 @@ function TOUR_tasksSteps() {
       wait: true,
       title: "Subtasks open in place",
       body: () =>
-        "A task with subtasks shows an arrow and a count, like 2/5. Click the row and its subtasks open right under it; click the task's name to open its details. Tick a subtask off right there.",
+        "A task with subtasks shows an arrow and a count, like 2/5. Click the arrow and its subtasks open right under it; click anywhere else on the row to open the task. Tick a subtask off right there.",
     },
     {
       id: "tk-status",
@@ -1715,9 +1722,9 @@ function TOUR_slatePlusSteps(ctx) {
       id: "tsp-names",
       targets: ["tkp-reassign"],
       wait: true,
-      title: "Names open profiles",
+      title: "Reassign, or open a profile",
       body: () =>
-        "Click a person's name on a row to open their profile: their week, their tasks and the clients they cover. The small button next to the name reassigns the task (on a task nobody has, the empty circle assigns someone). On a client task with an hours budget, the top of that menu shows this month's hours against it.",
+        "Click a person's initials on a row to reassign the task (on a task nobody has, the empty circle assigns someone). The top of that menu opens their profile: their week, their tasks and the clients they cover. On a client task with an hours budget, the menu also shows this month's hours against it.",
     },
     {
       id: "tsp-task",

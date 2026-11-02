@@ -9,6 +9,14 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-11-02: Slate is simpler to use
+- **Mark done** is a big button at the top of an open task (or press **x**). It works like the circle on the row: review, recurring tasks and **Undo** all behave the same. See [What's in a task's details?](#/help/task-details).
+- **One new-task button per screen.** Use **Create** (or **q**); the extra **+ Add** and **Add task** buttons are gone wherever **Create** is there. The **Add task** row at the bottom of each group stays.
+- **A row click always opens the task.** On a task with subtasks, only the small arrow opens them. See [How do I use my Slate?](#/help/my-tasks).
+- **Click someone's initials to reassign.** The two-arrow button is gone; with Slate plus, the person's profile is the first item in the menu.
+- **The avatar menu holds the rest** in the Slate app: **My profile**, **Notifications**, **Display settings**, dark or light mode, the window sizes, **Dock in portal**, **Follow my client**, **Help**, **Admin settings** (admins) and **Sign out**. See [How do I use the Slate app?](#/help/tasks-own-window).
+- New icons in Slate's sidebar so no two items look alike.
+
 ### 2026-11-02: Meet the Create button
 The small **+** is now a **Create** button at the top of the left nav, under the logo (a round **+** in the top bar on a phone), with a roomier menu and an icon on each row: **Task** (press **q**), **Note**, **Request a document**, **Upload a file**, **Message** and **Start from a template**. With a client open everything is filled in for that client; with none open it adds a task. Admins also find **Add a client**, **Start a team review** and **Invite staff** under a small **Admin** heading; those only open the page where it is done. The Slate app's icon rail has its own **Create** with Slate's rows (**Task**, **New project**, **Recurring task**). The Desk rail's **+** is gone; **Create** replaces it. A short tour comes with it; rerun it from **?** → **New: Meet the Create button tour**. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
 

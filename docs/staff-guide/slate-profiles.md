@@ -15,7 +15,7 @@ On the Slate page, the first result is **Filter this Slate list for "…"**. It 
 
 ### Names open profiles
 
-Click a person's name on a task row, in a task, in a comment, on **Team** or on a shout-out to open their profile. To change who a task is assigned to, use the small **Reassign** button (two arrows) next to their badge on the row.
+Click a person's name in a task, in a comment, on **Team** or on a shout-out to open their profile. On a task row, clicking the person's initials opens **Assign to** (to change who has the task), and the first item in that menu, **Open {name}'s profile**, opens the profile. If you can't reassign the task, the initials open the profile straight away.
 
 A profile shows:
 

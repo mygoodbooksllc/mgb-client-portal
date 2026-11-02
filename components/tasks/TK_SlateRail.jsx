@@ -770,8 +770,8 @@ function TKR_Rail(props) {
             <span>New project</span>
           </button>
           <ul className="tk-nav">
-            {isRoleAdmin ? <TK_vNavItem route={{ view: "manage" }} label="Manage projects" icon="folder" tour="tk-manage-nav" active={route.view === "manage"} onNavigate={go} /> : null}
-            {typeof TKPU_Portfolio === "function" ? <TK_vNavItem route={{ view: "portfolio" }} label="Portfolio" icon="list" tour="tk-portfolio-nav" active={route.view === "portfolio"} onNavigate={go} /> : null}
+            {isRoleAdmin ? <TK_vNavItem route={{ view: "manage" }} label="Manage projects" icon="folder-cog" tour="tk-manage-nav" active={route.view === "manage"} onNavigate={go} /> : null}
+            {typeof TKPU_Portfolio === "function" ? <TK_vNavItem route={{ view: "portfolio" }} label="Portfolio" icon="grid" tour="tk-portfolio-nav" active={route.view === "portfolio"} onNavigate={go} /> : null}
             {isRoleAdmin && typeof TK_Rules === "function" ? <TK_vNavItem route={{ view: "rules" }} label="Rules" icon="gear" tour="tk-rules-nav" active={route.view === "rules"} onNavigate={go} /> : null}
           </ul>
         </div>
@@ -862,8 +862,8 @@ function TKR_Rail(props) {
         {/* Create, only in the Slate app window; in the portal the left nav's Create carries Slate's rows. */}
         {typeof TB_NavCreate === "function" && typeof TK_slateInApp === "function" && TK_slateInApp() ? <TB_NavCreate clients={props.clients} currentClientId={null} /> : null}
         <ul className="tkr-list">
-          <TKR_Link id="my" route={{ view: "my" }} label="Slate" icon="home" active={active === "my"} onGo={go} />
-          <TKR_Link id="review" route={{ view: "review" }} label="Review" icon="check" count={props.reviewCount} tour="tk-review-nav" active={active === "review"} onGo={go} />
+          <TKR_Link id="my" route={{ view: "my" }} label="Slate" icon="layout-list" active={active === "my"} onGo={go} />
+          <TKR_Link id="review" route={{ view: "review" }} label="Review" icon="eye-check" count={props.reviewCount} tour="tk-review-nav" active={active === "review"} onGo={go} />
           <TKR_Link id="waiting" route={{ view: "waiting" }} label="Waiting on client" short="Waiting" icon="hourglass" count={props.waitCount} noun="open" tour="tk-waiting-nav" active={active === "waiting"} onGo={go} />
           <TKR_Link id="recurring" route={{ view: "templates" }} label="Recurring" icon="repeat" tour="tk-recurring-nav" active={active === "templates"} onGo={go} />
           <TKR_Link id="search" route={{ view: "search" }} label="Search" icon="search" active={active === "search"} onGo={onSearch} />

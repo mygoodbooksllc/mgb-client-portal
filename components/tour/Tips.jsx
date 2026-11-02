@@ -441,6 +441,8 @@ const TIPS_CATALOG = [
         ? "Tap Add task and type it in one line: @name assigns it, #client files it, fri or 10/31 sets the date, and !high marks it urgent."
         : "Press q on any staff page to add a task. Type it in one line: @name assigns it, #client files it, fri or 10/31 sets the date, and !high marks it urgent.",
     slug: "my-tasks",
+    // The header Add task shows only where no Create or + Add does (TK_newTaskButtons).
+    ready: () => !!document.querySelector('[data-tour="tk-add"]'),
   },
   {
     id: "tk-groups",
@@ -587,7 +589,7 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "tasks",
     target: "tk-subtoggle",
     snug: true,
-    text: "This task has subtasks. Click its row and they open right under it; click the task's name to open its details instead. The count shows how many are done.",
+    text: "This task has subtasks. Click the arrow and they open right under it; click anywhere else on the row to open the task. The count shows how many are done.",
     slug: "my-tasks",
     ready: () => !!document.querySelector('[data-tour="tk-subtoggle"]'),
   },
@@ -698,7 +700,7 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "tasks",
     target: "tkp-reassign",
     snug: true,
-    text: "Click a name to see that person's profile. The small button next to it reassigns the task, or assigns someone if nobody has it.",
+    text: "Click someone's initials to reassign the task, or to assign someone if nobody has it. Their profile is at the top of that menu.",
     slug: "slate-profiles",
     ready: () => !!document.querySelector('[data-tour="tkp-reassign"]'),
   },
