@@ -285,6 +285,166 @@ export function cronHoldReason(plan) {
 }
 
 // ---------------------------------------------------------------------------
+// Compare (MGB Home S5, docs/mgb-home-spec.md section 4): READ-ONLY review of
+// "Bookkeeping fee now" vs "Bookkeeping fee 2027" per matched client. Never
+// feeds master_sheet_apply(); planSync above (the live path) is untouched.
+// ---------------------------------------------------------------------------
+export const COMPARE_BIG_MOVE = 0.25; // a fee moving MORE than 25% is flagged
+
+/**
+ * Both fee columns by header text. Throws the exact findColumns message when
+ * either header is missing or doubled (e.g. no "Bookkeeping fee 2027"), so the
+ * caller reports it and shows nothing; it never guesses another column.
+ */
+export function findCompareColumns(headerRow) {
+  const now = findColumns(headerRow, "now");
+  const next = findColumns(headerRow, "2027");
+  return { client: now.client, status: now.status, now: now.fee, next: next.fee, nowHeader: now.feeHeader, nextHeader: next.feeHeader };
+}
+
+/** {change, pct, flags} for one row. pct is rounded to 0.1 (percent). */
+export function compareFlags(now, next, statusKind) {
+  const flags = [];
+  let change = null;
+  let pct = null;
+  if (now != null && next != null) {
+    change = Math.round((next - now) * 100) / 100;
+    if (now > 0) {
+      const ratio = (next - now) / now;
+      pct = Math.round(ratio * 1000) / 10;
+      if (Math.abs(ratio) > COMPARE_BIG_MOVE + 1e-9) flags.push("big_move");
+    }
+  }
+  if (next == null) flags.push("missing_2027");
+  if (now == null) flags.push("missing_now");
+  if (statusKind === "lost" || statusKind === "paused" || statusKind === "gone") flags.push("lost_paused");
+  return { change, pct, flags };
+}
+
+/**
+ * Now vs 2027 for every sheet row matched to a portal client. Matching follows
+ * planSync's rules (hand map first, "not a client" rows skipped, a unique name
+ * match otherwise; test and internal clients skipped), but EVERY status is
+ * kept (Lost / Paused / Gone are flagged, not dropped) and blank fees are
+ * kept as a flag. Nothing here writes.
+ * Returns {error} or {headers, rows, errors, counts}.
+ */
+export function planCompare({ values, clients, map }) {
+  const all = Array.isArray(values) ? values : [];
+  let cols;
+  try {
+    cols = findCompareColumns(all[0] || []);
+  } catch (e) {
+    return { error: e.message };
+  }
+  const sheetRows = [];
+  for (let i = 1; i < all.length; i++) {
+    const r = all[i] || [];
+    const name = String(r[cols.client] == null ? "" : r[cols.client]).trim();
+    const key = normName(name);
+    if (!name || !key) continue;
+    const pn = parseFee(r[cols.now]);
+    const px = parseFee(r[cols.next]);
+    sheetRows.push({
+      rowNumber: HEADER_ROW + i,
+      name,
+      key,
+      statusRaw: String(r[cols.status] == null ? "" : r[cols.status]).trim(),
+      status: normStatus(r[cols.status]),
+      now: pn.fee,
+      nowReason: pn.reason,
+      next: px.fee,
+      nextReason: px.reason,
+    });
+  }
+  if (sheetRows.length < MIN_DATA_ROWS) {
+    return { error: `Only ${sheetRows.length} client row(s) came back from the sheet (expected at least ${MIN_DATA_ROWS}).` };
+  }
+
+  const byId = new Map();
+  const byKey = new Map();
+  for (const c of clients || []) {
+    byId.set(c.id, c);
+    const k = normName(c.name);
+    if (!k) continue;
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k).push(c);
+  }
+  const mapBy = new Map((map || []).map((m) => [m.sheet_key || normName(m.sheet_name), m]));
+
+  const rows = [];
+  const errors = [];
+  let unmatched = 0;
+  let skipped = 0;
+  for (const r of sheetRows) {
+    let client = null;
+    const m = mapBy.get(r.key);
+    if (m) {
+      if (m.ignored) {
+        skipped++;
+        continue;
+      }
+      client = byId.get(m.client_id) || null;
+      if (!client) {
+        errors.push({ row: r.rowNumber, sheet_name: r.name, reason: `matched by hand to a client that no longer exists (${m.client_id})` });
+        continue;
+      }
+    } else {
+      const cands = byKey.get(r.key) || [];
+      if (cands.length !== 1) {
+        unmatched++;
+        continue;
+      }
+      client = cands[0];
+    }
+    if (client.test_only || client.is_internal) {
+      skipped++;
+      continue;
+    }
+    const f = compareFlags(r.now, r.next, r.status);
+    rows.push({
+      row: r.rowNumber,
+      sheet_name: r.name,
+      client_id: client.id,
+      client_name: client.name,
+      status: r.statusRaw || "blank",
+      status_kind: r.status,
+      now: r.now,
+      now_note: r.now == null ? r.nowReason : null,
+      next: r.next,
+      next_note: r.next == null ? r.nextReason : null,
+      change: f.change,
+      pct: f.pct,
+      flags: f.flags,
+    });
+  }
+  // Two sheet rows on one client: keep both, flag both (the live sync writes neither).
+  const per = new Map();
+  for (const x of rows) per.set(x.client_id, (per.get(x.client_id) || 0) + 1);
+  for (const x of rows) if (per.get(x.client_id) > 1) x.flags.push("duplicate");
+  rows.sort((a, b) => String(a.client_name).localeCompare(String(b.client_name)) || a.row - b.row);
+
+  const has = (f) => rows.filter((x) => x.flags.includes(f)).length;
+  return {
+    headers: { now: cols.nowHeader, next: cols.nextHeader },
+    rows,
+    errors,
+    counts: {
+      rows_read: sheetRows.length,
+      matched: rows.length,
+      big_move: has("big_move"),
+      missing_2027: has("missing_2027"),
+      missing_now: has("missing_now"),
+      lost_paused: has("lost_paused"),
+      duplicate: has("duplicate"),
+      unmatched,
+      skipped,
+      errors: errors.length,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Google service account (read-only) -> access token
 // ---------------------------------------------------------------------------
 /** Parses the GOOGLE_SA_KEY secret. Messages never include the secret. */

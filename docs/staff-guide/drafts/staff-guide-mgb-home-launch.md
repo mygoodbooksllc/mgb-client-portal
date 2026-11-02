@@ -1,4 +1,4 @@
-# MGB Home: launch notes (S1 to S4)
+# MGB Home: launch notes (S1 to S5)
 
 MGB Home (spec: `docs/mgb-home-spec.md`) is hidden behind the per-person preview `mgb_home_preview` (Developer tools › Feature flags › MGB Home preview, shown only to admins with the MGB (internal) grant) and the owner-only firm switch `tk_settings.mgb_home_enabled`. Code never writes the switch.
 
@@ -33,3 +33,10 @@ Deliberately NOT in the public What's new: any line naming MGB Home. Admins with
 - Nothing public changes, so there is no `whats-new` line: the Firm books card, the sync line and the firm Profit & Loss card show only inside MGB Home (grant holders with it on), and the firm's close, sync and P&L rows were already hidden by the internal company lock.
 - Gated (grant holders only): the Home card's close badge, reasons and due/late line, the last-sync line with its warnings and Sync now, the **Firm Profit & Loss** card at the top of Firm books › Reports, the `mgb-home` article lines and the `ann-mh-home` / `ann-mh-costs` wording. The notice keeps 6 steps.
 - Nothing for the owner to set. If the firm's QuickBooks needs reconnecting, the card says so and points to Setup.
+
+## S5 2027 fee change review (2026-11-02)
+
+- Nothing public changes, so there is no `whats-new` line: the review is a card on MGB Home › Pricing & fees (grant holders with MGB Home on), and the `compare` action of `master-sheet-sync` refuses anyone without `can_view_internal()`, like Preview and Sync now.
+- Gated (grant holders only): the **2027 fee change review** card, the `mgb-home` and `profitability` article lines and the `ann-mh-pricing` wording. The notice keeps 6 steps.
+- Deploy: the `master-sheet-sync` edge function must be redeployed for the card to work (until then the card says "unknown action"). The live `sync` path and the nightly run are unchanged.
+- Read only: the review writes nothing, not even a run log row, and does not log a usage event (`MGB_track` rows carry no client id, so admins without the grant could see them).

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// MGB Home, slices S1 to S4 (docs/mgb-home-spec.md): the firm's own home on
+// MGB Home, slices S1 to S5 (docs/mgb-home-spec.md): the firm's own home on
 // the internal client (MyGoodBooks). app.jsx renders these only when mhHere
 // (MH_canOpen on the internal client, components/internal/MH_gate.js):
 //
@@ -39,7 +39,10 @@
 //   MH_BasisToggle        Staff cost / Full cost, on Profitability and
 //                         Overhead. Full is off until a basis row exists.
 //   MH_PricingPage        #/internal/pricing: fee list, Master Data sync strip
-//                         and unmatched rows, milestone tiers (read-only).
+//                         and unmatched rows, the 2027 fee change review
+//                         (S5, MH_FeeReviewCard: read-only master-sheet-sync
+//                         action "compare", now vs 2027, flags, CSV; pure
+//                         logic in MH_fees.js), milestone tiers (read-only).
 //   MH_pageTitle          header title for an MGB Home page or a Firm books page.
 //
 // Every money piece keeps TP_PF_canSee(effective user) as a second guard and
@@ -1399,6 +1402,7 @@ function MH_PricingPage({ clients }) {
         )}
       </section>
       <TP_PF_SheetSyncStrip profit={profit} />
+      <MH_FeeReviewCard ready={!!profit.ready} />
       <section className="card" style={{ marginTop: 20, marginBottom: 20 }} aria-labelledby="mh-tiers-title">
         <h3 className="card-title" id="mh-tiers-title">Milestone tiers</h3>
         <p className="card-subtitle">The published pricing, for reference. Change it in the public pricing block and app.jsx together.</p>
@@ -1428,5 +1432,147 @@ function MH_PricingPage({ clients }) {
         </div>
       </section>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 2027 fee change review (S5): READ-ONLY. The master-sheet-sync action
+// "compare" reads "Bookkeeping fee now" and "Bookkeeping fee 2027" for every
+// sheet row matched to a client (same caller check as Preview / Sync now:
+// can_view_internal() as the caller) and writes nothing, not even a run log.
+// ready = the profit load finished, which proves the grant (same wait as
+// TP_PF_SheetSyncStrip). The sheet is read only when the person clicks.
+// Pure logic: MH_fees.js (filters, sort, CSV) + logic.js planCompare (flags).
+// ---------------------------------------------------------------------------
+function MH_frMoney(v) {
+  return v == null ? "–" : fmtMoney(v);
+}
+
+function MH_frSigned(v, pct) {
+  if (v == null || !isFinite(v)) return "–";
+  const sign = v > 0 ? "+" : v < 0 ? "−" : "";
+  return pct ? `${sign}${Math.abs(v)}%` : `${sign}${fmtMoney(Math.abs(v))}`;
+}
+
+function MH_FeeReviewCard({ ready }) {
+  const [res, setRes] = useState({ busy: false, data: null, error: null });
+  const [filter, setFilter] = useState("all");
+  const [sort, setSort] = useState({ key: "name", dir: "asc" });
+  if (!ready || typeof TP_PF_invokeSync !== "function" || typeof MH_frFilter !== "function") return null;
+
+  const load = async () => {
+    setRes((r) => ({ ...r, busy: true, error: null }));
+    const r = await TP_PF_invokeSync({ action: "compare" });
+    if (r.error) return setRes({ busy: false, data: null, error: r.error });
+    const d = r.data || {};
+    if (d.status !== "ok") return setRes({ busy: false, data: null, error: d.message || "The comparison didn't run." });
+    // No MH_track here: MGB_track logs client_id null, which admins without the grant can see.
+    setRes({ busy: false, data: d, error: null });
+  };
+
+  const d = res.data;
+  const shown = d ? MH_frSort(MH_frFilter(d.rows, filter), sort.key, sort.dir) : [];
+  const toggle = (key) => setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" ? "asc" : "desc" }));
+  const mark = (key) => (sort.key === key ? (sort.dir === "asc" ? " ▲" : " ▼") : "");
+  const csv = () => {
+    if (!d || typeof TP_downloadCsv !== "function") return;
+    const c = MH_frCsv(MH_frSort(MH_frFilter(d.rows, filter), sort.key, sort.dir));
+    TP_downloadCsv(`mgb-fee-review-now-vs-2027-${String(d.read_at || "").slice(0, 10) || "today"}${filter === "all" ? "" : "-" + filter}.csv`, c.header, c.rows);
+  };
+
+  return (
+    <section className="card mh-fee-review" style={{ marginTop: 20 }} aria-labelledby="mh-fr-title" data-tour="mh-fee-review">
+      <h3 className="card-title" id="mh-fr-title">2027 fee change review</h3>
+      <p className="card-subtitle">
+        Each client's “Bookkeeping fee now” next to its “Bookkeeping fee 2027” in the MGB_Master_Data sheet, with the change in dollars
+        and percent. Read only: this never changes a fee. Rows not matched to a client stay in the Master Data sync list above.
+      </p>
+      <div className="mh-fr-bar">
+        <button type="button" className="btn-secondary pf-btn" onClick={load} disabled={res.busy}>
+          {res.busy ? "Reading the sheet…" : d ? "Read the sheet again" : "Compare now and 2027"}
+        </button>
+        {d && (
+          <button type="button" className="btn-secondary pf-btn" onClick={csv} disabled={!shown.length}>
+            Download CSV
+          </button>
+        )}
+        {d && d.read_at && <span className="tp-muted">Read {TP_PF_when(d.read_at)}</span>}
+      </div>
+      {res.error && <p className="tp-bad pf-sync-msg">{res.error}</p>}
+      {d && (
+        <>
+          <p className="tp-muted mh-fr-summary">{MH_frSummary(d.counts)}</p>
+          {(d.errors || []).length > 0 && (
+            <ul className="pf-sync-list tp-bad">
+              {d.errors.map((e, i) => (
+                <li key={i}>
+                  Row {e.row} {e.sheet_name}: {e.reason}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="modal-tabs mh-fr-filters" role="group" aria-label="Show">
+            {MH_FR_FILTERS.map((f) => (
+              <button key={f.key} type="button" className={"modal-tab" + (filter === f.key ? " active" : "")} aria-pressed={filter === f.key} onClick={() => setFilter(f.key)}>
+                {f.label} ({MH_frFilter(d.rows, f.key).length})
+              </button>
+            ))}
+          </div>
+          {shown.length === 0 ? (
+            <p className="tp-muted">No clients in this view.</p>
+          ) : (
+            <div className="table-scroll mgb-sticky-wrap">
+              <table className="tx-table tx-table-labeled tp-table">
+                <thead>
+                  <tr>
+                    <th>
+                      <button type="button" className="tp-sort" onClick={() => toggle("name")}>Client{mark("name")}</button>
+                    </th>
+                    <th>Status</th>
+                    <th className="num">
+                      <button type="button" className="tp-sort" onClick={() => toggle("now")}>Now{mark("now")}</button>
+                    </th>
+                    <th className="num">
+                      <button type="button" className="tp-sort" onClick={() => toggle("next")}>2027{mark("next")}</button>
+                    </th>
+                    <th className="num">
+                      <button type="button" className="tp-sort" onClick={() => toggle("change")}>Change{mark("change")}</button>
+                    </th>
+                    <th className="num">
+                      <button type="button" className="tp-sort" onClick={() => toggle("pct")}>%{mark("pct")}</button>
+                    </th>
+                    <th>Flags</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((r) => (
+                    <tr key={r.client_id + ":" + r.row}>
+                      <td data-primary="" data-label="Client">
+                        <span className="tp-name">{r.client_name}</span>
+                        {r.sheet_name !== r.client_name && <span className="tp-muted"> (sheet: {r.sheet_name})</span>}
+                      </td>
+                      <td data-label="Status">{r.status}</td>
+                      <td className="num" data-label="Now" title={r.now == null && r.now_note ? r.now_note : undefined}>{MH_frMoney(r.now)}</td>
+                      <td className="num" data-label="2027" title={r.next == null && r.next_note ? r.next_note : undefined}>{MH_frMoney(r.next)}</td>
+                      <td className={"num" + (r.change != null && r.change < 0 ? " tp-bad" : "")} data-label="Change">{MH_frSigned(r.change, false)}</td>
+                      <td className={"num" + (r.pct != null && r.pct < 0 ? " tp-bad" : "")} data-label="%">{MH_frSigned(r.pct, true)}</td>
+                      <td data-label="Flags">
+                        {(r.flags || []).length === 0
+                          ? "–"
+                          : r.flags.map((f) => (
+                              <span key={f} className="pf-fee-tag pf-fee-check mh-fr-flag">
+                                {MH_FR_FLAGS[f] || f}
+                              </span>
+                            ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </section>
   );
 }

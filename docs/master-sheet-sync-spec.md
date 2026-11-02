@@ -22,6 +22,13 @@ If any of the three headers is missing the run errors and changes nothing.
   after a manual live run with the same fee column has succeeded (else logs
   `skipped`), and it is `held` (nothing written) if it would change more than 10
   fees or move any fee by more than 50%.
+  `compare` (MGB Home S5, read-only): reads both "Bookkeeping fee now" and
+  "Bookkeeping fee 2027" and returns, per sheet row matched to a client (any
+  status; same matching as `preview`), both fees, the $ and % change and flags
+  (`big_move` over 25%, `missing_2027`, `missing_now`, `lost_paused` for Lost /
+  Paused / Gone, `duplicate`). Same person check as `preview`; writes nothing,
+  not even a run log row. A missing header is reported in the same words as a
+  sync and nothing is shown (`planCompare` in `logic.js`).
 - **Auth**: machine = service-role key or Vault `qbo_cron_key` (same as
   weekly-admin-digest). Person = their Supabase JWT, then
   `can_view_internal()` called AS THEM (it includes `is_active_staff_admin()` and

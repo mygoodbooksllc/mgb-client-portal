@@ -137,7 +137,7 @@ Never scatter raw checks. Money pieces keep `TP_PF_canSee(effectiveUser)` as a s
 | **S2** | Overhead: owner maps internal QuickBooks customers, `internal_hours()` RPC + tests, tab, Home card | 0.5 session | Opus builds + verifies |
 | **S3** | Cost rates tab, `firm_cost_basis`, cost-basis toggle on Profitability (BUILT 2026-11-02) | 0.5 session | Opus builds + verifies (money) |
 | **S4** | Firm books polish after S0: close status card, last sync line, Reports default to firm P&L (BUILT 2026-11-02) | 0.25 session | Sonnet builds, Opus reviews |
-| **S5** | 2027 fee change review (`compare` action + tab) | 0.5 session | Opus builds + verifies (edge function, money) |
+| **S5** | 2027 fee change review (`compare` action + tab) (BUILT 2026-11-02) | 0.5 session | Opus builds + verifies (edge function, money) |
 | **S6** | Capacity with money and allocation rules | 0.5 session, after OQ7 | Opus |
 
 S1 is the smallest slice that delivers the owner's ask: MGB Home looks different, holds the money, Hours carries none.

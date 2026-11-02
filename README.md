@@ -1336,6 +1336,15 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   YTD, by-month table and `REPORT_PDF_BUILDERS.pl`. Pure logic `components/internal/MH_books.js` +
   `MH_books.test.js`. All those tables already sit behind the internal company lock; the tests check the owner
   reads every firm row and an admin without the grant or a bookkeeper reads none.
+- **MGB Home, slice S5 2027 fee change review (2026-11-02, no SQL):** `master-sheet-sync` gains a read-only
+  `compare` action (same `can_view_internal()` caller check as `preview` / `sync`; no run log, no apply, no
+  fingerprint). `planCompare` in `logic.js` reads both "Bookkeeping fee now" and "Bookkeeping fee 2027" (a missing
+  header is an error, never guessed), matches rows like `planSync` but keeps every status, and returns per matched
+  client both fees, change $ and %, and flags `big_move` (> `COMPARE_BIG_MOVE` 25%), `missing_2027`,
+  `missing_now`, `lost_paused` (Lost / Paused / Gone) and `duplicate`. `planSync` and the live path are unchanged.
+  UI: `MH_FeeReviewCard` on MGB Home › Pricing & fees (reads the sheet only on click; filter chips, sort, CSV);
+  pure logic `components/internal/MH_fees.js` + `MH_fees.test.js`; logic tests in
+  `supabase/functions/master-sheet-sync/logic.test.js`. Redeploy `master-sheet-sync` to turn it on.
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
   (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page

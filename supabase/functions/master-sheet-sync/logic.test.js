@@ -11,6 +11,10 @@ import {
   planSync,
   planFingerprint,
   cronHoldReason,
+  planCompare,
+  compareFlags,
+  findCompareColumns,
+  COMPARE_BIG_MOVE,
   parseServiceAccount,
   signServiceAccountJwt,
   jwtClaims,
@@ -212,6 +216,108 @@ test("cron hold: many changes or a big swing waits for a person", () => {
   assert.match(cronHoldReason({ changes: [{ client_name: "A", from: 100, to: 200 }] }), /A: fee moves more than 50%/);
   const many = Array.from({ length: 11 }, (_, i) => ({ client_name: `C${i}`, from: 100, to: 101 }));
   assert.match(cronHoldReason({ changes: many }), /11 fee changes/);
+});
+
+// ---------------------------------------------------------------------------
+// compare (MGB Home S5): read-only now vs 2027
+test("findCompareColumns needs both fee headers and reports a missing one exactly", () => {
+  assert.deepEqual(findCompareColumns(HEAD), {
+    client: 0,
+    status: 1,
+    now: 6,
+    next: 7,
+    nowHeader: "Bookkeeping fee now",
+    nextHeader: "Bookkeeping fee 2027",
+  });
+  assert.throws(() => findCompareColumns(["Client", "Status", "Bookkeeping fee now"]), /Couldn't find the "Bookkeeping fee 2027" column in row 4 of the Clients tab/);
+  assert.throws(() => findCompareColumns(["Client", "Status", "Bookkeeping fee 2027"]), /Couldn't find the "Bookkeeping fee now" column/);
+  // a near miss is never guessed
+  assert.throws(() => findCompareColumns(["Client", "Status", "Bookkeeping fee now", "Bookkeeping fee 2028"]), /Bookkeeping fee 2027/);
+});
+
+test("compareFlags: $ and %, >25% (strict), missing 2027, Lost/Paused", () => {
+  assert.equal(COMPARE_BIG_MOVE, 0.25);
+  assert.deepEqual(compareFlags(100, 125, "active"), { change: 25, pct: 25, flags: [] });
+  assert.deepEqual(compareFlags(100, 125.01, "active").flags, ["big_move"]);
+  assert.deepEqual(compareFlags(100, 74.99, "active").flags, ["big_move"]);
+  assert.deepEqual(compareFlags(100, 75, "active").flags, []);
+  assert.deepEqual(compareFlags(300, 400, "active"), { change: 100, pct: 33.3, flags: ["big_move"] });
+  assert.deepEqual(compareFlags(500, null, "active"), { change: null, pct: null, flags: ["missing_2027"] });
+  assert.deepEqual(compareFlags(null, 500, "active"), { change: null, pct: null, flags: ["missing_now"] });
+  assert.deepEqual(compareFlags(100, 100, "lost").flags, ["lost_paused"]);
+  assert.deepEqual(compareFlags(100, 100, "paused").flags, ["lost_paused"]);
+  assert.deepEqual(compareFlags(100, 100, "gone").flags, ["lost_paused"]);
+  assert.deepEqual(compareFlags(100, 100, "other").flags, []);
+});
+
+test("planCompare keeps every status, flags rows, never touches unmatched or test/internal", () => {
+  const v = [
+    HEAD,
+    row("Alpha Church", "Active", "$600.00", "$500.00"), // +20%
+    row("Beta Ministries", "Active", "$1,000", "$750"), // +33.3% big
+    row("Gamma Inc", "Lost", "$999", "$999"), // lost, kept + flagged
+    row("Delta Fellowship", "Active", "", "$900"), // missing 2027
+    row("Life Church Danville", "Paused", "$1,000", ""), // map; paused; no now fee
+    row("The Way Community Church", "Active", "$400", "$400"), // map -> the-way, never pathway
+    row("Meals On Wheels of Horry County", "Active", "$300", "$300"), // unmatched
+    row("HHCR Foundation", "Active", "$200", "$200"), // marked not a client
+    row("Test Co", "Active", "$50", "$50"), // test
+    row("MyGoodBooks", "Active", "$50", "$50"), // internal
+    row("Twin Church", "Active", "$80", "$80"), // two portal clients: unmatched
+    row("Override Org", "Active", "$5,000", "$100"), // override does not hide it in the review
+  ];
+  const p = planCompare({ values: v, clients, map });
+  assert.equal(p.error, undefined);
+  assert.deepEqual(p.headers, { now: "Bookkeeping fee now", next: "Bookkeeping fee 2027" });
+  const by = Object.fromEntries(p.rows.map((r) => [r.client_id, r]));
+  assert.deepEqual(Object.keys(by).sort(), ["alpha", "beta", "delta", "gamma", "life-church", "over", "the-way"]);
+  assert.ok(!by.pathway);
+  assert.deepEqual([by.alpha.now, by.alpha.next, by.alpha.change, by.alpha.pct, by.alpha.flags], [500, 600, 100, 20, []]);
+  assert.deepEqual(by.beta.flags, ["big_move"]);
+  assert.deepEqual([by.gamma.status, by.gamma.flags], ["Lost", ["lost_paused"]]);
+  assert.deepEqual(by.delta.flags, ["missing_2027"]);
+  assert.match(by.delta.next_note, /blank/);
+  assert.deepEqual(by["life-church"].flags, ["missing_now", "lost_paused"]);
+  assert.equal(by["the-way"].sheet_name, "The Way Community Church");
+  assert.deepEqual(by.over.flags, ["big_move"]);
+  assert.deepEqual(p.counts, {
+    rows_read: 12,
+    matched: 7,
+    big_move: 2,
+    missing_2027: 1,
+    missing_now: 1,
+    lost_paused: 2,
+    duplicate: 0,
+    unmatched: 2,
+    skipped: 3,
+    errors: 0,
+  });
+  // sorted by client name
+  assert.deepEqual(p.rows.map((r) => r.client_name), [...p.rows.map((r) => r.client_name)].sort((a, b) => a.localeCompare(b)));
+});
+
+test("planCompare: two rows on one client are both flagged duplicate; deleted map target is an error", () => {
+  const v = [HEAD, ...Array.from({ length: 5 }, (_, i) => row(`X${i}`, "Active", "$2", "$1")), row("Alpha Church", "Active", "$600", "$500"), row("alpha church", "Active", "$700", "$500")];
+  const p = planCompare({ values: v, clients, map: [] });
+  const a = p.rows.filter((r) => r.client_id === "alpha");
+  assert.equal(a.length, 2);
+  for (const r of a) assert.ok(r.flags.includes("duplicate"));
+  const q = planCompare({ values, clients: clients.filter((c) => c.id !== "the-way"), map });
+  assert.ok(q.errors.some((e) => e.sheet_name === "The Way Community Church"));
+});
+
+test("planCompare: missing 2027 header or too few rows is an error, no rows", () => {
+  const noNext = [["Client", "Status", "Bookkeeping fee now"], ...Array.from({ length: 6 }, (_, i) => [`X${i}`, "Active", "$1"])];
+  const p = planCompare({ values: noNext, clients, map });
+  assert.match(p.error, /Couldn't find the "Bookkeeping fee 2027" column/);
+  assert.equal(p.rows, undefined);
+  assert.match(planCompare({ values: [HEAD, row("Alpha Church", "Active", "$1", "$1")], clients, map }).error, /Only 1 client row/);
+});
+
+test("planCompare does not change what planSync plans", () => {
+  const before = JSON.stringify(planSync({ values, clients, fees, map, feeColumn: "2027" }));
+  planCompare({ values, clients, map });
+  assert.equal(JSON.stringify(planSync({ values, clients, fees, map, feeColumn: "2027" })), before);
 });
 
 // ---------------------------------------------------------------------------

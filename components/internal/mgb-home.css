@@ -183,3 +183,21 @@
 .mh-pnl-stats b {
   font-size: 20px;
 }
+/* 2027 fee change review (S5, Pricing & fees) */
+.mh-fr-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 4px;
+}
+.mh-fr-summary {
+  margin: 12px 0 8px;
+}
+.mh-fr-filters {
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+}
+.mh-fr-flag:first-child {
+  margin-left: 0;
+}

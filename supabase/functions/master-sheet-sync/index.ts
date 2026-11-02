@@ -9,6 +9,7 @@ import {
   googleErrorMessage,
   normName,
   parseServiceAccount,
+  planCompare,
   planFingerprint,
   planSync,
   signServiceAccountJwt,
@@ -27,6 +28,10 @@ import {
 //         {action:"preview"}  dry run: reads the sheet, returns the plan, logs it
 //         {action:"sync", fingerprint}  live: only when the plan still matches
 //                             the preview the person saw
+//         {action:"compare"}  READ-ONLY (MGB Home S5): "Bookkeeping fee now" vs
+//                             "Bookkeeping fee 2027" per matched client, with
+//                             flags. Reads the sheet and the client list only;
+//                             writes nothing, not even a run log row.
 //   (b) pg_cron via master_sheet_cron_tick() with the Vault qbo_cron_key (or the
 //       service role key): {trigger:"cron"} = live nightly run. It runs only
 //       after a manual live run on the same fee column has succeeded, and holds
@@ -126,7 +131,7 @@ Deno.serve(async (req) => {
   }
 
   const action: string = isMachine && body?.trigger === "cron" ? "sync" : String(body?.action || "status");
-  if (!["status", "preview", "sync"].includes(action)) return json({ error: "unknown action" }, 400);
+  if (!["status", "preview", "sync", "compare"].includes(action)) return json({ error: "unknown action" }, 400);
 
   const feeColumn = FEE_COLUMN;
   const info = saInfo();
@@ -148,6 +153,35 @@ Deno.serve(async (req) => {
       fee_header: (FEE_HEADERS as Record<string, string>)[feeColumn],
       sheet_url: SHEET_URL,
       nightly_ready: !!(lastOk && lastOk[0] && lastOk[0].fee_column === feeColumn),
+    });
+  }
+
+  if (action === "compare") {
+    // Read-only: no log row, no apply, no fingerprint. Same caller check as above.
+    if (!info.connected) {
+      return json({ status: "not_connected", message: info.error || "Not connected yet: the GOOGLE_SA_KEY secret isn't set." });
+    }
+    const [ccl, cmp] = await Promise.all([
+      admin.from("clients").select("id, name, test_only, is_internal"),
+      admin.from("master_sheet_client_map").select("sheet_key, sheet_name, client_id, ignored"),
+    ]);
+    if (ccl.error || cmp.error) return json({ status: "error", message: "Couldn't read the portal's clients." });
+    let cvalues: any[][];
+    try {
+      cvalues = await readSheet(info.sa);
+    } catch (e) {
+      return json({ status: "error", message: (e as Error).message || "Couldn't read the sheet." });
+    }
+    const cmpPlan = planCompare({ values: cvalues, clients: ccl.data, map: cmp.data });
+    if (cmpPlan.error) return json({ status: "error", message: cmpPlan.error });
+    return json({
+      status: "ok",
+      mode: "compare",
+      read_at: new Date().toISOString(),
+      headers: cmpPlan.headers,
+      counts: cmpPlan.counts,
+      rows: cmpPlan.rows,
+      errors: cmpPlan.errors,
     });
   }
 

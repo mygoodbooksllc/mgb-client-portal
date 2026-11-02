@@ -1943,7 +1943,7 @@ var ANN_REGISTRY = [
         wait: true,
         title: "Pricing & fees",
         body: () =>
-          "Every client's fee, where it comes from and the gap to their milestone fee, with the Master Data sync and the unmatched rows below.",
+          "Every client's fee, where it comes from and the gap to their milestone fee, with the Master Data sync and the unmatched rows below, then the 2027 fee change review: now against 2027 in the sheet, with flags and a CSV.",
       },
       {
         id: "ann-mh-overhead",
