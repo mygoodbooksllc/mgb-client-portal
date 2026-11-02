@@ -13,6 +13,7 @@
 // Rules live in staffOpsLogic.js (OPS_budgetStatus): near from 80%, over
 // from 100%. No budget or unknown hours never flags.
 
+const HB_HISTORY_MONTHS = 6;
 const HB_store = { key: null, data: null, promise: null };
 
 function HB_monthStart() {
@@ -42,7 +43,11 @@ function HB_load(force, admin) {
     admin
       ? sb.rpc("qbo_hours_by_client", { p_from: from, p_to: to })
       : sb.rpc("qbo_my_client_hours", { p_from: from, p_to: to }),
-  ]).then(([prof, hrs]) => {
+    // The last 6 complete months (supabase/client-hours-monthly-history.sql).
+    // One RPC for everyone (can_access_client is true for admins). A failure
+    // here only hides the averages; budgets and this month still work.
+    sb.rpc("qbo_my_client_hours_monthly", { p_months: HB_HISTORY_MONTHS }),
+  ]).then(([prof, hrs, hist]) => {
     const budgets = {};
     ((prof && prof.data) || []).forEach((r) => {
       if (r.monthly_hours_budget != null) budgets[r.client_id] = Number(r.monthly_hours_budget);
@@ -61,7 +66,17 @@ function HB_load(force, admin) {
       // QuickBooks Time not connected: hours unknown, so no status.
       byClient[id] = qboOn ? OPS_budgetStatus(minutes[id] || 0, budgets[id]) : null;
     });
-    const data = { budgets, minutes, byClient, qboOn, missing: !!(prof && prof.error) };
+    // history: { months: ["YYYY-MM-01", ...oldest first], byClient: { id: { monthly: minutes[], avg: hours|null } } }
+    // avg is null for a client with no history at all; the current month is never in it.
+    const histOn = !!(hist && !hist.error && Array.isArray(hist.data));
+    const history = OPS_monthlyHistory(histOn ? hist.data : [], todayLocal(), HB_HISTORY_MONTHS);
+    const avg = {};
+    const monthly = {};
+    Object.keys(history.byClient).forEach((id) => {
+      avg[id] = history.byClient[id].avg;
+      monthly[id] = history.byClient[id].monthly;
+    });
+    const data = { budgets, minutes, byClient, qboOn, missing: !!(prof && prof.error), history, histOn, avg, monthly };
     HB_store.data = data;
     HB_store.promise = null;
     return data;
@@ -69,7 +84,9 @@ function HB_load(force, admin) {
   return HB_store.promise;
 }
 
-// { loading, budgets, minutes, byClient: {clientId: status|null}, qboOn }.
+// { loading, budgets, minutes (this month), byClient: {clientId: status|null}, qboOn,
+//   history, histOn, avg: {clientId: hours|null}, monthly: {clientId: minutes[6]} }.
+// avg/monthly cover the last 6 complete months; a client with no history has no entry (avg null).
 // enabled=false returns null and never queries. isAdmin picks the RPC; left
 // out, it follows the signed-in (or viewed-as) staffer from StaffToolsContext,
 // and admin when there is none, which is what the existing admin-only callers
@@ -85,7 +102,7 @@ function HB_useBudgets(enabled, isAdmin) {
     const run = (force) =>
       HB_load(force, admin).then(
         (d) => alive && setData(d),
-        () => alive && setData({ budgets: {}, minutes: {}, byClient: {}, qboOn: false, failed: true }),
+        () => alive && setData({ budgets: {}, minutes: {}, byClient: {}, qboOn: false, failed: true, history: { months: [], byClient: {} }, histOn: false, avg: {}, monthly: {} }),
       );
     run(false);
     const onChange = () => run(true);
@@ -118,6 +135,69 @@ function HB_Bar({ status, compact }) {
         {status.state === "over" && <span className="hb-tag">Over</span>}
       </span>
     </span>
+  );
+}
+
+// Hours per month over the window, as short text: "17.2 h" or "—".
+function HB_avgText(data, clientId) {
+  if (!data || !data.histOn) return "—";
+  const a = data.avg[clientId];
+  return a == null ? "—" : HB_fmtH(a);
+}
+
+// Small bar sparkline of the last 6 complete months plus the current month
+// (accent color). minutesList: 6 numbers, oldest first; curMinutes: this month.
+function HB_Spark({ monthly, curMinutes, budget }) {
+  const list = (monthly || []).concat(curMinutes == null ? [] : [curMinutes]);
+  const max = Math.max(1, ...list, budget > 0 ? budget * 60 : 0);
+  return (
+    <span className="hb-spark" aria-hidden="true">
+      {list.map((m, i) => (
+        <i key={i} className={i === list.length - 1 && curMinutes != null ? "hb-spark-cur" : ""} style={{ height: Math.max(2, Math.round((m / max) * 100)) + "%" }} />
+      ))}
+    </span>
+  );
+}
+
+// Per-month bar chart with a dashed budget line and one summary line.
+// months: ["YYYY-MM-01"...]; used in the Clients list detail row.
+function HB_MonthChart({ months, monthly, curMinutes, budget, summary }) {
+  const names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const label = (k) => names[Number(k.slice(5, 7)) - 1];
+  const bars = (months || []).map((k, i) => ({ k, label: label(k), m: (monthly && monthly[i]) || 0, cur: false }));
+  if (curMinutes != null) {
+    const t = todayLocal();
+    bars.push({ k: t, label: label(t) + " so far", m: curMinutes, cur: true });
+  }
+  const b = budget > 0 ? Number(budget) : 0;
+  const max = Math.max(1, b * 60, ...bars.map((x) => x.m));
+  return (
+    <div className="hb-chart">
+      <div className="hb-chart-plot" role="img" aria-label={summary}>
+        {b > 0 && <span className="hb-chart-line" style={{ bottom: "calc(18px + (100% - 36px) * " + (b * 60) / max + ")" }} title={"Budget " + HB_fmtH(b)} />}
+        {bars.map((x) => (
+          <span className="hb-chart-col" key={x.k} title={x.label + ": " + HB_fmtH(x.m / 60)}>
+            <span className="hb-chart-val">{HB_fmtH(x.m / 60)}</span>
+            <i className={x.cur ? "hb-spark-cur" : ""} style={{ height: Math.max(2, Math.round((x.m / max) * 100)) + "%" }} />
+            <span className="hb-chart-lab">{x.label}</span>
+          </span>
+        ))}
+      </div>
+      <p className="hb-chart-sum">{summary}</p>
+    </div>
+  );
+}
+
+// Line for the client overview Hourly rate card: 6-month average.
+function HB_OverviewAvgLine({ clientId }) {
+  const data = HB_useBudgets(true, true);
+  if (!data || !data.histOn) return null;
+  const a = data.avg[clientId];
+  return (
+    <li className="hb-ov-line" title="Average hours per month over the last 6 complete months (this month is not counted)">
+      <span>6-month average</span>
+      <span className="hb-ov-val">{a == null ? <span className="muted">No history</span> : HB_fmtH(a) + " / month"}</span>
+    </li>
   );
 }
 

@@ -457,3 +457,90 @@
 :where(.so-form, .cv-form, .dl-rule-form, .dl-exc-form, .dl-file-form, .dl-controls, .hlb-filters, .son-edit) :where(input[type="checkbox"], input[type="radio"]) {
   accent-color: var(--gold-deep);
 }
+
+/* ---- 6-month average + sparkline (HoursBudget.jsx, ClientsPage.jsx) */
+.hb-spark {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 18px;
+}
+.hb-spark i {
+  display: block;
+  width: 4px;
+  border-radius: 1px;
+  background: var(--text-muted);
+  opacity: 0.55;
+}
+.hb-spark i.hb-spark-cur { background: var(--accent); opacity: 1; }
+.cl-avg {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  margin: -3px -6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cl-avg:hover, .cl-avg-open { background: var(--surface-2, var(--border)); }
+.cl-avg-val { font-variant-numeric: tabular-nums; }
+.cl-avg-caret { font-size: 10px; color: var(--text-muted); }
+.cl-table tr.cl-detail td { background: var(--surface-2, transparent); padding: 14px 18px 18px; }
+.hb-chart-plot {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  height: 120px;
+  padding: 18px 0 18px;
+  max-width: 560px;
+}
+.hb-chart-col {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.hb-chart-col i {
+  display: block;
+  width: 70%;
+  max-width: 36px;
+  border-radius: 3px 3px 0 0;
+  background: var(--text-muted);
+  opacity: 0.55;
+}
+.hb-chart-col i.hb-spark-cur { background: var(--accent); opacity: 1; }
+.hb-chart-val, .hb-chart-lab {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.hb-chart-val { top: -2px; }
+.hb-chart-lab { bottom: -18px; }
+.hb-chart-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed var(--bad);
+  pointer-events: none;
+}
+.hb-chart-sum { margin: 22px 0 0; font-size: 13px; }
+
+@media (max-width: 760px) {
+  .cl-avg .hb-spark { display: none; }
+  .cl-table tbody tr.cl-detail { margin: -4px 0 10px; border: 1px solid var(--border); border-radius: 12px; }
+  .hb-chart-plot { gap: 4px; }
+  .hb-chart-val { display: none; }
+}

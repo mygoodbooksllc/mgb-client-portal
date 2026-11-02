@@ -378,7 +378,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     Tasks = `TK_MyTasks` embedded (falls back to the legacy `MyTasksPage` when the Tasks tables
     are missing), Notes & SOPs = `MyTasksPage mode="notes"`, Close = `CT_CloseTrackerPage`,
     Deadlines = `DL_DeadlinesPage`, at `#/work/<tab>`), **Clients** (`ClientsPage.jsx`, `CL_`: Mine / All / Needs attention, Find a
-    client, columns Client · Health · Assigned to · Backup · Hours this month · Close · Last viewed;
+    client, columns Client · Health · Assigned to · Backup · Hours this month · 6-mo avg · Close · Last viewed;
     inside a client the breadcrumb "Clients › name › tab" and `CL_ClientTabs`: one fixed row on
     every plan (`STAFF_CLIENT_TABS`: Overview, Messages, Documents, Bank, Close, Reports, SOP, then
     Milestone for real admins only), the **Client view** menu (`CL_ClientViewMenu`: the client's own
@@ -389,6 +389,9 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   - **Hours for bookkeepers:** `supabase/client-hours-for-bookkeepers.sql` adds
     `qbo_my_client_hours(from, to)` (minutes per client for the caller's own clients; no rates or
     per-person split), so the Clients page's Hours this month column works for everyone.
+    `supabase/client-hours-monthly-history.sql` adds `qbo_my_client_hours_monthly(p_months)` (minutes per client per
+    complete month, same guards; one RPC for admins and bookkeepers) for the 6-mo avg column and chart
+    (`HB_Spark`, `HB_MonthChart`; math in `OPS_monthlyHistory` / `OPS_historySummary`, tested).
   - **Top bar:** no page links; ⌘K lists Pages and Actions with nothing typed; the **?** menu is
     Help for this page, Staff guide, Send feedback, What's new, Tips while you learn (On/Off), then
     one entry per tour (Bookkeeper tour, plus Admin, Temporary admin and Account manager tours when
@@ -1634,7 +1637,7 @@ Team Reviews files.
   month)** column in `TeamQbo.jsx`), the overview Hourly rate card and the Clients page's **Hours this month** column
   (everyone assigned, via the narrow `qbo_my_client_hours` RPC in
   `supabase/client-hours-for-bookkeepers.sql`). Near at 80%, over at 100%
-  (`OPS_budgetStatus`). Guide: `hours-budget.md`.
+  (`OPS_budgetStatus`). 6-month average (current month excluded) on the Clients page and the overview card (2026-11-02). Guide: `hours-budget.md`.
 - **Reply-time tracker.** `client_reply_times(p_from, p_to)` (`supabase/client-reply-times.sql`,
   security definer, read only): a wait starts at the first client message of an unanswered run in
   a (client, participant) thread and ends at the next non-internal staff message (the replier gets

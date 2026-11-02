@@ -1131,7 +1131,7 @@ function TOUR_bookkeeperSteps(ctx) {
       targets: ["clients-filters"],
       title: "Your clients",
       body: () =>
-        "Clients opens on Mine, the clients you look after. Health and Hours this month show at a glance. Hours come from QuickBooks Time, so there's nothing to log here. Click a client to open it.",
+        "Clients opens on Mine, the clients you look after. Health, Hours this month and the 6-month hours average show at a glance (click the average for a chart). Hours come from QuickBooks Time, so there's nothing to log here. Click a client to open it.",
     },
     {
       id: "client",
@@ -1466,7 +1466,7 @@ function TOUR_amSteps(ctx) {
       targets: ["clients-filters"],
       title: "Client health check-ins",
       body: () =>
-        "Needs attention picks out clients with health at risk, a late close, an access request or a stale SOP. The Health and Hours this month columns show the rest; the reasons are on each client's Overview.",
+        "Needs attention picks out clients with health at risk, a late close, an access request or a stale SOP. The Health, Hours this month and 6-mo avg columns show the rest; the reasons are on each client's Overview.",
     },
     {
       id: "requests",

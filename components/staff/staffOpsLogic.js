@@ -401,10 +401,69 @@ function OPS_onboardingSummary(steps, rows, email) {
   };
 }
 
+// ---- Monthly hours history (supabase/client-hours-monthly-history.sql)
+// The N complete calendar months before todayYmd's month, oldest first, as
+// "YYYY-MM-01". The current (partial) month is never included.
+function OPS_historyMonths(todayYmd, n) {
+  var count = n == null ? 6 : Math.max(1, Math.min(12, Math.floor(Number(n)) || 6));
+  var y = Number(String(todayYmd).slice(0, 4));
+  var m = Number(String(todayYmd).slice(5, 7)) - 1; // 0-based current month
+  var out = [];
+  for (var i = count; i >= 1; i--) {
+    var t = y * 12 + m - i;
+    var yy = Math.floor(t / 12);
+    var mm = (t % 12) + 1;
+    out.push(yy + "-" + (mm < 10 ? "0" : "") + mm + "-01");
+  }
+  return out;
+}
+
+// rows: [{client_id, month, total_minutes}] from qbo_my_client_hours_monthly.
+// => { months: [...], byClient: { id: { monthly: [minutes per month, zeros for
+// missing], avg: hours per month over the window | null (no history at all),
+// lastMinutes, prevMinutes } } }. Months outside the window are ignored.
+function OPS_monthlyHistory(rows, todayYmd, n) {
+  var months = OPS_historyMonths(todayYmd, n);
+  var idx = {};
+  months.forEach(function (k, i) { idx[k] = i; });
+  var byClient = {};
+  (rows || []).forEach(function (r) {
+    if (!r || !r.client_id) return;
+    var k = String(r.month || "").slice(0, 7) + "-01";
+    if (!(k in idx)) return;
+    var c = byClient[r.client_id] || (byClient[r.client_id] = { monthly: months.map(function () { return 0; }) });
+    c.monthly[idx[k]] += Number(r.total_minutes || 0);
+  });
+  Object.keys(byClient).forEach(function (id) {
+    var c = byClient[id];
+    var sum = c.monthly.reduce(function (a, b) { return a + b; }, 0);
+    c.avg = sum > 0 ? sum / c.monthly.length / 60 : null;
+    c.lastMinutes = c.monthly[c.monthly.length - 1];
+    c.prevMinutes = c.monthly.length > 1 ? c.monthly[c.monthly.length - 2] : null;
+  });
+  return { months: months, byClient: byClient };
+}
+
+// "Budget 20 h · average 17.2 h · last month up 2 h". Any part that is
+// unknown is left out.
+function OPS_historySummary(budgetHours, hist, fmt) {
+  var f = fmt || function (h) { return String(Math.round(h * 10) / 10) + " h"; };
+  var parts = [];
+  var b = budgetHours == null || budgetHours === "" ? NaN : Number(budgetHours);
+  if (b > 0) parts.push("Budget " + f(b));
+  if (hist && hist.avg != null) parts.push("average " + f(hist.avg));
+  if (hist && hist.prevMinutes != null && hist.lastMinutes != null && hist.avg != null) {
+    var d = Math.round(((hist.lastMinutes - hist.prevMinutes) / 60) * 10) / 10;
+    parts.push(d === 0 ? "last month unchanged" : "last month " + (d > 0 ? "up " : "down ") + f(Math.abs(d)));
+  }
+  return parts.join(" \u00b7 ");
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     OPS_BUDGET_WARN: OPS_BUDGET_WARN, OPS_BUDGET_OVER: OPS_BUDGET_OVER,
     OPS_budgetStatus: OPS_budgetStatus, OPS_budgetMatches: OPS_budgetMatches,
+    OPS_historyMonths: OPS_historyMonths, OPS_monthlyHistory: OPS_monthlyHistory, OPS_historySummary: OPS_historySummary,
     OPS_REPLY_GOAL_HOURS: OPS_REPLY_GOAL_HOURS, OPS_fmtWait: OPS_fmtWait, OPS_replyPeriod: OPS_replyPeriod,
     OPS_addDays: OPS_addDays, OPS_outUntil: OPS_outUntil, OPS_upcomingTimeOff: OPS_upcomingTimeOff,
     OPS_timeOffError: OPS_timeOffError, OPS_BACKUP_ACCESS: OPS_BACKUP_ACCESS,

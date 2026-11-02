@@ -2,7 +2,7 @@
 title: How do I set a monthly hours budget for a client?
 section: Admin
 audience: admin
-keywords: [hours budget, monthly hours budget, budget, over budget, over hours budget, hours used, quickbooks time, 80%, scope creep, hourly rate]
+keywords: [6-month average, average hours, hours history, monthly hours chart, hours budget, monthly hours budget, budget, over budget, over hours budget, hours used, quickbooks time, 80%, scope creep, hourly rate]
 sort: 545
 ---
 An **hours budget** is how many QuickBooks Time hours you plan to spend on a client each month. Admins set it and see it. Bookkeepers don't see it.
@@ -19,6 +19,8 @@ An **hours budget** is how many QuickBooks Time hours you plan to spend on a cli
 - **Client overview → Billing and time → Hourly rate · this month** (admins only): **Hours budget** shows hours used out of the budget (for example **11.5 h of 10 h**), a bar and the percent.
 - **Team → Hours and tasks → Clients table**: the **Budget (this month)** column. Click the header to sort by it.
 - **Clients page**: the **Hours this month** column shows this month's hours against the budget for everyone assigned to the client, so bookkeepers can see where they stand. Amber from 80%, red when over.
+- **Clients page → 6-mo avg**: the average hours per month over the last 6 complete months, with a small bar chart of those months (this month is the colored bar). Click it to open a chart of each month with a dashed budget line and a one-line summary, for example **Budget 20 h · average 17.2 h · last month up 2 h**. Clients with no budget show the average but no line.
+- **Client overview → Hourly rate · this month** (admins): a **6-month average** line under the budget bar.
 - **Today**: a client over budget does not make a row on its own; check the Clients page.
 
 ### Colors
@@ -31,4 +33,5 @@ An **hours budget** is how many QuickBooks Time hours you plan to spend on a cli
 
 - **Always this calendar month.** The budget compares hours from the 1st of the month to today, even when Team › Hours shows another period.
 - **Hours come from QuickBooks Time only.** If QuickBooks Time isn't connected, the budget shows on its own with no bar.
+- **The average leaves out this month.** It only uses the last 6 complete calendar months, counting a month with no hours as zero, so a client who started recently shows a lower average. A client with no hours at all in those months shows **No history**.
 - **No budget, no flag.** A client without a budget never matches the **Hours budget** rule.

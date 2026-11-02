@@ -230,4 +230,34 @@ t("onboarding summary", () => {
   assert.strictEqual(L.OPS_onboardingSummary([], [], "g@x").complete, false, "no steps is never complete");
 });
 
+// ---- Monthly hours history
+t("history months are the complete months before this one", () => {
+  assert.deepStrictEqual(L.OPS_historyMonths("2026-11-02", 3), ["2026-08-01", "2026-09-01", "2026-10-01"]);
+  assert.deepStrictEqual(L.OPS_historyMonths("2026-02-15", 3), ["2025-11-01", "2025-12-01", "2026-01-01"]);
+  assert.strictEqual(L.OPS_historyMonths("2026-11-02").length, 6);
+  assert.strictEqual(L.OPS_historyMonths("2026-11-02", 99).length, 12);
+});
+t("history average excludes the current month, zero-fills gaps", () => {
+  const rows = [
+    { client_id: "a", month: "2026-10-01", total_minutes: 1200 },
+    { client_id: "a", month: "2026-08-01", total_minutes: 600 },
+    { client_id: "a", month: "2026-11-01", total_minutes: 99999 }, // current month: ignored
+    { client_id: "a", month: "2025-01-01", total_minutes: 99999 }, // outside window: ignored
+    { client_id: null, month: "2026-10-01", total_minutes: 5 },
+  ];
+  const h = L.OPS_monthlyHistory(rows, "2026-11-02", 6);
+  assert.deepStrictEqual(h.byClient.a.monthly, [0, 0, 0, 600, 0, 1200]);
+  assert.strictEqual(h.byClient.a.avg, 5); // 1800 min / 6 months / 60
+  assert.strictEqual(h.byClient.a.lastMinutes, 1200);
+  assert.strictEqual(h.byClient.a.prevMinutes, 0);
+  assert.strictEqual(h.byClient.b, undefined); // no history: caller treats avg as null
+  assert.strictEqual(Object.keys(h.byClient).length, 1);
+});
+t("history summary line", () => {
+  const h = L.OPS_monthlyHistory([{ client_id: "a", month: "2026-10-01", total_minutes: 1260 }, { client_id: "a", month: "2026-09-01", total_minutes: 1140 }], "2026-11-02", 6).byClient.a;
+  assert.strictEqual(L.OPS_historySummary(20, h), "Budget 20 h \u00b7 average 6.7 h \u00b7 last month up 2 h");
+  assert.strictEqual(L.OPS_historySummary(null, h), "average 6.7 h \u00b7 last month up 2 h");
+  assert.strictEqual(L.OPS_historySummary(20, null), "Budget 20 h");
+});
+
 console.log("staffOpsLogic: " + n + " checks passed");

@@ -147,6 +147,30 @@ function CL_HoursCell({ data, clientId }) {
   );
 }
 
+// 6-month average with a small sparkline and a toggle for the per-month
+// chart (CL_Row shows the chart in a detail row). Needs HB_useBudgets data.
+function CL_AvgCell({ data, clientId, open, onToggle }) {
+  if (!data) return <span className="muted">…</span>;
+  if (!data.histOn) return <span className="muted" title="Monthly history isn't available">—</span>;
+  const avg = data.avg[clientId];
+  const budget = data.budgets[clientId];
+  if (avg == null && !(budget > 0)) return <span className="muted">—</span>;
+  const cur = data.qboOn ? data.minutes[clientId] || 0 : null;
+  return (
+    <button
+      type="button"
+      className={"cl-avg" + (open ? " cl-avg-open" : "")}
+      aria-expanded={open}
+      onClick={onToggle}
+      title={open ? "Hide the monthly chart" : "Show hours for each of the last 6 months"}
+    >
+      <span className="cl-avg-val">{avg == null ? "No history" : HB_fmtH(avg)}</span>
+      {avg != null && <HB_Spark monthly={data.monthly[clientId]} curMinutes={cur} budget={budget} />}
+      <span className="cl-avg-caret" aria-hidden="true">{open ? "\u25B4" : "\u25BE"}</span>
+    </button>
+  );
+}
+
 // The month being closed and where it stands. cl from CT_useCloseStatus.byClient.
 function CL_CloseCell({ cl, loading, client }) {
   if (!cl) return <span className="muted">{loading ? "…" : "—"}</span>;
@@ -179,7 +203,11 @@ function CL_Row({ r, hours, closeLoading, hlStatus, onOpen, isRealAdmin }) {
     open();
   };
   const plan = typeof planLabel === "function" ? planLabel(c.plan) : c.plan;
+  const [chartOpen, setChartOpen] = useState(false);
+  const budget = hours ? hours.budgets[c.id] : null;
+  const hist = hours && hours.history && hours.history.byClient[c.id];
   return (
+    <React.Fragment>
     <tr className={"cl-row" + (r.reasons.length ? " cl-row-attention" : "")} onClick={onRowClick}>
       <td data-primary="" className="cl-cell-client">
         <div className="cl-client">
@@ -238,11 +266,28 @@ function CL_Row({ r, hours, closeLoading, hlStatus, onOpen, isRealAdmin }) {
       <td data-label="Hours this month">
         <CL_HoursCell data={hours} clientId={c.id} />
       </td>
+      <td data-label="6-mo avg" className="cl-cell-avg">
+        <CL_AvgCell data={hours} clientId={c.id} open={chartOpen} onToggle={() => setChartOpen((v) => !v)} />
+      </td>
       <td data-label="Close">
         <CL_CloseCell cl={r.cl} loading={closeLoading} client={c} />
       </td>
       <td data-label="Last viewed">{r.lastViewed ? CL_ago(r.lastViewed) : <span className="muted">Not yet</span>}</td>
     </tr>
+    {chartOpen && hours && (
+      <tr className="cl-detail">
+        <td colSpan={8}>
+          <HB_MonthChart
+            months={hours.history.months}
+            monthly={hist ? hist.monthly : hours.history.months.map(() => 0)}
+            curMinutes={hours.qboOn ? hours.minutes[c.id] || 0 : null}
+            budget={budget}
+            summary={OPS_historySummary(budget, hist, HB_fmtH) || "No hours in the last 6 months."}
+          />
+        </td>
+      </tr>
+    )}
+    </React.Fragment>
   );
 }
 
@@ -368,13 +413,14 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
                 <th scope="col">Assigned to</th>
                 <th scope="col">Backup</th>
                 <th scope="col">Hours this month</th>
+                <th scope="col" title="Average hours per month over the last 6 complete months">6-mo avg</th>
                 <th scope="col">Close</th>
                 <th scope="col">Last viewed</th>
               </tr>
             </thead>
             <tbody>
               {shown.length === 0 ? (
-                <EmptyRow colSpan={7}>{empty}</EmptyRow>
+                <EmptyRow colSpan={8}>{empty}</EmptyRow>
               ) : (
                 shown.map((r) => <CL_Row key={r.c.id} r={r} hours={hours} closeLoading={close.loading} hlStatus={health.status} onOpen={onOpenClient} isRealAdmin={STAFF_isRealAdmin(staffUser)} />)
               )}
@@ -384,7 +430,7 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
         <p className="cl-foot muted">
           Showing {shown.length} of {rows.length}. Test clients are listed last and not counted
           {typeof CF_readShow === "function" && !CF_readShow(window.mgbViewerEmail) ? '; turn "Show test clients" on to see them.' : "."} Needs attention means health at risk, a late close, a portal access request waiting, or a
-          stale SOP. Hours are QuickBooks Time this calendar month against the client's monthly budget.
+          stale SOP. Hours are QuickBooks Time this calendar month against the client's monthly budget. 6-mo avg is the average per month over the last 6 complete months (this month is not counted); click it for each month against the budget.
           {health.status === "missing" && " Client health isn't set up yet (database step pending)."}
           {close.error && " " + close.error}
         </p>

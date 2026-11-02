@@ -8334,6 +8334,7 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
             {isAdminViewer && typeof HB_OverviewLine === "function" && !data.loading && (
               <HB_OverviewLine minutes={data.qbMinutes} budget={data.profile && data.profile.monthly_hours_budget} />
             )}
+            {isAdminViewer && data.qbMinutes != null && !data.loading && typeof HB_OverviewAvgLine === "function" && <HB_OverviewAvgLine clientId={client.id} />}
           </ul>
           <p className="ov-foot">
             {data.qbMinutes == null
