@@ -300,11 +300,95 @@ function TOUR_slateSteps(ctx) {
   ];
 }
 
+// ---- Slate basics (Slate Stage B, the simpler Slate) -------------------------
+// Three chapters for the simpler Slate (docs/slate-stage-b-spec.md). Listed in
+// Tour.jsx (key "slatebasics") and run from the "slate-simpler" notice only
+// while TKB_on() is true. Same hard rule: steps only navigate and open.
+var TOUR_SLATE_BASICS_CHAPTERS = [
+  { key: "list", label: "Your list" },
+  { key: "add", label: "Add and finish" },
+  { key: "client", label: "Client lists" },
+];
+
+// Opens the demo task, then unfolds More details (a UI state only).
+function TOUR_sbOpenMore(open) {
+  return function () {
+    var r = open();
+    setTimeout(function () {
+      try {
+        window.dispatchEvent(new CustomEvent("tkb:more-open"));
+      } catch (e) {}
+    }, 700);
+    return r;
+  };
+}
+
+function TOUR_slateBasicsSteps(ctx) {
+  var c = ctx || {};
+  var my = TOUR_slNav("#/tasks/my");
+  var client = TOUR_slNav(TOUR_SLATE_CLIENT_HASH);
+  var waiting = TOUR_slNav("#/tasks/waiting");
+  var demo = TOUR_slOpenDemo();
+  var s = function (chapter, id, title, body, targets, go, spot) {
+    return { id: id, chapter: chapter, title: title, body: typeof body === "function" ? body : function () { return body; }, targets: targets, go: go, wait: true, spot: spot };
+  };
+  return [
+    // 1 Your list
+    s("list", "sb-welcome", "Slate basics",
+      "Three short chapters: the list, adding and finishing tasks, and client lists. Use the arrow keys, or jump with Chapters.",
+      [], my),
+    s("list", "sb-sidebar", "The sidebar",
+      "My tasks, Waiting on client, To review, Clients, Projects and People sit in the left sidebar, each with a name." +
+        (c.isAdmin ? " Admins also see Recurring." : ""),
+      ["tk-sidebar"], my),
+    s("list", "sb-filter", "Filter",
+      "Filter narrows the list by person, client, project, due date or status. The number on the button shows how many filters are on.",
+      ["tkb-filter", "tk-filter-bar"], my),
+    s("list", "sb-groupsort", "Group and sort",
+      "Group by due date, client, month step (4th/14th/24th) or status, then sort inside each group. Reset view puts the list back the way it started.",
+      ["tk-slate-sort", "tk-groupby", "tk-filter-bar"], my),
+    s("list", "sb-glance", "Today at a glance",
+      "With no task open, the right side of the Slate app shows counts for overdue, due this week and waiting on client (admins also see waiting for review). Click a count to filter the list. Start here lists three tasks to begin with.",
+      ["tkb-glance"], my),
+    // 2 Add and finish
+    s("add", "sb-add", "Type to add",
+      "Type a task in plain words, like \"Call Acme about payroll tomorrow\", and press Enter. The line under the box shows what will be saved. Unclear names stay in the title; Enter then opens Quick add to finish.",
+      ["tkb-add", "tkb-glance-add"], my),
+    s("add", "sb-open", "Open a task",
+      "Click a row to open the task. Assignee, due date, client, project, priority and status sit at the top.",
+      ["tk-dw-fields"], demo),
+    s("add", "sb-more", "More details",
+      "Start date, section, type, reminders, repeat, sharing, review and the rest fold under More details. The number shows how many are filled in.",
+      ["tkb-more", "tk-dw-fields"], TOUR_sbOpenMore(demo)),
+    s("add", "sb-done", "Mark done",
+      "Mark done at the top finishes the task, the same as the circle on the row. Undo is on the message.",
+      ["tk-dw-done", "tk-dw-fields"], demo),
+    // 3 Client lists
+    s("client", "sb-client", "One list per client",
+      "Clients in the sidebar opens any client's list. This is Pro Test Client, the demo client.",
+      ["tk-sections"], client, "top"),
+    s("client", "sb-waiting", "Waiting on client",
+      "Tasks out with clients land in Waiting on client, longest wait first, and never count as late.",
+      ["tk-waiting-groups", "tk-waiting-nav"], waiting, "top"),
+    s("client", "sb-views", "Saved views",
+      "Saved views keeps a filter, group and sort under a name. Pick one to switch back in one click.",
+      ["tk-slate-views", "tk-filter-bar"], my),
+    s("client", "sb-avatar", "The account menu",
+      "In the Slate app, the avatar at the bottom of the sidebar opens My profile, notifications, display settings and the window sizes.",
+      ["tkb-avatar", "tk-sbar-avatar"], my),
+    s("client", "sb-end", "That's Slate basics",
+      "Replay this tour from the ? menu. Slate, start to finish covers everything else.",
+      [], my),
+  ];
+}
+
 // The index of each chapter's first step: [{ key, label, index, count }].
-function TOUR_slateChapterIndex(steps) {
+// `chapters` defaults to the start-to-finish list.
+function TOUR_slateChapterIndex(steps, chapters) {
+  var list = Array.isArray(chapters) ? chapters : TOUR_SLATE_CHAPTERS;
   var out = [];
   (steps || []).forEach(function (st, i) {
-    var ch = TOUR_SLATE_CHAPTERS.find(function (x) {
+    var ch = list.find(function (x) {
       return x.key === st.chapter;
     });
     if (!ch) return;
@@ -319,6 +403,8 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TOUR_SLATE_CLIENT: TOUR_SLATE_CLIENT,
     TOUR_SLATE_CHAPTERS: TOUR_SLATE_CHAPTERS,
+    TOUR_SLATE_BASICS_CHAPTERS: TOUR_SLATE_BASICS_CHAPTERS,
+    TOUR_slateBasicsSteps: TOUR_slateBasicsSteps,
     TOUR_slateHashAsks: TOUR_slateHashAsks,
     TOUR_slHashPath: TOUR_slHashPath,
     TOUR_slPickTask: TOUR_slPickTask,

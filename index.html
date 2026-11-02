@@ -446,7 +446,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-11-02s", note: "Internal pages: small updates for admins with internal access. Nothing changes for anyone else." };
+      window.MGB_VERSION = { label: "2026-11-02t", note: "Slate: the hidden Simpler Slate preview, and the avatar menu returns focus to the avatar after a pick. Nothing else changes for anyone." };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -514,6 +514,7 @@
       document.write('<link rel="stylesheet" href="components/tasks/tk-client.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tasks/tk-requests.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tasks/tk-slate.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-slatesimple.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tasks/tk-repeat.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tasks/tk-workload.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tasks/tk-profile.css?v=' + Date.now() + '">');
@@ -686,6 +687,7 @@
         "components/tasks/TK_prefsLogic.js",
         "components/tasks/TK_drawerLogic.js",
         "components/tasks/TK_slatePlus.js",
+        "components/tasks/TK_slateSimple.js",
         "components/tasks/TK_mentionsLogic.js",
         "components/tasks/TK_deps.js",
         "components/tasks/TK_rulesLogic.js",
@@ -717,6 +719,7 @@
         "components/tasks/TK_BulkBar.jsx",
         "components/tasks/TK_SavedViews.jsx",
         "components/tasks/TK_FilterBar.jsx",
+        "components/tasks/TK_SlateSimple.jsx",
         "components/tasks/TK_Comments.jsx",
         "components/tasks/TK_Attachments.jsx",
         "components/tasks/TK_Activity.jsx",

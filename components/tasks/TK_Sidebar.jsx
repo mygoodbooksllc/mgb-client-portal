@@ -323,6 +323,9 @@ function TK_Sidebar(props) {
         reviewCount={reviewCount}
         waitCount={waitCount}
         noTeam={noTeam}
+        simple={!!props.simple}
+        labeled={!!props.labeled}
+        avatar={!!props.avatar}
       />
     );
   }

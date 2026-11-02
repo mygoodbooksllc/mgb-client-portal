@@ -358,6 +358,104 @@ function TK_StandaloneBar(props) {
     } catch (e) {}
   };
 
+  // The account menu's items (one list: the top-bar avatar shows it, and under
+  // Slate Stage B the sidebar's bottom avatar shows the same one).
+  var acctMenu = function (close) {
+    // One stop for the person's own things (Slate UX review, Stage A):
+    // profile, notifications and theme; the window controls; portal,
+    // help and tour; Admin settings for admins; Sign out.
+    var items = [];
+    var item = function (key, label, onPick, extra) {
+      return (
+        <button
+          key={key}
+          type="button"
+          role={(extra && extra.role) || "menuitem"}
+          aria-checked={extra && extra.checked != null ? (extra.checked ? "true" : "false") : undefined}
+          title={(extra && extra.title) || undefined}
+          className="tk-menu-item"
+          onClick={function () {
+            close();
+            onPick();
+          }}
+        >
+          {extra && extra.checked ? (
+            <span className="tk-sbar-check" aria-hidden="true">
+              <TK_vIcon name="check" size={14} />
+            </span>
+          ) : null}
+          {label}
+        </button>
+      );
+    };
+    var sep = function (key) {
+      return <span key={key} className="tk-menu-sep" role="separator" aria-hidden="true" />;
+    };
+    if (name) {
+      items.push(
+        <div key="who" className="tk-menu-note tk-sbar-who">
+          {name}
+        </div>,
+      );
+    }
+    items.push(
+      item("profile", "My profile", function () { goPortal("#/settings?tab=profile"); }, { title: "Name, title, photo and phone (portal Settings)" }),
+      item("notify", "Notifications", function () { goPortal("#/settings?tab=notifications"); }, { title: "Which emails and bell alerts you get (portal Settings)" }),
+    );
+    if (typeof props.onToggleTheme === "function") {
+      items.push(item("theme", props.theme === "dark" ? "Light mode" : "Dark mode", props.onToggleTheme));
+    }
+    items.push(item("display", "Display settings", function () { goPortal("#/settings?tab=appearance"); }, { title: "Theme and start page (portal Settings)" }));
+    // Window controls.
+    var win = [];
+    if (slm && presets.ok && typeof TK_SLATE_PRESET_ITEMS !== "undefined") {
+      TK_SLATE_PRESET_ITEMS.forEach(function (it) {
+        win.push(item("size-" + it.id, "Size: " + it.label, function () { presets.apply(it.id); }));
+      });
+    }
+    if (showDock) win.push(item("dock", "Dock in portal", dock));
+    win.push(
+      item("follow", "Follow my client", function () { setFollow(!followOn); }, {
+        role: "menuitemcheckbox",
+        checked: followOn,
+        title: "Show the tasks for the client open in your portal window",
+      }),
+    );
+    items.push(sep("sep-win"));
+    items = items.concat(win);
+    items.push(sep("sep-help"), item("portal", "Open full portal", openPortal), item("help", "Help", help));
+    // The presenter tour, run right here in the app (Tour.jsx).
+    if (inApp && typeof window.TK_replaySlateTour === "function") {
+      items.push(item("tour", "Take the Slate tour", function () { window.TK_replaySlateTour(); }));
+    }
+    var tail = [];
+    // Admins: the portal's staff access page (HR › Members). Nothing
+    // about staff, pay or access is edited inside Slate itself.
+    if (props.isAdmin) tail.push(item("admin", "Admin settings", function () { goPortal("#/hr/members"); }, { title: "Staff and their access (portal HR › Members)" }));
+    if (typeof props.onSignOut === "function") tail.push(item("signout", "Sign out", props.onSignOut));
+    if (tail.length) items = items.concat([sep("sep-acct")], tail);
+    return items;
+  };
+  // Slate Stage B (hidden preview): in the app the account avatar sits at the
+  // bottom of the sidebar (TKB_SideAvatar); the top bar hides its own while
+  // that one is mounted. Off: simpleApp false, the bar is as before.
+  // The hook runs every render (slm can change while the page is open).
+  var simpleGate = typeof TKB_useOn === "function" ? TKB_useOn() : false;
+  var simpleApp = !!slm && simpleGate && typeof TKB_acctSet === "function";
+  var acctRef = React.useRef(acctMenu);
+  acctRef.current = acctMenu;
+  React.useEffect(
+    function () {
+      if (!simpleApp) return undefined;
+      TKB_acctSet(function (close) { return acctRef.current(close); }, name, staffUser.email || "");
+      return function () {
+        TKB_acctSet(null);
+      };
+    },
+    [simpleApp, name, staffUser.email],
+  );
+  var sideAvatarOn = typeof TKB_useSideAvatar === "function" ? TKB_useSideAvatar() : false;
+  var sideAvatar = simpleApp && sideAvatarOn;
   var bar = (
     <header className={"tk-sbar" + (phone ? " is-compact" : "")} role="banner">
       <a
@@ -433,92 +531,20 @@ function TK_StandaloneBar(props) {
             <TK_vIcon name="gear" size={17} />
           </a>
         ) : null}
+        {sideAvatar ? null : (
         <TK_vMenuButton
           className="tk-sbar-avatar"
           tour="tk-sbar-avatar"
+          returnFocus={true}
           ariaLabel="Account menu"
           title="Account menu"
           menuLabel="Account"
           align="right"
           label={<TK_vAvatar name={name} size="sm" decorative />}
         >
-          {function (close) {
-            // One stop for the person's own things (Slate UX review, Stage A):
-            // profile, notifications and theme; the window controls; portal,
-            // help and tour; Admin settings for admins; Sign out.
-            var items = [];
-            var item = function (key, label, onPick, extra) {
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role={(extra && extra.role) || "menuitem"}
-                  aria-checked={extra && extra.checked != null ? (extra.checked ? "true" : "false") : undefined}
-                  title={(extra && extra.title) || undefined}
-                  className="tk-menu-item"
-                  onClick={function () {
-                    close();
-                    onPick();
-                  }}
-                >
-                  {extra && extra.checked ? (
-                    <span className="tk-sbar-check" aria-hidden="true">
-                      <TK_vIcon name="check" size={14} />
-                    </span>
-                  ) : null}
-                  {label}
-                </button>
-              );
-            };
-            var sep = function (key) {
-              return <span key={key} className="tk-menu-sep" role="separator" aria-hidden="true" />;
-            };
-            if (name) {
-              items.push(
-                <div key="who" className="tk-menu-note tk-sbar-who">
-                  {name}
-                </div>,
-              );
-            }
-            items.push(
-              item("profile", "My profile", function () { goPortal("#/settings?tab=profile"); }, { title: "Name, title, photo and phone (portal Settings)" }),
-              item("notify", "Notifications", function () { goPortal("#/settings?tab=notifications"); }, { title: "Which emails and bell alerts you get (portal Settings)" }),
-            );
-            if (typeof props.onToggleTheme === "function") {
-              items.push(item("theme", props.theme === "dark" ? "Light mode" : "Dark mode", props.onToggleTheme));
-            }
-            items.push(item("display", "Display settings", function () { goPortal("#/settings?tab=appearance"); }, { title: "Theme and start page (portal Settings)" }));
-            // Window controls.
-            var win = [];
-            if (slm && presets.ok && typeof TK_SLATE_PRESET_ITEMS !== "undefined") {
-              TK_SLATE_PRESET_ITEMS.forEach(function (it) {
-                win.push(item("size-" + it.id, "Size: " + it.label, function () { presets.apply(it.id); }));
-              });
-            }
-            if (showDock) win.push(item("dock", "Dock in portal", dock));
-            win.push(
-              item("follow", "Follow my client", function () { setFollow(!followOn); }, {
-                role: "menuitemcheckbox",
-                checked: followOn,
-                title: "Show the tasks for the client open in your portal window",
-              }),
-            );
-            items.push(sep("sep-win"));
-            items = items.concat(win);
-            items.push(sep("sep-help"), item("portal", "Open full portal", openPortal), item("help", "Help", help));
-            // The presenter tour, run right here in the app (Tour.jsx).
-            if (inApp && typeof window.TK_replaySlateTour === "function") {
-              items.push(item("tour", "Take the Slate tour", function () { window.TK_replaySlateTour(); }));
-            }
-            var tail = [];
-            // Admins: the portal's staff access page (HR › Members). Nothing
-            // about staff, pay or access is edited inside Slate itself.
-            if (props.isAdmin) tail.push(item("admin", "Admin settings", function () { goPortal("#/hr/members"); }, { title: "Staff and their access (portal HR › Members)" }));
-            if (typeof props.onSignOut === "function") tail.push(item("signout", "Sign out", props.onSignOut));
-            if (tail.length) items = items.concat([sep("sep-acct")], tail);
-            return items;
-          }}
+          {acctMenu}
         </TK_vMenuButton>
+        )}
       </div>
     </header>
   );

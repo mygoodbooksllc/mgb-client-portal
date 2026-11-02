@@ -277,6 +277,8 @@ function TK_vNameMap(list, keyField, nameField) {
 }
 
 // A small menu button (role="menu"), used for "View" and the list menus.
+// Opt-in props (Slate Stage B, unused by the View menu): returnFocus, up
+// (opens above the button, for the sidebar's bottom avatar).
 function TK_vMenuButton(props) {
   var pair = React.useState(false);
   var open = pair[0];
@@ -334,6 +336,18 @@ function TK_vMenuButton(props) {
   };
   var close = function () {
     setOpen(false);
+    // returnFocus (opt-in; the account menus pass it): after an item pick,
+    // focus goes back to the button, but only when the pick left focus
+    // nowhere (a tour, a dialog or a new view that took focus keeps it).
+    if (props.returnFocus) {
+      setTimeout(function () {
+        var a = document.activeElement;
+        if ((a && a !== document.body) || !btnRef.current || !btnRef.current.isConnected) return;
+        try {
+          btnRef.current.focus({ preventScroll: true });
+        } catch (err) {}
+      }, 0);
+    }
   };
   // hoverOpen: a mouse pointer resting on the button or menu opens it; leaving closes it after a short grace
   var hoverT = React.useRef(null);
@@ -373,7 +387,7 @@ function TK_vMenuButton(props) {
         {props.label}
       </button>
       {open ? (
-        <div className={"tk-menu" + (props.align === "right" ? " tk-menu-right" : "")} role="menu" aria-label={props.menuLabel || undefined} ref={menuRef} onKeyDown={onKey}>
+        <div className={"tk-menu" + (props.align === "right" ? " tk-menu-right" : "") + (props.up ? " tkb-menu-up" : "")} role="menu" aria-label={props.menuLabel || undefined} ref={menuRef} onKeyDown={onKey}>
           {props.children(close)}
         </div>
       ) : null}
@@ -710,6 +724,35 @@ function TK_vMyTasksBody(props) {
   var plusOn = !!plusGate && !embedded && typeof TK_SlateFilterBar === "function" && typeof TK_applySlateFilters === "function";
   var pfPair = React.useState(null);
   var plusF = plusOn ? pfPair[0] : null;
+  // Slate Stage B (hidden preview, TKB_useOn in TK_slateSimple.js): three
+  // controls (Filter, Group and sort, Saved views) in place of the two bars,
+  // and the plain-words add-line. Off: simple is false and nothing changes.
+  var simpleGate = typeof TKB_useOn === "function" ? TKB_useOn() : false;
+  var simple = !!simpleGate && plusOn && typeof TKB_GroupSort === "function";
+  // A Today at a glance count hands this list a filter (TKB_handFilter).
+  React.useEffect(
+    function () {
+      if (!simple) return undefined;
+      var take = function () {
+        var f = typeof TKB_takeFilter === "function" ? TKB_takeFilter() : null;
+        if (!f) return;
+        setSearchText("");
+        setClientFilter("");
+        setFocusedId(null);
+        var n = TK_normalizeSlateFilters(f);
+        pfPair[1]({ assignee: n.assignee, project: n.project, due: n.due, from: n.from, to: n.to, status: n.status });
+        // A saved chip would narrow the list further than the glance count.
+        if (svPair && typeof svPair[1] === "function") svPair[1]({ chip: "" });
+      };
+      take();
+      window.addEventListener("tkb:glance-filter", take);
+      return function () {
+        window.removeEventListener("tkb:glance-filter", take);
+      };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [simple],
+  );
   var focusPair = React.useState(null);
   var focusedId = focusPair[0];
   var setFocusedId = focusPair[1];
@@ -1354,6 +1397,7 @@ function TK_vMyTasksBody(props) {
           )}
         </div>
       </div>
+      {simple ? null : (
       <TK_SlateViewBar
         view={sv}
         onChange={svPair[1]}
@@ -1387,6 +1431,7 @@ function TK_vMyTasksBody(props) {
             : undefined
         }
       />
+      )}
       {/* Slate plus (hidden preview): Team load strip. Renders nothing when off.
           Profile 2: gate on, it lives on Team › People and the profile instead. */}
       {!embedded && !plusGate && typeof TK_WorkloadStrip === "function" ? <TK_WorkloadStrip isAdmin={isAdmin} bump={loading ? null : all.length} email={email} /> : null}
@@ -1405,9 +1450,44 @@ function TK_vMyTasksBody(props) {
           tasks={all}
           projectNames={projectNames}
           email={email}
+          simple={simple}
+          groupSortEl={
+            simple ? (
+              <TKB_GroupSort
+                view={sv}
+                onChange={svPair[1]}
+                onReset={svPair[2]}
+                noGroupBy={boardOn || cal.on}
+                manual={
+                  manualCan && !boardOn && !cal.on
+                    ? {
+                        on: manualOn,
+                        onToggle: function (on) {
+                          if (on && sv.sort) svPair[1]({ sort: null });
+                          manualPair[1](!!on);
+                        },
+                      }
+                    : undefined
+                }
+              />
+            ) : null
+          }
+          chipEl={simple && typeof TKB_ChipEl === "function" ? TKB_ChipEl({ view: sv, onChange: svPair[1] }) : null}
+          saveView={simple ? { groupBy: sv.groupBy, sort: sv.sort || null } : null}
+          viewChanged={simple && (sv.groupBy !== "due" || !!(sv.sort && sv.sort.col))}
+          chipOn={simple && !!sv.chip}
+          onApplyView={
+            simple
+              ? function (v) {
+                  var n = TK_normalizeSlateView(v);
+                  svPair[1]({ groupBy: n.groupBy, sort: n.sort });
+                }
+              : undefined
+          }
         />
       ) : null}
       {!online ? <TK_vOfflineBanner /> : null}
+      {simple && typeof TKB_AddLine === "function" ? <TKB_AddLine staffUser={staffUser} clients={props.clients || []} clientId={clientFilter || null} readOnly={!online} where="my" /> : null}
       {body}
       {manualOn && manualSay ? manualSay.el : null}
       <TK_BulkBar select={bulk} tasksById={byId} staff={bulkStaff} projects={projects} readOnly={!online} clientNames={clientNames} />

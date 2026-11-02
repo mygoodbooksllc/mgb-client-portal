@@ -415,10 +415,16 @@ function TK_SlatePane(props) {
     return s ? s.drawerId : null;
   });
   TK__smUsePaneKeys(true);
+  // Slate Stage B (hidden preview, TKB_useOn): with no task open the pane shows
+  // Today at a glance (TKB_Glance) instead of "Pick a task". Off: as before.
+  var simpleGate = typeof TKB_useOn === "function" ? TKB_useOn() : false;
+  var glance = !!simpleGate && view !== "templates" && typeof TKB_Glance === "function";
   var empty = view === "templates" ? "Pick a template" : "Pick a task";
   return (
-    <section className="tk-slate-pane" aria-label="Task details">
-      {drawerId ? null : (
+    <section className="tk-slate-pane" aria-label={glance && !drawerId ? undefined : "Task details"} aria-labelledby={glance && !drawerId ? "tkb-glance-h" : undefined}>
+      {drawerId ? null : glance ? (
+        <TKB_Glance staffUser={props.staffUser} clients={props.clients} isAdmin={!!props.isAdmin} />
+      ) : (
         <div className="tk-slate-pane-empty">
           <p>{empty}</p>
           {view === "templates" ? <p className="tk-muted">Templates open in their own editor.</p> : null}

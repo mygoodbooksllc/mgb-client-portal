@@ -228,7 +228,11 @@ function TKR_Rail(props) {
     .trim()
     .toLowerCase();
   var prefsKey = TKR__keyFor(me);
-  var prefs = TKR_usePrefs(me, true);
+  var prefsRaw = TKR_usePrefs(me, true);
+  // Slate Stage B (props.simple, only while TKB_on): no Pin, so the lists
+  // panel always floats. Off: the saved prefs exactly as before.
+  var simple = !!props.simple;
+  var prefs = simple ? TKR__OFF : prefsRaw;
   var fPair = React.useState(null);
   var floatSec = fPair[0];
   var setFloat = fPair[1];
@@ -857,10 +861,29 @@ function TKR_Rail(props) {
   };
 
   return (
-    <nav className={"tk-sidebar tkr" + (shown ? " has-panel" : "") + (prefs.pinned ? " is-pinned" : "")} aria-label="Task lists" data-tour="tk-sidebar" ref={rootRef}>
+    <nav className={"tk-sidebar tkr" + (shown ? " has-panel" : "") + (prefs.pinned ? " is-pinned" : "") + (simple ? " tkb-rail" + (props.labeled ? " is-labeled" : "") : "")} aria-label="Task lists" data-tour="tk-sidebar" ref={rootRef}>
       <div className="tkr-rail" ref={railRef} onKeyDown={onRailKey}>
         {/* Create, only in the Slate app window; in the portal the left nav's Create carries Slate's rows. */}
         {typeof TB_NavCreate === "function" && typeof TK_slateInApp === "function" && TK_slateInApp() ? <TB_NavCreate clients={props.clients} currentClientId={null} /> : null}
+        {simple ? (
+          <React.Fragment>
+            <ul className="tkr-list">
+              <TKR_Link id="my" route={{ view: "my" }} label="My tasks" short={props.labeled ? undefined : "Mine"} icon="layout-list" active={active === "my"} onGo={go} />
+              <TKR_Link id="waiting" route={{ view: "waiting" }} label="Waiting on client" short={props.labeled ? undefined : "Waiting"} icon="hourglass" count={props.waitCount} noun="open" tour="tk-waiting-nav" active={active === "waiting"} onGo={go} />
+              <TKR_Link id="review" route={{ view: "review" }} label="To review" short={props.labeled ? undefined : "Review"} icon="eye-check" count={props.reviewCount} tour="tk-review-nav" active={active === "review"} onGo={go} />
+            </ul>
+            <span className="tkr-sep" aria-hidden="true" />
+            <ul className="tkr-list">
+              <TKR_SectionBtn id="clients" label="Clients" icon="clients" tour={isAdmin && noTeam.length && shown !== "clients" ? "tk-no-team" : undefined} active={active === "clients"} open={shown === "clients"} onOpen={openSection} {...hoverProps("clients")} />
+              <TKR_SectionBtn id="projects" label="Projects" icon="folder" tour={isRoleAdmin && shown !== "projects" ? "tk-manage-nav" : undefined} active={active === "projects"} open={shown === "projects"} onOpen={openSection} {...hoverProps("projects")} />
+              <TKR_SectionBtn id="people" label="People" icon="people" active={active === "people"} open={shown === "people"} onOpen={openSection} {...hoverProps("people")} />
+              {isAdmin ? <TKR_Link id="recurring" route={{ view: "templates" }} label="Recurring" icon="repeat" tour="tk-recurring-nav" active={active === "templates"} onGo={go} /> : null}
+            </ul>
+            <span className="tkr-gap" />
+            {props.avatar && typeof TKB_SideAvatar === "function" ? <TKB_SideAvatar labeled={!!props.labeled} /> : null}
+          </React.Fragment>
+        ) : (
+        <React.Fragment>
         <ul className="tkr-list">
           <TKR_Link id="my" route={{ view: "my" }} label="Slate" icon="layout-list" active={active === "my"} onGo={go} />
           <TKR_Link id="review" route={{ view: "review" }} label="Review" icon="eye-check" count={props.reviewCount} tour="tk-review-nav" active={active === "review"} onGo={go} />
@@ -894,6 +917,8 @@ function TKR_Rail(props) {
             </button>
           </li>
         </ul>
+        </React.Fragment>
+        )}
       </div>
 
       {shown && panel ? (

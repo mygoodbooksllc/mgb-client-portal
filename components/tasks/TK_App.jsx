@@ -91,6 +91,13 @@ function TK_App(props) {
   var plusOn = typeof TKP_useOn === "function" ? TKP_useOn() : false;
   var railPlus = !!(rail && plusOn && typeof TKR_Rail === "function");
   var rp = typeof TKR_usePrefs === "function" ? TKR_usePrefs(staffUser.email, railPlus) : null;
+  // Slate Stage B (hidden preview, TKB_useOn): the rail becomes the labeled
+  // sidebar (no Pin, no Search, the account avatar at the bottom in the app).
+  // Labeled in the app's full size or a portal window 1280 px or wider; the
+  // icon rail otherwise. Off: simpleRail false, classes and markup as before.
+  var simpleOn = typeof TKB_useOn === "function" ? TKB_useOn() : false;
+  var simpleRail = railPlus && !!simpleOn;
+  var railLabeled = simpleRail && (slm ? slm.mode === "full" : width >= 1280);
 
   if (schema === "missing") {
     return (
@@ -157,12 +164,12 @@ function TK_App(props) {
   return (
     <div
       className={
-        "tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (compactNow ? " is-compact" : "") + (slm ? " " + TK_slateModeClasses(slm) : "") + (slm && prefs && TK_prefsDensityClass(prefs) ? " " + TK_prefsDensityClass(prefs) : "") + (railPlus ? " has-tkr" + (rp && rp.pinned && rp.section ? " tkr-pinned" : "") : "")
+        "tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (compactNow ? " is-compact" : "") + (slm ? " " + TK_slateModeClasses(slm) : "") + (slm && prefs && TK_prefsDensityClass(prefs) ? " " + TK_prefsDensityClass(prefs) : "") + (railPlus ? " has-tkr" + (simpleRail ? " tkb-on" + (railLabeled ? " tkb-labeled" : "") : rp && rp.pinned && rp.section ? " tkr-pinned" : "") : "")
       }
       ref={obsRef || undefined}
     >
       <h1 className="tk-sr">Slate</h1>
-      {rail ? <aside className={"tk-app-rail" + (railPlus ? " tkr-host" : "")}>{railPlus ? <TK_Sidebar route={route} clients={clients} isAdmin={isAdmin} staffUser={staffUser} onNavigate={navigate} variant="icons" /> : sidebar}</aside> : null}
+      {rail ? <aside className={"tk-app-rail" + (railPlus ? " tkr-host" : "")}>{railPlus ? <TK_Sidebar route={route} clients={clients} isAdmin={isAdmin} staffUser={staffUser} onNavigate={navigate} variant="icons" simple={simpleRail} labeled={railLabeled} avatar={simpleRail && !!slm} /> : sidebar}</aside> : null}
       <div className="tk-app-main" tabIndex={slm ? -1 : undefined}>
         {needBar || showPopOut ? (
           <div className="tk-app-bar">
@@ -213,7 +220,7 @@ function TK_App(props) {
         ) : null}
         {main}
       </div>
-      {slm && slm.mode === "full" && typeof TK_SlatePane === "function" ? <TK_SlatePane view={route.view} /> : null}
+      {slm && slm.mode === "full" && typeof TK_SlatePane === "function" ? <TK_SlatePane view={route.view} staffUser={staffUser} clients={clients} isAdmin={isAdmin} /> : null}
       {slm && slm.mode === "sliver" && typeof TK_SlateSliverSlot === "function" ? <TK_SlateSliverSlot shape={slm.shape} staffUser={staffUser} clients={clients} isAdmin={isAdmin} /> : null}
 
       {listsOpen && !rail ? (

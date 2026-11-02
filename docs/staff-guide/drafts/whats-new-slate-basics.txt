@@ -1,0 +1,20 @@
+DRAFT - not live until the owner turns on tk_settings.slatesimple_enabled (Slate Stage B, docs/slate-stage-b-spec.md). Not published: nothing here is in docs/staff-guide/whats-new.md or the guide table.
+
+AT LAUNCH: paste the entry below at the top of docs/staff-guide/whats-new.md (under the intro, with the launch date in place of DATE) and sync with a targeted guide SQL (upserts only, body_md only). The "slate-simpler" notice is already wired in components/tour/announcements.js and shows once the switch is on.
+
+--- whats-new.md entry ---
+
+### DATE: A simpler Slate
+
+- **Labeled sidebar.** My tasks, Waiting on client, To review, Clients, Projects and People, each with a name. Admins also see Recurring. The pin and the sidebar search are gone; the top search stays.
+- **Three controls.** Filter, Group and sort, and Saved views replace the two rows of buttons. The Mine today and Waiting chips are gone; Waiting on client has its own sidebar item. "4/14/24th" now reads "Month step (4th/14th/24th)".
+- **Type to add.** An add line at the top of My tasks takes a task in plain words and shows what will be saved before Enter.
+- **Today at a glance.** In the Slate app, with no task open, the right side shows overdue, due this week and waiting on client counts (admins also see waiting for review), three tasks to start with, and an add box.
+- **More details.** Less used fields in an open task fold under More details.
+- **Account menu.** In the Slate app, the avatar sits at the bottom of the sidebar.
+
+See [Slate basics](#/help/slate-basics). The Slate basics tour is in the ? menu.
+
+--- notice summary (announcements.js "slate-simpler") ---
+
+Slate has a labeled sidebar, three list controls (Filter, Group and sort, Saved views), an add line at the top of the list, a Today at a glance panel when no task is open, and a More details section in the open task.

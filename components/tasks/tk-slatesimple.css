@@ -1,0 +1,395 @@
+/* ----------------------------------------------------------------------------
+   Slate Stage B, the simpler Slate (hidden preview; docs/slate-stage-b-spec.md).
+   Every rule matches only .tkb-* classes (and .tk-app.tkb-on / .tkb-labeled),
+   which render only while TKB_on() is true. Off: nothing here applies.
+   ---------------------------------------------------------------------------- */
+
+/* ---- Three controls: Filter, Group and sort, Saved views ---- */
+.tkb-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.tkb-bar .tkb-saved {
+  display: inline-flex;
+}
+.tkb-filter-btn,
+.tkb-gs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tkb-filter-btn.is-on,
+.tkb-gs-btn.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.tkb-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--on-gold, var(--ink-strong));
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+}
+.tkb-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-hover);
+}
+.tkb-pop-body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.tkb-pop-body .tk-fb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tkb-pop-body .tk-fb-field .tk-sr {
+  position: static !important;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.tkb-pop-body .tk-fb-field .tk-select {
+  width: 100%;
+}
+.tkb-pop-body .tk-fb-range {
+  display: flex;
+  gap: 8px;
+}
+.tkb-pop-body .tks-text-chip,
+.tkb-pop-body .tkb-chip {
+  align-self: flex-start;
+}
+.tkb-pop-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.tkb-menu-head {
+  display: block;
+  padding: 6px 10px 2px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* ---- Add-line ---- */
+.tkb-add {
+  margin: 0 0 12px;
+}
+.tkb-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+.tkb-add-row:focus-within {
+  border-style: solid;
+  border-color: var(--accent);
+}
+.tkb-add-input.tk-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.tkb-add-input.tk-input:focus {
+  outline: none;
+  box-shadow: none;
+}
+.tkb-add-hint {
+  min-height: 1.2em;
+  margin: 4px 2px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.tkb-add.is-compact .tkb-add-hint:empty {
+  display: none;
+}
+
+/* ---- Today at a glance (the full-size pane) ---- */
+.tkb-glance {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  overflow-y: auto;
+}
+.tkb-glance-title {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+}
+.tkb-glance-h {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.tkb-glance-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.tkb-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tkb-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tkb-stat:hover {
+  background: var(--hover-bg);
+}
+.tkb-stat:focus-visible,
+.tkb-start-item:focus-visible,
+.tkb-more-btn:focus-visible,
+.tkb-avatar:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+.tkb-stat-n {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.tkb-stat-l {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+.tkb-stat-overdue.has-n .tkb-stat-n {
+  color: var(--bad);
+}
+.tkb-start-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tkb-start-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tkb-start-item:hover {
+  background: var(--hover-bg);
+}
+.tkb-start-t {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tkb-start-m {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.tkb-start-item.is-late .tkb-start-m {
+  color: var(--bad);
+}
+.tkb-glance-add .tkb-add {
+  margin: 0;
+}
+
+/* ---- The open task: More details ---- */
+.tkb-more {
+  margin: 4px 0 12px;
+}
+.tkb-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tkb-more-btn:hover {
+  background: var(--hover-bg);
+}
+.tkb-more-ico {
+  display: inline-flex;
+  transform: rotate(-90deg);
+  transition: transform 120ms ease-out;
+}
+.tkb-more.is-open .tkb-more-ico {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tkb-more-ico {
+    transition: none;
+  }
+}
+
+/* ---- Labeled sidebar (Slate plus rail, Stage B) ---- */
+.tk-app.has-tkr.tkb-labeled {
+  --tkr-w: 200px;
+}
+.tkb-rail.is-labeled .tkr-rail {
+  align-items: stretch;
+  width: 200px;
+  padding: 8px;
+}
+.tkb-rail.is-labeled .tkr-list {
+  align-items: stretch;
+}
+.tkb-rail.is-labeled .tkr-list > li {
+  justify-content: stretch;
+}
+.tkb-rail.is-labeled .tkr-item {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 10px;
+}
+.tkb-rail.is-labeled .tkr-cap {
+  font-size: 13.5px;
+  text-align: left;
+}
+.tkb-rail.is-labeled .tkr-badge {
+  position: static;
+  margin-left: auto;
+}
+.tkb-rail.is-labeled .tkr-ico {
+  flex: none;
+}
+.tkb-rail.is-labeled .tkr-sep {
+  width: auto;
+  margin: 6px 4px;
+}
+.tkb-rail.is-labeled .tkr-panel.is-floating {
+  left: 208px;
+}
+.tkb-rail.is-labeled .tb-create-nav-menu {
+  left: 220px;
+}
+
+/* ---- Account avatar at the bottom of the sidebar ---- */
+.tkb-side-acct {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  width: 100%;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.tkb-side-acct.is-labeled {
+  justify-content: stretch;
+}
+.tkb-side-acct .tk-pop-wrap {
+  display: flex;
+  width: 100%;
+  justify-content: inherit;
+}
+.tkb-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.tkb-avatar:hover {
+  background: var(--hover-bg);
+}
+.tkb-avatar.is-labeled {
+  justify-content: flex-start;
+  width: 100%;
+  padding: 4px 8px;
+}
+.tkb-avatar-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The rail scrolls, so the menu is fixed to the window (it would be clipped). */
+.tk-menu.tkb-menu-up {
+  position: fixed;
+  top: auto;
+  bottom: 16px;
+  left: calc(var(--tkr-w, 64px) + 20px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}

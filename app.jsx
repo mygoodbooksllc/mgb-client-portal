@@ -1074,6 +1074,15 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by TKB_on / TKB_useOn (components/tasks/TK_slateSimple.js), the one gate for
+    // Slate Stage B, the simpler Slate (docs/slate-stage-b-spec.md).
+    key: "mgb_slatesimple_preview",
+    label: "Simpler Slate preview",
+    description:
+      "Hidden preview (Slate Stage B): only in this browser, and only while Slate plus is on: a labeled Slate sidebar (My tasks, Waiting on client, To review, Clients, Projects, People; Recurring for admins) with the account avatar at the bottom in the Slate app; three list controls (Filter, Group and sort, Saved views) in place of the view bar and the Mine today / Waiting chips; a plain-words add line at the top of My tasks; Today at a glance in the Slate app's right pane when no task is open (own counts and top 3 tasks, plus an add box); and More details folding the less used fields of an open task. Also the slate-simpler notice and the Slate basics tour. Off in View as. Nothing changes for anyone else. The page reloads on toggle.",
+    reloads: true,
+  },
+  {
     // Read by TK_rhythmEnabled (components/tasks/TK_rhythmLogic.js).
     key: "mgb_rhythm_preview",
     label: "Month rhythm preview",
@@ -1191,6 +1200,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Slate plus workload)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "Slate plus (launched 2026-10-28; on once the owner sets slateplus_enabled): supabase/slateplus-workload.sql (+ slateplus-workload-tests.sql, rolls back) adds the read-only RPC tk_slateplus_workload() (task counts per active staff member: open, due this week, late once late tasks count; admins and account managers see everyone, others only themselves; no task or client fields) and makes tk_settings.slateplus_enabled owner-only (tk__owner_only_key). No row: missing = off. Read by components/tasks/TK_slatePlus.js, never written by the app. Spec: docs/slateplus-workload-spec.md.",
+  },
+  {
+    name: "Supabase SQL (Simpler Slate switch)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Simpler Slate (Slate Stage B, hidden preview, 2026-11-02): supabase/slate-simple-switch.sql (applied as slate_simple_switch; + slate-simple-switch-tests.sql) adds tk_settings.slatesimple_enabled to tk__owner_only_key, so only the owner can write it. No row: missing = off. Read (never written) by components/tasks/TK_slateSimple.js, only once Slate plus is on and the preview is off. UI: TK_SlateSimple.jsx + tk-slatesimple.css. Spec: docs/slate-stage-b-spec.md.",
   },
   {
     name: "Supabase SQL (Thread menu)",
@@ -14161,7 +14175,7 @@ function resettableLocalStorageKeys() {
     // mgb_nav_prefs:<email> and mgb_nav_on_cache, and Slate's saved view
     // mgb_tk_slate_view_v1:<email> / :desk:<email>, and Slate Settings mgb_tk_prefs_v1:<email>: quick keys, density, open in, show older). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_classic, mgb_rhythm_preview,
-    // mgb_deskplus_preview, mgb_create_preview, mgb_threadmenu_preview, mgb_slateplus_preview, mgb_home_preview). The retired personal previews
+    // mgb_deskplus_preview, mgb_create_preview, mgb_threadmenu_preview, mgb_slateplus_preview, mgb_slatesimple_preview, mgb_home_preview). The retired personal previews
     // (mgb_wb_preview, mgb_nav_preview, mgb_lato_preview, mgb_brand_preview, mgb_hovernav_preview,
     // retired 2026-10-25, and mgb_slate_app_preview, mgb_orgprofile_preview plus the Classic opt-outs
     // mgb_lato_classic, mgb_brand_classic, mgb_hovernav_classic, mgb_nav_classic, mgb_slate_classic,
@@ -14184,6 +14198,9 @@ function resettableLocalStorageKeys() {
     // mgb_slateplus_cache (the firm switch slateplus_enabled as last read by TK_slatePlus.js, cleared by Reset),
     // mgb_slateplus_workload_v1 (Team load strip collapsed, cleared by Reset),
     // mgb_tkrail_v1:<person key> (icon sidebar's pinned lists panel and section, TK_SlateRail.jsx; cleared by Reset).
+    // Simpler Slate (hidden preview): mgb_slatesimple_preview (a flag, kept),
+    // mgb_slatesimple_cache (the firm switch slatesimple_enabled as last read by TK_slateSimple.js, cleared by Reset),
+    // mgb_slatesimple_more_v1 (More details open or closed in an open task, TK_SlateSimple.jsx; cleared by Reset).
     // Client agreements: mgb_ag_seen_card_v1 (set when a staff member first sees a client's Agreements card; holds the launch notice; cleared by Reset).
     // Thread menu (hidden preview): mgb_threadmenu_preview (a flag, kept),
     // mgb_threadmenu_cache (the firm switch threadmenu_enabled as last read by TM_gate.js, cleared by Reset).
@@ -15729,6 +15746,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags. If it is ever turned off again, it is off for everyone (there is no personal preview any more)."],
             ["threadmenu_enabled", "Message thread menu for all staff (owner only)", "Off = only people with the Thread menu preview flag see it. Off (or missing, the default) keeps Messages and the Desk Inbox exactly as they are: no right-click menu or ⋯ on threads, no Done, Snoozed or Hidden chips, no thread tags. Owner turns it on (true) from the SQL editor (override first; see the README Thread menu launch checklist), never from here. Never shown to clients; off in View as."],
             ["slateplus_enabled", "Slate plus for all staff (owner only)", "Launched 2026-10-28 (label 2026-10-28w): the guide articles are already synced (they describe Slate plus on, so flip promptly); the slate-plus next-visit notice, the Slate plus tour and its tips appear for everyone once this is true. True turns Slate plus on for every staff member. Off = only people with the Slate plus preview flag see it. Off (or missing, the default) keeps Slate exactly as it is for everyone: task comment @mentions work as before (full @ list, no note after posting, no highlight of your own name), the Slate page keeps its own search box and client filter (no filter bar, no Saved filters, no top-bar search across clients, tasks, projects and people), and there is no Team load or 4-week bars anywhere (Slate, Team › People or profiles). No person profiles (#/tasks/person/<key>), no profile links on assignees, Team or shout-outs, no separate reassign button, no profile customization, manager or direct reports view, and no Teams card on Team › People (saved profile settings and teams stay stored, unseen). No Blocked by section, chip, Blocked group, Close order step or Ready to start notice (dependencies someone added with the preview still hold their task until done or removed). Slate keeps its text sidebar (no icon rail, hover menus or lists panel). No hours used / budget chip beside a client or in the Assign to menu. No Calendar button (month grid of tasks by due date) on Slate lists. No project status updates on project pages and no Portfolio page (#/tasks/portfolio); updates already posted stay stored, unseen. No Rules page (#/tasks/rules) and no rule ever runs, switched on or not; saved rules stay stored, unseen. No Fields button on project or client headers, no custom field rows in task details and no field chips on rows (fields and values already saved stay stored, unseen). The New project form stays as it is (no people, client, color, description, due date, Start from or visibility summary; descriptions and due dates already saved stay stored, unseen). Owner turns it on (true) from the SQL editor (override first; see the README Slate plus launch checklist), never from here. Never shown to clients; off in View as; Team load is read only (admins and account managers see everyone's load, others only their own)."],
+            ["slatesimple_enabled", "Simpler Slate for all staff (owner only)", "Hidden preview (Slate Stage B, 2026-11-02). Needs Slate plus. True turns the simpler Slate on for every staff member with Slate plus: a labeled sidebar with the account avatar at the bottom in the Slate app, three list controls (Filter, Group and sort, Saved views), a plain-words add line, Today at a glance when no task is open, and More details in an open task; the slate-simpler notice and the Slate basics tour then appear. Off = only people with the Simpler Slate preview flag see it. Off (or missing, the default) keeps Slate exactly as it is. Before turning it on, publish the drafts in docs/staff-guide/drafts/staff-guide-slate-basics.md and whats-new-slate-basics.txt. Owner turns it on (true) from the SQL editor, never from here. Never shown to clients; off in View as."],
             ["create_menu_enabled", "Create menu for all staff (owner only)", "ON since 2026-11-02 (the owner set it to true): every staff member has the Create button (top of the left nav; a round + in the top bar on a phone) and its roomier menu, and the Create menu next-visit notice and tour show once per person. Off (or missing) would bring back the small + icon in the top bar for everyone (set it to false to roll back; never delete the row). Set from the SQL editor, never from here. There is no Classic opt-out. The Create menu preview in Feature flags now changes nothing while this is on. The app only reads this; it never sets it."],
             ["deskplus_enabled", "Desk additions for staff", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk exactly as it is for everyone: no Ledger chip in the Inbox, no Waiting on client, recent messages or recent files on the Client tab, no Ask client or Message buttons there, and no Ask client…, Message… or Time off in the + menu. Owner turns it on (true) from the SQL editor (override first; see the README Desk additions launch checklist), never from here, to give those to every staff member who has the Desk. Each person can try it early with Desk additions preview in Feature flags. Needs the Desk on (wb_enabled, unless the person picked Classic Today)."],
             ["members_staff_enabled", "Members area for staff (owner only)", "Owner-only; off = hidden. Off (or missing, the default) hides HR › Members area from every staff member. The owner turns it on (true) from the SQL editor, never from here; until then each person with the permission can try it with Members area preview in Feature flags. Even when on, only admins the owner allowed can list customers. The app only reads it."],

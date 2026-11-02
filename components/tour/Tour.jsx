@@ -249,6 +249,7 @@
 //   tasksTour                { status, at }                 (Tasks tour)
 //   slateTour                { status, at }     ("Slate, start to finish")
 //   slatePlusTour            { status, at }     (Slate plus tour, 2026-10-28)
+//   slateBasicsTour          { status, at }     (Slate basics, simpler Slate preview)
 // The client tour starts on its own only for a signed-in client user who has
 // no tour status yet. Never for staff, "View as", or "Preview as a client
 // user". Anyone can run it again from the client top bar's "?" menu or
@@ -1863,6 +1864,31 @@ const TOUR_STAFF_TOURS = [
       TK_store.getState().schema === "ok",
     steps: (ctx) => TOUR_slatePlusSteps(ctx),
   },
+  {
+    // Slate basics (Slate Stage B, the simpler Slate; hidden preview). Three
+    // chapters (TOUR_slateLogic.js), run by hand or from the "slate-simpler"
+    // notice. Listed only while TKB_on() is true (false in View as).
+    key: "slatebasics",
+    setting: "slateBasicsTour",
+    label: "Slate basics",
+    sub: "The list, adding and finishing, client lists",
+    big: true,
+    chapters: (steps) =>
+      typeof TOUR_slateChapterIndex === "function" && typeof TOUR_SLATE_BASICS_CHAPTERS !== "undefined"
+        ? TOUR_slateChapterIndex(steps, TOUR_SLATE_BASICS_CHAPTERS)
+        : null,
+    available: (ctx) =>
+      !ctx.impersonating &&
+      typeof TOUR_slateBasicsSteps === "function" &&
+      typeof TKB_on === "function" &&
+      TKB_on() === true &&
+      typeof TK_App === "function" &&
+      typeof TK_store !== "undefined" &&
+      !!TK_store &&
+      typeof TK_store.getState === "function" &&
+      TK_store.getState().schema === "ok",
+    steps: (ctx) => TOUR_slateBasicsSteps(ctx),
+  },
 ];
 
 // The order the tours start on their own in (the first pending one wins).
@@ -2854,8 +2880,9 @@ function TOUR_StaffRoot({
       // A launch tour this person can't take (or one that was retired) isn't
       // swapped for the bookkeeper tour.
       if (typeof which === "string" && which.indexOf("ann:") === 0 && !(tour && tour.available(ctxRef.current))) return;
-      // The Slate app window runs only the Slate tour.
-      if (shell && !(tour && tour.key === "slate" && tour.available(ctxRef.current))) return;
+      // The Slate app window runs only the Slate tours (start to finish, and
+      // Slate basics while the simpler Slate is on).
+      if (shell && !(tour && (tour.key === "slate" || tour.key === "slatebasics") && tour.available(ctxRef.current))) return;
       begin(tour && tour.available(ctxRef.current) ? tour.key : "bookkeeper");
     };
     window.addEventListener(TOUR_STAFF_START_EVENT, onStart);

@@ -121,6 +121,9 @@ function TK__fbSelect(props) {
 
 function TK_SlateFilterBar(props) {
   var email = props.email || "";
+  // Stage B (TKB_on, passed by TK_MyTasks): three controls instead of the
+  // row; saved rows also carry the group and sort (filters.view). Off: as before.
+  var simple = !!props.simple;
   var value = TK_normalizeSlateFilters(props.value);
   var raw = props.value || {};
   var rawDue = raw.due === "custom" ? "custom" : value.due;
@@ -191,6 +194,9 @@ function TK_SlateFilterBar(props) {
   valueRef.current = Object.assign({}, value, { due: rawDue });
   var onChangeRef = React.useRef(props.onChange);
   onChangeRef.current = props.onChange;
+  // Stage B: a default saved view also carries its group and sort.
+  var applyViewRef = React.useRef(null);
+  applyViewRef.current = simple && typeof props.onApplyView === "function" ? props.onApplyView : null;
 
   var reqRef = React.useRef(0);
   var load = function () {
@@ -205,7 +211,10 @@ function TK_SlateFilterBar(props) {
         var def = list.filter(function (r) {
           return r && r.is_default;
         })[0];
-        if (def && !TK_slateFiltersActive(valueRef.current)) onChangeRef.current(TK_normalizeSlateFilters(def.filters));
+        if (def && !TK_slateFiltersActive(valueRef.current)) {
+          onChangeRef.current(TK_normalizeSlateFilters(def.filters));
+          if (applyViewRef.current && def.filters && def.filters.view) applyViewRef.current(def.filters.view);
+        }
       },
       function (err) {
         if (req !== reqRef.current) return;
@@ -306,7 +315,8 @@ function TK_SlateFilterBar(props) {
       return;
     }
     setBusy(true);
-    var req = rename ? TK_api.filterViewUpdate(panel.id, { name: v.name }) : TK_api.filterViewCreate(v.name, value, nextPos);
+    var saveAs = simple && props.saveView ? Object.assign({}, value, { view: props.saveView }) : value;
+    var req = rename ? TK_api.filterViewUpdate(panel.id, { name: v.name }) : TK_api.filterViewCreate(v.name, saveAs, nextPos);
     req.then(
       function (row) {
         setBusy(false);
@@ -370,9 +380,9 @@ function TK_SlateFilterBar(props) {
   }
 
   var canAdd = list.length < TK_FILTER_VIEW_MAX;
-  return (
-    <div className={"tk-fb" + (active ? " is-on" : "")} role="group" aria-label="Filter the Slate list" data-tour="tk-filter-bar">
-      {value.q && typeof TKS_SearchBox === "function" ? (
+  // Pieces shared by the bar (default) and Stage B's three controls
+  // (props.simple; TK_SlateSimple.jsx). Same DOM as before when not simple.
+  var qChipEl = value.q && typeof TKS_SearchBox === "function" ? (
         // Profile 2: the in-list box is gone (the unified search sets this);
         // the text filter shows here as a removable chip.
         <span className="tks-text-chip">
@@ -388,79 +398,83 @@ function TK_SlateFilterBar(props) {
             ×
           </button>
         </span>
-      ) : null}
-      <TK__fbSelect
-        label="Assignee"
-        value={value.assignee}
-        on={value.assignee !== "any"}
-        options={[["any", "Anyone"], ["me", "Assigned to me"], ["unassigned", "Unassigned"]]}
-        onChange={function (v) {
-          set({ assignee: v });
-        }}
-      />
-      <TK__fbSelect
-        label="Client"
-        value={value.client}
-        on={!!value.client}
-        options={clientOpts}
-        onChange={function (v) {
-          set({ client: v });
-        }}
-      />
-      <TK__fbSelect
-        label="Project"
-        value={value.project}
-        on={!!value.project}
-        options={projectOpts}
-        onChange={function (v) {
-          set({ project: v });
-        }}
-      />
-      <TK__fbSelect
-        label="Due"
-        value={rawDue}
-        on={rawDue !== "any"}
-        options={[["any", "Any due date"], ["late", "Late"], ["today", "Due today"], ["next7", "Next 7 days"], ["next30", "Next 30 days"], ["none", "No due date"], ["custom", "Custom range…"]]}
-        onChange={function (v) {
-          set({ due: v });
-        }}
-      />
-      {rawDue === "custom" ? (
-        <span className="tk-fb-range">
-          <label className="tk-fb-date">
-            <span>From</span>
-            <input
-              type="date"
-              className="tk-input"
-              value={TK__fbYmd(raw.from)}
-              onChange={function (e) {
-                set({ due: "custom", from: e.target.value });
-              }}
-            />
-          </label>
-          <label className="tk-fb-date">
-            <span>To</span>
-            <input
-              type="date"
-              className="tk-input"
-              value={TK__fbYmd(raw.to)}
-              onChange={function (e) {
-                set({ due: "custom", to: e.target.value });
-              }}
-            />
-          </label>
-        </span>
-      ) : null}
-      <TK__fbSelect
-        label="Status"
-        value={value.status}
-        on={value.status !== "any"}
-        options={[["any", "Any status"], ["late", "Late"], ["waiting", "Waiting on client"], ["todo", "To do"], ["in_progress", "In progress"], ["ready_for_review", "Ready for review"]]}
-        onChange={function (v) {
-          set({ status: v });
-        }}
-      />
-      {active ? (
+      ) : null;
+  var selectsEl = (
+    <React.Fragment>
+        <TK__fbSelect
+          label="Assignee"
+          value={value.assignee}
+          on={value.assignee !== "any"}
+          options={[["any", "Anyone"], ["me", "Assigned to me"], ["unassigned", "Unassigned"]]}
+          onChange={function (v) {
+            set({ assignee: v });
+          }}
+        />
+        <TK__fbSelect
+          label="Client"
+          value={value.client}
+          on={!!value.client}
+          options={clientOpts}
+          onChange={function (v) {
+            set({ client: v });
+          }}
+        />
+        <TK__fbSelect
+          label="Project"
+          value={value.project}
+          on={!!value.project}
+          options={projectOpts}
+          onChange={function (v) {
+            set({ project: v });
+          }}
+        />
+        <TK__fbSelect
+          label="Due"
+          value={rawDue}
+          on={rawDue !== "any"}
+          options={[["any", "Any due date"], ["late", "Late"], ["today", "Due today"], ["next7", "Next 7 days"], ["next30", "Next 30 days"], ["none", "No due date"], ["custom", "Custom range…"]]}
+          onChange={function (v) {
+            set({ due: v });
+          }}
+        />
+        {rawDue === "custom" ? (
+          <span className="tk-fb-range">
+            <label className="tk-fb-date">
+              <span>From</span>
+              <input
+                type="date"
+                className="tk-input"
+                value={TK__fbYmd(raw.from)}
+                onChange={function (e) {
+                  set({ due: "custom", from: e.target.value });
+                }}
+              />
+            </label>
+            <label className="tk-fb-date">
+              <span>To</span>
+              <input
+                type="date"
+                className="tk-input"
+                value={TK__fbYmd(raw.to)}
+                onChange={function (e) {
+                  set({ due: "custom", to: e.target.value });
+                }}
+              />
+            </label>
+          </span>
+        ) : null}
+        <TK__fbSelect
+          label="Status"
+          value={value.status}
+          on={value.status !== "any"}
+          options={[["any", "Any status"], ["late", "Late"], ["waiting", "Waiting on client"], ["todo", "To do"], ["in_progress", "In progress"], ["ready_for_review", "Ready for review"]]}
+          onChange={function (v) {
+            set({ status: v });
+          }}
+        />
+    </React.Fragment>
+  );
+  var clearEl = active ? (
         <button
           type="button"
           className="tk-link-btn tk-fb-clear"
@@ -470,110 +484,148 @@ function TK_SlateFilterBar(props) {
         >
           Clear filters
         </button>
-      ) : null}
-      <span className="tk-p3-views tk-fb-saved" data-tour="tk-filter-saved">
-        <TK_vMenuButton label="Saved filters" className="tk-tool-btn" menuLabel="Saved filters" title="Your saved filters" align="right">
-          {function (close) {
-            return (
-              <div className="tk-p3-vlist tk-fb-vlist">
-                {rows === null && !loadErr ? <span className="tk-menu-note">Loading your saved filters...</span> : null}
-                {loadErr ? (
-                  <span className="tk-menu-note">
-                    {loadErr + " "}
-                    <button type="button" role="menuitem" className="tk-link-btn" onClick={load}>
-                      Try again
-                    </button>
-                  </span>
-                ) : null}
-                {rows !== null && !loadErr && !list.length ? <span className="tk-menu-note">No saved filters yet. Pick some filters, then Save this view.</span> : null}
-                {list.map(function (entry) {
-                  var on = entry.id === activeId;
-                  return (
-                    <div key={entry.id} className="tk-p3-vrow tk-fb-vrow">
-                      <button
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={on ? "true" : "false"}
-                        className={"tk-menu-item tk-p3-vapply" + (on ? " is-on" : "")}
-                        onClick={function () {
-                          props.onChange(TK_normalizeSlateFilters(entry.filters));
-                          close();
-                        }}
-                      >
-                        <span className="tk-p3-vmark" aria-hidden="true">
-                          {on ? "✓" : ""}
-                        </span>
-                        <span className="tk-menu-label">{entry.name}</span>
-                        {entry.is_default ? <span className="tk-fb-deftag">Default</span> : null}
+      ) : null;
+  var menuName = simple ? "Saved views" : "Saved filters";
+  var savedEl = (
+        <span className="tk-p3-views tk-fb-saved" data-tour="tk-filter-saved">
+          <TK_vMenuButton label={menuName} className="tk-tool-btn" menuLabel={menuName} title={simple ? "Saved views" : "Your saved filters"} align="right">
+            {function (close) {
+              return (
+                <div className="tk-p3-vlist tk-fb-vlist">
+                  {rows === null && !loadErr ? <span className="tk-menu-note">Loading your saved filters...</span> : null}
+                  {loadErr ? (
+                    <span className="tk-menu-note">
+                      {loadErr + " "}
+                      <button type="button" role="menuitem" className="tk-link-btn" onClick={load}>
+                        Try again
                       </button>
-                      <span className="tk-p3-edit tk-p3-vtools">
-                        <span className="tk-p3-vtools-set">
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="tk-link-btn tk-p3-vtool"
-                            disabled={busy}
-                            aria-label={(entry.is_default ? "Remove default: " : "Set as my default: ") + entry.name}
-                            title={entry.is_default ? "Open the Slate with no filters" : "Open the Slate with this filter each time"}
-                            onClick={function () {
-                              close();
-                              setDefault(entry, !entry.is_default);
-                            }}
-                          >
-                            {entry.is_default ? "Remove default" : "Set as my default"}
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="tk-link-btn tk-p3-vtool"
-                            aria-label={"Rename " + entry.name}
-                            onClick={function () {
-                              close();
-                              openPanel({ mode: "rename", id: entry.id, name: entry.name });
-                            }}
-                          >
-                            Rename
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="tk-link-btn tk-p3-vtool tk-menu-danger"
-                            aria-label={"Delete " + entry.name}
-                            onClick={function () {
-                              close();
-                              openPanel({ mode: "delete", id: entry.id, name: entry.name });
-                            }}
-                          >
-                            Delete
-                          </button>
+                    </span>
+                  ) : null}
+                  {rows !== null && !loadErr && !list.length ? <span className="tk-menu-note">{simple ? "No saved views yet. Pick filters, a group or a sort, then Save this view." : "No saved filters yet. Pick some filters, then Save this view."}</span> : null}
+                  {list.map(function (entry) {
+                    var on = entry.id === activeId;
+                    return (
+                      <div key={entry.id} className="tk-p3-vrow tk-fb-vrow">
+                        <button
+                          type="button"
+                          role="menuitemradio"
+                          aria-checked={on ? "true" : "false"}
+                          className={"tk-menu-item tk-p3-vapply" + (on ? " is-on" : "")}
+                          onClick={function () {
+                            props.onChange(TK_normalizeSlateFilters(entry.filters));
+                            if (simple && entry.filters && entry.filters.view && typeof props.onApplyView === "function") props.onApplyView(entry.filters.view);
+                            close();
+                          }}
+                        >
+                          <span className="tk-p3-vmark" aria-hidden="true">
+                            {on ? "✓" : ""}
+                          </span>
+                          <span className="tk-menu-label">{entry.name}</span>
+                          {entry.is_default ? <span className="tk-fb-deftag">Default</span> : null}
+                        </button>
+                        <span className="tk-p3-edit tk-p3-vtools">
+                          <span className="tk-p3-vtools-set">
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="tk-link-btn tk-p3-vtool"
+                              disabled={busy}
+                              aria-label={(entry.is_default ? "Remove default: " : "Set as my default: ") + entry.name}
+                              title={entry.is_default ? "Open the Slate with no filters" : "Open the Slate with this filter each time"}
+                              onClick={function () {
+                                close();
+                                setDefault(entry, !entry.is_default);
+                              }}
+                            >
+                              {entry.is_default ? "Remove default" : "Set as my default"}
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="tk-link-btn tk-p3-vtool"
+                              aria-label={"Rename " + entry.name}
+                              onClick={function () {
+                                close();
+                                openPanel({ mode: "rename", id: entry.id, name: entry.name });
+                              }}
+                            >
+                              Rename
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="tk-link-btn tk-p3-vtool tk-menu-danger"
+                              aria-label={"Delete " + entry.name}
+                              onClick={function () {
+                                close();
+                                openPanel({ mode: "delete", id: entry.id, name: entry.name });
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </span>
                         </span>
-                      </span>
-                    </div>
-                  );
-                })}
-                <div className="tk-p3-edit tk-p3-vnew">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="tk-menu-item"
-                    disabled={!canAdd || !active}
-                    title={!canAdd ? TK_filterViewErrorText("too_many") : !active ? "Pick a filter or type a search first" : undefined}
-                    onClick={function () {
-                      close();
-                      openPanel({ mode: "new" });
-                    }}
-                  >
-                    Save this view…
-                  </button>
+                      </div>
+                    );
+                  })}
+                  <div className="tk-p3-edit tk-p3-vnew">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="tk-menu-item"
+                      disabled={!canAdd || !(active || (simple && props.viewChanged))}
+                      title={!canAdd ? TK_filterViewErrorText("too_many") : !(active || (simple && props.viewChanged)) ? (simple ? "Pick a filter, group or sort first" : "Pick a filter or type a search first") : undefined}
+                      onClick={function () {
+                        close();
+                        openPanel({ mode: "new" });
+                      }}
+                    >
+                      Save this view…
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          }}
-        </TK_vMenuButton>
-        {panelEl}
-      </span>
+              );
+            }}
+          </TK_vMenuButton>
+          {panelEl}
+        </span>
+  );
+  if (simple && typeof TKB_FilterButton === "function") {
+    return (
+      <div className={"tkb-bar" + (active ? " is-on" : "")} role="group" aria-label="Filter, group and save the Slate list" data-tour="tk-filter-bar">
+        <TKB_FilterButton count={TKB_fbCount(Object.assign({}, value, { due: rawDue })) + (props.chipOn ? 1 : 0)}>
+          {qChipEl}
+          {props.chipEl || null}
+          {selectsEl}
+          {clearEl}
+        </TKB_FilterButton>
+        {props.groupSortEl || null}
+        <span className="tkb-saved" data-tour="tk-slate-views">
+          {savedEl}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className={"tk-fb" + (active ? " is-on" : "")} role="group" aria-label="Filter the Slate list" data-tour="tk-filter-bar">
+      {qChipEl}
+      {selectsEl}
+      {clearEl}
+      {savedEl}
     </div>
   );
+}
+
+// Stage B: how many filters narrow the list (the Filter button's badge).
+function TKB_fbCount(v) {
+  var n = 0;
+  if (v.q) n++;
+  if (v.assignee && v.assignee !== "any") n++;
+  if (v.client) n++;
+  if (v.project) n++;
+  if (v.due && v.due !== "any") n++;
+  if (v.status && v.status !== "any") n++;
+  return n;
 }
 
 function TK__fbYmd(v) {

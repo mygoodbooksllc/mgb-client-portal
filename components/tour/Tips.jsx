@@ -673,6 +673,50 @@ const TIPS_CATALOG = [
   // Slate plus (launch 2026-10-28w, firm switch slateplus_enabled). Each one
   // waits for its own target, which only renders while the Slate plus gate is
   // on (TKP_on), so none can show before the switch (or the preview flag).
+  // Slate Stage B, the simpler Slate (hidden preview; docs/slate-stage-b-spec.md).
+  // Each waits for a .tkb-* target, which renders only while TKB_on() is true,
+  // so none shows with the preview and the switch off. Guide slug moves to
+  // slate-basics when that article is published at launch.
+  {
+    id: "tkb-controls",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-filter-bar",
+    snug: true,
+    text: "Three controls: Filter narrows the list, Group and sort sets the order, and Saved views keeps a setup under a name to reuse.",
+    slug: "my-tasks",
+    ready: () => typeof TKB_on === "function" && TKB_on() === true && !!document.querySelector(".tkb-bar"),
+  },
+  {
+    id: "tkb-add",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tkb-add",
+    snug: true,
+    text: "Type a task in plain words, like \"Call Acme about payroll tomorrow\", and press Enter. The line under the box shows what will be saved.",
+    slug: "my-tasks",
+    ready: () => !!document.querySelector('[data-tour="tkb-add"]'),
+  },
+  {
+    id: "tkb-glance",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tkb-glance",
+    snug: true,
+    text: "Today at a glance: click a count to filter the list, or a task under Start here to open it. Opening a task swaps this panel for the task.",
+    slug: "my-tasks",
+    ready: () => !!document.querySelector('[data-tour="tkb-glance"]'),
+  },
+  {
+    id: "tkb-more",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tkb-more",
+    snug: true,
+    text: "Start date, reminders, repeat, sharing, review and the other less used fields sit under More details. The number shows how many are filled in.",
+    slug: "task-details",
+    ready: () => !!document.querySelector('[data-tour="tkb-more"]'),
+  },
   {
     id: "tk-filter-bar",
     roles: "all",
@@ -681,7 +725,8 @@ const TIPS_CATALOG = [
     snug: true,
     text: "Narrow your list by assignee, client, project, due date or status. Save a mix you use often under Saved filters, and set one as your default.",
     slug: "my-tasks",
-    ready: () => !!document.querySelector('[data-tour="tk-filter-bar"]'),
+    // The simpler Slate has its own tip (tkb-controls) for this target.
+    ready: () => !!document.querySelector('[data-tour="tk-filter-bar"]') && !document.querySelector(".tkb-bar"),
   },
   {
     id: "tb-search-slate",

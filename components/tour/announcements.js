@@ -48,6 +48,25 @@
 //            longer owed (ANN_superseded in announcementsLogic.js); they stay
 //            in What's new and the ? menu.
 
+// True when Slate Stage B (the simpler Slate) is on for this person
+// (TK_slateSimple.js loads after this file, so look it up at call time).
+function ANN_slateSimpleOn() {
+  try {
+    return typeof TKB_on === "function" && TKB_on() === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// True when an element with this data-tour key is on the page right now.
+function ANN_hasTarget(key) {
+  try {
+    return typeof document !== "undefined" && !!document.querySelector('[data-tour="' + key + '"]');
+  } catch (e) {
+    return false;
+  }
+}
+
 // True when the Desk is on for this person (WB_store loads after this file).
 function ANN_deskOn() {
   try {
@@ -2477,11 +2496,78 @@ var ANN_REGISTRY = [
         {
           id: "ann-avatar",
           go: toMy,
-          targets: ["tk-sbar-avatar", "tk-groups"],
+          // Simpler Slate puts the avatar at the bottom of the left sidebar
+          // (tkb-avatar); the top-bar avatar (tk-sbar-avatar) otherwise. On the
+          // portal Slate page neither exists, so the text says where it lives.
+          targets: ["tkb-avatar", "tk-sbar-avatar", "tk-groups"],
           wait: true,
           title: "Your avatar menu",
           body: () =>
+            (ANN_hasTarget("tkb-avatar") || ANN_hasTarget("tk-sbar-avatar")
+              ? ""
+              : "The avatar menu lives in the Slate app window. ") +
             "In the Slate app, your avatar menu is the one stop for My profile, Notifications, Display settings, Dark mode, the window sizes, Dock in portal and Follow my client. Admins also get Admin settings. Back, Forward and Refresh show only in a window with no browser buttons.",
+        },
+      ];
+    },
+  },
+  {
+    // Slate Stage B, the simpler Slate (docs/slate-stage-b-spec.md). Hidden: visible only
+    // while TKB_on() is true for this person (the "Simpler Slate preview" checkbox or,
+    // at launch, the owner's slatesimple_enabled switch; both need Slate plus). The
+    // button runs the 3-chapter "slatebasics" staff tour in Tour.jsx. Guide: slate-basics.
+    id: "slate-simpler",
+    date: "2026-11-02",
+    visible: () => ANN_slateSimpleOn(),
+    tourKey: "slatebasics",
+    tourLabel: "Take the tour",
+    title: "A simpler Slate",
+    summary:
+      "Slate has a labeled sidebar, three list controls (Filter, Group and sort, Saved views), an add line at the top of the list, a Today at a glance panel when no task is open, and a More details section in the open task.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/tasks/my",
+    steps: () => {
+      const toMy = () => {
+        if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+      };
+      return [
+        {
+          id: "ann-welcome",
+          title: "A simpler Slate",
+          body: () => "Fewer buttons, plainer words, the same tasks. About a minute.",
+        },
+        {
+          id: "ann-sidebar",
+          go: toMy,
+          targets: ["tk-sidebar", "tk-groups"],
+          wait: true,
+          title: "The sidebar",
+          body: () => "My tasks, Waiting on client, To review, Clients, Projects and People sit in the left sidebar, each with a name.",
+        },
+        {
+          id: "ann-controls",
+          go: toMy,
+          targets: ["tk-filter-bar", "tk-groups"],
+          wait: true,
+          title: "Three controls",
+          body: () => "Filter narrows the list, Group and sort sets the order, and Saved views keeps a setup to reuse.",
+        },
+        {
+          id: "ann-add",
+          go: toMy,
+          targets: ["tkb-add", "tkb-glance-add", "tk-groups"],
+          wait: true,
+          title: "Type to add",
+          body: () => "Type a task in plain words, like \"Call Acme about payroll tomorrow\", and press Enter. The line under the box shows what will be saved.",
+        },
+        {
+          id: "ann-glance",
+          go: toMy,
+          targets: ["tkb-glance", "tk-groups"],
+          wait: true,
+          title: "Today at a glance",
+          body: () =>
+            "With no task open, the right side shows counts for overdue, due this week and waiting on client, plus three tasks to start with. Click a count to filter the list.",
         },
       ];
     },

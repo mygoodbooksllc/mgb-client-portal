@@ -923,6 +923,8 @@ function TK_DrawerContent(props) {
   var task = TK_dwUseStore(function (s) { return (s.tasks && s.tasks[taskId]) || null; });
   var projects = TK_dwUseStore(function (s) { return s.projects; });
   var online = TK_dwUseOnline();
+  // Slate Stage B (hidden preview): rarely used fields fold under "More details".
+  var simpleB = typeof TKB_useOn === "function" ? TKB_useOn() : false;
   var staff = TK_dwUseStaff();
   var nameOf = React.useMemo(function () { return TK_dwNameFn(staff); }, [staff]);
 
@@ -1695,6 +1697,15 @@ function TK_DrawerContent(props) {
           })}
         </div>
 
+        {(function (fieldsEl) {
+          return simpleB && typeof TKB_MoreDetails === "function" ? (
+            <TKB_MoreDetails on={true} count={TKB_moreCount(task)}>
+              {fieldsEl}
+            </TKB_MoreDetails>
+          ) : (
+            fieldsEl
+          );
+        })(
         <div className="tk-dw-fields">
           <label className="tk-dw-label" htmlFor="tk-dw-start">
             Start
@@ -1847,6 +1858,7 @@ function TK_DrawerContent(props) {
             </React.Fragment>
           )}
         </div>
+        )}
 
         <section className="tk-dw-section">
           <label className="tk-dw-h" htmlFor="tk-dw-desc">
