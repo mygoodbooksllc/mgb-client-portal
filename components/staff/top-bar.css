@@ -782,6 +782,7 @@ a.tb-pill-btn {
 }
 @container tb (max-width: 650px) {
   .tb-bar:has(.tb-quick) .tb-tasks-label,
+  .tb-bar:has(.tb-quick) .tb-create-label,
   .tb-bar:has(.tb-quick) .tb-throttle-text,
   .tb-bar:has(.tb-quick) .tb-client .cs-trigger-sub {
     display: none;
@@ -992,6 +993,7 @@ a.tb-pill-btn {
   }
   @container tb (max-width: 940px) {
     .tb-bar:has(.tb-sync) .tb-tasks-label,
+    .tb-bar:has(.tb-sync) .tb-create-label,
     .tb-bar:has(.tb-sync) .tb-throttle-text,
     .tb-bar:has(.tb-sync) .tb-client .cs-trigger-sub {
       display: none;
@@ -1221,6 +1223,8 @@ a.tb-pill-btn {
   .tb-create-label {
     display: none;
   }
+}
+@media (max-width: 760px) and (hover: none), (max-width: 760px) and (pointer: coarse) {
   .tb-quick .tb-create-btn {
     width: 44px;
     height: 44px;

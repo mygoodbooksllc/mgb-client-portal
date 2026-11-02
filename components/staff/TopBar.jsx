@@ -1524,7 +1524,7 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
   const [wbq, setWbq] = useState(null);
   const ctx = React.useContext(typeof StaffToolsContext !== "undefined" ? StaffToolsContext : TB__noCtx());
   const isAdmin = !!(ctx && ctx.staffUser && ctx.staffUser.role === "admin");
-  const timeOff = typeof WB_QuickHost === "function" && typeof WB_quickStart === "function" && typeof CV_MyTimeOffBody === "function";
+  const timeOff = !!plusOn && typeof WB_QuickHost === "function" && typeof WB_quickStart === "function" && typeof CV_MyTimeOffBody === "function";
   const items = CM_createItems({ client, isAdmin, tk, deskPlus: !!plusOn && typeof WB_quickStart === "function", timeOff });
   if (!items.length) return null;
   const run = (it) => {
