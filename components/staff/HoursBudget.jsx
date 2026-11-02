@@ -44,9 +44,11 @@ function HB_load(force, admin) {
       ? sb.rpc("qbo_hours_by_client", { p_from: from, p_to: to })
       : sb.rpc("qbo_my_client_hours", { p_from: from, p_to: to }),
     // The last 6 complete months (supabase/client-hours-monthly-history.sql).
+    // Asks for one extra: the server clock is UTC, so on the last evening of a
+    // month it is already next month there; the helpers trim to the right 6.
     // One RPC for everyone (can_access_client is true for admins). A failure
     // here only hides the averages; budgets and this month still work.
-    sb.rpc("qbo_my_client_hours_monthly", { p_months: HB_HISTORY_MONTHS }),
+    sb.rpc("qbo_my_client_hours_monthly", { p_months: HB_HISTORY_MONTHS + 1 }),
   ]).then(([prof, hrs, hist]) => {
     const budgets = {};
     ((prof && prof.data) || []).forEach((r) => {
@@ -138,15 +140,8 @@ function HB_Bar({ status, compact }) {
   );
 }
 
-// Hours per month over the window, as short text: "17.2 h" or "—".
-function HB_avgText(data, clientId) {
-  if (!data || !data.histOn) return "—";
-  const a = data.avg[clientId];
-  return a == null ? "—" : HB_fmtH(a);
-}
-
 // Small bar sparkline of the last 6 complete months plus the current month
-// (accent color). minutesList: 6 numbers, oldest first; curMinutes: this month.
+// (accent color). monthly: 6 numbers, oldest first; curMinutes: this month.
 function HB_Spark({ monthly, curMinutes, budget }) {
   const list = (monthly || []).concat(curMinutes == null ? [] : [curMinutes]);
   const max = Math.max(1, ...list, budget > 0 ? budget * 60 : 0);

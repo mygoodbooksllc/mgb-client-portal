@@ -526,7 +526,7 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.hb-chart-val { top: -2px; }
+.hb-chart-val { top: -16px; }
 .hb-chart-lab { bottom: -18px; }
 .hb-chart-line {
   position: absolute;
@@ -541,6 +541,8 @@
 @media (max-width: 760px) {
   .cl-avg .hb-spark { display: none; }
   .cl-table tbody tr.cl-detail { margin: -4px 0 10px; border: 1px solid var(--border); border-radius: 12px; }
+  .cl-table tbody tr.cl-detail td { display: block; }
+  .cl-table tbody tr.cl-detail td::before { content: none; }
   .hb-chart-plot { gap: 4px; }
   .hb-chart-val { display: none; }
 }

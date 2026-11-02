@@ -10,7 +10,7 @@ The newest changes to the staff side, newest first. For how anything works, sear
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
 ### 2026-11-02: Average monthly hours on the Clients page
-The **Clients** page has a new **6-mo avg** column: each client's average hours per month over the last 6 complete months, with a small bar chart. Click it to see each month against the budget. Admins also see a **6-month average** line on the client overview. See [How do I set a monthly hours budget for a client?](#/help/hours-budget).
+The **Clients** page has a new **6-mo avg** column: each client's average hours per month over the last 6 complete months, with a small bar chart. Click it to see each month against the budget. Admins also see a **6-month average** line on the client overview. See [How do I use the Clients page?](#/help/clients-page).
 
 ### 2026-10-31: The firm's clock-in time is no longer unmapped
 Time logged in QuickBooks Time to **My Good Books (Clock-in Option)** is the firm's own time. It is now set up as such, so it no longer shows under **Unmapped** or in any client's hours on **Team › Hours**, and it doesn't appear on the QuickBooks mapping page as needing mapping. See [How do I connect the firm's QuickBooks Time and match customers and staff?](#/help/firm-quickbooks).

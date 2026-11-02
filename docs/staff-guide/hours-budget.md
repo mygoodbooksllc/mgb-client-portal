@@ -5,7 +5,7 @@ audience: admin
 keywords: [6-month average, average hours, hours history, monthly hours chart, hours budget, monthly hours budget, budget, over budget, over hours budget, hours used, quickbooks time, 80%, scope creep, hourly rate]
 sort: 545
 ---
-An **hours budget** is how many QuickBooks Time hours you plan to spend on a client each month. Admins set it and see it. Bookkeepers don't see it.
+An **hours budget** is how many QuickBooks Time hours you plan to spend on a client each month. Admins set it. Everyone assigned to a client sees this month's hours against it, and the 6-month average, on the **Clients** page. The overview card and the Team page budget column are admins only.
 
 ### Set or change it
 
