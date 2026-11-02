@@ -309,7 +309,9 @@ function WB_DeskRail({ counts, lines, unread, quickClient, clients, onPick, onOp
     if (i >= 0 && i !== idx) setIdx(i);
     if (i >= 0 && i !== idx) setTipsOff(false);
   };
-  const hasAdd = typeof TB_QuickAdd === "function";
+  // With the Create button on, the rail's own + is a second way to do the same thing: hide it.
+  const createOn = typeof CM_useCreateMenu === "function" ? CM_useCreateMenu() : false;
+  const hasAdd = typeof TB_QuickAdd === "function" && !createOn;
   return (
     <div
       ref={ref}
