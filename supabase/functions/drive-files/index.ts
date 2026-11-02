@@ -8,6 +8,7 @@ import {
   contentDisposition,
   currentYear,
   docTypeFor,
+  legacyMessageVisibility,
   makeLinkToken,
   MAX_BYTES,
   normalizeAccessEmails,
@@ -76,11 +77,14 @@ import {
 //                                  client-uploads objects into Drive and
 //                                  leaves the originals where they are.
 // GET ?t=<token>                   streams the file (the link from `link`).
-//                                  The token is not re-checked against
-//                                  access rules: a link handed out before
-//                                  an access change keeps working until it
-//                                  expires (up to 10 minutes). Lists and
-//                                  new links follow the new rule at once.
+//                                  The token names the person it was made
+//                                  for, and the download re-checks that
+//                                  person against the file's current rules
+//                                  (active staff, or client_file_download_ok
+//                                  for a client login): a forwarded link, a
+//                                  trashed file or an access change stops
+//                                  the download at once. Links still expire
+//                                  after 10 minutes.
 //
 // Secrets: GOOGLE_SERVICE_ACCOUNT_JSON, GOOGLE_DRIVE_SHARED_DRIVE_ID. Until
 // both are set, Drive actions answer 503 {error: "drive_not_connected"} and
@@ -99,6 +103,12 @@ const CORS = {
 };
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
+}
+// Database errors are logged here and never sent back to the caller
+// (W-20261019-5).
+function serverError(where: string, err: { message?: string }) {
+  console.log(`drive-files: ${where}: ${err?.message || err}`);
+  return new HttpError(500, "Something went wrong with file storage. Try again.");
 }
 const NOT_CONNECTED = () =>
   json({ error: "drive_not_connected", message: "Drive isn't connected yet. Tell the owner to finish the Google Drive setup." }, 503);
@@ -268,7 +278,7 @@ async function doUpload(req: Request, admin: SupabaseClient) {
         .select("email")
         .eq("client_id", clientId)
         .eq("active", true);
-      if (lErr) throw new HttpError(500, lErr.message);
+      if (lErr) throw serverError("upload logins", lErr);
       const known = new Set((logins || []).map((u: any) => String(u.email || "").trim().toLowerCase()));
       if (accessEmails.some((e) => !known.has(e))) {
         throw new HttpError(400, "Everyone on the list must be an active login for this organization.", "bad_access_list");
@@ -388,7 +398,10 @@ async function doUpload(req: Request, admin: SupabaseClient) {
   if (requestId && legacyRequest) {
     path = `${clientId}/${requestId}/drive:${row.id}`;
     const { error: fErr } = await c.asUser.rpc("fulfill_doc_request", { p_id: requestId, p_path: path, p_name: file.name });
-    if (fErr) throw new HttpError(500, `Uploaded, but the request couldn't be marked: ${fErr.message}`);
+    if (fErr) {
+      console.log(`drive-files: fulfill_doc_request: ${fErr.message}`);
+      throw new HttpError(500, "Uploaded, but the request couldn't be marked. Try again or tell MyGoodBooks.");
+    }
   } else if (requestId) {
     const { error: aErr } = await c.asUser.rpc("tk_attach_request_file", { p_request_id: requestId, p_client_file_id: row.id });
     if (aErr) {
@@ -455,7 +468,7 @@ async function doList(req: Request, body: any) {
     q = q.or(`request_id.eq.${body.request_id},client_request_id.eq.${body.request_id}`).is("trashed_at", null);
   } else throw new HttpError(400, "Unknown scope.");
   const { data, error } = await q;
-  if (error) throw new HttpError(500, error.message);
+  if (error) throw serverError("client_files", error);
   // Old Storage objects already copied into Drive, so the page can hide the
   // originals (which stay where they are).
   let copied: string[] = [];
@@ -473,19 +486,33 @@ async function doLink(req: Request, body: any) {
   // Same rule as listing: if the caller's RLS lets them see the row, they may
   // download it.
   const { data, error } = await c.asUser.from("client_files").select("id").in("id", ids);
-  if (error) throw new HttpError(500, error.message);
+  if (error) throw serverError("client_files", error);
   const nowSec = Math.floor(Date.now() / 1000);
   const links: Record<string, string> = {};
-  for (const r of data || []) links[r.id] = `${FN_URL}?t=${await makeLinkToken(r.id, SERVICE_ROLE_KEY, nowSec)}`;
+  for (const r of data || []) links[r.id] = `${FN_URL}?t=${await makeLinkToken(r.id, c.email, SERVICE_ROLE_KEY, nowSec)}`;
   return json({ links, expires_in: 600 });
 }
 
 async function doGet(url: URL, admin: SupabaseClient) {
-  const id = await verifyLinkToken(url.searchParams.get("t") || "", SERVICE_ROLE_KEY, Math.floor(Date.now() / 1000));
-  if (!id) return new Response("This link has expired. Go back to the portal and open the file again.", { status: 403, headers: { ...CORS, "Content-Type": "text/plain; charset=utf-8" } });
+  const tok = await verifyLinkToken(url.searchParams.get("t") || "", SERVICE_ROLE_KEY, Math.floor(Date.now() / 1000));
+  const expired = () =>
+    new Response("This link has expired. Go back to the portal and open the file again.", { status: 403, headers: { ...CORS, "Content-Type": "text/plain; charset=utf-8" } });
+  if (!tok) return expired();
   if (!secretsPresent()) return NOT_CONNECTED();
+  const id = tok.f;
   const { data: row } = await admin.from("client_files").select("drive_file_id, name, mime, client_id").eq("id", id).maybeSingle();
   if (!row) return new Response("File not found.", { status: 404, headers: CORS });
+  // Re-check, at download time, that the person the link was made for may
+  // still open this file: an active staffer, or a client login the file's
+  // current rules allow (not trashed, still shared with them, login still
+  // active). A forwarded link or a link made before an access change stops
+  // working (W-20261019-4).
+  const { data: okStaff } = await admin.from("staff").select("email").eq("email", tok.u).eq("active", true).maybeSingle();
+  if (!okStaff) {
+    const { data: ok, error: okErr } = await admin.rpc("client_file_download_ok", { p_file_id: id, p_email: tok.u });
+    if (okErr) console.log(`drive-files: client_file_download_ok: ${okErr.message}`);
+    if (okErr || ok !== true) return expired();
+  }
   const res = await drive(admin, `${DRIVE}/files/${row.drive_file_id}?` + qs({ alt: "media" }));
   if (!res.ok || !res.body) {
     await logEvent(admin, "download", false, row.client_id, null, `${res.status} ${res.statusText}`);
@@ -527,7 +554,7 @@ async function doTrash(req: Request, body: any, admin: SupabaseClient, trashed: 
     .from("client_files")
     .update(trashed ? { trashed_at: new Date().toISOString(), trashed_by: c.email } : { trashed_at: null, trashed_by: null })
     .eq("id", id);
-  if (error) throw new HttpError(500, error.message);
+  if (error) throw serverError("client_files", error);
   await logEvent(admin, trashed ? "trash" : "restore", true, row.client_id, c.email, JSON.stringify({ file_id: row.id }));
   return json({ ok: true });
 }
@@ -562,6 +589,18 @@ async function doCopyLegacy(req: Request, body: any, admin: SupabaseClient) {
   const todo = paths.filter((p) => !already.has(p)).slice(0, 50);
 
   const { data: reqs } = await admin.from("client_doc_requests").select("id, title, file_path").eq("client_id", clientId);
+  // Which old message attachments belong to internal notes (W-20261019-3).
+  const { data: msgs, error: mErr } = await admin
+    .from("client_messages")
+    .select("attachment_path, internal")
+    .eq("client_id", clientId)
+    .not("attachment_path", "is", null);
+  if (mErr) throw serverError("copy_legacy messages", mErr);
+  const internalByPath = new Map<string, boolean>();
+  for (const m of msgs || []) {
+    // Any internal row for a path wins.
+    internalByPath.set(m.attachment_path, internalByPath.get(m.attachment_path) === true || m.internal === true);
+  }
   const reqById = new Map((reqs || []).map((r: any) => [r.id, r]));
 
   let copied = 0;
@@ -576,8 +615,8 @@ async function doCopyLegacy(req: Request, body: any, admin: SupabaseClient) {
     let participant: string | null = null;
     if (seg[1] === "internal") visibility = "internal";
     else if (seg[1] === "messages") {
-      visibility = "message";
-      participant = (seg[2] || "").toLowerCase();
+      visibility = legacyMessageVisibility(p, internalByPath);
+      participant = visibility === "message" ? (seg[2] || "").toLowerCase() : null;
       docType = "Messages";
     } else if (UUID_RE.test(seg[1] || "")) {
       visibility = "request";

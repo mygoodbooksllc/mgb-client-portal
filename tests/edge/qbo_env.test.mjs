@@ -273,3 +273,11 @@ test("flagKeysMissing: last_error has names only, status untouched, never throws
   const broken = { from() { throw new Error("db down"); } };
   await Q.flagKeysMissing(broken, "c1", e, "test"); // does not throw
 });
+
+test("isRealmId: only Intuit-shaped company ids (digits) are accepted", () => {
+  assert.equal(E.isRealmId("9341455123456789"), true);
+  assert.equal(E.isRealmId("1"), true);
+  for (const bad of ["", "abc", "123/../456", "123?x=1", "12 34", "1".repeat(21), null, undefined, 123]) {
+    assert.equal(E.isRealmId(bad), false, String(bad));
+  }
+});

@@ -168,15 +168,27 @@ await t("display names", () => {
 await t("download link tokens", async () => {
   const id = "0b1c2d3e-4f50-4a6b-8c7d-9e0f1a2b3c4d";
   const now = 1_790_000_000;
-  const tok = await L.makeLinkToken(id, "secret-a", now);
-  assert.equal(await L.verifyLinkToken(tok, "secret-a", now + 10), id);
+  const tok = await L.makeLinkToken(id, " Pat@Example.org ", "secret-a", now);
+  assert.deepEqual(await L.verifyLinkToken(tok, "secret-a", now + 10), { f: id, u: "pat@example.org" });
   assert.equal(await L.verifyLinkToken(tok, "secret-a", now + L.LINK_TTL_SEC + 1), null, "expired");
   assert.equal(await L.verifyLinkToken(tok, "secret-b", now), null, "wrong key");
   const [p, s] = tok.split(".");
-  const forged = L.b64url(JSON.stringify({ f: id, e: now + 99999 }));
+  const forged = L.b64url(JSON.stringify({ f: id, u: "pat@example.org", e: now + 99999 }));
   assert.equal(await L.verifyLinkToken(`${forged}.${s}`, "secret-a", now), null, "payload swapped");
   assert.equal(await L.verifyLinkToken(`${p}.${s.slice(0, -2)}AA`, "secret-a", now), null, "sig tampered");
   assert.equal(await L.verifyLinkToken("garbage", "secret-a", now), null);
+  // An old-style token without a person is refused.
+  const oldPayload = L.b64url(JSON.stringify({ f: id, e: now + 60 }));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("drive-files-link:secret-a"), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const oldSig = L.b64url(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(oldPayload))));
+  assert.equal(await L.verifyLinkToken(`${oldPayload}.${oldSig}`, "secret-a", now), null, "no person");
+});
+
+await t("legacy message attachments keep internal notes internal", () => {
+  const m = new Map([["c/messages/a@x.org/1-a.pdf", false], ["c/messages/a@x.org/2-b.pdf", true]]);
+  assert.equal(L.legacyMessageVisibility("c/messages/a@x.org/1-a.pdf", m), "message");
+  assert.equal(L.legacyMessageVisibility("c/messages/a@x.org/2-b.pdf", m), "internal");
+  assert.equal(L.legacyMessageVisibility("c/messages/a@x.org/3-unknown.pdf", m), "internal");
 });
 
 await t("service account parsing never echoes the secret", () => {

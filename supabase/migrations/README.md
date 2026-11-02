@@ -17,6 +17,7 @@ the activity-log policy).
 | 20261026170300_l11_l12_access_links | L11, L12: access-request links expire after 30 days; server-made tokens; access_link_info |
 | 20261026170400_l13_realtime_topics | L13: staff can only join their own private Realtime topics |
 | 20261026170500_w2_task_owner_needs_active_staff | W-20261019-2: tk_row_readable checks active staff first |
+| 20261102120000_weekly_fixes_2026_11_02 | Weekly fixes 2026-11-02 (NOT yet applied: applied when its PR is merged, BEFORE drive-files is deployed): download-time file access check, Documents tab rules, rule caller access, thread hide, usage view_as |
 
 A new private Realtime channel needs its topic added to
 `realtime_topic_allowed()` (20261026170400), or it silently fails to join.
