@@ -5,7 +5,7 @@
 // shows, unchanged.
 //
 // TKPF_NewProjectModal({ isAdmin, kind, clientId, clientName, clients,
-//                        staffUser, onClose, onCreated(project) })
+//                        staffUser, defaultClientId?, focusTemplate?, onClose, onCreated(project) })
 //   Name, Description (optional, 500 characters), Client (optional; not shown
 //   when the form was opened for a client), Due date, Color, Start from (a
 //   starter list or another project's sections) + Sections, People (each an
@@ -27,13 +27,32 @@ function TKPF_NewProjectModal(props) {
   var projects = TK_vUseProjects();
   var palette = typeof TK_projectColorKeys === "function" ? TK_projectColorKeys() : [];
 
+  var startRef = React.useRef(null);
+  React.useEffect(function () {
+    if (!props.focusTemplate) return undefined;
+    // ModalShell moves focus to its first control after mount, so wait a frame.
+    var id = requestAnimationFrame(function () {
+      if (startRef.current) startRef.current.focus();
+    });
+    return function () {
+      cancelAnimationFrame(id);
+    };
+  }, []);
   var nPair = React.useState(onboarding && props.clientName ? props.clientName + " onboarding" : "");
   var name = nPair[0];
   var setName = nPair[1];
   var dPair = React.useState("");
   var desc = dPair[0];
   var setDesc = dPair[1];
-  var cPair = React.useState("");
+  // defaultClientId (the "+ Create" menu on a client page) starts the Client choice on that
+  // client when it is in the list; focusTemplate puts the cursor on Start from.
+  var cPair = React.useState(function () {
+    if (onboarding || props.defaultClientId == null) return "";
+    var want = String(props.defaultClientId);
+    var list = TKPF_clientChoices(props.clients);
+    for (var i = 0; i < list.length; i++) if (list[i].id === want) return want;
+    return "";
+  });
   var pickedClient = cPair[0];
   var setPickedClient = cPair[1];
   var duePair = React.useState("");
@@ -225,7 +244,7 @@ function TKPF_NewProjectModal(props) {
               type="text"
               maxLength={120}
               value={name}
-              autoFocus
+              autoFocus={!props.focusTemplate}
               aria-invalid={err && err.field === "name" ? "true" : "false"}
               aria-describedby={err && err.field === "name" ? nameErrId : undefined}
               onChange={function (e) {
@@ -317,6 +336,7 @@ function TKPF_NewProjectModal(props) {
             <span className="tk-field-label">Start from</span>
             <select
               className="tk-select"
+              ref={startRef}
               value={startFrom}
               onChange={function (e) {
                 var v = e.target.value;

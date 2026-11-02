@@ -15,7 +15,7 @@ function t(name, fn) {
   }
   n++;
 }
-const keys = (items) => items.filter((i) => !i.sep).map((i) => i.key);
+const keys = (items) => items.filter((i) => !i.sep && i.kind !== "label").map((i) => i.key);
 
 t("resolver: off with neither", () => {
   assert.strictEqual(C.CM_createIsOn(false, undefined), false);
@@ -42,7 +42,7 @@ t("preview key and storage failure", () => {
 });
 t("client page, non-admin, no Desk additions", () => {
   const items = C.CM_createItems({ client: { id: 1, name: "Acme" }, isAdmin: false, tk: true });
-  assert.deepStrictEqual(keys(items), ["task", "note", "request", "message"]);
+  assert.deepStrictEqual(keys(items), ["task", "note", "request", "upload", "message"]);
   assert.strictEqual(items[0].kbd, "q");
 });
 t("no client, non-admin, nothing available = empty", () => {
@@ -57,24 +57,48 @@ t("no client with Desk additions and time off", () => {
 });
 t("client page merges Desk additions", () => {
   const k = keys(C.CM_createItems({ client: { id: 1, name: "A" }, isAdmin: false, tk: true, deskPlus: true, timeOff: true }));
-  assert.deepStrictEqual(k, ["task", "note", "request", "message", "ask", "timeoff"]);
+  assert.deepStrictEqual(k, ["task", "note", "request", "upload", "message", "ask", "timeoff"]);
 });
-t("admin rows come after a separator and only for admins", () => {
+t("admin rows come after a separator and an Admin label, only for admins", () => {
   const a = C.CM_createItems({ client: null, isAdmin: true, tk: true });
   assert.deepStrictEqual(keys(a), ["task", "add-client", "team-review", "invite-staff"]);
   assert.strictEqual(a[1].sep, true);
+  assert.strictEqual(a[2].kind, "label");
+  assert.strictEqual(a[2].label, "Admin");
+  assert.strictEqual(a.filter((i) => i.kind === "label").length, 1);
   const c = C.CM_createItems({ client: { id: 2, name: "B" }, isAdmin: true, tk: true });
   assert.ok(keys(c).includes("invite-login"));
   const na = C.CM_createItems({ client: { id: 2, name: "B" }, isAdmin: false, tk: true });
   ["invite-login", "add-client", "team-review", "invite-staff"].forEach((k) => assert.ok(!keys(na).includes(k)));
+  assert.strictEqual(na.filter((i) => i.kind === "label").length, 0);
+});
+t("staff-level rows stay above the Admin group", () => {
+  const c = C.CM_createItems({ client: { id: 2, name: "B" }, isAdmin: true, tk: true, template: true });
+  const at = c.findIndex((i) => i.kind === "label");
+  assert.deepStrictEqual(keys(c.slice(0, at)), ["task", "note", "request", "upload", "message", "template"]);
+  assert.deepStrictEqual(keys(c.slice(at)), ["invite-login", "add-client", "team-review", "invite-staff"]);
 });
 t("admin with nothing else has no leading separator", () => {
   const a = C.CM_createItems({ client: null, isAdmin: true, tk: false });
   assert.notStrictEqual(a[0].sep, true);
+  assert.strictEqual(a[0].kind, "label");
+});
+t("Upload a file needs a client and no gate; any staff level", () => {
+  assert.ok(keys(C.CM_createItems({ client: { id: 1, name: "A" }, isAdmin: false, tk: false })).includes("upload"));
+  assert.ok(!keys(C.CM_createItems({ client: null, isAdmin: true, tk: true, deskPlus: true })).includes("upload"));
+});
+t("Start from a template needs a client and the template flag", () => {
+  const client = { id: 1, name: "A" };
+  assert.ok(!keys(C.CM_createItems({ client, isAdmin: false, tk: true })).includes("template"));
+  assert.ok(keys(C.CM_createItems({ client, isAdmin: false, tk: true, template: true })).includes("template"));
+  assert.ok(!keys(C.CM_createItems({ client: null, isAdmin: false, tk: true, template: true })).includes("template"));
+  const row = C.CM_createItems({ client, isAdmin: false, tk: true, template: true }).find((i) => i.key === "template");
+  assert.strictEqual(row.label, "Start from a template");
+  assert.strictEqual(row.kind, "template");
 });
 t("navigation rows carry a hash", () => {
   C.CM_createItems({ client: null, isAdmin: true, tk: true })
-    .filter((i) => !i.sep && i.kind.indexOf("go:") === 0)
+    .filter((i) => !i.sep && i.kind !== "label" && i.kind.indexOf("go:") === 0)
     .forEach((i) => assert.ok(/^go:#\//.test(i.kind)));
 });
 console.log("TB_create.test.js: " + n + " tests passed");

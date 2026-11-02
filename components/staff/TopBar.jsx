@@ -1519,6 +1519,17 @@ function TB_CreateIcon({ name }) {
         <path d="M3.5 20c.6-3.6 3.2-5.5 6.5-5.5M17 14v6M14 17h6" />
       </>
     ),
+    upload: (
+      <>
+        <path d="M6 3h9l4 4v14H6z" />
+        <path d="M14 3v5h5M12 17v-6M9.5 13.5L12 11l2.5 2.5" />
+      </>
+    ),
+    template: (
+      <>
+        <path d="M4 4h16v5H4zM4 13h7v7H4zM15 13h5M15 17h5" />
+      </>
+    ),
   };
   return <svg {...p}>{paths[name] || null}</svg>;
 }
@@ -1552,16 +1563,36 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
   const nav = variant === "nav";
   const menu = TB_useMenu();
   const [wbq, setWbq] = useState(null);
+  const [projOpen, setProjOpen] = useState(false);
   const ctx = React.useContext(typeof StaffToolsContext !== "undefined" ? StaffToolsContext : TB__noCtx());
   const isAdmin = !!(ctx && ctx.staffUser && ctx.staffUser.role === "admin");
+  // "Start from a template" opens the Slate plus New project form (its Start from picker), so it
+  // needs Slate plus on for this person and Tasks ready; the same people who see New project in Slate.
+  const slatePlus = typeof TKP_useOn === "function" ? TKP_useOn() : false;
+  const template = !!tk && slatePlus && typeof TKPF_NewProjectModal === "function" && typeof TK_NewProjectModal === "function";
   const timeOff = !!plusOn && typeof WB_QuickHost === "function" && typeof WB_quickStart === "function" && typeof CV_MyTimeOffBody === "function";
-  const items = CM_createItems({ client, isAdmin, tk, deskPlus: !!plusOn && typeof WB_quickStart === "function", timeOff });
+  const items = CM_createItems({ client, isAdmin, tk, deskPlus: !!plusOn && typeof WB_quickStart === "function", timeOff, template });
   if (!items.length) return null;
   const run = (it) => {
     const kind = it.kind;
     if (kind.indexOf("go:") === 0) {
       menu.close(false);
       TB_go(kind.slice(3));
+      return;
+    }
+    if (kind === "upload") {
+      // The client's Documents page, scrolled to its own upload card (with the Drive folder / year /
+      // access choices) and focused on the Upload button; the staff picks the file there.
+      menu.close(false);
+      if (client) {
+        if (typeof LK_go === "function") LK_go({ clientId: client.id, tab: "documents", item: "at:upload" });
+        else TB_go("#/client/" + encodeURIComponent(client.id) + "/documents");
+      }
+      return;
+    }
+    if (kind === "template") {
+      menu.close(false);
+      setProjOpen(true);
       return;
     }
     if (kind === "task") {
@@ -1611,6 +1642,12 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
           <div className="tb-panel-head">{head}</div>
           {items.map((it) => {
             if (it.sep) return <div key={it.key} className="tb-create-sep" role="separator" />;
+            if (it.kind === "label")
+              return (
+                <div key={it.key} className="tb-create-group" role="separator" aria-label={it.label}>
+                  {it.label}
+                </div>
+              );
             const af = first;
             first = false;
             return (
@@ -1626,6 +1663,28 @@ function TB_CreateMenu({ client, variant, tabIndex, tk, plusOn, clients }) {
         </div>
       )}
       {wbq && typeof WB_QuickHost === "function" && <WB_QuickHost kind={wbq} client={client} clients={clients} onClose={() => setWbq(null)} />}
+      {projOpen && template && client && typeof ReactDOM !== "undefined" && ReactDOM.createPortal(
+        <div onKeyDown={(e) => e.stopPropagation()}>
+        <TK_NewProjectModal
+          isAdmin={isAdmin}
+          kind="internal"
+          clients={clients}
+          defaultClientId={client.id}
+          focusTemplate={true}
+          staffUser={ctx && ctx.staffUser}
+          onClose={() => {
+            setProjOpen(false);
+            if (menu.triggerRef.current) menu.triggerRef.current.focus();
+          }}
+          onCreated={(p) => {
+            setProjOpen(false);
+            if (p && p.id && typeof TK_navigate === "function") TK_navigate({ view: "project", projectId: p.id });
+            else if (menu.triggerRef.current) menu.triggerRef.current.focus();
+          }}
+        />
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

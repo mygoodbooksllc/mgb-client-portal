@@ -23213,6 +23213,10 @@ function DocumentsPage({ client, isBookkeeper, searchTarget, viewAsEmail }) {
   useEffect(() => {
     setSelected((s) => (s.size ? new Set() : s));
   }, [activeFolder]);
+  // Create menu > Upload a file lands here with item=at:upload; the upload card is hidden in Trash.
+  useEffect(() => {
+    if (activeFolder === DOC_TRASH_FOLDER && /[?&]item=at:upload/.test(window.location.hash)) setActiveFolder(null);
+  }, [activeFolder]);
 
   useEffect(() => {
     if (searchTarget)
@@ -23846,6 +23850,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget, viewAsEmail }) {
         }
         style={{ marginBottom: 20 }}
         data-drop-owner="documents"
+        data-lk="at:upload"
         onClick={() => fileInputRef.current.click()}
         onDragOver={(e) => {
           e.preventDefault();
@@ -23921,6 +23926,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget, viewAsEmail }) {
         <button
           className="btn-primary"
           data-tour="doc-upload"
+          data-lk-focus
           disabled={uploading}
           onClick={(e) => {
             e.stopPropagation();

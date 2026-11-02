@@ -151,10 +151,13 @@ function CM_useCreateMenu() {
 //   tk          Tasks quick add is mounted
 //   deskPlus    the Desk additions gate is on (Ask client, chat-drawer Message)
 //   timeOff     the existing time-off flow can be opened (WB_QuickHost + CV_MyTimeOffBody)
+//   template    the Slate plus New project form (with its Start from picker) can be opened
 // }
 // Returns [{ key, label, kind, icon, kbd?, sep? }] where a row with sep:true
-// is a separator before the next group. kind says what the click runs:
+// is a separator before the next group and a row with kind "label" is a small
+// non-clickable group heading (the "Admin" group). kind says what the click runs:
 //   "task" | "note" | "request" | "message" | "ask" | "timeoff"  (menu flows)
+//   "upload" | "template"   (open the client's Documents upload / the New project form)
 //   "go:<hash>"                                                  (navigation)
 function CM_createItems(opts) {
   var o = opts || {};
@@ -164,7 +167,9 @@ function CM_createItems(opts) {
   if (client) {
     items.push({ key: "note", label: "Note", kind: "note", icon: "note" });
     items.push({ key: "request", label: "Request a document", kind: "request", icon: "doc" });
+    items.push({ key: "upload", label: "Upload a file", kind: "upload", icon: "upload" });
     items.push({ key: "message", label: "Message", kind: "message", icon: "message" });
+    if (o.template) items.push({ key: "template", label: "Start from a template", kind: "template", icon: "template" });
   } else if (o.deskPlus) {
     // Off a client page Message opens the chat drawer's own list.
     items.push({ key: "message", label: "Message a client", kind: "message", icon: "message" });
@@ -180,6 +185,7 @@ function CM_createItems(opts) {
   }
   if (admin.length) {
     if (items.length) items.push({ key: "sep-admin", sep: true });
+    items.push({ key: "label-admin", label: "Admin", kind: "label" });
     items = items.concat(admin);
   }
   return items;

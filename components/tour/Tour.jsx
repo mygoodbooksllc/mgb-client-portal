@@ -1179,7 +1179,7 @@ function TOUR_bookkeeperSteps(ctx) {
       title: "Add something for this client",
       body: () =>
         (TOUR_createOn()
-          ? "With a client open, the + (Create) button adds a Task, a Note or a Request a document for them, or a Message" + (TOUR_deskPlusOn() ? ", Ask client… or Request time off" : "") + ". In a new task, plain words work: for Sierra, re Example Church, by Friday."
+          ? "With a client open, the + (Create) button adds a Task, a Note, a Request a document or an Upload a file for them, a Message, or a project Start from a template" + (TOUR_deskPlusOn() ? ", Ask client… or Request time off" : "") + ". In a new task, plain words work: for Sierra, re Example Church, by Friday."
           : TOUR_deskPlusOn()
           ? "With a client open, the + button adds a New task, a New note or a Request document for them, or opens Ask client…, Message… or Time off. In a new task, plain words work: for Sierra, re Example Church, by Friday."
           : "With a client open, the + button adds a New task, a New note or a Request document for them, or starts a Message. In a new task, plain words work: for Sierra, re Example Church, by Friday."),
