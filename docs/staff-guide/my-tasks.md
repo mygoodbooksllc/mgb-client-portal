@@ -13,6 +13,7 @@ A task is yours when it's assigned to you. A task you give someone else shows on
 
 - **Overdue**: past its due date. Overdue is only a reminder for you right now: during the late-task grace period, late tasks aren't counted in anyone's score or reports.
 - **Today**: due today. To fold these into This week, open **View** and untick **Today group**.
+- **Compact rows**: open **View** and tick **Compact rows (one line)** to show each task on a single line (title, then client, assignee, due date and priority). It is saved in this browser and applies to every task list on a computer; phones keep the two-line rows.
 - **This week**: due in the next 7 days.
 - **Later**: due after that, or with no due date.
 - **Waiting on client**: tasks paused with the **Waiting on client** status. They never count as late, whatever the date. **Slate › Waiting on client** in the sidebar lists every open client request, longest wait first; see [How do I ask a client something from a task?](#/help/ask-client).

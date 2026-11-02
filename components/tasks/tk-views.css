@@ -4370,3 +4370,35 @@ a.tk-card-title:hover {
 .tkh-menu-note:empty {
   display: none;
 }
+
+/* Compact rows (View > Compact rows): title and chips on one line. The class is on
+   <html>, set from TK_MyTasks.jsx; phones keep the two-line row. */
+@media (min-width: 761px) {
+  html.tk-compact .tk-cell-main {
+    display: flex;
+    align-items: center;
+    gap: 4px 14px;
+    min-width: 0;
+  }
+  html.tk-compact .tk-row-titleline {
+    flex: 1 1 40%;
+    min-width: 0;
+  }
+  html.tk-compact .tk-row-meta {
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    margin-top: 0;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  html.tk-compact .tk-row-chips {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+  html.tk-compact .tk-row {
+    min-height: 36px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+  }
+}

@@ -22,6 +22,47 @@
 var TK_vGROUPS_KEY = "mgb_tk_groups_v1";
 var TK_vVIEW_KEY = "mgb_tk_view_v1";
 
+// Compact rows: one line per task (title, then the chips), a per-person,
+// per-browser choice from the View menu. It is a class on <html> so every task
+// list follows it; phones always keep the two-line row.
+var TK_COMPACT_KEY = "mgb_tk_compact_v1";
+function TK_compactGet() {
+  try {
+    return window.localStorage.getItem(TK_COMPACT_KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+}
+function TK_compactApply() {
+  try {
+    document.documentElement.classList.toggle("tk-compact", TK_compactGet());
+  } catch (e) {}
+}
+function TK_compactSet(on) {
+  try {
+    if (on) window.localStorage.setItem(TK_COMPACT_KEY, "1");
+    else window.localStorage.removeItem(TK_COMPACT_KEY);
+  } catch (e) {}
+  TK_compactApply();
+  try {
+    window.dispatchEvent(new CustomEvent("mgb:tk-compact"));
+  } catch (e) {}
+}
+function TK_useCompact() {
+  const [on, setOn] = React.useState(TK_compactGet);
+  React.useEffect(() => {
+    const h = () => setOn(TK_compactGet());
+    window.addEventListener("mgb:tk-compact", h);
+    window.addEventListener("storage", h);
+    return () => {
+      window.removeEventListener("mgb:tk-compact", h);
+      window.removeEventListener("storage", h);
+    };
+  }, []);
+  return [on, TK_compactSet];
+}
+TK_compactApply();
+
 var TK_vGROUPBY_KEY = "mgb_tk_groupby_v1";
 
 // "Group by: Due date | Client", remembered per signed-in person (localStorage,
@@ -625,6 +666,9 @@ function TK_vMyTasksBody(props) {
   });
   var prefs = vPair[0];
   var setPrefs = vPair[1];
+  var compactPair = TK_useCompact();
+  var compactOn = compactPair[0];
+  var setCompact = compactPair[1];
   var setPref = function (k, val) {
     setPrefs(function (p) {
       var n = Object.assign({}, p);
@@ -1261,6 +1305,22 @@ function TK_vMyTasksBody(props) {
           <TK_vMenuButton label={<span className="tk-tool-label">View<TK_vIcon name="down" size={12} /></span>} menuLabel="View options">
             {function (close) {
               return (
+                <React.Fragment>
+                <button
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={compactOn ? "true" : "false"}
+                  className="tk-menu-item"
+                  onClick={function () {
+                    setCompact(!compactOn);
+                    close();
+                  }}
+                >
+                  <span className={"tk-menu-check" + (compactOn ? " is-on" : "")} aria-hidden="true">
+                    {compactOn ? <TK_vIcon name="check" size={12} /> : null}
+                  </span>
+                  Compact rows (one line)
+                </button>
                 <button
                   type="button"
                   role="menuitemcheckbox"
@@ -1276,6 +1336,7 @@ function TK_vMyTasksBody(props) {
                   </span>
                   Today group
                 </button>
+                </React.Fragment>
               );
             }}
           </TK_vMenuButton>
