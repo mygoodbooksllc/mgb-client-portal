@@ -64,7 +64,7 @@ The card uses what the page has already loaded, so it adds no wait. On a short w
 
 **With the Desk on, the top bar has less on it.** The **Slate** button is a plain link to Slate (your late and today counts are in the Desk bar), and on a computer the top bar has no **+** (**Create** is at the top of the left nav). On a phone the top bar keeps its round **+**. Turn the Desk off and Today's tiles and the rest come back as they were.
 
-**The chat bubble steps aside while the Desk is on** (on a computer). The rail's messages icon opens the same chat drawer. On a phone the bubble stays, just above the bar.
+**The chat bubble steps aside while the Desk is on** (on a computer). The rail's messages icon opens the same chat drawer. On a phone the bubble stays, tucked into the right end of the bar.
 
 **The page keeps working while the Desk is open.** Nothing is dimmed. On a wide window the column sits beside the page and pushes it over, so nothing is hidden; on a window narrower than about 1100 pixels it sits over the right side of the page instead. Either way you can scroll the page, click on it and use its shortcuts (like **q** for quick add, or **j** and **k** on a list) with the Desk still open. The top bar always runs the full width.
 

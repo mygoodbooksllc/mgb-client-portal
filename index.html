@@ -446,7 +446,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-11-02w", note: "Profitability: early in a month (days 1 to 3, or before any QuickBooks Time hours are logged) MGB Home and Team open on last month with a note, and a client with no hours shows a dash for cost, profit and margin instead of $0 and 100%." };
+      window.MGB_VERSION = { label: "2026-11-02x", note: "Phone fit: the chat bubble sits in the bottom bar instead of floating over the page, Slate and other tiny controls are easier to tap, the client picker and client tab strip are readable, and the ? menu scrolls. Layout only; nothing else changed." };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -528,6 +528,7 @@
       document.write('<link rel="stylesheet" href="components/client/op.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/client/agreements.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/members/mb.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/ui/phone-fit.css?v=' + Date.now() + '">');
 
       // Kick every source fetch off HERE, in <head>, so all five download in
       // parallel with React/Babel/jsPDF instead of after them. Previously each
