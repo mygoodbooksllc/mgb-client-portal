@@ -644,6 +644,13 @@ function seq() {
     assert.strictEqual(L.sb.WB_peekMemGet("ana@x.org", "c2", NOW), null);
   });
 
+  t("Client tab: keyed siblings never share a key (a shared key leaked duplicate summaries)", () => {
+    const src = fs.readFileSync(path.join(__dirname, "WB_HubClient.jsx"), "utf8");
+    const keys = (src.match(/\bkey=\{[^}]*\bid\b[^}]*\}/g) || []);
+    assert.ok(keys.length >= 3);
+    assert.strictEqual(new Set(keys).size, keys.length, "duplicate key expressions: " + keys.join(", "));
+  });
+
   console.log("WB_peek tests passed: " + n);
 })().catch((e) => {
   console.error(e);

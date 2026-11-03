@@ -342,7 +342,7 @@ function WB_HubClientBody(props) {
   } else {
     body = (
       <WB_HubClientTasks
-        key={id}
+        key={"tasks-" + id}
         clientId={id}
         clientName={name}
         me={email}
@@ -422,7 +422,7 @@ function WB_HubClientBody(props) {
       ) : null}
       {peekOn && id != null && pick.access === true && typeof WB_HubClientSummary === "function" ? (
         <WB_HubClientSummary
-          key={id}
+          key={"peek-" + id}
           clientId={id}
           clients={clients}
           me={email}
@@ -436,7 +436,7 @@ function WB_HubClientBody(props) {
       {body}
       {plusOn && askPair[0] && id != null && pick.access === true && typeof WB_AskClientModal === "function" ? (
         <WB_AskClientModal
-          key={id}
+          key={"ask-" + id}
           clientId={id}
           clientName={name}
           onClose={function () {
