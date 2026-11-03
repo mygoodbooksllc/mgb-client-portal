@@ -34,8 +34,11 @@
   }
 }
 
-/* No bar (client portal, pages without the Desk): a slightly smaller bubble,
-   tucked closer to the corner. The page already ends 92px above the bottom. */
+/* No Desk bar: a slightly smaller bubble, tucked closer to the corner.
+   Client phones have their own bottom bar (.client-tabbar, fixed to the
+   bottom, styles.css), which the bubble used to sit over (the rightmost tab).
+   There the bubble is lifted to just above that bar; the page already pads
+   72px at the bottom for it. */
 @media (max-width: 760px) {
   html:not(.wb-drawer-on) .si-launcher,
   html:not(.wb-drawer-on) .chat-fab {
@@ -45,6 +48,10 @@
   html:not(.wb-drawer-on) .si-launcher,
   html:not(.wb-drawer-on) .chat-fab-wrap {
     right: 12px;
+  }
+  body:has(.has-client-tabbar) .si-launcher,
+  body:has(.has-client-tabbar) .chat-fab-wrap {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -68,6 +75,7 @@
 
   .tk-sel,
   .tk-sel-group {
+    opacity: 1; /* base 0.55 made the unchecked box vanish in dark mode */
     -webkit-appearance: none;
     appearance: none;
     position: relative;
@@ -89,7 +97,7 @@
     content: "";
     position: absolute;
     box-sizing: border-box;
-    border: 1.5px solid var(--muted-line, var(--border));
+    border: 1.5px solid var(--text-muted);
     border-radius: 5px;
     background: var(--surface);
   }
@@ -112,7 +120,7 @@
     position: absolute;
     box-sizing: border-box;
     opacity: 0;
-    border: solid #fff;
+    border: solid var(--on-gold);
     border-width: 0 2px 2px 0;
   }
   .tk-sel::after {
@@ -159,7 +167,9 @@
     flex: 1 1 auto;
     min-width: 0;
   }
-  .tb-middle {
+  /* Only when the search is the 40px icon; the full search box (View as, or
+     Slate+ off) keeps its normal flexible slot so the picker is not squeezed. */
+  .tb-middle:has(.tks-search.is-compact) {
     flex: 0 0 auto;
   }
   .tb-client {
@@ -270,6 +280,7 @@
   /* Inline text buttons: extra tap room above and below without moving the
      line they sit in. */
   .link-btn,
+  .link-btn.lr-btn-sm,
   .bh-link,
   .td-link {
     padding-top: 9px;
@@ -277,7 +288,9 @@
     margin-top: -9px;
     margin-bottom: -9px;
   }
-  .main td > button {
+  /* :where() keeps this at zero extra specificity so wider or larger rules on
+     the same buttons (.ct-pill 84px, .row-remove-btn 44px) still win. */
+  :where(.main td) > button {
     min-height: 32px;
     min-width: 40px;
   }
@@ -286,11 +299,16 @@
   .lr-info {
     position: relative;
   }
-  .inote-btn::before,
-  .lr-info::before {
+  .inote-btn::before {
     content: "";
     position: absolute;
     inset: -10px;
+  }
+  /* Stops short of the select under it in label.lr-field (3px gap). */
+  .lr-info::before {
+    content: "";
+    position: absolute;
+    inset: -10px -10px -2px;
   }
   /* Ledger review row checkbox: 18px native box, redrawn as a 40px hit area
      with the same 18px square (same technique as the Slate select boxes). */
@@ -311,7 +329,7 @@
     position: absolute;
     inset: 11px;
     box-sizing: border-box;
-    border: 1.5px solid var(--muted-line, var(--border));
+    border: 1.5px solid var(--text-muted);
     border-radius: 4px;
     background: var(--surface);
   }
@@ -327,7 +345,7 @@
     box-sizing: border-box;
     width: 6px;
     height: 11px;
-    border: solid #fff;
+    border: solid var(--on-gold);
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
     opacity: 0;
