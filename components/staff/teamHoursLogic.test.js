@@ -82,3 +82,15 @@ assert.deepStrictEqual(withMoney.slice(8, 10), ["Effective rate / hour", "Monthl
 assert.ok(!withMoney.includes("Billable value"));
 
 console.log("teamHoursLogic: all passed");
+
+// Early-month default period.
+assert.strictEqual(T.TH_defaultMonthKey("2026-11-02", null), "last-month");
+assert.strictEqual(T.TH_defaultMonthKey("2026-11-03", 500), "last-month");
+assert.strictEqual(T.TH_defaultMonthKey("2026-11-04", null), "month");
+assert.strictEqual(T.TH_defaultMonthKey("2026-11-04", 0), "last-month");
+assert.strictEqual(T.TH_defaultMonthKey("2026-11-04", 90), "month");
+assert.strictEqual(T.TH_hasCostData({ total_minutes: 0 }), false);
+assert.strictEqual(T.TH_hasCostData({ total_minutes: "30" }), true);
+assert.strictEqual(T.TH_hasCostData(null), false);
+assert.strictEqual(T.TH_sumMinutes([{ total_minutes: 5 }, { total_minutes: "7" }, {}]), 12);
+console.log("early-month logic ok");

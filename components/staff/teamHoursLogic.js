@@ -129,6 +129,37 @@ function TH_clientsCsvHead(avgLabel, appHead, moneyHead, late) {
     .concat(late ? ["Overdue tasks"] : []);
 }
 
+// Early in a month QuickBooks Time has no hours yet, so cost reads $0 and
+// margin 100%. Default to last month on days 1 to 3, or whenever this month's
+// logged minutes are known to be 0. minutes = null/undefined means "not known
+// yet": only the day rule applies.
+var TH_EARLY_MONTH_NOTE = "Showing last month: this month has no hours yet";
+
+function TH_earlyMonthDay(today) {
+  var d = Number(String(today).split("-")[2]);
+  return d >= 1 && d <= 3;
+}
+
+function TH_defaultMonthKey(today, minutes) {
+  if (TH_earlyMonthDay(today)) return "last-month";
+  if (minutes != null && !(Number(minutes) > 0)) return "last-month";
+  return "month";
+}
+
+// A client row has cost data only when it has mapped minutes in the range.
+// With none, cost, profit and margin are "no data", not $0 and 100%.
+function TH_hasCostData(row) {
+  return !!row && Number(row.total_minutes) > 0;
+}
+
+function TH_sumMinutes(rows) {
+  var n = 0;
+  (rows || []).forEach(function (r) {
+    n += Number((r && r.total_minutes) || 0);
+  });
+  return n;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TH_clientsCsvHead: TH_clientsCsvHead,
@@ -136,6 +167,11 @@ if (typeof module !== "undefined" && module.exports) {
     TH_MONTHLY_NOTE: TH_MONTHLY_NOTE,
     TH_isMonthlyPaid: TH_isMonthlyPaid,
     TH_avgRange: TH_avgRange,
+    TH_EARLY_MONTH_NOTE: TH_EARLY_MONTH_NOTE,
+    TH_earlyMonthDay: TH_earlyMonthDay,
+    TH_defaultMonthKey: TH_defaultMonthKey,
+    TH_hasCostData: TH_hasCostData,
+    TH_sumMinutes: TH_sumMinutes,
     TH_lastFullWeeks: TH_lastFullWeeks,
     TH_paceDay: TH_paceDay,
     TH_periodUnsynced: TH_periodUnsynced,

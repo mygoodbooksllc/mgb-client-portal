@@ -23,6 +23,7 @@ Hours come from QuickBooks Time.
 
 - **Revenue** = monthly fee × months in the period (partial months by days).
 - **Cost** = QuickBooks Time hours × each person's loaded hourly cost on the day they worked.
+- **Cost, profit and margin show "–" for a client with no QuickBooks Time hours in the period** (not $0 and 100%), and that client is left out of the blended margin. The fee and revenue still show. Early in a month (the 1st to 3rd, or while this month has no hours) Team › Hours and MGB Home open on last month with a note; pick **This month** to switch.
 - **Margin** = profit ÷ revenue. The chip is green at or above target, amber up to 15 points below, red below that.
 
 ### Set a client's actual fee

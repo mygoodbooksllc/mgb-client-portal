@@ -227,7 +227,9 @@ function TP_PF_blocker(profit, qboOn) {
 function TP_PF_rowView(profit, qboOn, clientId) {
   const fee = TP_PF_feeFor(profit, clientId);
   const r = profit && profit.byId[clientId];
-  const show = !!(profit && profit.ready && qboOn && profit.hasRates && r);
+  // No mapped minutes in the range: cost, profit and margin are "no data" ("–"),
+  // not $0 and 100%.
+  const show = !!(profit && profit.ready && qboOn && profit.hasRates && r && TH_hasCostData(r));
   return {
     fee: fee.fee,
     feeSource: fee.source,
@@ -300,7 +302,7 @@ function TP_PF_SummaryStrip({ profit, qboOn, clientIds }) {
   let costedRevenue = 0;
   rows.forEach((r) => {
     if (r.revenue != null) revenue += r.revenue;
-    if (canCost && r.cost != null) {
+    if (canCost && r.cost != null && TH_hasCostData(r)) {
       cost += r.cost;
       if (r.revenue != null) costedRevenue += r.revenue;
     }

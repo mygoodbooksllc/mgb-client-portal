@@ -1081,7 +1081,16 @@ function TP_TeamPage({ clients, mode, basis }) {
   const profitMode = mode === "profit";
   const lateOn = TK_useLateCounts();
   const supabase = window.mgbSupabase;
-  const [period, setPeriod] = useState("month");
+  const [period, setPeriodRaw] = useState(() => TH_defaultMonthKey(TP_ymd(new Date()), null));
+  // Fallback note shows only while the period was chosen by the early-month
+  // rule; any explicit pick clears it and is never overridden.
+  const [autoNote, setAutoNote] = useState(() => TH_defaultMonthKey(TP_ymd(new Date()), null) === "last-month");
+  const userPicked = useRef(false);
+  const setPeriod = useCallback((k) => {
+    userPicked.current = true;
+    setAutoNote(false);
+    setPeriodRaw(k);
+  }, []);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [raw, setRaw] = useState(null); // null = loading
@@ -1294,6 +1303,15 @@ function TP_TeamPage({ clients, mode, basis }) {
   });
 
   const qTotal = qHours.byClient.reduce((n, r) => n + Number(r.total_minutes || 0), 0);
+  // This month loaded with 0 minutes: fall back to last month, unless the user
+  // already picked a period.
+  useEffect(() => {
+    if (userPicked.current || period !== "month" || !qboOn || qHours.loading || qHours.error) return;
+    if (TH_defaultMonthKey(today, qTotal) === "last-month") {
+      setPeriodRaw("last-month");
+      setAutoNote(true);
+    }
+  }, [period, qboOn, qHours.loading, qHours.error, qTotal, today]);
   const appTotal = data ? data.appInPeriod.reduce((n, e) => n + e.minutes, 0) : 0;
   const periodCard = (
     <div className="card tp-toolbar-card" style={{ marginBottom: 20 }}>
@@ -1341,6 +1359,9 @@ function TP_TeamPage({ clients, mode, basis }) {
             <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
           </label>
         </div>
+      )}
+      {autoNote && period === "last-month" && (
+        <p className="tp-muted" style={{ margin: "10px 0 0", fontSize: 13 }}>{TH_EARLY_MONTH_NOTE}.</p>
       )}
       <p className="card-subtitle" style={{ margin: "12px 0 0" }}>
         {rangeLabel}

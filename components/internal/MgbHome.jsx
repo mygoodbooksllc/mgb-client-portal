@@ -341,12 +341,12 @@ function MH_marginOf(profit, qboOn) {
   let cost = 0;
   let rev = 0;
   profit.rows.forEach((r) => {
-    if (excl.has(r.client_id) || r.cost == null || r.revenue == null) return;
+    if (excl.has(r.client_id) || r.cost == null || r.revenue == null || !TH_hasCostData(r)) return;
     cost += r.cost;
     rev += r.revenue;
   });
   const margin = rev > 0 ? ((rev - cost) / rev) * 100 : null;
-  return { margin, note: margin == null ? "No costed revenue yet this month." : null };
+  return { margin, note: margin == null ? "No costed revenue yet in this period." : null };
 }
 
 // ---------------------------------------------------------------------------
@@ -366,7 +366,9 @@ function MH_Card({ title, children, go, goLabel }) {
 
 function MH_HomePage({ clients, onSelectPage }) {
   const { canMoney } = MH_useMoneyUser();
-  const monthRange = useMemo(() => TP_periodRange("month"), []);
+  // Early in the month (or while this month has no hours) show last month.
+  const [lastMonth, setLastMonth] = useState(() => TH_defaultMonthKey(TP_ymd(new Date()), null) === "last-month");
+  const monthRange = useMemo(() => TP_periodRange(lastMonth ? "last-month" : "month"), [lastMonth]);
   const cb = MH_useCostBasis(canMoney);
   // Staff-cost margin always; the full-cost one only once a firm cost basis
   // exists (OQ4: Home shows both). Overhead cost follows the picked basis.
@@ -374,6 +376,10 @@ function MH_HomePage({ clients, onSelectPage }) {
   const profitFull = TP_PF_useProfit(canMoney && !cb.loading && cb.hasBasis, monthRange, 0, "full");
   const qbo = TP_useQboStatus();
   const qboOn = !!qbo.available;
+  useEffect(() => {
+    if (lastMonth || !qboOn || !profit.ready) return;
+    if (TH_defaultMonthKey(TP_ymd(new Date()), TH_sumMinutes(profit.rows)) === "last-month") setLastMonth(true);
+  }, [lastMonth, qboOn, profit.ready, profit.rows]);
   const ohRange = useMemo(() => MH_ohRange("month"), []);
   const oh = MH_useInternalHours(canMoney, ohRange, cb.basis, cb.loading);
   const [sync, setSync] = useState({ loading: true });
@@ -509,7 +515,7 @@ function MH_HomePage({ clients, onSelectPage }) {
   return (
     <div className="mh-home" data-tour="mh-home-cards">
       <div className="mh-cards">
-        <MH_Card title="Margin this month" go={() => onSelectPage("mgb-profitability")} goLabel="Profitability">
+        <MH_Card title={lastMonth ? "Margin last month" : "Margin this month"} go={() => onSelectPage("mgb-profitability")} goLabel="Profitability">
           {margin != null ? (
             <p className="mh-big">
               {full && <span className="tp-muted">Staff cost </span>}
@@ -531,8 +537,9 @@ function MH_HomePage({ clients, onSelectPage }) {
               <p className="tp-muted">Full cost: {full.note}</p>
             )
           )}
+          {lastMonth && <p className="tp-muted mh-small">{TH_EARLY_MONTH_NOTE}.</p>}
           <p className="tp-muted mh-small">
-            Month to date, from QuickBooks Time hours and loaded cost rates{full ? "; full cost adds the firm overhead per hour" : ""}.
+            {lastMonth ? "Last month" : "Month to date"}, from QuickBooks Time hours and loaded cost rates{full ? "; full cost adds the firm overhead per hour" : ""}.
           </p>
         </MH_Card>
         <MH_Card title="Master Data sync" go={() => onSelectPage("mgb-pricing")} goLabel="Pricing & fees">
