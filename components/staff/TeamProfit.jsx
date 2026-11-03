@@ -813,7 +813,7 @@ function TP_PF_SheetSyncStrip({ profit }) {
           {!connected && (
             <div className="pf-sync-steps">
               <p>
-                Fees will come from the <b>{(status && status.fee_header) || "Bookkeeping fee 2027"}</b> column of the MGB_Master_Data sheet (Clients tab) once
+                Fees will come from the <b>{(status && status.fee_header) || "Bookkeeping fee now"}</b> column of the MGB_Master_Data sheet (Clients tab) once
                 the sheet is connected. Until then nothing changes.
               </p>
               {status && status.key_error && <p className="tp-bad">The key saved in Supabase doesn't work: {status.key_error}</p>}

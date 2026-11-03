@@ -1276,7 +1276,7 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   off: deploy with `--no-verify-jwt`; pure logic in `logic.js`, tests `node .../logic.test.js`) reads the
   `MGB_Master_Data` Google Sheet (Clients tab) through a read-only service account (secret `GOOGLE_SA_KEY`; never
   publish-to-web) and writes `client_fees` via `master_sheet_apply()` (service_role only, actor
-  `master-sheet-sync`). Fee column = `FEE_COLUMN` in `logic.js` (`"2027"`, flip to `"now"`). Only Active rows write;
+  `master-sheet-sync`). Fee column = `FEE_COLUMN` in `logic.js` (`"now"` = "Bookkeeping fee now" since 2026-11-02; was `"2027"`). Only Active rows write;
   blank/bad fees never clear; unmatched rows go to `master_sheet_unmatched` and `master_sheet_client_map` (admin
   matches); `sheet_override` stops it per client. Actions `status` / `preview` / `sync` (fingerprint must match the
   preview); nightly cron `master-sheet-sync-nightly` waits for a first manual Sync now and holds on >10 changes or
@@ -1345,6 +1345,13 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   UI: `MH_FeeReviewCard` on MGB Home › Pricing & fees (reads the sheet only on click; filter chips, sort, CSV);
   pure logic `components/internal/MH_fees.js` + `MH_fees.test.js`; logic tests in
   `supabase/functions/master-sheet-sync/logic.test.js`. Redeploy `master-sheet-sync` to turn it on.
+- **Master Data sync reads today's fee (2026-11-02z, SQL `supabase/master-sheet-fee-now.sql` + `supabase/staff-guide-fee-now.sql`):** owner decision:
+  the portal holds the sheet's "Bookkeeping fee now", not "Bookkeeping fee 2027" (Profitability was dividing
+  current hours by next year's fees). `FEE_COLUMN = "now"` in `logic.js`; no 2027 fee is stored in the portal; in
+  January the owner updates the "now" column and the sync follows. The S5 review still reads both columns by name
+  ("now" = the portal's fee, "2027" = the coming price). The nightly run waits for a first manual Sync now on the
+  new column. Tampa Design Company has `sheet_override` on (fee kept as is). Needs a `master-sheet-sync` redeploy,
+  then Preview + Sync now on Pricing & fees.
 - **MGB Home, slice S6 Capacity (2026-11-02, SQL `supabase/mgb-home-s6.sql`, tests in `mgb-home-tests.sql`):**
   new tab `#/internal/capacity` (page `mgb-capacity`, grant holders only; plain hours capacity stays on Team ›
   Hours for every admin). Tables `cost_contract_clients` (contract clients shown apart from MGB clients; seeded

@@ -6,10 +6,14 @@
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-// WHICH FEE COLUMN FEEDS THE PORTAL. Owner decision 2026-10-31: the 2027 fee
-// for now. Flip to "now" when the owner says so (the nightly run then waits
-// for a manual Sync now on the new column before it runs again).
-export const FEE_COLUMN = "2027";
+// WHICH FEE COLUMN FEEDS THE PORTAL. Owner decision 2026-11-02 (replaces the
+// 2026-10-31 "2027" choice): the portal holds TODAY's fee, "Bookkeeping fee
+// now", so Profitability divides current hours by current fees. In January
+// the owner updates the "now" column in the sheet and the portal follows on
+// its own; there is no 2027 fee in the portal. Changing this value makes the
+// nightly run wait for a manual Sync now on the new column before it runs.
+// The S5 review (planCompare below) always reads BOTH columns, whatever this is.
+export const FEE_COLUMN = "now";
 
 export const FEE_HEADERS = { now: "Bookkeeping fee now", 2027: "Bookkeeping fee 2027" };
 export const SHEET_ID = "1y6Tw4GDZWxpD20UfHKVLUvuej1q2abUQ1FaZRYfrPR8";
@@ -288,6 +292,9 @@ export function cronHoldReason(plan) {
 // Compare (MGB Home S5, docs/mgb-home-spec.md section 4): READ-ONLY review of
 // "Bookkeeping fee now" vs "Bookkeeping fee 2027" per matched client. Never
 // feeds master_sheet_apply(); planSync above (the live path) is untouched.
+// Since FEE_COLUMN is "now", "now" here is the fee the portal holds and
+// "2027" is the coming price; both columns are named explicitly, so the
+// review does not depend on FEE_COLUMN.
 // ---------------------------------------------------------------------------
 export const COMPARE_BIG_MOVE = 0.25; // a fee moving MORE than 25% is flagged
 

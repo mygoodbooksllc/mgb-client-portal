@@ -36,7 +36,7 @@ If the fee has a **Master Data** tag, it comes from the sheet: see the next sect
 
 ### Fees synced from Master Data
 
-Client fees can come straight from the **MGB_Master_Data** Google Sheet (**Clients** tab, column **Bookkeeping fee 2027**). The portal only reads the sheet; it never writes to it.
+Client fees can come straight from the **MGB_Master_Data** Google Sheet (**Clients** tab, column **Bookkeeping fee now**, today's fee). The portal only reads the sheet; it never writes to it. When fees change (for example in January), update **Bookkeeping fee now** in the sheet and the portal follows. The portal does not hold a 2027 fee; to see next year's prices next to today's, use **2027 fee change review** in MGB Home › Pricing & fees.
 
 - Only rows with Status **Active** set a fee. **Lost**, **Paused** and **Gone** rows never change a fee.
 - A blank or non-number fee never clears a fee.
@@ -62,7 +62,7 @@ Until this is done the strip says **not connected yet** and nothing changes.
 5. In Google Drive, open **MGB_Master_Data › Share** and add the service account's email as **Viewer** (untick **Notify people**). The email is on the service account's page in Google Cloud and in the key file as `client_email`; it ends in `.iam.gserviceaccount.com`. Never use **Publish to web**: that would make the fees public.
 6. Back in the portal, open **Team › Hours › Master Data sync › Details**. It now says **Reading as** the service account's email. Click **Preview changes**, check the list, then **Sync now**. The nightly sync starts after this first run.
 
-To read **Bookkeeping fee now** instead of 2027, ask the developer to switch the fee column; the nightly sync then waits for a new **Sync now**.
+The column is set by the developer. If it is ever switched, the nightly sync waits for a new **Sync now** on the new column.
 
 ### Set a staff member's hourly cost
 

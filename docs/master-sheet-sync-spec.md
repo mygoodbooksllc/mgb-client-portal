@@ -7,9 +7,24 @@ Keep `client_fees.monthly_fee` in step with the Google Sheet **MGB_Master_Data**
 (Drive id `1y6Tw4GDZWxpD20UfHKVLUvuej1q2abUQ1FaZRYfrPR8`), tab **Clients**,
 header row 4, data from row 5. Columns found by header text (not letter):
 `Client`, `Status`, and the fee column picked by one constant:
-`FEE_COLUMN = "2027"` -> header `Bookkeeping fee 2027` (flip to `"now"` ->
-`Bookkeeping fee now`) in `supabase/functions/master-sheet-sync/logic.js`.
+`FEE_COLUMN = "now"` -> header `Bookkeeping fee now` in
+`supabase/functions/master-sheet-sync/logic.js` (`"2027"` -> `Bookkeeping fee 2027`
+is still accepted but not used).
 If any of the three headers is missing the run errors and changes nothing.
+
+### Which column (owner decision 2026-11-02)
+The portal holds TODAY's fee: `Bookkeeping fee now`. This replaced the
+2026-10-31 choice of the 2027 column, which made Profitability divide current
+hours by next year's fees and overstate margins. There is no 2027 fee in the
+portal. In January the owner updates the "now" column in the sheet and the
+nightly sync carries it over (more than 10 changes or any move over 50% holds
+for a manual Preview + Sync now). Changing `FEE_COLUMN` makes the nightly run
+wait (`skipped`) until a manual live run on the new column succeeds. A client
+whose fee should not follow the sheet uses the per-client Override
+(`client_fees.sheet_override`); Tampa Design Company has it on since 2026-11-02
+(`supabase/master-sheet-fee-now.sql`). The `compare` review below reads both
+columns by name and does not depend on `FEE_COLUMN`: "now" there is the fee
+the portal holds, "2027" the coming price.
 
 ## Pieces
 - **Edge function `master-sheet-sync`** (verify_jwt off, in-function auth).

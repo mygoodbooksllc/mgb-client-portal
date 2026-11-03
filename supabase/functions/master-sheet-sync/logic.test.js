@@ -28,8 +28,8 @@ const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 
 // ---------------------------------------------------------------------------
-test("fee column defaults to 2027 (owner decision)", () => {
-  assert.equal(FEE_COLUMN, "2027");
+test("fee column defaults to 'now' (owner decision 2026-11-02: portal holds today's fee)", () => {
+  assert.equal(FEE_COLUMN, "now");
 });
 
 test("normName lowercases and drops everything but a-z0-9", () => {
@@ -83,12 +83,17 @@ test("findColumns refuses a missing or duplicated header", () => {
 });
 
 test("readRows skips blank names and keeps row numbers", () => {
-  const { rows } = readRows([HEAD, ["A Church", "Active", "", "", "", "", "$100", "$200"], ["", "Active"], ["  ", "Active"], ["B", "Lost", "", "", "", "", "", ""]]);
+  const v = [HEAD, ["A Church", "Active", "", "", "", "", "$100", "$200"], ["", "Active"], ["  ", "Active"], ["B", "Lost", "", "", "", "", "", ""]];
+  const { rows } = readRows(v, "2027");
   assert.equal(rows.length, 2);
   assert.equal(rows[0].rowNumber, 5);
   assert.equal(rows[0].fee, 200);
   assert.equal(rows[1].rowNumber, 8);
   assert.equal(rows[1].fee, null);
+  // default column is "now"
+  const d = readRows(v);
+  assert.equal(d.cols.feeHeader, "Bookkeeping fee now");
+  assert.equal(d.rows[0].fee, 100);
 });
 
 // ---------------------------------------------------------------------------
@@ -179,6 +184,30 @@ test("planSync uses the 'now' column when flipped", () => {
   const p = planSync({ values: v, clients, fees, map: [], feeColumn: "now" });
   assert.deepEqual(p.unchanged.map((u) => u.client_id), ["alpha"]);
   assert.equal(p.changes.length, 0);
+});
+
+test("planSync default (no feeColumn) reads 'now', never 2027", () => {
+  const v = [
+    HEAD,
+    ...Array.from({ length: 5 }, (_, i) => row(`X${i}`, "Active", "$2", "$1")),
+    row("Alpha Church", "Active", "$850.00", "$750.00"), // now 750, 2027 850 -> portal 750 (Compassion case)
+    row("Beta Ministries", "Active", "$700", "$450"), // now 450, 2027 700
+    row("Delta Fellowship", "Active", "$58.33", "$0.00"), // now $0: left alone, even with 2027 filled
+    row("Gamma Inc", "Active", "$300", ""), // now blank: left alone
+    row("Override Org", "Active", "$5,000", "$5,000"), // override on: left alone
+  ];
+  const p = planSync({ values: v, clients, fees, map: [] });
+  assert.equal(p.error, undefined);
+  const ch = Object.fromEntries(p.changes.map((c) => [c.client_id, c]));
+  assert.deepEqual([ch.alpha.from, ch.alpha.to], [500, 750]);
+  assert.deepEqual([ch.beta.from, ch.beta.to], [750, 450]);
+  assert.ok(!p.items.some((i) => ["delta", "gamma", "over"].includes(i.client_id)));
+  const why = (name) => p.skipped.filter((s) => s.sheet_name === name).map((s) => s.reason);
+  assert.match(why("Delta Fellowship")[0], /\$0/);
+  assert.match(why("Gamma Inc")[0], /blank/);
+  assert.deepEqual(why("Override Org"), ["override on in the portal"]);
+  // same as passing "now" explicitly
+  assert.equal(JSON.stringify(planSync({ values: v, clients, fees, map: [], feeColumn: "now" })), JSON.stringify(p));
 });
 
 test("two sheet rows for one client: error, nothing written for it", () => {
@@ -318,6 +347,21 @@ test("planCompare: missing 2027 header or too few rows is an error, no rows", ()
   assert.match(p.error, /Couldn't find the "Bookkeeping fee 2027" column/);
   assert.equal(p.rows, undefined);
   assert.match(planCompare({ values: [HEAD, row("Alpha Church", "Active", "$1", "$1")], clients, map }).error, /Only 1 client row/);
+});
+
+test("planCompare reads both columns whatever FEE_COLUMN is: now = portal fee, next = 2027", () => {
+  const v = [
+    HEAD,
+    ...Array.from({ length: 5 }, (_, i) => row(`X${i}`, "Active", "$2", "$1")),
+    row("Alpha Church", "Active", "$850.00", "$750.00"),
+  ];
+  const c = planCompare({ values: v, clients, map: [] });
+  const a = c.rows.find((r) => r.client_id === "alpha");
+  assert.deepEqual([a.now, a.next, a.change], [750, 850, 100]);
+  assert.deepEqual(c.headers, { now: "Bookkeeping fee now", next: "Bookkeeping fee 2027" });
+  // the live sync (default column) writes the review's "now" value, not its "2027" value
+  const s = planSync({ values: v, clients, fees, map: [] });
+  assert.equal(s.items.find((i) => i.client_id === "alpha").to, a.now);
 });
 
 test("planCompare does not change what planSync plans", () => {

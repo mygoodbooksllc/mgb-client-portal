@@ -24,7 +24,7 @@ The **MGB Home** header has a thin gold line along its bottom edge and the tab r
 
 ### 2027 fee change review
 
-On **Pricing & fees**, **2027 fee change review** puts each client's **Bookkeeping fee now** next to its **Bookkeeping fee 2027** from the MGB_Master_Data sheet (Clients tab). It is read only: it never changes a fee in the portal or the sheet.
+On **Pricing & fees**, **2027 fee change review** puts each client's **Bookkeeping fee now** next to its **Bookkeeping fee 2027** from the MGB_Master_Data sheet (Clients tab). **Now** is the fee the portal uses (the Master Data sync reads that column); **2027** is the coming price, shown here only. It is read only: it never changes a fee in the portal or the sheet.
 
 1. Click **Compare now and 2027**. The portal reads the sheet (it takes a few seconds) and lists every sheet row that is matched to a client, whatever its status.
 2. Each row shows **Now**, **2027**, the **Change** in dollars and the **%**. A drop shows in red.

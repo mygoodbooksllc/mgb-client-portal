@@ -1975,8 +1975,8 @@ function MH_PricingPage({ clients }) {
 
 // ---------------------------------------------------------------------------
 // 2027 fee change review (S5): READ-ONLY. The master-sheet-sync action
-// "compare" reads "Bookkeeping fee now" and "Bookkeeping fee 2027" for every
-// sheet row matched to a client (same caller check as Preview / Sync now:
+// "compare" reads "Bookkeeping fee now" (the column the live sync writes since
+// 2026-11-02) and "Bookkeeping fee 2027" for every sheet row matched to a client (same caller check as Preview / Sync now:
 // can_view_internal() as the caller) and writes nothing, not even a run log.
 // ready = the profit load finished, which proves the grant (same wait as
 // TP_PF_SheetSyncStrip). The sheet is read only when the person clicks.
@@ -2023,7 +2023,8 @@ function MH_FeeReviewCard({ ready }) {
       <h3 className="card-title" id="mh-fr-title">2027 fee change review</h3>
       <p className="card-subtitle">
         Each client's “Bookkeeping fee now” next to its “Bookkeeping fee 2027” in the MGB_Master_Data sheet, with the change in dollars
-        and percent. Read only: this never changes a fee. Sheet rows with no portal client aren't shown: active ones are listed to
+        and percent. “Now” is the fee the portal uses (the Master Data sync reads that column); “2027” is shown here only.
+        Read only: this never changes a fee. Sheet rows with no portal client aren't shown: active ones are listed to
         match in the Master Data sync above, and Lost, Paused or Gone ones are skipped there too.
       </p>
       <div className="mh-fr-bar">

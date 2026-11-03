@@ -18,7 +18,8 @@ import {
 
 // Master Data fee sync (docs/master-sheet-sync-spec.md, supabase/master-sheet-sync.sql).
 // Reads the Clients tab of the MGB_Master_Data Google Sheet with a READ-ONLY
-// service account and keeps client_fees in step. INTERNAL-ONLY.
+// service account and keeps client_fees in step with the "Bookkeeping fee now"
+// column (FEE_COLUMN in logic.js; owner decision 2026-11-02). INTERNAL-ONLY.
 //
 // Callers / auth (verify_jwt is OFF; these checks are the gate):
 //   (a) an admin with the MGB (internal) grant, with their own Supabase JWT:
@@ -133,7 +134,7 @@ Deno.serve(async (req) => {
   const action: string = isMachine && body?.trigger === "cron" ? "sync" : String(body?.action || "status");
   if (!["status", "preview", "sync", "compare"].includes(action)) return json({ error: "unknown action" }, 400);
 
-  const feeColumn = FEE_COLUMN;
+  const feeColumn = FEE_COLUMN; // "now"; the compare action reads both columns itself
   const info = saInfo();
 
   if (action === "status") {
