@@ -54,6 +54,10 @@
     const [signInNotice, setSignInNotice] = useState("");
 
     const supabase = window.mgbSupabase;
+    // The email already let in. A token refresh after the window sat idle
+    // re-runs the staff check; one failed lookup then (network still waking
+    // up) must not sign a working session out.
+    const authorizedEmailRef = React.useRef("");
 
     async function checkStaffRow(session) {
       const email = session.user.email;
@@ -76,6 +80,9 @@
         .eq("email", email)
         .maybeSingle();
 
+      if (error && authorizedEmailRef.current === String(email || "").toLowerCase()) {
+        return;
+      }
       if (error) {
         // Security audit finding: a rejected session used to stay in
         // localStorage. Supabase persists it and refreshes it in the
@@ -134,6 +141,7 @@
         }
         window.__mgbInternalGrant = { email: data.email, canViewInternal, isInternalOwner };
       }
+      authorizedEmailRef.current = String(data.email || email || "").toLowerCase();
       setStaffUser({ email: data.email, name: data.name, role: data.role, canViewInternal, isInternalOwner });
       setStatus("authorized");
     }
@@ -159,6 +167,7 @@
           if (session) checkStaffRow(session);
           else {
             if (window.mgbInstallApp) window.mgbInstallApp.set(false);
+            authorizedEmailRef.current = "";
             setStaffUser(null);
             setStatus("signed-out");
           }
