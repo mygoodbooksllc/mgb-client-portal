@@ -60,6 +60,7 @@ const AL_ACTIONS = {
   "client.bookkeeper_changed": "Bookkeeper changed",
   "client.lost_set": "Client marked lost",
   "client.lost_cleared": "Client no longer lost (undo)",
+  "client.tasks_auto_closed": "Open tasks closed (lost client)",
   "view_as.start": "View as started",
   "view_as.stop": "View as ended",
   "view_as.blocked": "View as: blocked change",
@@ -169,6 +170,7 @@ function AL_summary(row) {
       .filter(Boolean)
       .join(" · ");
   if (a === "client.created" || a === "client.deleted") return [d.name, d.plan].filter(Boolean).join(" · ");
+  if (a === "client.tasks_auto_closed") return [d.name, `${d.closed || 0} task${d.closed === 1 ? "" : "s"} moved to the Tasks trash`].filter(Boolean).join(" · ");
   if (a === "client.lost_set" || a === "client.lost_cleared")
     return [d.name, `lost date ${d.from || "none"} → ${d.to || "none"}`].filter(Boolean).join(" · ");
   if (a === "access_grant.requested") return [d.days ? `${d.days} day${d.days === 1 ? "" : "s"}` : "", d.reason].filter(Boolean).join(" · ");

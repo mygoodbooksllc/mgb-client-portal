@@ -32490,6 +32490,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               staffUser={effectiveStaffUser}
               impersonating={Boolean(impersonating)}
               clients={listClients}
+              historyClients={historyClients}
               messagesByClient={messagesByClient}
               readMessageClients={readMessageClients}
               isAdmin={staffIsAdmin}

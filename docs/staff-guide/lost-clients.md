@@ -14,12 +14,12 @@ When an organization stops being a MyGoodBooks client, an admin marks it **lost*
 3. Pick the **first day they're no longer a client** and click **Mark lost**. A future date is fine: until then the row says **Leaving** and nothing changes.
 4. A message confirms it, with **Undo** if you picked the wrong client.
 
-The row then shows a **Lost** tag and the date. Only admins see these buttons, and every change is recorded in the [Audit log](#/help/audit-log).
+The row then shows a **Lost** tag and the date. Only admins see these buttons, and every change is recorded in the [Audit log](#/help/audit-log), including how many open tasks were closed.
 
 ### What changes from that day
 
 - The client leaves the **Clients** list, the client picker, pickers in forms, alerts, the weekly digest, client health, coverage and the anniversary gift list.
-- Its repeating tasks stop making new ones.
+- Its repeating tasks stop making new ones, and its **open tasks and reminders close on their own** (see below).
 - Fee revenue on Profitability and Capacity stops on the lost date (a month they left part way through counts only the days before it).
 - The **Mark lost** and **Undo lost** buttons stay on **Manage access**, the one place a lost client stays in the list.
 
@@ -31,9 +31,9 @@ The row then shows a **Lost** tag and the date. Only admins see these buttons, a
 
 ### Before you mark one lost
 
-- Close or move the client's open tasks. Repeating tasks stop, but tasks that are already open stay open, and the Desk inbox still shows them.
+- Open tasks and reminders for the client are **closed automatically** the day the lost date arrives (right away if you pick today or an earlier date). They move to the Tasks **Trash**, so they stop counting as overdue or assigned, and they do **not** count as completed work. Done tasks are never touched. If you need to move a task to another client first, do it before the lost date.
 - Remove staff access to the client if nobody should keep it.
 
 ### Undo it
 
-Click **Undo lost** on the client's row in **Manage access › Client organizations**. The client is current again everywhere, and the change goes in the Audit log.
+Click **Undo lost** on the client's row in **Manage access › Client organizations**. The client is current again everywhere, and the change goes in the Audit log. Tasks that were closed stay closed; restore any you still need from the Tasks **Trash**.

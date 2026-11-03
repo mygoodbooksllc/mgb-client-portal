@@ -4,6 +4,7 @@ import { emailConfigured, esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
 import { loadSignoffs, signoffHtml, signoffText } from "../_shared/signature.ts";
 import { newToken, nudgeEmail, portalLink, respondLink, tokenHashParam } from "../_shared/tk_requests.ts";
+import { isLostClient } from "./lost.ts";
 
 // Client-facing emails (supabase/client-emails.sql has the schema + rules).
 //   job "doc_chaser"   : missing-documents reminders (daily cron)
@@ -113,6 +114,8 @@ function gate(job: Job, trigger: Trigger, settings: any, prefs: any, client: any
   if (trigger === "cron" && client?.test_only) return "Test client";
   // The internal company profile (MGB itself) is not a client: it never gets client emails.
   if (client?.is_internal) return "Internal company profile";
+  // Lost clients (lost_at today or earlier) get no automatic client emails.
+  if (isLostClient(client?.lost_at, dateIn(new Date()))) return "Lost client";
   return null;
 }
 
@@ -600,7 +603,7 @@ Deno.serve(async (req) => {
     const callerDb = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
     const { data: mayOpen, error: openErr } = await callerDb.rpc("can_access_client", { p_client_id: clientId });
     if (openErr || mayOpen !== true) return json({ error: "forbidden" }, 403);
-    const { data: clientRow } = await db.from("clients").select("id, name, test_only, is_internal, assigned_bookkeeper, assigned_bookkeeper_email").eq("id", clientId).maybeSingle();
+    const { data: clientRow } = await db.from("clients").select("id, name, test_only, is_internal, lost_at, assigned_bookkeeper, assigned_bookkeeper_email").eq("id", clientId).maybeSingle();
     if (!clientRow) return json({ error: "client not found" }, 404);
     const [client] = await withSignatures(db, [clientRow]);
     const { data: prefs } = await db.from("client_email_prefs").select("*").eq("client_id", clientId).maybeSingle();
@@ -663,7 +666,7 @@ Deno.serve(async (req) => {
     return json({ status: "skipped", reason: globalBlock });
   }
 
-  const { data: clientRows } = await db.from("clients").select("id, name, test_only, is_internal, assigned_bookkeeper, assigned_bookkeeper_email");
+  const { data: clientRows } = await db.from("clients").select("id, name, test_only, is_internal, lost_at, assigned_bookkeeper, assigned_bookkeeper_email");
   const clients = await withSignatures(db, clientRows || []);
   const { data: allPrefs } = await db.from("client_email_prefs").select("*");
   const prefsBy = new Map((allPrefs || []).map((r: any) => [r.client_id, r]));

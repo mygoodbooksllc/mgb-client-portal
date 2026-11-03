@@ -285,8 +285,11 @@ used for history places: Team, Messages, Audit log, Team › Hours picker); `win
 client picker and top-bar search show them last while searching. Admins set and undo it on Manage
 access › Client organizations (`saveOrgLost`, Undo toast); the clients update policy keeps it admin-only
 and `audit_row_change` writes `client.lost_set` / `client.lost_cleared`. `lost_at` never changes RLS,
-routes or sign-in. Not covered yet: the Desk inbox (`wb_inbox`) still lists a lost client's open
-tasks, `staff_performance` assigned-client counts, `qbo_sync_health`, `digest_needs_attention`, the
+routes or sign-in. Open tasks auto-close: `supabase/lost-clients-autoclose.sql` (`tk_close_lost_client_tasks`, called by
+a trigger on `clients.lost_at` and by every live `tk__generate` run) soft-deletes them into the Tasks trash
+(not done, so no performance credit; undo does not reopen; audit `client.tasks_auto_closed`); `tk__generate`
+also makes nothing due on or after a future `lost_at`; `client-emails` skips lost clients (`lost.ts`); Today keeps
+a lost client's waiting replies. Not covered yet: `staff_performance` assigned-client counts, `qbo_sync_health`, `digest_needs_attention`, the
 ops_health client count, Ask-client sends in an "all" pilot, and the Slate rail client count.
 Tests: `supabase/mgb-home-tests.sql` LOST section (rolled back), `lostClientLogic.test.js`,
 `MH_capacity.test.js`. Guide: `lost-clients.md`.

@@ -399,6 +399,7 @@ function TD_buildRows(x) {
   };
   const byId = {};
   (clients || []).forEach((c) => (byId[c.id] = c));
+  (x.lostClients || []).forEach((c) => (byId[c.id] = c)); // names for a lost client's replies and tasks
   const nameOf = (id) => (byId[id] ? byId[id].name : id);
   const myClientIds = new Set(x.myClients.map((c) => c.id));
   // Deep link to the exact item (TABS-SPEC D16).
@@ -1316,7 +1317,7 @@ function TD_useCelebrations(admin, today) {
   return { rows, act };
 }
 
-function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMilestone, isAdmin, impersonating, deskOn }) {
+function TD_TodayPage({ staffUser, clients, historyClients, onNavigateToClient, onOpenClientMilestone, isAdmin, impersonating, deskOn }) {
   const showToast = useToast();
   // Workbench (components/workbench/): when it's on, its list and tiles take
   // the place of "Needs you" and the old tiles. Off, or while viewing as
@@ -1348,21 +1349,32 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // From the whole roster (CF_excludedIds), not just this list: the list
   // never holds MGB (internal) and drops test clients while "Show test
   // clients" is off, but their rows must stay out of the counts either way.
+  // A lost client is not in allClients (not a current client) but it is not
+  // hidden either: its tasks and threads still show (it can sign in and write).
+  const isLostC = (c) => typeof window.mgbIsLost === "function" && window.mgbIsLost(c);
   const hiddenIds = React.useMemo(() => {
     const real = new Set(allClients.map((c) => c.id));
     const out = typeof CF_excludedIds === "function" ? CF_excludedIds() : new Set();
     openableClients.forEach((c) => {
-      if (c && !real.has(c.id)) out.add(c.id);
+      if (c && !real.has(c.id) && !isLostC(c)) out.add(c.id);
     });
     return out;
   }, [openableClients, allClients]);
+  // Lost clients (lost_at today or earlier) that are not test or internal:
+  // their client replies still wait on us, so Today keeps watching them.
+  // historyClients is the lost-inclusive list from App (CF_pick with lost: true).
+  const lostClients = React.useMemo(
+    () => (historyClients || openableClients).filter((c) => c && !c.testOnly && !c.isInternal && isLostC(c)),
+    [historyClients, openableClients],
+  );
+  const waitClients = React.useMemo(() => allClients.concat(lostClients), [allClients, lostClients]);
   const notHidden = (r) => !r || !r.client_id || !hiddenIds.has(r.client_id);
   const myClients = React.useMemo(() => TD_myClients(allClients, me, admin), [allClients, me, admin]);
   const myClientIds = React.useMemo(() => myClients.map((c) => c.id), [myClients]);
 
   // Data. Shared stores first (one fetch for the whole app), then this
   // page's own.
-  const waiting = TD_useWaitingThreads(me, allClients);
+  const waiting = TD_useWaitingThreads(me, waitClients);
   const mine = TD_useMyItems(me);
   const access = TD_useAccessRequests();
   const upgrades = TD_useUpgradeRequests(showToast);
@@ -1563,6 +1575,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
     () =>
       TD_buildRows({
         clients: allClients,
+        lostClients,
         myClients,
         today,
         me,
@@ -1599,6 +1612,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
     // decideGrant / toggleItem / setStatus only close over stable setters.
     [
       allClients,
+      lostClients,
       myClients,
       today,
       me,
@@ -1650,7 +1664,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const attentionLines = React.useMemo(() => {
     const by = {};
     const nameOf = {};
-    allClients.forEach((c) => (nameOf[c.id] = c.name));
+    waitClients.forEach((c) => (nameOf[c.id] = c.name));
     // go: where a click lands; the first (most urgent) reason wins.
     const add = (id, tone, text, go) => {
       if (!id || !nameOf[id]) return;
@@ -1682,7 +1696,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
     return Object.values(by)
       .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
       .map((e) => ({ key: e.id, title: e.name, chips: e.chips, onClick: e.go || (() => onNavigateToClient(e.id)) }));
-  }, [allClients, waiting.rows, closes.blocked, coverage.gaps, health && health.status, health && health.byId, onNavigateToClient]);
+  }, [allClients, waitClients, waiting.rows, closes.blocked, coverage.gaps, health && health.status, health && health.byId, onNavigateToClient]);
   // Open Also needs you on one row (Do next's Review, Waiting on others).
   const reveal = (key) => window.dispatchEvent(new CustomEvent("td:reveal", { detail: { key } }));
   // Waiting on others: access and upgrade requests, and replies to chase.
