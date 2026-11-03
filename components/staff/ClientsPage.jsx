@@ -9,6 +9,10 @@
 //                    plus a search box. Takes over from the Team page's
 //                    Client health grid (HLB_HealthTab, retired) as the place
 //                    to scan the whole list.
+//                    Lost clients (clients.lost_at, lostClientLogic.js) are
+//                    not rows or counts; they sit in the folded "Lost
+//                    clients" list under the table, so their history is
+//                    one click away (CL_LostList).
 //   CL_Breadcrumb    "Clients › {client} › {tab}" above a client's pages.
 //   CL_ClientTabs    The client's tab row for staff (NAV_TabRow): the same
 //                    row on every plan (STAFF_CLIENT_TABS, app.jsx) with
@@ -293,10 +297,57 @@ function CL_Row({ r, hours, closeLoading, hlStatus, onOpen, isRealAdmin }) {
 
 // ---- The page
 
-// clients: App's visibleClients. onOpenClient(clientId, page?) opens the
-// client (page defaults to its overview).
-function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingRequestsByClient, onOpenClient }) {
-  const list = clients || [];
+// Lost clients under the table: name, the lost date, who was on it. Folded by
+// default; opening one goes to its pages like any other client.
+function CL_LostList({ lost, onOpen }) {
+  if (!lost || !lost.length) return null;
+  return (
+    <details className="cl-lost" data-tour="clients-lost">
+      <summary>
+        Lost clients <span className="cl-seg-count">{lost.length}</span>
+      </summary>
+      <p className="muted cl-lost-note">
+        No longer clients. They're left out of client lists, counts and alerts; their hours, tasks, messages and documents stay here.
+      </p>
+      <ul className="cl-lost-list">
+        {lost.map((c) => (
+          <li key={c.id}>
+            <a
+              className="cl-name"
+              href={CL_clientHref(c.id)}
+              onClick={(e) => {
+                if (!onOpen) return;
+                e.preventDefault();
+                onOpen(c.id);
+              }}
+            >
+              {c.name || c.id}
+            </a>
+            <CF_Badge client={c} />
+            <span className="muted">
+              {typeof LC_status === "function" ? LC_status(c) : ""}
+              {c.assignedBookkeeper && c.assignedBookkeeper.name ? " · " + c.assignedBookkeeper.name : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+// clients: App's listClients (current clients, plus the open one).
+// lostClients: App's lost clients (CL_LostList). onOpenClient(clientId, page?)
+// opens the client (page defaults to its overview).
+function CL_ClientsPage({ clients, lostClients, staffUser, isAdmin, statusOverrides, pendingRequestsByClient, onOpenClient }) {
+  // A lost client that happens to be open stays out of the table too.
+  const list = useMemo(() => (clients || []).filter((c) => !CF_isLost(c)), [clients]);
+  const lost = useMemo(() => {
+    const out = (lostClients || []).slice();
+    (clients || []).forEach((c) => {
+      if (CF_isLost(c) && !out.some((x) => x.id === c.id)) out.push(c);
+    });
+    return out;
+  }, [clients, lostClients]);
   const today = typeof todayLocal === "function" ? todayLocal() : new Date().toISOString().slice(0, 10);
   const health = HL_useHealth();
   const dir = HLB_useDirectory();
@@ -434,6 +485,7 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
           {health.status === "missing" && " Client health isn't set up yet (database step pending)."}
           {close.error && " " + close.error}
         </p>
+        <CL_LostList lost={lost} onOpen={onOpenClient} />
       </div>
     </div>
   );

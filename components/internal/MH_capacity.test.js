@@ -316,4 +316,51 @@ t("compute: empty input is safe", () => {
   assert.strictEqual(r.split.length, 1);
 });
 
+// Lost clients -------------------------------------------------------------------
+t("fee days: no lost date = every covered day; lost mid-month = days before it", () => {
+  const mo = { start: "2026-09-01", end: "2026-09-30", covered: 30 };
+  assert.strictEqual(C.MH_capFeeDays(mo, null), 30);
+  assert.strictEqual(C.MH_capFeeDays(mo, "2026-09-16"), 15);
+  assert.strictEqual(C.MH_capFeeDays(mo, "2026-09-01"), 0);
+  assert.strictEqual(C.MH_capFeeDays(mo, "2026-08-15"), 0);
+  assert.strictEqual(C.MH_capFeeDays(mo, "2026-10-01"), 30);
+  // A range that starts mid-month: covered 11 days from the 20th.
+  assert.strictEqual(C.MH_capFeeDays({ start: "2026-09-20", end: "2026-09-30", covered: 11 }, "2026-09-25"), 5);
+});
+t("compute: a lost client's fee stops on the lost date, its time and pay stay", () => {
+  const base = C.MH_capCompute(fixture());
+  const f = fixture();
+  f.clients.find((c) => c.client_id === "m1").lost_at = "2026-09-16";
+  const r = C.MH_capCompute(f);
+  // m1: 600/month. Not lost = 1200 over two months; lost on the 16th = 15/30 of September.
+  assert.strictEqual(C.MH_capRound2(base.totals.revenue - r.totals.revenue), 900);
+  assert.strictEqual(r.totals.pay, base.totals.pay);
+  assert.strictEqual(r.totals.allMinutes, base.totals.allMinutes);
+  assert.strictEqual(r.totals.lostMinutes, 600 + 1500 + 600);
+  assert.strictEqual(r.totals.lostClients, 1);
+  assert.strictEqual(base.totals.lostMinutes, 0);
+  // October no longer shows as uncarried m1 revenue.
+  assert.strictEqual(r.uncarried.mgb, 310 + 310);
+  const sum = r.people.reduce((a, p) => a + p.revenue, 0);
+  const unc = r.uncarried.mgb + Object.values(r.uncarried.contract).reduce((a, b) => a + b, 0);
+  assert.strictEqual(Math.round((sum + unc) * 100), Math.round(r.totals.revenue * 100));
+});
+t("compute: lost before the range = no revenue, no missing-fee count", () => {
+  const f = fixture();
+  const m3 = f.clients.find((c) => c.client_id === "m3");
+  m3.lost_at = "2026-08-01";
+  const r = C.MH_capCompute(f);
+  assert.strictEqual(r.missingFees, 0);
+  assert.strictEqual(r.totals.lostMinutes, 0);
+  assert.strictEqual(r.totals.lostClients, 0);
+});
+t("compute: leaving after the range = a full fee, not counted as lost", () => {
+  const base = C.MH_capCompute(fixture());
+  const f = fixture();
+  f.clients.find((c) => c.client_id === "m1").lost_at = "2026-11-15";
+  const r = C.MH_capCompute(f);
+  assert.strictEqual(r.totals.revenue, base.totals.revenue);
+  assert.strictEqual(r.totals.lostMinutes, 0);
+});
+
 console.log(`MH_capacity tests: ${n} passed`);

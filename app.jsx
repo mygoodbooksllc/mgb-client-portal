@@ -18457,8 +18457,14 @@ function ClientAccessPage({ readOnly }) {
     const kept = (orgRows || []).filter(
       (r) => !r.test_only || cfShowTest || mine(r) || r.id === editingOrgId,
     );
-    return CF_sort(kept, (r) => ({ testOnly: r.test_only === true }));
+    // Lost clients (clients.lost_at) stay listed here, the one place admins
+    // set and undo it, sorted last with a Lost tag.
+    return CF_sort(kept, (r) => ({ testOnly: r.test_only === true, lostAt: r.lost_at || null }));
   }, [orgRows, cfShowTest, editingOrgId]);
+  // Lost client (supabase/lost-clients.sql, lostClientLogic.js): the inline
+  // "Mark lost" date being picked ({ id, date, error }) and the row saving.
+  const [lostDraft, setLostDraft] = useState(null);
+  const [savingLostId, setSavingLostId] = useState(null);
   // Add-a-contact client picker: test clients last, tagged, hidden unless shown.
   const contactClients = useMemo(
     () =>
@@ -18547,7 +18553,7 @@ function ClientAccessPage({ readOnly }) {
 
   function rosterCols() {
     return (
-      "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email" +
+      "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email, lost_at" +
       (amCols ? ", account_manager, account_manager_email" : "")
     );
   }
@@ -18747,12 +18753,62 @@ function ClientAccessPage({ readOnly }) {
         testOnly: data.test_only,
         payrollAddOn: data.payroll_add_on,
         assignedBookkeeper: rosterBookkeeper(data),
+        lostAt: data.lost_at || null,
         ...(amCols ? { accountManager: AM_fromRow(data) } : {}),
       };
     }
     setEditingOrgId(null);
     showToast(`Updated ${name}.`);
     loadOrgs();
+  }
+
+  // Lost client: set (a date) or clear (null) clients.lost_at. Admin-only by
+  // the clients update policy; audit_row_change writes client.lost_set /
+  // client.lost_cleared. It never changes sign-in or access, only which lists
+  // and counts the client appears in. The toast's Undo puts the old date back.
+  async function saveOrgLost(row, ymd, opts) {
+    if (!supabase || !row) return false;
+    const next = ymd || null;
+    if (next && typeof LC_checkDate === "function") {
+      const bad = LC_checkDate(next);
+      if (bad) {
+        setLostDraft((d) => (d && d.id === row.id ? { ...d, error: bad } : d));
+        return false;
+      }
+    }
+    const before = row.lost_at || null;
+    setSavingLostId(row.id);
+    const { data, error } = await supabase
+      .from("clients")
+      .update({ lost_at: next })
+      .eq("id", row.id)
+      .select("id, lost_at")
+      .maybeSingle();
+    setSavingLostId(null);
+    if (error || !data) {
+      showToast(`Couldn't update ${row.name}: ${error ? error.message : "only an admin can change this."}`);
+      return false;
+    }
+    const idx = CLIENTS.findIndex((c) => c.id === row.id);
+    if (idx !== -1) CLIENTS[idx] = { ...CLIENTS[idx], lostAt: data.lost_at || null };
+    setLostDraft(null);
+    loadOrgs();
+    try {
+      window.dispatchEvent(new CustomEvent("mgb:clients-changed", { detail: { id: row.id } }));
+    } catch (e) {}
+    if (opts && opts.quiet) return true;
+    const when = typeof LC_fmt === "function" ? LC_fmt(data.lost_at) : data.lost_at;
+    const text = data.lost_at
+      ? `${row.name} is a lost client from ${when}. Hours and history stay.`
+      : `${row.name} is a current client again.`;
+    showToast(text, {
+      label: "Undo",
+      onClick: () =>
+        saveOrgLost({ ...row, lost_at: data.lost_at || null }, before, { quiet: true }).then((ok) => {
+          if (ok) showToast(`Undid the change for ${row.name}.`);
+        }),
+    });
+    return true;
   }
 
   const csvPreview = useMemo(
@@ -19111,7 +19167,45 @@ function ClientAccessPage({ readOnly }) {
                         <td>{row.id}</td>
                         <td>
                           {row.name}
-                          <CF_Badge flag={row.test_only ? "test" : undefined} />
+                          <CF_Badge
+                            flag={row.test_only ? "test" : typeof LC_isLost === "function" && LC_isLost(row) ? "lost" : undefined}
+                            client={{ lostAt: row.lost_at || null }}
+                          />
+                          {row.lost_at && typeof LC_status === "function" && (
+                            <div className="card-subtitle" style={{ margin: 0 }} data-tour="client-lost-status">
+                              {LC_status(row)}
+                            </div>
+                          )}
+                          {lostDraft && lostDraft.id === row.id ? (
+                            <div className="cf-lost-form" style={{ marginTop: 6 }}>
+                              <label className="card-subtitle" style={{ margin: 0, display: "block" }}>
+                                First day they're no longer a client
+                                <input
+                                  type="date"
+                                  min="2000-01-01"
+                                  value={lostDraft.date}
+                                  aria-label={`Lost on date for ${row.name}`}
+                                  onChange={(e) => setLostDraft({ id: row.id, date: e.target.value, error: "" })}
+                                  style={{ display: "block", marginTop: 2 }}
+                                />
+                              </label>
+                              <p className="card-subtitle" style={{ margin: "4px 0" }}>
+                                From that day they leave client lists, counts, alerts and pickers, and repeating tasks stop. Hours, history and sign-in stay.
+                              </p>
+                              {lostDraft.error && <p className="card-subtitle" role="alert" style={{ margin: "0 0 4px", color: "var(--danger, #c0392b)" }}>{lostDraft.error}</p>}
+                              <button
+                                className="btn-primary"
+                                disabled={savingLostId === row.id || !lostDraft.date}
+                                onClick={() => saveOrgLost(row, lostDraft.date)}
+                                style={{ marginRight: 4 }}
+                              >
+                                {savingLostId === row.id ? "Saving…" : "Mark lost"}
+                              </button>
+                              <button disabled={savingLostId === row.id} onClick={() => setLostDraft(null)}>
+                                Cancel
+                              </button>
+                            </div>
+                          ) : null}
                         </td>
                         <td>
                           {row.org_type}
@@ -19136,6 +19230,28 @@ function ClientAccessPage({ readOnly }) {
                           <button onClick={() => startEditOrg(row)}>
                             Edit
                           </button>
+                          {!row.test_only &&
+                            (row.lost_at ? (
+                              <button
+                                style={{ marginTop: 4, display: "block" }}
+                                disabled={savingLostId === row.id}
+                                data-tour="client-lost-undo"
+                                title="Make this a current client again (clears the lost date)"
+                                onClick={() => saveOrgLost(row, null)}
+                              >
+                                {savingLostId === row.id ? "Saving…" : "Undo lost"}
+                              </button>
+                            ) : (
+                              <button
+                                style={{ marginTop: 4, display: "block" }}
+                                disabled={savingLostId === row.id}
+                                data-tour="client-mark-lost"
+                                title="This organization is no longer a client"
+                                onClick={() => setLostDraft({ id: row.id, date: typeof LC_today === "function" ? LC_today() : "", error: "" })}
+                              >
+                                Mark lost
+                              </button>
+                            ))}
                         </td>
                       </tr>
                     ),
@@ -29136,11 +29252,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // pick up the fresh QuickBooks numbers without a page reload.
   const [qboDataRev, setQboDataRev] = useState(0);
   // Something outside App re-read QuickBooks data into window.CLIENTS (the
-  // Giving accounts picker in Client details): pick it up.
+  // Giving accounts picker in Client details): pick it up. Also when Manage
+  // access › Client organizations marks a client lost or undoes it
+  // ("mgb:clients-changed"), so every list re-reads CLIENTS[i].lostAt.
   useEffect(() => {
     const onReloaded = () => setQboDataRev((r) => r + 1);
     window.addEventListener("mgb-qbo-reloaded", onReloaded);
-    return () => window.removeEventListener("mgb-qbo-reloaded", onReloaded);
+    window.addEventListener("mgb:clients-changed", onReloaded);
+    return () => {
+      window.removeEventListener("mgb-qbo-reloaded", onReloaded);
+      window.removeEventListener("mgb:clients-changed", onReloaded);
+    };
   }, []);
   // Clients reachable through a live temporary grant (ClientSwitcher.jsx),
   // so an approval shows up without a reload and an expiry drops out.
@@ -29204,6 +29326,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         isAssigned: (c) => CF_isAssigned(c, flagMe),
       }),
     [rosterClients, showTestClients, selectedClientId, flagMe, assignedClientIds, liveGrantClientIds],
+  );
+  // Lost clients (clients.lost_at on or before today; lostClientLogic.js):
+  // CF_pick leaves them out of listClients unless one is open. historyClients
+  // keeps them (last, tagged Lost) for places that show past or incoming work:
+  // Team hours and the Inbox (a lost client can still sign in and write).
+  // lostClients is just them, for the Clients page's Lost section and search.
+  const historyClients = useMemo(
+    () =>
+      CF_pick(rosterClients, {
+        show: showTestClients,
+        keepId: selectedClientId,
+        lost: true,
+        isAssigned: (c) => CF_isAssigned(c, flagMe),
+      }),
+    [rosterClients, showTestClients, selectedClientId, flagMe, assignedClientIds, liveGrantClientIds],
+  );
+  const lostClients = useMemo(
+    () => rosterClients.filter((c) => CF_isLost(c)).sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id))),
+    [rosterClients],
   );
 
   // §140: in-app-only substitute for the "email me on every access request"
@@ -29426,6 +29567,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const baseClient = useMemo(
     () =>
       visibleClients.find((c) => c.id === selectedClientId) ||
+      // A current client first: a lost one (lostClientLogic.js) never opens by default.
+      rosterClients.find((c) => !CF_isLost(c)) ||
       rosterClients[0] ||
       visibleClients[0] ||
       CLIENTS.find((c) => !c.isInternal) ||
@@ -29454,7 +29597,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   useEffect(() => {
     if (visibleClients.length === 0) return;
     if (!visibleClients.find((c) => c.id === selectedClientId)) {
-      setSelectedClientId((rosterClients[0] || visibleClients[0]).id);
+      setSelectedClientId((rosterClients.find((c) => !CF_isLost(c)) || rosterClients[0] || visibleClients[0]).id);
     }
   }, [visibleClients, rosterClients]);
 
@@ -31362,6 +31505,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               impersonating={impersonating}
               onStopImpersonating={() => stopImpersonating()}
               clients={listClients}
+              lostClients={lostClients}
               client={onStaffPage ? null : client}
               page={effectivePage}
               plan={access.plan}
@@ -32195,7 +32339,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               isAdmin={staffIsAdmin}
               isRealAdmin={staffUser.role === "admin" && !impersonating}
               viewingAs={impersonating}
-              clients={listClients}
+              // Team hours keep lost clients (their logged time is real firm time).
+              clients={historyClients}
               renderMembers={() => (
                 <StaffAccessPage
                   staffUser={staffUser}
@@ -32221,7 +32366,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <StaffMessagesPage
               staffUser={staffUser}
               onActivity={checkStaffMessagesUnread}
-              clients={listClients}
+              // Lost clients too: they can still sign in and write.
+              clients={historyClients}
               sampleThreads={messagesByClient}
               onSampleSend={sampleInboxSend}
               onOpenClient={openClientFromInbox}
@@ -32264,6 +32410,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "clients" && typeof CL_ClientsPage === "function" && (
             <CL_ClientsPage
               clients={listClients}
+              lostClients={lostClients}
               staffUser={effectiveStaffUser}
               isAdmin={staffIsAdmin}
               statusOverrides={statusOverrides}

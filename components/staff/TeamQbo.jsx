@@ -715,9 +715,25 @@ function TP_qClientRows({ clientRows, hours, range, today }) {
   const seen = new Set(rows.map((r) => r.id));
   Object.values(byId).forEach((q) => {
     if (seen.has(q.client_id)) return;
+    // A lost client with QuickBooks hours but no in-app time or open tasks
+    // isn't in clientRows; its hours still count, so it gets a row here
+    // (named from the roster when it's there).
+    const c = (typeof window !== "undefined" && window.CLIENTS ? window.CLIENTS : []).find((x) => x && x.id === q.client_id);
+    const lost = !!c && typeof CF_isLost === "function" && CF_isLost(c);
     rows.push(
       decorate(
-        { id: q.client_id, name: q.client_name || "Unknown client", plan: null, known: false, open: 0, overdue: 0, appMinutes: 0, appByStaff: [] },
+        {
+          id: q.client_id,
+          name: (c && c.name) || q.client_name || "Unknown client",
+          plan: c ? c.plan : null,
+          known: !!c,
+          lost,
+          lostAt: c ? c.lostAt || null : null,
+          open: 0,
+          overdue: 0,
+          appMinutes: 0,
+          appByStaff: [],
+        },
         q,
       ),
     );
@@ -979,6 +995,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                   >
                     <td data-primary="">
                       <span className="tp-name">{r.name}</span>
+                      {r.lost && <CF_Badge client={{ id: r.id, lostAt: r.lostAt }} />}
                     </td>
                     <td data-label="Plan">{r.known ? planLabel(r.plan) : "–"}</td>
                     <td className="num" data-label="QB hours">{qboOn ? TP_qHours(r.qMinutes) : dash}</td>
@@ -1532,12 +1549,13 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
   }, [version, st.realm_id, st.earliest_txn_date, st.latest_txn_date]);
 
   // Test clients and MGB (internal) sort last with a tag; test clients hide unless "Show test clients" is on.
-  const pickedClients = CF_usePicked(clients || [], null, null);
+  // Lost clients stay pickable here: their QuickBooks hours are history.
+  const pickedClients = CF_usePicked(clients || [], null, null, { lost: true });
   const clientList = useMemo(
     () =>
       CF_sort(
         pickedClients
-          .map((c) => ({ id: c.id, name: c.name || c.id, testOnly: c.testOnly, isInternal: c.isInternal }))
+          .map((c) => ({ id: c.id, name: c.name || c.id, testOnly: c.testOnly, isInternal: c.isInternal, lostAt: c.lostAt || null }))
           .sort((a, b) => a.name.localeCompare(b.name)),
       ),
     [pickedClients],

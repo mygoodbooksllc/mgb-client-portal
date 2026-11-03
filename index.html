@@ -446,7 +446,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-11-02z", note: "Profitability uses today's fees: the Master Data sync now reads the sheet's Bookkeeping fee now column instead of the 2027 column, so margins compare current hours with current fees. The 2027 fee change review still shows both." };
+      window.MGB_VERSION = { label: "2026-11-03a", note: "Lost clients: admins can mark a client lost (with the date they left) on Manage access > Client organizations, and undo it. Lost clients leave current lists, pickers, alerts and digests; their history and QuickBooks Time hours stay." };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -460,8 +460,22 @@
       // figure in the app reads this list, so test and internal work never
       // inflates a real number. Lists people open clients from keep using the
       // wider roster.
+      // Lost clients (clients.lost_at on or before today, lostClientLogic.js)
+      // are not current clients either, so they leave these counts too. Their
+      // QuickBooks Time hours still count in firm hours and pay cost: those
+      // aggregates use CF_excludedIds (test and internal only), never this.
       window.mgbRealClients = function (list) {
-        return (list || []).filter(function (c) { return c && !c.testOnly && !c.isInternal; });
+        return (list || []).filter(function (c) { return c && !c.testOnly && !c.isInternal && !window.mgbIsLost(c); });
+      };
+      // A lost client (clients.lost_at on or before today). Never decides who
+      // may open anything; only which lists and counts it appears in.
+      window.mgbIsLost = function (c) {
+        return typeof window.LC_isLost === "function" ? window.LC_isLost(c) : false;
+      };
+      window.mgbIsLostClient = function (id) {
+        return (window.CLIENTS || []).some(function (c) {
+          return c && c.id === id && window.mgbIsLost(c);
+        });
       };
       // The two-finger touchmove preventDefault that used to sit here (a
       // pinch-zoom blocker, kept at the gesture level because touch-action
@@ -544,6 +558,7 @@
         "components/auth/AuthGate.jsx",
         "components/auth/ClientAuthGate.jsx",
         "data.js",
+        "components/staff/lostClientLogic.js",
         "components/dashboard/WidgetDrawer.jsx",
         "components/daily-close/sampleData.ts",
         "components/daily-close/DailyClose.tsx",
@@ -920,9 +935,11 @@
           // MyGoodBooks' own profile ("MGB (internal)"), which is not a
           // client. Asked for first; if that migration isn't applied yet the
           // select fails and we retry without it, so nothing else changes.
+          // clients.lost_at (supabase/lost-clients.sql) rides along with it:
+          // the first day the org is no longer a client (lostClientLogic.js).
           let { data, error } = await supabase
             .from("clients")
-            .select(baseCols + ", account_manager, account_manager_email, is_internal");
+            .select(baseCols + ", account_manager, account_manager_email, is_internal, lost_at");
           if (error) {
             ({ data, error } = await supabase
               .from("clients")
@@ -953,6 +970,9 @@
               // MGB's own profile: shown only in the MGB (internal) place,
               // never in a client list or count (app.jsx rosterClients).
               isInternal: row.is_internal === true,
+              // Lost client (lostClientLogic.js): left out of current-client
+              // lists and counts from this date; access is unchanged.
+              lostAt: row.lost_at || null,
               payrollAddOn: row.payroll_add_on,
               // resolveAccess orgHiddenKeys. Never "dashboard" (always visible).
               hiddenTabs: Array.isArray(row.hidden_tabs) ? row.hidden_tabs : [],

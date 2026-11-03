@@ -511,6 +511,35 @@
   font-size: 12.5px;
   line-height: 1.5;
 }
+/* Lost clients (CL_LostList): folded under the table. */
+.cl-lost {
+  margin: 14px 0 0;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 13px;
+}
+.cl-lost > summary {
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cl-lost-note { margin: 6px 0; font-size: 12.5px; }
+.cl-lost-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.cl-lost-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
 
 /* Phones: each client is a card. .tx-table-labeled (styles.css) does the
    label/value stacking; this gives the stack a card edge and keeps the row

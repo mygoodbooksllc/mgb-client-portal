@@ -1,4 +1,4 @@
-/* Test / Internal pills and the "Show test clients" switch (ClientFlags.jsx). */
+/* Test / Internal / Lost pills and the "Show test clients" switch (ClientFlags.jsx). */
 .cf-badge {
   display: inline-block;
   margin-left: 6px;
@@ -16,6 +16,10 @@
 .cf-badge-internal {
   border-color: var(--gold);
   color: var(--gold-deep, var(--gold));
+}
+/* Lost client (clients.lost_at): dashed so it reads as "no longer", not a warning. */
+.cf-badge-lost {
+  border-style: dashed;
 }
 .cf-toggle {
   display: inline-flex;

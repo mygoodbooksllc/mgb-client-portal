@@ -717,16 +717,19 @@ function WB_hubClientOptions(clients, pins, recents, query, limit) {
   return { sections: sections, items: items, total: total, capped: total > items.length };
 }
 
-// The clients the picker lists: MGB (internal) left out, and test clients
-// hidden while my "Show test clients" switch is off (the same rule as CF_pick
-// in components/staff/ClientFlags.jsx), except the one the tab shows (keepId).
+// The clients the picker lists: MGB (internal) left out, lost clients left out
+// (lostClientLogic.js), and test clients hidden while my "Show test clients"
+// switch is off (the same rule as CF_pick in components/staff/ClientFlags.jsx),
+// except the one the tab shows (keepId).
 // Access is still decided by the full list (WB_hubPickClient), not this one.
 function WB_hubPickerPool(clients, showTest, keepId) {
   var keep = keepId == null ? null : String(keepId);
   return (Array.isArray(clients) ? clients : []).filter(function (c) {
     if (!c || c.isInternal === true) return false;
+    var kept = keep != null && String(c.id) === keep;
+    if (!kept && typeof LC_isLost === "function" && LC_isLost(c)) return false;
     if (c.testOnly !== true || showTest) return true;
-    return keep != null && String(c.id) === keep;
+    return kept;
   });
 }
 

@@ -29,6 +29,19 @@ const SS_CACHE_KEY = "mgb_nav_on_cache";
 const SS_PREFS_PREFIX = "mgb_nav_prefs:";
 const SS_SECTION_LABELS = { pinned: "Pinned clients", recent: "Recent clients", alerts: "Alerts" };
 
+// Alerts skip test and internal clients (CF_excludedIds) and lost clients
+// (clients.lost_at, lostClientLogic.js): a lost client's QuickBooks or email
+// trouble isn't anyone's job any more.
+function SS_alertExcludedIds() {
+  const ids = typeof CF_excludedIds === "function" ? Array.from(CF_excludedIds()) : [];
+  if (typeof window !== "undefined" && typeof window.mgbIsLost === "function") {
+    (window.CLIENTS || []).forEach((c) => {
+      if (c && window.mgbIsLost(c)) ids.push(String(c.id));
+    });
+  }
+  return ids;
+}
+
 function SS__ls(key) {
   try {
     return window.localStorage.getItem(key);
@@ -499,7 +512,7 @@ function SS_useBellAlerts({ enabled, clients }) {
             timeOff: data.timeOff,
             directory: data.directory,
             clientsById: clientsById,
-            excludedIds: typeof CF_excludedIds === "function" ? Array.from(CF_excludedIds()) : [],
+            excludedIds: SS_alertExcludedIds(),
             today: data.today,
             now: data.now,
           })
@@ -627,7 +640,7 @@ function SS_AlertsInner({ ss, expanded, showTip, hideTip }) {
             timeOff: data.timeOff,
             directory: data.directory,
             clientsById: ss.clientsById,
-            excludedIds: typeof CF_excludedIds === "function" ? Array.from(CF_excludedIds()) : [],
+            excludedIds: SS_alertExcludedIds(),
             today: data.today,
             now: data.now,
           })

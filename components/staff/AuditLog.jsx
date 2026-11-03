@@ -58,6 +58,8 @@ const AL_ACTIONS = {
   "client.tier_changed": "Tier changed",
   "client.updated": "Client settings changed",
   "client.bookkeeper_changed": "Bookkeeper changed",
+  "client.lost_set": "Client marked lost",
+  "client.lost_cleared": "Client no longer lost (undo)",
   "view_as.start": "View as started",
   "view_as.stop": "View as ended",
   "view_as.blocked": "View as: blocked change",
@@ -167,6 +169,8 @@ function AL_summary(row) {
       .filter(Boolean)
       .join(" · ");
   if (a === "client.created" || a === "client.deleted") return [d.name, d.plan].filter(Boolean).join(" · ");
+  if (a === "client.lost_set" || a === "client.lost_cleared")
+    return [d.name, `lost date ${d.from || "none"} → ${d.to || "none"}`].filter(Boolean).join(" · ");
   if (a === "access_grant.requested") return [d.days ? `${d.days} day${d.days === 1 ? "" : "s"}` : "", d.reason].filter(Boolean).join(" · ");
   if (a.startsWith("qbo_customer_map.")) {
     if (d.ignored) return `${d.customer || ""} ignored`;
@@ -414,7 +418,8 @@ function AL_AuditLogPage({ clients }) {
 
   const clientList = clients && clients.length ? clients : window.CLIENTS || [];
   // The filter dropdown: test clients last with a tag, hidden unless "Show test clients" is on (the one filtered stays).
-  const pickedClients = CF_usePicked(clientList, null, filters.client || null);
+  // Lost clients stay listed (tagged Lost): their audit history is still worth filtering by.
+  const pickedClients = CF_usePicked(clientList, null, filters.client || null, { lost: true });
   const who = (email) => (email === "system" ? "System" : nameByEmail[email] || email);
   const target = (r) => {
     if (!r.target_id) return "";

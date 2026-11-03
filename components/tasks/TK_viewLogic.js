@@ -638,9 +638,9 @@ function TK_flattenMyGroups(groups, opts) {
 var TK_NO_CLIENT_KEY = "client:__none__";
 
 // Groups tasks by client. Order: real clients A to Z, then "No client", then
-// Test clients, then Internal (the same last-place rule as ClientFlags.jsx).
+// Test clients, then Internal, then Lost (the same last-place rule as ClientFlags.jsx).
 // opts: { clients: [{ id, name, testOnly, isInternal }], collapsed: {key: bool},
-//         flagOf(client) -> "internal" | "test" | null (CF_flag when the page has it) }.
+//         flagOf(client) -> "internal" | "test" | "lost" | null (CF_flag when the page has it) }.
 // Returns [{ key, name, label, clientId, flag, tasks, collapsed }]; empty
 // groups never appear. Task order inside a group is the input order.
 function TK_groupByClient(tasks, opts) {
@@ -685,6 +685,7 @@ function TK_groupByClient(tasks, opts) {
   });
   function rank(g) {
     if (g.clientId == null) return 1;
+    if (g.flag === "lost") return 4;
     if (g.flag === "internal") return 3;
     if (g.flag === "test") return 2;
     return 0;

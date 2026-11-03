@@ -2,7 +2,7 @@
 title: How do I use the Audit log?
 section: Admin
 audience: admin
-keywords: [bookkeeper changed, client.bookkeeper_changed, ledger review, possible duplicates, smart mode, strict mode, gl_review.dup_mode, handbook signatures, audit log, history, who changed, export csv, filters, access changes, mappings, view as, view_as.blocked, blocked change, read-only]
+keywords: [bookkeeper changed, client.bookkeeper_changed, client marked lost, client.lost_set, client.lost_cleared, lost client, ledger review, possible duplicates, smart mode, strict mode, gl_review.dup_mode, handbook signatures, audit log, history, who changed, export csv, filters, access changes, mappings, view as, view_as.blocked, blocked change, read-only]
 sort: 530
 ---
 The **Audit log** (**Settings → Firm settings → Audit log**, admins only) records who changed access, mappings, client settings, client bookkeepers (**Bookkeeper changed**, with how many tasks moved), staff names, staff profile photos and the Ledger review Possible duplicates mode, and when. The database writes it, so nobody can edit or delete entries.
@@ -26,6 +26,10 @@ Filter by the **View as** group. Each View as records a start, an exit and, new,
 ### Ledger review
 
 Changing **Possible duplicates** between **Smart** and **Strict** is logged as *Ledger review possible duplicates mode changed* (action `gl_review.dup_mode`), for the firm default or for one client, with the old and new choice. Filter by the **Ledger review** group. See [How does Ledger review work?](#/help/ledger-review).
+
+### Lost clients
+
+Marking a client lost is logged as *Client marked lost* (`client.lost_set`) and undoing it as *Client no longer lost (undo)* (`client.lost_cleared`), with the old and new lost date. Filter by the **Clients** group. See [How do I mark a client as lost?](#/help/lost-clients).
 
 ### Export
 

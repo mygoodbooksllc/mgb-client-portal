@@ -329,13 +329,14 @@ function TB_QuestionIcon() {
 // ---------------------------------------------------------------------------
 // 1. Client picker (CS_ClientSwitcher, restyled for the bar)
 // ---------------------------------------------------------------------------
-function TB_ClientPicker({ clients, client, staffUser, statusOverrides, pendingRequestsByClient, impersonating }) {
+function TB_ClientPicker({ clients, lostClients, client, staffUser, statusOverrides, pendingRequestsByClient, impersonating }) {
   TB_useRootFlag("tb-has-client");
   if (typeof CS_ClientSwitcher !== "function") return null;
   return (
     <div className="tb-client">
       <CS_ClientSwitcher
         clients={clients}
+        lostClients={lostClients}
         currentClient={client}
         onPick={(id) => TB_go(TB_clientHash(id))}
         staffUser={staffUser}
@@ -2087,6 +2088,7 @@ function TB_StaffTopBar({
   impersonating,
   onStopImpersonating,
   clients,
+  lostClients, // lost clients (lostClientLogic.js): found by search, never listed
   client, // null on staff pages
   page,
   plan,
@@ -2123,6 +2125,9 @@ function TB_StaffTopBar({
   const tksGate = typeof TKP_useOn === "function" ? TKP_useOn() : false;
   if (!staffUser || !realStaffUser) return null;
   const tksOn = tksGate && own && typeof TKS_SearchBox === "function";
+  // Search still finds lost clients (CF_sort puts them last, tagged Lost).
+  const lostExtra = (lostClients || []).filter((c) => c && !(clients || []).some((x) => x.id === c.id));
+  const searchClients = lostExtra.length ? (clients || []).concat(lostExtra) : clients;
   const isRealAdmin = realStaffUser.role === "admin";
   const isAdmin = staffUser.role === "admin";
   // Same shape the rail hands StaffNav.jsx (NAV_visiblePlaces).
@@ -2143,6 +2148,7 @@ function TB_StaffTopBar({
         {typeof AN_AppNav === "function" && <AN_AppNav variant="tb" />}
         <TB_ClientPicker
           clients={clients}
+          lostClients={lostClients}
           client={client}
           staffUser={staffUser}
           statusOverrides={statusOverrides}
@@ -2155,7 +2161,7 @@ function TB_StaffTopBar({
         {tksOn ? (
           <TKS_SearchBox
             variant="tb"
-            clients={clients}
+            clients={searchClients}
             items={items}
             isAdmin={isAdmin}
             navCtx={navCtx}
@@ -2167,7 +2173,7 @@ function TB_StaffTopBar({
           />
         ) : (
         <TB_Search
-          clients={clients}
+          clients={searchClients}
           items={items}
           taskItems={own ? null : vaItems}
           showMine={own}

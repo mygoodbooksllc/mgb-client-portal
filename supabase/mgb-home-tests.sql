@@ -1,5 +1,5 @@
 -- MGB Home S1 to S6: tests for mgb-home-s1.sql, mgb-home-s2.sql,
--- mgb-home-s3.sql, mgb-home-s6.sql, mgb-home-s6b.sql (and the locks MGB Home relies on; S4 adds
+-- mgb-home-s3.sql, mgb-home-s6.sql, mgb-home-s6b.sql, lost-clients.sql (and the locks MGB Home relies on; S4 adds
 -- no SQL, only the reads behind the Firm books card and the firm Profit & Loss).
 -- NOT a migration. Run AFTER all of them have been applied, in the Supabase
 -- SQL editor (or psql as postgres). Everything runs in one transaction that
@@ -14,7 +14,7 @@
 --   bk       an active bookkeeper
 --
 -- Fixtures use the year 1999 and the marker 'mh-test' so they never collide
--- with real rows.
+-- with real rows (the LOST section uses 2001, since lost_at must be 2000 or later).
 
 begin;
 
@@ -921,6 +921,144 @@ begin
     jsonb_array_length(segs) = 3
     and exists (select 1 from jsonb_array_elements(segs) s where s ->> 'from' = '1999-04-20' and (s ->> 'rate')::numeric = 80),
     segs::text);
+end $$;
+
+-- ===========================================================================
+-- LOST (lost-clients.sql): clients.lost_at, is_current_client(), the
+-- current-client reads, the prorated money reads, the audit rows and who may
+-- set it. Fixture: the S2 mh-cli roster client gets 60 minutes on 2001-02-11
+-- (lost_at must be 2000 or later) and its lost date is moved around inside the
+-- transaction.
+-- ===========================================================================
+insert into qbo_time_activities (realm_id, qbo_id, txn_date, minutes, employee_qbo_id, employee_name,
+                                 customer_qbo_id, customer_name, item_name, description, billable_status)
+  values ('mh-test-realm-s2', 'mh-test-lost-1', date '2001-02-11', 60, 'mh-e1', 'mh-test owner',
+          'mh-cli', 'mh-test client', 'Hours', 'Client work', 'Billable');
+
+do $$
+declare
+  own text := (select email from _who where k = 'owner');
+  adm text := (select email from _who where k = 'adm_no');
+  bk  text := (select email from _who where k = 'bk');
+  cli text := (select client_id from qbo_customer_client_map where realm_id = 'mh-test-realm-s2' and qbo_customer_id = 'mh-cli');
+  cp  text := $q$select row_to_json(r)::text from public.client_profitability(date %L, date %L, jsonb_build_object(%L, 280)) r where r.client_id = %L$q$;
+  ci  text := $q$select public.capacity_inputs(date '2001-02-01', date '2001-02-28', 'staff', jsonb_build_object(%L, 280))::text$q$;
+  hq  text := $q$select count(*) from public.client_health('{}'::jsonb) where client_id = %L$q$;
+  v text;
+  j jsonb;
+  n0 bigint;
+  c0 numeric;
+  m0 bigint;
+  a0 int;
+  a1 int;
+  fn text;
+begin
+  -- 1. The column and Citymark Church.
+  perform pg_temp.chk('LOST clients.lost_at is a nullable date',
+    exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'clients'
+              and column_name = 'lost_at' and data_type = 'date' and is_nullable = 'YES'));
+  perform pg_temp.chk('LOST Citymark Church lost on 2026-10-30',
+    (select lost_at from clients where id = 'citymark-church') = date '2026-10-30');
+  perform pg_temp.chk('LOST Citymark still a roster client (its hours keep counting)', public.is_roster_client_id('citymark-church'));
+  perform pg_temp.chk('LOST Citymark is not a current client',
+    not (select public.is_current_client(c) from clients c where c.id = 'citymark-church'));
+  perform pg_temp.chk('LOST Citymark QuickBooks mapping kept',
+    exists (select 1 from qbo_customer_client_map where client_id = 'citymark-church'));
+
+  -- 2. lost_at never blocks sign-in or access.
+  perform pg_temp.chk('LOST no RLS policy reads lost_at',
+    not exists (select 1 from pg_policies where schemaname = 'public'
+                 and (coalesce(qual, '') || coalesce(with_check, '')) ilike '%lost_at%'));
+  perform pg_temp.chk('LOST can_access_client / is_roster_client do not read lost_at',
+    (select bool_and(pg_get_functiondef(p.oid) not ilike '%lost_at%') from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname in ('can_access_client', 'is_roster_client', 'is_roster_client_id')));
+
+  -- 3. is_current_client: empty or a future date = current; today or earlier = lost.
+  update clients set lost_at = null where id = cli;
+  perform pg_temp.chk('LOST is_current_client: empty = current', (select public.is_current_client(c) from clients c where c.id = cli));
+  update clients set lost_at = current_date + 1 where id = cli;
+  perform pg_temp.chk('LOST is_current_client: tomorrow = still current', (select public.is_current_client(c) from clients c where c.id = cli));
+  update clients set lost_at = current_date where id = cli;
+  perform pg_temp.chk('LOST is_current_client: today = lost', not (select public.is_current_client(c) from clients c where c.id = cli));
+  v := pg_temp.dml(own, $q$update public.clients set lost_at = date '1999-12-31' where id = 'citymark-church'$q$);
+  perform pg_temp.chk('LOST a date before 2000 is refused', v like 'ERR:23514%', v);
+
+  -- 4. client_profitability: prorated, time and cost always kept.
+  update clients set lost_at = null where id = cli;
+  v := pg_temp.probe(own, format(cp, '2001-02-01', '2001-02-28', cli, cli));
+  j := v::jsonb;
+  perform pg_temp.chk('LOST profitability: not lost = a full month', (j ->> 'months')::numeric = 1, v);
+  n0 := (j ->> 'total_minutes')::bigint;
+  c0 := (j ->> 'cost')::numeric;
+  perform pg_temp.chk('LOST profitability: fixture minutes present', n0 >= 60, v);
+  update clients set lost_at = date '2001-02-15' where id = cli;
+  v := pg_temp.probe(own, format(cp, '2001-02-01', '2001-02-28', cli, cli));
+  j := v::jsonb;
+  perform pg_temp.chk('LOST profitability: lost 02-15 = 14 of 28 days, revenue prorated',
+    (j ->> 'months')::numeric = 0.5 and (j ->> 'revenue')::numeric = round((j ->> 'monthly_fee')::numeric * 0.5, 2), v);
+  perform pg_temp.chk('LOST profitability: minutes and cost unchanged',
+    (j ->> 'total_minutes')::bigint = n0 and (j ->> 'cost')::numeric is not distinct from c0, v);
+  update clients set lost_at = date '2001-02-01' where id = cli;
+  v := pg_temp.probe(own, format(cp, '2001-02-01', '2001-02-28', cli, cli));
+  j := v::jsonb;
+  perform pg_temp.chk('LOST profitability: lost on the first day but time logged = listed, no revenue',
+    j is not null and (j ->> 'months')::numeric = 0 and (j ->> 'revenue')::numeric = 0
+    and (j ->> 'total_minutes')::bigint = n0, v);
+  v := pg_temp.probe(own, format(cp, '2001-03-01', '2001-03-31', cli, cli));
+  perform pg_temp.chk('LOST profitability: lost before the range with no time = not listed', v = 'null', v);
+  update clients set lost_at = date '2001-03-05' where id = cli;
+  v := pg_temp.probe(own, format(cp, '2001-02-01', '2001-02-28', cli, cli));
+  j := v::jsonb;
+  perform pg_temp.chk('LOST profitability: lost after the range = a full month', (j ->> 'months')::numeric = 1, v);
+
+  -- 5. capacity_inputs: lost_at on the client, every minute still on the person.
+  update clients set lost_at = null where id = cli;
+  v := pg_temp.probe(own, format(ci, cli));
+  j := v::jsonb;
+  select coalesce(sum((pm ->> 'minutes')::bigint), 0) into m0 from jsonb_array_elements(j -> 'person_months') pm;
+  perform pg_temp.chk('LOST capacity: lost_at null while current',
+    exists (select 1 from jsonb_array_elements(j -> 'clients') c where c ->> 'client_id' = cli and c -> 'lost_at' = 'null'::jsonb), left(v, 200));
+  update clients set lost_at = date '2001-02-15' where id = cli;
+  v := pg_temp.probe(own, format(ci, cli));
+  j := v::jsonb;
+  perform pg_temp.chk('LOST capacity: the client carries lost_at',
+    exists (select 1 from jsonb_array_elements(j -> 'clients') c where c ->> 'client_id' = cli and c ->> 'lost_at' = '2001-02-15'), left(v, 200));
+  perform pg_temp.chk('LOST capacity: person-month minutes unchanged (pay cost reconciles)',
+    (select coalesce(sum((pm ->> 'minutes')::bigint), 0) from jsonb_array_elements(j -> 'person_months') pm) = m0);
+  perform pg_temp.chk('LOST capacity: work minutes on the lost client kept',
+    exists (select 1 from jsonb_array_elements(j -> 'work') w where w ->> 'client_id' = cli and (w ->> 'minutes')::bigint >= 60));
+
+  -- 6. Current-client reads.
+  update clients set lost_at = null where id = cli;
+  v := pg_temp.probe(own, format(hq, cli));
+  perform pg_temp.chk('LOST client_health: current client listed', v = '1', v);
+  select (public.digest_weekly_data(current_date - 7, current_date) -> 'revenue' ->> 'active_clients')::int into a0;
+  update clients set lost_at = current_date where id = cli;
+  v := pg_temp.probe(own, format(hq, cli));
+  perform pg_temp.chk('LOST client_health: lost client left out', v = '0', v);
+  select (public.digest_weekly_data(current_date - 7, current_date) -> 'revenue' ->> 'active_clients')::int into a1;
+  perform pg_temp.chk('LOST digest: active clients drops by one', a1 = a0 - 1, a0 || ' -> ' || a1);
+  foreach fn in array array['public.tk__generate(date,boolean,text,integer,text,uuid)', 'public.tk_nudge_plan()',
+                             'public.op__anniversaries(date,integer)', 'public.coverage_overview(date,date)',
+                             'public.digest_fee_suggestions(boolean)'] loop
+    perform pg_temp.chk('LOST ' || fn || ' skips lost clients', pg_get_functiondef(fn::regprocedure) like '%/* lost */%');
+  end loop;
+
+  -- 7. Who may set it, and the audit rows.
+  update clients set lost_at = null where id = cli;
+  v := pg_temp.dml(bk, format($q$update public.clients set lost_at = current_date where id = %L$q$, cli));
+  perform pg_temp.chk('LOST a bookkeeper cannot set lost_at', (v = '0' or v like 'ERR:%')
+    and (select lost_at from clients where id = cli) is null, v);
+  v := pg_temp.dml(adm, format($q$update public.clients set lost_at = date '2001-02-15' where id = %L$q$, cli));
+  perform pg_temp.chk('LOST an admin sets lost_at', v = '1', v);
+  perform pg_temp.chk('LOST audit: client.lost_set by that admin',
+    exists (select 1 from audit_log where action = 'client.lost_set' and client_id = cli
+              and lower(actor_email) = lower(adm) and at >= now() and details ->> 'to' = '2001-02-15'));
+  v := pg_temp.dml(adm, format($q$update public.clients set lost_at = null where id = %L$q$, cli));
+  perform pg_temp.chk('LOST an admin clears lost_at (undo)', v = '1' and (select lost_at from clients where id = cli) is null, v);
+  perform pg_temp.chk('LOST audit: client.lost_cleared',
+    exists (select 1 from audit_log where action = 'client.lost_cleared' and client_id = cli
+              and lower(actor_email) = lower(adm) and at >= now() and details ->> 'from' = '2001-02-15'));
 end $$;
 
 do $$

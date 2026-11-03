@@ -2,7 +2,7 @@
 title: How do I use the Clients page?
 section: Getting started
 audience: staff
-keywords: [show test clients, test tag, internal tag, clients, client list, client setup, client view, close tab, your clients, mine, all, needs attention, find a client, health, assigned to, backup, hours this month, hours budget, close, last viewed, breadcrumb, tabs, overview, sop, milestone, client settings, view as client, back]
+keywords: [show test clients, test tag, internal tag, lost clients, lost tag, former clients, clients, client list, client setup, client view, close tab, your clients, mine, all, needs attention, find a client, health, assigned to, backup, hours this month, hours budget, close, last viewed, breadcrumb, tabs, overview, sop, milestone, client settings, view as client, back]
 sort: 42
 ---
 **Clients** (in the left rail) lists every client you can see, one per row, and is the way into a client's pages.
@@ -15,6 +15,8 @@ sort: 42
 - Columns: **Client**, **Health** (the score and band, see [What does client health mean?](#/help/client-health)), **Assigned to**, **Backup**, **Hours this month**, **6-mo avg**, **Close** (last month's status; click it to open the client's **Close** tab) and **Last viewed**.
 - **Hours this month** is QuickBooks Time this calendar month against the client's monthly hours budget, for example **6.5 / 10 h**. It turns amber from 80% and red when over. Everyone assigned to a client sees it, so you always know where you stand. A dash means no budget is set.
 - **6-mo avg** is the average hours per month over the last 6 complete months (this month isn't counted), with a small bar chart; this month's bar is the colored one. Click it to see each month against the dashed budget line, for example **Budget 20 h · average 17.2 h · last month up 2 h**. Use it to catch a client trending toward their allotted hours. On a phone the small chart is hidden but the click still works.
+
+**Lost clients** (folded, under the list) holds clients an admin marked lost: no longer clients, so they're left out of the list, the counts and alerts, but their hours, tasks, messages and documents are still there. Click one to open it. See [How do I mark a client as lost?](#/help/lost-clients).
 
 MyGoodBooks' own books (**MGB (internal)**) never appear in this list. Admins with the permission open it from its own place in the left rail. See [What is MGB (internal), and who can open it?](#/help/mgb-internal).
 

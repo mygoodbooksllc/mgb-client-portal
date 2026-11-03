@@ -143,9 +143,14 @@ function TP_taskState(t, today, range) {
 // directly without Supabase. `appTime` rows are staff_app_time
 // (staff_email, client_id, day, seconds); they become appMinutes /
 // appByStaff on the people and client rows.
-function TP_aggregate({ staff, appTime, tasks, access, grants, clients, range, today, excludeIds }) {
+function TP_aggregate({ staff, appTime, tasks, access, grants, clients, range, today, excludeIds, lostIds }) {
   // Test clients and MGB (internal) never count: drop their time, tasks and
   // assignments before anything is added up (and keep them off the client rows).
+  // Lost clients (clients.lost_at, lostClientLogic.js) are different: their
+  // time and tasks still count, but they are not assigned work any more, so
+  // they leave the assigned/temporary counts and only get a client row when
+  // the period has time or open tasks on them.
+  const isLostId = (id) => !!id && !!lostIds && lostIds.has(id);
   if (excludeIds && excludeIds.size) {
     const out = (id) => !!id && excludeIds.has(id);
     appTime = (appTime || []).filter((r) => !out(r.client_id));
@@ -187,6 +192,8 @@ function TP_aggregate({ staff, appTime, tasks, access, grants, clients, range, t
   }
 
   const assigned = {};
+  access = (access || []).filter((a) => !isLostId(a.client_id));
+  grants = (grants || []).filter((g) => !isLostId(g.client_id));
   (access || []).forEach((a) => {
     const k = TP_lower(a.staff_email);
     (assigned[k] = assigned[k] || new Set()).add(a.client_id);
@@ -224,9 +231,10 @@ function TP_aggregate({ staff, appTime, tasks, access, grants, clients, range, t
     };
   });
 
-  // Clients: the whole roster, plus any id the data mentions that the
-  // roster doesn't (a removed client with old in-app time on it).
-  const ids = new Set((clients || []).map((c) => c.id));
+  // Clients: the current roster, plus any id the data mentions that the
+  // roster doesn't (a removed client with old in-app time on it, or a lost
+  // client with time or open tasks in the period).
+  const ids = new Set((clients || []).filter((c) => !isLostId(c.id)).map((c) => c.id));
   appInPeriod.forEach((e) => e.client_id && ids.add(e.client_id));
   (tasks || []).forEach((t) => !t.done && t.client_id && ids.add(t.client_id));
   const clientRows = [...ids].map((id) => {
@@ -251,6 +259,8 @@ function TP_aggregate({ staff, appTime, tasks, access, grants, clients, range, t
       name: (c && c.name) || "Unknown client",
       plan: c ? c.plan : null,
       known: !!c,
+      lost: isLostId(id),
+      lostAt: c ? c.lostAt || null : null,
       appMinutes: Object.values(byStaff).reduce((n, m) => n + m, 0),
       appByStaff: Object.entries(byStaff)
         .map(([email, minutes]) => ({ email, minutes }))
@@ -1246,7 +1256,17 @@ function TP_TeamPage({ clients, mode, basis }) {
 
   const data = useMemo(() => {
     if (!raw) return null;
-    return TP_aggregate({ ...raw, clients, range, today, excludeIds: typeof CF_excludedIds === "function" ? CF_excludedIds() : null });
+    const lostIds = new Set(
+      (clients || []).filter((c) => (typeof CF_isLost === "function" ? CF_isLost(c) : false)).map((c) => c.id)
+    );
+    return TP_aggregate({
+      ...raw,
+      clients,
+      range,
+      today,
+      excludeIds: typeof CF_excludedIds === "function" ? CF_excludedIds() : null,
+      lostIds,
+    });
   }, [raw, clients, range, today]);
 
   const staffName = (email) => {
@@ -1511,7 +1531,7 @@ function TP_TeamPage({ clients, mode, basis }) {
         {periodCard}
         <TP_QboDetail
           title={r.name}
-          subtitle={[r.known ? `${planLabel(r.plan)} plan` : null, rangeLabel].filter(Boolean).join(" · ")}
+          subtitle={[r.known ? `${planLabel(r.plan)} plan` : null, r.lost && typeof LC_status === "function" ? LC_status({ lostAt: r.lostAt }) : null, rangeLabel].filter(Boolean).join(" · ")}
           stats={[
             ...(qboOn
               ? [

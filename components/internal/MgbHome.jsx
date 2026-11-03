@@ -1463,6 +1463,12 @@ function MH_CapacityPage({ clients }) {
                 Pricing &amp; fees.
               </p>
             )}
+            {tot.lostMinutes > 0 && (
+              <p className="tp-muted mh-small" data-tour="mh-capacity-lost">
+                {hrs(tot.lostMinutes)} logged on {tot.lostClients === 1 ? "a lost client" : `${tot.lostClients} lost clients`} stays in
+                Hours logged and pay cost. Fee revenue stops on each one's lost date.
+              </p>
+            )}
           </>
         )}
       </section>
@@ -1695,7 +1701,9 @@ function MH_CapacityRulesCard({ clients, onChanged }) {
     await run(sb.from("staff_cost_allocations").delete().eq("id", a.id), "remove the rule");
   };
   const taken = new Set((st.contracts || []).map((c) => c.client_id));
-  const pickable = (clients || []).filter((c) => c && c.isInternal !== true && c.testOnly !== true && !taken.has(c.id));
+  const pickable = (clients || []).filter(
+    (c) => c && c.isInternal !== true && c.testOnly !== true && !taken.has(c.id) && !(typeof CF_isLost === "function" && CF_isLost(c)),
+  );
 
   return (
     <section className="card" style={{ marginBottom: 20 }} aria-labelledby="mh-cap-rules" data-tour="mh-capacity-rules">
@@ -1843,7 +1851,8 @@ function MH_PricingPage({ clients }) {
   const rows = useMemo(() => {
     const excl = typeof CF_excludedIds === "function" ? CF_excludedIds() : new Set();
     return (clients || [])
-      .filter((c) => c && !excl.has(c.id) && c.isInternal !== true && c.testOnly !== true)
+      // Lost clients (clients.lost_at) have no current price to review.
+      .filter((c) => c && !excl.has(c.id) && c.isInternal !== true && c.testOnly !== true && !(typeof CF_isLost === "function" && CF_isLost(c)))
       .map((c) => {
         const v = TP_PF_rowView(profit, false, c.id);
         const tier = profit.tierFees ? profit.tierFees[c.id] : null;

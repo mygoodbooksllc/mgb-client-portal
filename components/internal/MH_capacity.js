@@ -28,6 +28,10 @@
 // Fee revenue per client and month (monthly fee x days covered / days) is
 // shared among the people who logged time on that client, by minutes;
 // revenue of a client nobody logged time on is "not carried by anyone".
+// Lost clients (clients.lost_at, supabase/lost-clients.sql): fees stop on the
+// lost date (only the covered days before it earn revenue), but every minute
+// logged on them stays in pay cost; totals.lostMinutes / lostClients say how
+// much time in the range sat on clients lost by its end.
 //
 //   MH_capRound2(x)                              cents
 //   MH_capRowInEffect(allocs, email, cid, method, ymd)
@@ -38,6 +42,7 @@
 //   MH_capSegments(pm, month)                    -> the priced pieces of a month
 //   MH_capPriceMonth(pm, segs, paid, allocs, contractIds, email)
 //                                                -> { pay, contract, mgb, flags }
+//   MH_capFeeDays(month, lostAt)                 -> covered days before lost_at
 //   MH_capCompute(data)                          -> { people, split, totals, ... }
 //
 // Browser file (plain JS, no JSX); loads after MH_gate.js. Node tests:
@@ -238,6 +243,27 @@ function MH__capMonthEnd(month, days, to) {
   return t && t < end ? t : end;
 }
 
+// Covered days of one month (mo = { start, end, covered }) that come before a
+// client's lost date: all of them with no lost date, none when it was lost on
+// or before the first covered day.
+function MH__capDayNum(ymd) {
+  var s = String(ymd || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  return Math.round(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000);
+}
+function MH_capFeeDays(mo, lostAt) {
+  var covered = MH__capNum(mo && mo.covered) || 0;
+  var lost = MH__capDayNum(lostAt);
+  if (lost == null) return covered;
+  var end = MH__capDayNum(mo.end);
+  var start = MH__capDayNum(mo.start);
+  if (start == null && end != null) start = end - covered + 1;
+  if (start == null) return covered;
+  var last = end == null ? start + covered - 1 : end;
+  var stop = Math.min(last, lost - 1);
+  return Math.max(0, Math.min(covered, stop - start + 1));
+}
+
 // data = capacity_inputs() result. Returns everything the page shows.
 function MH_capCompute(data) {
   var d = data || {};
@@ -251,7 +277,9 @@ function MH_capCompute(data) {
   var months = {};
   (d.months || []).forEach(function (m) {
     var key = String(m.month).slice(0, 10);
-    months[key] = { days: MH__capNum(m.days) || 0, covered: MH__capNum(m.covered_days) || 0, end: MH__capMonthEnd(m.month, m.days, d.to) };
+    var f = String(d.from || "").slice(0, 10);
+    months[key] = { days: MH__capNum(m.days) || 0, covered: MH__capNum(m.covered_days) || 0, end: MH__capMonthEnd(m.month, m.days, d.to),
+                    start: f && f > key ? f : key };
   });
 
   var people = {};
@@ -321,15 +349,28 @@ function MH_capCompute(data) {
   var uncarried = { contract: {}, mgb: 0 };
   cids.forEach(function (c) { uncarried.contract[c] = 0; });
   var missingFees = 0;
+  var toDay = String(d.to || "").slice(0, 10);
+  var lostIds = {};
+  Object.keys(clients).forEach(function (cid) {
+    var la = clients[cid].lost_at ? String(clients[cid].lost_at).slice(0, 10) : null;
+    if (la && (!toDay || la <= toDay)) lostIds[cid] = la;
+  });
   Object.keys(clients).forEach(function (cid) {
     var c = clients[cid];
+    var lostAt = c.lost_at ? String(c.lost_at).slice(0, 10) : null;
+    var feeDays = {};
+    var anyDays = 0;
+    Object.keys(months).forEach(function (mk) { feeDays[mk] = MH_capFeeDays(months[mk], lostAt); anyDays += feeDays[mk]; });
+    // A client lost before the range earns nothing in it, so a missing fee
+    // doesn't matter there.
+    if (lostAt && !anyDays) return;
     var fee = MH__capNum(c.monthly_fee);
     if (fee == null) { missingFees++; return; }
     var contract = !!isContract[cid];
     Object.keys(months).forEach(function (mk) {
       var mo = months[mk];
-      if (!mo.days) return;
-      var rev = MH_capRound2((fee * mo.covered) / mo.days);
+      if (!mo.days || !feeDays[mk]) return;
+      var rev = MH_capRound2((fee * feeDays[mk]) / mo.days);
       clientRevenue[cid] = MH_capRound2((clientRevenue[cid] || 0) + rev);
       var ws = (workBy[cid + "|" + mk] || []).filter(function (w) { return people[w.key] && (MH__capNum(w.minutes) || 0) > 0; });
       if (!ws.length) {
@@ -376,7 +417,16 @@ function MH_capCompute(data) {
 
   // Use of target hours compares like with like: only people with a target
   // count in minutes; everyone else's logged time is otherMinutes.
-  var totals = { minutes: 0, otherMinutes: 0, allMinutes: 0, targetMinutes: 0, paidMinutes: 0, pay: 0, revenue: 0 };
+  var totals = { minutes: 0, otherMinutes: 0, allMinutes: 0, targetMinutes: 0, paidMinutes: 0, pay: 0, revenue: 0,
+                 lostMinutes: 0, lostClients: 0 };
+  var lostSeen = {};
+  (d.work || []).forEach(function (w) {
+    var mins = MH__capNum(w.minutes) || 0;
+    if (!lostIds[w.client_id] || !people[w.key] || mins <= 0) return;
+    totals.lostMinutes += mins;
+    lostSeen[w.client_id] = true;
+  });
+  totals.lostClients = Object.keys(lostSeen).length;
   list.forEach(function (p) {
     if (p.targetMinutes != null) totals.minutes += p.minutes;
     else totals.otherMinutes += p.minutes;
@@ -397,6 +447,7 @@ function MH_capCompute(data) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     MH_capRound2: MH_capRound2,
+    MH_capFeeDays: MH_capFeeDays,
     MH_capRowInEffect: MH_capRowInEffect,
     MH_capShares: MH_capShares,
     MH_capPaidMinutes: MH_capPaidMinutes,

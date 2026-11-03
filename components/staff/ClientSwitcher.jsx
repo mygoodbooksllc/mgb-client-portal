@@ -408,6 +408,7 @@ function CS_ClientSwitcher({
   inline, // phone drawer: the list renders in the flow, full width
   onExpand,
   canRequest = true,
+  lostClients, // lost clients this person can open (lostClientLogic.js); listed only while searching
 }) {
   const access = CS_useAccessGrants();
   const [open, setOpen] = useState(false);
@@ -477,8 +478,12 @@ function CS_ClientSwitcher({
   const locked = isAdmin
     ? []
     : (window.CLIENTS || [])
-        .filter((c) => !c.testOnly && !c.isInternal && !accessibleIds.has(c.id) && matches(c))
+        .filter((c) => !c.testOnly && !c.isInternal && !CF_isLost(c) && !accessibleIds.has(c.id) && matches(c))
         .sort(byName);
+  // Lost clients leave the lists; a search still finds them, last, tagged Lost.
+  const lostFound = q
+    ? (lostClients || []).filter((c) => c && !accessibleIds.has(c.id) && matches(c)).sort(byName)
+    : [];
   // With only a handful of clients, "Recent" would just repeat the list.
   const recent = q || (clients || []).length <= CS_RECENT_MAX
     ? []
@@ -497,6 +502,7 @@ function CS_ClientSwitcher({
       locked: false,
     },
     { key: "other", label: "Other clients", items: locked, locked: true },
+    { key: "lost", label: "Lost clients", items: lostFound, locked: false },
   ];
   const flat = [];
   sections.forEach((s) =>

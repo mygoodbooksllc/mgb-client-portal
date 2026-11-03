@@ -269,6 +269,28 @@ the browser rule is `window.mgbRealClients(list)`, plus `CF_excludedIds()` for r
 `client_id`). The Clients page, client picker, Today, Team, Work, deadlines, close counts, task badges,
 hours, fees and revenue all use it. See "MGB (internal) and flagged clients" under Main features.
 
+**Lost clients (2026-11-03, `supabase/lost-clients.sql`):** `clients.lost_at` (date, null = current) is
+the first day an organization is no longer a client; a future date means still current ("Leaving").
+It is NOT `test_only`: a lost client was real. Server rule `is_current_client(c)` = `is_roster_client(c)`
+and not lost today; current-client reads use it (`client_health`, `digest_weekly_data`,
+`digest_fee_suggestions`, `coverage_overview`, `op__anniversaries`, `tk__generate`, `tk_nudge_plan`).
+Hours and pay cost keep `is_roster_client`, so QuickBooks Time on a lost client still counts in firm
+hours (Team, Capacity, `CF_excludedIds` stays test + internal only). `client_profitability` and
+Capacity (`MH_capFeeDays`) prorate fee revenue to the days before `lost_at`; `capacity_inputs` returns
+`lost_at`, and Capacity's totals carry `lostMinutes` / `lostClients`. Browser: `components/staff/lostClientLogic.js`
+(`LC_`, node-tested) holds the date rules; the roster loader maps `lost_at` to `c.lostAt`;
+`window.mgbRealClients` and `CF_pick` drop lost clients (`CF_pick(list, { lost: true })` keeps them,
+used for history places: Team, Messages, Audit log, Team › Hours picker); `window.mgbIsLost(c)` /
+`mgbIsLostClient(id)`. History stays reachable: Clients page "Lost clients" fold (`CL_LostList`),
+client picker and top-bar search show them last while searching. Admins set and undo it on Manage
+access › Client organizations (`saveOrgLost`, Undo toast); the clients update policy keeps it admin-only
+and `audit_row_change` writes `client.lost_set` / `client.lost_cleared`. `lost_at` never changes RLS,
+routes or sign-in. Not covered yet: the Desk inbox (`wb_inbox`) still lists a lost client's open
+tasks, `staff_performance` assigned-client counts, `qbo_sync_health`, `digest_needs_attention`, the
+ops_health client count, Ask-client sends in an "all" pilot, and the Slate rail client count.
+Tests: `supabase/mgb-home-tests.sql` LOST section (rolled back), `lostClientLogic.test.js`,
+`MH_capacity.test.js`. Guide: `lost-clients.md`.
+
 **QuickBooks connection:**
 
 - **Connect.** Staff connect a client's QuickBooks from Client setup → Access and details → QuickBooks. This runs
@@ -1370,7 +1392,7 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   hours at the rate on their date (matching `client_profitability`) and applies rules from their date. Use of
   target hours counts only people with a target; other time shows apart.
 - **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
-  (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
+  (normal, then Test, then Internal, then Lost), `CF_Badge` (the Test / Internal / Lost pill), `CF_label` (plain-text option
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page
   and client picker footer) and `CF_excludedIds`. The switch is OFF by default, stored per person in
   localStorage `mgb-show-test-clients:<email>` (covered by Dev Tools' reset). Off hides test clients from lists and

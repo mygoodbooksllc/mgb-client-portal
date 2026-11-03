@@ -673,7 +673,7 @@ function TP_PF_SheetSyncStrip({ profit }) {
             .limit(8)
         ),
         TP_PF_safe(sb.from("master_sheet_unmatched").select("sheet_key, sheet_name, status, fee_text, reason, last_seen_at").order("sheet_name")),
-        TP_PF_safe(sb.from("clients").select("id, name, test_only, is_internal").order("name")),
+        TP_PF_safe(sb.from("clients").select("id, name, test_only, is_internal, lost_at").order("name")),
         TP_PF_safe(sb.from("master_sheet_client_map").select("sheet_key")),
       ]);
       if (!alive) return;
@@ -686,7 +686,10 @@ function TP_PF_SheetSyncStrip({ profit }) {
         runs: runs.data || [],
         // The list is rebuilt only on a live run: hide rows matched since then.
         unmatched: (un.data || []).filter((u) => !(mp.data || []).some((m) => m.sheet_key === u.sheet_key)),
-        clients: (cl.data || []).filter((c) => !c.test_only && !c.is_internal),
+        // Lost clients (clients.lost_at) aren't offered as a match: they have no current fee.
+        clients: (cl.data || []).filter(
+          (c) => !c.test_only && !c.is_internal && !(typeof LC_isLost === "function" && LC_isLost(c)),
+        ),
       });
     })();
     return () => {

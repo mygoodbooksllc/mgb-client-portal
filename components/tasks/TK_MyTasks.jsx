@@ -1039,7 +1039,7 @@ function TK_vMyTasksBody(props) {
       var list = Object.keys(seen)
         .map(function (id) {
           var full = (props.clients || []).filter(function (c) { return c && String(c.id) === id; })[0] || {};
-          return { id: id, name: clientNames[id] || id, testOnly: full.testOnly, isInternal: full.isInternal };
+          return { id: id, name: clientNames[id] || id, testOnly: full.testOnly, isInternal: full.isInternal, lostAt: full.lostAt };
         })
         .sort(function (a, b) {
           var x = a.name.toLowerCase();

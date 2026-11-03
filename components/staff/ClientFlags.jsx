@@ -1,14 +1,21 @@
-// Flagged clients: the two test orgs (basic-test, grace-community; clients.test_only)
-// and MGB (internal) (clients.is_internal). ONE helper for every client list and
+// Flagged clients: the two test orgs (basic-test, grace-community; clients.test_only),
+// MGB (internal) (clients.is_internal) and lost clients (clients.lost_at on or
+// before today; lostClientLogic.js). ONE helper for every client list and
 // picker in the app, so they all sort and label these the same way:
 //
-//   CF_flag(c)            "internal" | "test" | null
-//   CF_sort(list)         normal clients first (order kept), then Test, then Internal
-//   CF_Badge              the small "Test" / "Internal" pill beside a name
+//   CF_flag(c)            "internal" | "test" | "lost" | null
+//   CF_isLost(c)          lost on or before today
+//   CF_sort(list)         normal clients first (order kept), then Test, then Internal, then Lost
+//   CF_Badge              the small "Test" / "Internal" / "Lost" pill beside a name
 //   CF_label(c)           plain-text "Name · Test" for <option>s, which can't hold a badge
 //   CF_useShowTest(email) the shared "Show test clients" switch, remembered per person
 //   CF_Toggle             the switch itself (Clients page header + client switcher)
-//   CF_pick(list, opts)   sort, and hide test clients while the switch is off
+//   CF_pick(list, opts)   sort, hide test clients while the switch is off, and
+//                         hide lost clients unless opts.lost (history lists) or open
+//
+// Lost clients leave current-client lists and pickers, but never aggregates of
+// logged time: CF_excludedIds stays test + internal only, so a lost client's
+// hours keep counting in firm hours and pay cost.
 //
 // The switch is OFF by default. Off hides test clients from lists and pickers for
 // EVERYONE, assigned or not, except the client they have open right now (so the
@@ -22,16 +29,21 @@
 const CF_KEY_PREFIX = "mgb-show-test-clients:";
 const CF_EVENT = "mgb:show-test-clients-changed";
 
+function CF_isLost(c) {
+  return typeof LC_isLost === "function" ? LC_isLost(c) : false;
+}
+
 function CF_flag(c) {
   if (!c) return null;
   if (c.isInternal === true) return "internal";
   if (c.testOnly === true) return "test";
+  if (CF_isLost(c)) return "lost";
   return null;
 }
 
 function CF_rank(c) {
   const f = CF_flag(c);
-  return f === "internal" ? 2 : f === "test" ? 1 : 0;
+  return f === "lost" ? 3 : f === "internal" ? 2 : f === "test" ? 1 : 0;
 }
 
 // Stable: inside each group the incoming order (usually A to Z) is kept.
@@ -45,7 +57,8 @@ function CF_sort(list, getClient) {
 }
 
 // Ids of every test client and MGB (internal) in the roster, for aggregates that
-// work from rows keyed by client_id (hours, tasks, assignments).
+// work from rows keyed by client_id (hours, tasks, assignments). Never lost
+// clients: their logged hours are real firm time and must keep counting.
 function CF_excludedIds() {
   const out = new Set();
   (window.CLIENTS || []).forEach((c) => {
@@ -56,7 +69,7 @@ function CF_excludedIds() {
 
 function CF_badgeText(c) {
   const f = CF_flag(c);
-  return f === "internal" ? "Internal" : f === "test" ? "Test" : "";
+  return f === "internal" ? "Internal" : f === "test" ? "Test" : f === "lost" ? "Lost" : "";
 }
 
 function CF_label(c) {
@@ -70,12 +83,16 @@ function CF_label(c) {
 function CF_Badge({ client, flag }) {
   const f = flag || CF_flag(client);
   if (!f) return null;
+  const lostOn = f === "lost" && client && typeof LC_status === "function" ? LC_status(client) : "";
+  const title =
+    f === "internal"
+      ? "MyGoodBooks' own workspace. Not a client."
+      : f === "lost"
+        ? (lostOn || "Lost") + ". No longer a client; history stays."
+        : "A practice client for trying things out. Not counted in real numbers.";
   return (
-    <span
-      className={"cf-badge cf-badge-" + f}
-      title={f === "internal" ? "MyGoodBooks' own workspace. Not a client." : "A practice client for trying things out. Not counted in real numbers."}
-    >
-      {f === "internal" ? "Internal" : "Test"}
+    <span className={"cf-badge cf-badge-" + f} title={title}>
+      {f === "internal" ? "Internal" : f === "lost" ? "Lost" : "Test"}
     </span>
   );
 }
@@ -120,17 +137,22 @@ function CF_useShowTest(emailIn) {
   return [show, setShow];
 }
 
-// opts: { show, keepId }  (isAssigned is accepted but ignored: assignment no longer
-// overrides the switch)
+// opts: { show, keepId, lost }  (isAssigned is accepted but ignored: assignment no
+// longer overrides the switch)
 // Normal clients and MGB (internal) pass straight through (internal visibility
 // is decided elsewhere); a test client stays when the switch is on or when it is
-// the open client (keepId).
+// the open client (keepId). A lost client stays only when it is the open client
+// or the list is a history list (lost: true, e.g. Team hours, the audit log),
+// where it sorts last with its Lost tag.
 function CF_pick(list, opts) {
   const o = opts || {};
   const kept = (list || []).filter((c) => {
-    if (!c || c.testOnly !== true || c.isInternal === true) return true;
+    if (!c) return true;
+    const keep = !!(o.keepId && c.id === o.keepId);
+    if (c.isInternal !== true && !o.lost && !keep && CF_isLost(c)) return false;
+    if (c.testOnly !== true || c.isInternal === true) return true;
     if (o.show) return true;
-    return !!(o.keepId && c.id === o.keepId);
+    return keep;
   });
   return CF_sort(kept);
 }
@@ -149,13 +171,14 @@ function CF_isAssigned(c, email) {
 
 // For components that get a raw client list: the same sort + switch rule the
 // App applies to its own lists. keepId: a client that must stay listed (the one
-// open / already chosen).
-function CF_usePicked(list, emailIn, keepId) {
+// open / already chosen). opts.lost: keep lost clients (history lists).
+function CF_usePicked(list, emailIn, keepId, opts) {
   const email = window.mgbViewerEmail || emailIn;
   const [show] = CF_useShowTest(email);
+  const lost = !!(opts && opts.lost);
   return React.useMemo(
-    () => CF_pick(list, { show, keepId, isAssigned: (c) => CF_isAssigned(c, email) }),
-    [list, show, keepId, email],
+    () => CF_pick(list, { show, keepId, lost, isAssigned: (c) => CF_isAssigned(c, email) }),
+    [list, show, keepId, email, lost],
   );
 }
 
