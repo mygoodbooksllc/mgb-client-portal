@@ -250,6 +250,19 @@ const TIPS_CATALOG = [
     slug: "workbench",
   },
   {
+    // Desk client summary (hidden preview, WB_peek.js): the Client tab's Keep
+    // button exists only while that gate is on, so this tip is skipped for
+    // everyone else (no target, no tip). Text drafted in
+    // docs/staff-guide/drafts/staff-guide-desk-peek.md; add it to tips.md at launch.
+    id: "wb-peek-keep",
+    roles: "all",
+    match: () => true,
+    target: "wb-peek-keep",
+    snug: true,
+    text: "Keep on Desk holds this client on the Client tab while you open other pages, for up to 24 hours. On a client's page, press p to do the same.",
+    slug: "workbench",
+  },
+  {
     id: "clients-mine",
     roles: "all",
     match: (r) => r.page === "clients",

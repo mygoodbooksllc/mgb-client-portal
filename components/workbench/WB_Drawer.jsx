@@ -171,7 +171,7 @@ function WB__deskClearVars() {
   try {
     const el = document.documentElement;
     ["--desk-w", "--desk-occupy", "--desk-occupy-any", "--desk-cover", "--desk-top"].forEach((k) => el.style.removeProperty(k));
-    el.classList.remove("wb-desk-side", "wb-desk-push", "wb-desk-overlay", "wb-desk-open", "wb-desk-dragging");
+    el.classList.remove("wb-desk-side", "wb-desk-push", "wb-desk-overlay", "wb-desk-open", "wb-desk-dragging", "wb-desk-nobar");
   } catch (e) {}
 }
 
@@ -390,6 +390,16 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   const live = on && s.status !== "missing" && !!me;
   const mode = WB_useDeskMode();
   const sheet = mode === "sheet";
+  // Desk client summary + Customize (WB_peek.js, hidden preview). Off: no
+  // prefs, and the rail, bar, Glance and Right now behave exactly as before.
+  const peekOn = typeof WB_usePeek === "function" ? WB_usePeek(!!live) : false;
+  const deskPrefs = typeof WB_useDeskPrefs === "function" ? WB_useDeskPrefs(me, peekOn) : null;
+  // Customize › When closed (WB_deskClosedShow: a phone always keeps the bar).
+  const closedShow = deskPrefs ? WB_deskClosedShow(deskPrefs.closed, sheet ? "sheet" : "dock") : null;
+  const railHidden = !!closedShow && !closedShow.rail;
+  const barHidden = !!closedShow && !closedShow.bar && !open;
+  const railHiddenRef = React.useRef(railHidden);
+  railHiddenRef.current = railHidden;
   // Shared with WB_useHubKeys / WB_useHubLayers: the mode, where focus is,
   // and the drag (so Esc can cancel it).
   const deskRef = React.useRef({ mode: mode, zone: "page", dragging: false, cancel: null });
@@ -501,7 +511,9 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   const layoutRef = React.useRef(layout);
   layoutRef.current = layout;
   // What covers the page's right edge: the open column, else the rail.
-  const cover = layout.mode === "sheet" ? 0 : open ? layout.w : WB_DESK_RAIL;
+  const cover = layout.mode === "sheet" ? 0 : open ? layout.w : railHidden ? 0 : WB_DESK_RAIL;
+  // Customize hid the rail: the closed Desk keeps no room on the right.
+  const occupy = !open && railHidden ? 0 : layout.occupy;
 
   // --desk-w / --desk-occupy / --desk-occupy-any / --desk-cover / --desk-top
   // on <html> (WB.css reads them) and the classes: wb-desk-side (the rail or
@@ -523,12 +535,14 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
     el.classList.toggle("wb-desk-overlay", open && layout.mode === "overlay");
     if (!deskRef.current.dragging) {
       el.style.setProperty("--desk-w", layout.w + "px");
-      el.style.setProperty("--desk-occupy", layout.occupy + "px");
+      el.style.setProperty("--desk-occupy", occupy + "px");
       el.style.setProperty("--desk-occupy-any", layout.occupyAny + "px");
       el.style.setProperty("--desk-cover", cover + "px");
     }
+    // Customize hid the bar (closed Desk only): the page and toasts drop its room.
+    el.classList.toggle("wb-desk-nobar", barHidden);
     return undefined;
-  }, [live, open, layout.mode, layout.w, layout.occupy, layout.occupyAny, cover, top]);
+  }, [live, open, layout.mode, layout.w, occupy, layout.occupyAny, cover, top, barHidden]);
 
   // ---- Width drag. Pointer Events (mouse, touch and pen share one path)
   // with pointer capture; the width is written straight to --desk-w in a rAF
@@ -572,7 +586,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
     paint(L.w);
     const el = document.documentElement;
     el.style.setProperty("--desk-occupy-any", L.occupyAny + "px");
-    el.style.setProperty("--desk-cover", (L.mode === "sheet" ? 0 : WB_store.getState().drawerOpen ? L.w : WB_DESK_RAIL) + "px");
+    el.style.setProperty("--desk-cover", (L.mode === "sheet" ? 0 : WB_store.getState().drawerOpen ? L.w : railHiddenRef.current ? 0 : WB_DESK_RAIL) + "px");
   }, [commits]);
   const endDrag = (commit) => {
     const d = drag.current;
@@ -1011,7 +1025,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
       if (!inboxOldest || String(r.waiting_since) < inboxOldest) inboxOldest = String(r.waiting_since);
     }),
   );
-  const rightNow = WB_deskContext(
+  const rightNowAll = WB_deskContext(
     { page, clientName: pageClient ? pageClient.name : "" },
     {
       counts: cc,
@@ -1024,8 +1038,14 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
       deskMessages: { count: pcMsgs, oldestAt: pcOldest },
     },
   );
+  // Client summary (hidden preview): while the Client tab shows the page's
+  // client, its summary has these facts, so Right now steps aside (decision
+  // 28, one place per fact). Off: unchanged.
+  const hubOnPageClient = !!(peekOn && pcId && s.hub && s.hub.tab === "client" && s.hub.clientId != null && String(s.hub.clientId) === pcId);
+  const rightNow = rightNowAll && hubOnPageClient && rightNowAll.kind === "client" ? null : rightNowAll;
   const glanceAny = WB_GLANCE_IDS.some((id) => railCounts[id] > 0);
-  const deskExtras = open && !taskView ? WB_deskFill({ tier: WB_deskTier(winH), ctx: { glance: glanceAny, rightNow: !!rightNow } }) : [];
+  // Customize (hidden preview) can turn Glance and Right now off; no prefs = today.
+  const deskExtras = open && !taskView ? WB_deskFill(deskPrefs ? { tier: WB_deskTier(winH), prefs: { on: deskPrefs.on }, ctx: { glance: glanceAny, rightNow: !!rightNow } } : { tier: WB_deskTier(winH), ctx: { glance: glanceAny, rightNow: !!rightNow } }) : [];
   // Decision 28 (each fact in one place): while the open Desk's "Right now"
   // card shows this client, the bar's page client line steps aside.
   const barClientLine = clientLine && !(rightNow && rightNow.kind === "client" && deskExtras.indexOf("rightNow") >= 0) ? clientLine : null;
@@ -1064,6 +1084,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
 
   const desk = (
     <>
+      {barHidden ? null : (
       <button
         ref={barRef}
         type="button"
@@ -1111,7 +1132,8 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
           <kbd className="wb-bar-kbd">D</kbd> {open ? "to close" : "to open"}
         </span>
       </button>
-      {!sheet && !open && (
+      )}
+      {!sheet && !open && !railHidden && (
         <div ref={railRef} className="wb-rail-wrap">
           <WB_DeskRail
             counts={railCounts}

@@ -156,6 +156,18 @@ function ANN_deskPlusLaunchOn() {
   }
 }
 
+// True once the owner has switched the Desk client summary on for the firm
+// (tk_settings.desk_peek_enabled, cached as mgb_peek_cache by WB_peek.js).
+// Deliberately not the per-person preview mgb_peek_preview: a preview person
+// sees no launch text.
+function ANN_peekLaunchOn() {
+  try {
+    return window.localStorage.getItem("mgb_peek_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 // True once the owner has switched the thread menu on for the firm
 // (tk_settings.threadmenu_enabled, cached as mgb_threadmenu_cache by TM_gate.js),
 // and never during View as. Deliberately not the per-person preview
@@ -1748,6 +1760,69 @@ var ANN_REGISTRY = [
             "To see this again, press ? and pick New: Month rhythm tasks are on, or read How do recurring tasks from templates work? in Help.",
         },
       ].filter(Boolean);
+    },
+  },
+  {
+    // Desk client summary launch (R1-R3), HELD: visible only once the owner flips
+    // tk_settings.desk_peek_enabled (cached as mgb_peek_cache by WB_peek.js). RE-DATE `date` to the
+    // launch day when the switch goes on: the notice stops showing 60 days after `date`. Guide draft:
+    // the "Client summary and Keep on Desk" section in docs/staff-guide/workbench.md (sync at launch).
+    id: "desk-client-summary",
+    date: "2026-11-03",
+    title: "Client summary on the Desk",
+    summary:
+      "The Desk's Client tab now starts with a short summary of the client: who works on it, the first contact, the Drive folder, any pinned Status or Handoff note, the last client message and your open tasks. Keep on Desk holds one client there while you open other pages.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/today",
+    visible: () => ANN_peekLaunchOn(),
+    ready: () => ANN_deskDocked(),
+    steps: (ctx) => {
+      const openClientTab = () => {
+        try {
+          if (typeof TOUR_openClient === "function" && ctx && ctx.myClient) TOUR_openClient(ctx.myClient.id, "overview")();
+        } catch (e) {}
+        try {
+          if (typeof WB_store === "undefined") return;
+          if (!WB_store.getState().drawerOpen) WB_store.setDrawerOpen(true, "tour");
+          WB_store.setHub({ tab: "client" });
+        } catch (e) {}
+      };
+      return [
+        {
+          id: "ann-welcome",
+          title: "Client summary on the Desk",
+          body: () => "The Desk's Client tab has a short summary at the top, a way to keep one client there, and a Customize button. About a minute.",
+        },
+        {
+          id: "ann-peek",
+          when: () => ANN_deskOn(),
+          go: openClientTab,
+          targets: ["wb-peek"],
+          wait: true,
+          title: "The client at a glance",
+          body: () =>
+            "Bookkeeper and account manager, the first contact (Copy puts the email on your clipboard), the Drive folder, a pinned Status or Handoff note, the last message from the client and your open tasks. The arrow folds it to one line.",
+        },
+        {
+          id: "ann-peek-keep",
+          when: () => ANN_deskOn(),
+          go: openClientTab,
+          targets: ["wb-peek-keep"],
+          wait: true,
+          title: "Keep on Desk",
+          body: () =>
+            "Keep holds this client on the Client tab while you open other pages, for up to 24 hours. On a client's page, the Keep on Desk button or the p key does the same. Click Kept to stop.",
+        },
+        {
+          id: "ann-desk-customize",
+          when: () => ANN_deskOn(),
+          go: openClientTab,
+          targets: ["wb-desk-customize"],
+          wait: true,
+          title: "Customize Desk",
+          body: () => "Turn the Glance counts or the Right now card off, pick what shows while the Desk is closed, or reset your Desk. Your star pins stay.",
+        },
+      ];
     },
   },
   {

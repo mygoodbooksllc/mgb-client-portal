@@ -86,9 +86,26 @@ function WB_HubClientGate(props) {
 function WB_HubClientBody(props) {
   // Desk additions (WB_plus.js): off = this tab renders exactly as before.
   var plusOn = typeof WB_useDeskPlus === "function" ? WB_useDeskPlus(true) : false;
+  // Desk client summary + Keep on Desk (WB_peek.js, hidden preview): off =
+  // this tab renders and behaves exactly as before (no keep, no summary).
+  var peekOn = typeof WB_usePeek === "function" ? WB_usePeek(true) : false;
   var email = String(props.me || "").toLowerCase();
   var clients = Array.isArray(props.clients) ? props.clients : [];
   var routeId = props.currentClientId == null || props.currentClientId === "" ? null : String(props.currentClientId);
+  var keep = typeof WB_usePeekKeep === "function" ? WB_usePeekKeep(email, peekOn) : null;
+  var keptId = peekOn && keep && keep.keptId ? String(keep.keptId) : null;
+  // "Show <page client>" pauses the keep for this page visit only (the route
+  // id it was pressed on); another page goes back to the kept client.
+  var suspendPair = React.useState(null);
+  var keepActive = keptId != null && !(routeId != null && suspendPair[0] === routeId);
+  React.useEffect(
+    function () {
+      suspendPair[1](null);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [keptId],
+  );
+  var countsPair = React.useState(null);
   var paneRef = React.useRef(null);
 
   var pinsPair = React.useState(function () {
@@ -126,14 +143,19 @@ function WB_HubClientBody(props) {
   // changes; until the hub state catches up this render already uses it.
   var appliedRef = React.useRef(null);
   var routePending = routeId != null && appliedRef.current !== routeId;
-  var pick = WB_hubPickClient(props.clientId, routePending ? routeId : null, clients);
+  // While a client is kept (Keep on Desk), the tab shows it instead.
+  var pick = keepActive ? WB_hubPickClient(keptId, null, clients) : WB_hubPickClient(props.clientId, routePending ? routeId : null, clients);
   React.useEffect(
     function () {
       appliedRef.current = routeId;
+      if (keepActive) {
+        if (keptId !== props.clientId && pick.access !== false) WB_store.setHub({ clientId: keptId });
+        return;
+      }
       if (routeId != null && routeId !== props.clientId) WB_store.setHub({ clientId: routeId });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [routeId],
+    [routeId, keepActive ? keptId : null],
   );
 
   // A pin for a client I can't open (or that isn't in the list yet) is only
@@ -173,8 +195,57 @@ function WB_HubClientBody(props) {
     var next = String(cid);
     setRecents(WB_recentsPush(email, next));
     WB_track("wb-hub", "client:pick");
+    // Kept: picking another client moves the keep there (Undo puts it back).
+    if (keepActive && next !== keptId) {
+      var prevId = keptId;
+      var prevName = name;
+      var hit = clients.find(function (c) {
+        return c && String(c.id) === next;
+      });
+      WB_peekSetKept(email, next);
+      WB_track("wb-hub", "peek:keep:moved");
+      try {
+        window.dispatchEvent(
+          new CustomEvent("mgb:toast", {
+            detail: {
+              text: "Now keeping " + (hit && hit.name ? hit.name : "this client") + ".",
+              action: {
+                label: "Undo",
+                onClick: function () {
+                  WB_peekSetKept(email, prevId);
+                  WB_store.setHub({ clientId: prevId });
+                  if (prevName) WB_track("wb-hub", "peek:keep:undo");
+                },
+              },
+            },
+          }),
+        );
+      } catch (e) {}
+    }
     if (next !== props.clientId) WB_store.setHub({ clientId: next, lastFocus: null });
   };
+  var kept = keepActive && id != null && id === keptId;
+  var toggleKeep = function () {
+    if (id == null) return;
+    if (kept) {
+      WB_peekSetKept(email, null);
+      WB_track("wb-hub", "peek:unkeep:tab");
+      return;
+    }
+    WB_peekSetKept(email, id);
+    WB_track("wb-hub", "peek:keep:tab");
+  };
+  var stopKeeping = function () {
+    WB_peekSetKept(email, null);
+    WB_track("wb-hub", "peek:unkeep:noaccess");
+  };
+  // Kept and on another client's page: say so, and offer that client.
+  var pageClient =
+    keepActive && routeId != null && routeId !== keptId
+      ? clients.find(function (c) {
+          return c && String(c.id) === routeId;
+        }) || null
+      : null;
   var togglePin = function () {
     if (id == null) return;
     var r = WB_pinToggle(email, id, pins);
@@ -235,7 +306,18 @@ function WB_HubClientBody(props) {
       <div className="tk-cd-empty wb-hub-client-empty">
         <p>Pick a client to see their tasks here.</p>
         <p className="tk-cd-empty-sub">Pin the ones you work on most with the star.</p>
+        {peekOn ? <p className="tk-cd-empty-sub">Keep on Desk holds one client here while you open other pages.</p> : null}
       </div>
+    );
+  } else if (pick.access === false && keepActive) {
+    // A kept client I can't open any more: no name, no reads.
+    body = (
+      <p className="wb-filtered-empty" role="status">
+        You can't see this client anymore.{" "}
+        <button type="button" className="wb-peek-link" onClick={stopKeeping}>
+          Stop keeping
+        </button>
+      </p>
     );
   } else if (pick.access === false) {
     body = (
@@ -260,6 +342,7 @@ function WB_HubClientBody(props) {
         clients={clients}
         page={id === routeId ? props.page || null : null}
         onReady={onReady}
+        onCounts={peekOn ? countsPair[1] : undefined}
       />
     );
   }
@@ -281,6 +364,18 @@ function WB_HubClientBody(props) {
           >
             <span aria-hidden="true">{pinned ? "★" : "☆"}</span>
           </button>
+          {peekOn && pick.access === true ? (
+            <button
+              type="button"
+              className={"wb-keep" + (kept ? " is-on" : "")}
+              aria-pressed={kept ? "true" : "false"}
+              title={kept ? "Kept: the tab stays on " + name + " while you open other pages. Click to stop." : "Keep " + name + " here while you open other pages"}
+              data-tour="wb-peek-keep"
+              onClick={toggleKeep}
+            >
+              {kept ? "Kept" : "Keep on Desk"}
+            </button>
+          ) : null}
           <span className="wb-hub-client-gap" />
           <button type="button" className="btn-secondary wb-hub-add" onClick={addTask}>
             + Task
@@ -301,6 +396,34 @@ function WB_HubClientBody(props) {
             Open client
           </a>
         </div>
+      ) : null}
+      {peekOn && pageClient && id != null ? (
+        <p className="wb-peek-hint" role="status">
+          Kept · you're on {String(pageClient.name || "another client")}.{" "}
+          <button
+            type="button"
+            className="wb-peek-link"
+            onClick={function () {
+              WB_track("wb-hub", "peek:show-page");
+              suspendPair[1](routeId);
+            }}
+          >
+            Show {String(pageClient.name || "that client")}
+          </button>
+        </p>
+      ) : null}
+      {peekOn && id != null && pick.access === true && typeof WB_HubClientSummary === "function" ? (
+        <WB_HubClientSummary
+          key={id}
+          clientId={id}
+          clients={clients}
+          me={email}
+          showing={props.showing !== false}
+          keep={keep}
+          counts={countsPair[0]}
+          paneRef={paneRef}
+          showMessage={!plusOn}
+        />
       ) : null}
       {body}
       {plusOn && askPair[0] && id != null && pick.access === true && typeof WB_AskClientModal === "function" ? (
@@ -602,6 +725,17 @@ function WB_HubClientTasks(props) {
     return t && t.client_id != null && String(t.client_id) === String(clientId);
   });
   var view = { tasks: mine, loaded: at != null, error: list.error || null, reload: list.reload };
+  // Desk client summary (hidden): "3 open · 1 late" from this same list.
+  var onCounts = props.onCounts;
+  var counts = onCounts && view.loaded && typeof WB_peekTaskCount === "function" ? WB_peekTaskCount(mine, typeof TK_ymd === "function" ? TK_ymd() : undefined) : null;
+  var countsKey = counts ? counts.text + "|" + counts.open + "|" + counts.late : null;
+  React.useEffect(
+    function () {
+      if (onCounts) onCounts(counts);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [countsKey, onCounts],
+  );
   var settled = view.loaded || !!view.error;
   var onReady = props.onReady;
   React.useEffect(

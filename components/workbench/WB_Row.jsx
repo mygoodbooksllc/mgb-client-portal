@@ -509,6 +509,9 @@ function WB_KeysSheet({ onClose }) {
     ["← / →", "With a tab selected, move between the Desk's tabs (Inbox, Slate, Client)"],
     ["Esc", "With focus in the " + WB_NAME + ", close the top layer: a menu, the client list, a task or chat drawer, then the " + WB_NAME],
   ];
+  // Desk client summary (hidden preview): the p key on a client's page.
+  const peekOn = typeof WB_usePeek === "function" ? WB_usePeek(true) : false;
+  if (peekOn) rows.push(["p", "On a client's page, keep that client on the " + WB_NAME + "'s Client tab (press again to stop)"]);
   return typeof ModalShell === "function" ? (
     <ModalShell onClose={onClose} labelledBy="wb-keys-title" className="confirm-modal">
       <div className="modal-header">

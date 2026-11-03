@@ -776,6 +776,8 @@ var WB_LAYERS = [
   { id: "tk-dw-menu", sel: ".wb-panel .tk-dw-menu[role='menu']", z: 3000, stacked: false },
   // The Client tab's client picker list (H4): Esc closes the list before the hub.
   { id: "picker", sel: ".wb-panel .wb-pick-list", z: 3000, stacked: false },
+  // Desk client summary preview: the Customize Desk popover (portaled to body) closes before the hub.
+  { id: "customize", sel: ".wb-cust", z: 3000, stacked: false },
   { id: "tour", sel: ".tour-root", z: 2900, stacked: false },
   { id: "modal", sel: ".modal-overlay", z: 2000, stacked: true },
   { id: "aria-modal", sel: '[aria-modal="true"]:not(.wb-panel)', z: 1900, stacked: true },

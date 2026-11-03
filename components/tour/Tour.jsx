@@ -178,6 +178,10 @@
 //   wb-chip-gl       the Desk Inbox's Ledger chip (WB_Hub.jsx), only with the Desk additions on
 //   wb-client-actions, wb-client-waiting  the Client tab's Ask client / Message buttons and
 //                    Waiting on client list (WB_HubClient.jsx), only with the Desk additions on
+//   wb-peek, wb-peek-keep, wb-desk-customize  the Client tab's summary, its Keep on Desk
+//                    button (WB_HubClientSummary.jsx / WB_HubClient.jsx) and the Desk head's
+//                    Customize button (WB_Hub.jsx), only with the Desk client summary on
+//   wb-peek-page-keep  Keep on Desk in a client page's header (same gate)
 //   wb-bar           the Desk's info bar at the bottom of every staff page
 //                    (WB_Drawer.jsx), while the Desk is on
 //   wb-rail          the Desk's slim rail on the right (messages, reviews,
@@ -1088,6 +1092,19 @@ function TOUR_deskPlusOn() {
   }
 }
 
+// True when the Desk client summary is on for this person (WB_peek.js: preview checkbox or
+// firm switch desk_peek_enabled), never in View as. False keeps the tour as before.
+function TOUR_peekOn() {
+  try {
+    if (typeof WB_peekOn !== "function") return false;
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
+    if (typeof WB_store === "undefined" || !WB_store.getState().on) return false;
+    return !!WB_peekOn(true);
+  } catch (e) {
+    return false;
+  }
+}
+
 // True when the thread menu is on for this person (TM_gate.js: preview checkbox or firm
 // switch, never in View as). False with the gate off, so the Inbox step text stays as before.
 function TOUR_threadMenuOn() {
@@ -1216,6 +1233,39 @@ function TOUR_bookkeeperSteps(ctx) {
             title: "Ask client and Message, on the Desk",
             body: () =>
               "On the Desk's Client tab, Ask client and Message sit next to + Task, and below the tasks you see what is waiting on the client, their recent messages and recent files.",
+          },
+        ]
+      : []),
+    // Desk client summary (hidden until launch): the summary and Keep on Desk. Not in the list
+    // at all while the summary is off for this person.
+    ...(TOUR_peekOn()
+      ? [
+          {
+            id: "desk-client-summary",
+            when: (c) => !!c.myClient,
+            go: () => {
+              openClient();
+              try {
+                if (typeof WB_store !== "undefined") {
+                  if (!WB_store.getState().drawerOpen) WB_store.setDrawerOpen(true, "tour");
+                  WB_store.setHub({ tab: "client" });
+                }
+              } catch (e) {}
+            },
+            targets: ["wb-peek"],
+            wait: true,
+            title: "The client at a glance, on the Desk",
+            body: () =>
+              "The top of the Desk's Client tab sums the client up: who works on it, the first contact, the Drive folder, a pinned Status or Handoff note, the last client message and your open tasks. Never any money.",
+          },
+          {
+            id: "desk-client-keep",
+            when: (c) => !!c.myClient,
+            targets: ["wb-peek-keep", "wb-peek-page-keep"],
+            wait: true,
+            title: "Keep on Desk",
+            body: () =>
+              "Keep on Desk holds this client on the Client tab while you open other pages, for up to 24 hours. On a client's page, the Keep on Desk button or the p key does the same.",
           },
         ]
       : []),

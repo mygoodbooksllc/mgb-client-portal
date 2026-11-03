@@ -452,6 +452,18 @@ function TB_actionRows({ client, showMine, effectiveTheme, onToggleTheme, onSign
       go: () => (TB_tkQuickReady() ? TB_tkQuickAdd({ kind: "reminder" }) : TB_go("#/work/tasks")),
     });
   }
+  // Desk client summary (hidden preview, WB_peek.js): Keep this client on
+  // the Desk. Only on a client's page, in my own session, with the Desk on and
+  // the preview or desk_peek_enabled on; otherwise no row.
+  if (showMine && client && typeof WB_peekActionRow === "function" && typeof WB_store !== "undefined") {
+    try {
+      const st = WB_store.getState();
+      const me = st && st.me ? String(st.me) : "";
+      const on = !!me && WB_peekOn(!!st.on);
+      const row = on ? WB_peekActionRow(true, client, WB_peekRead(me).keptId) : null;
+      if (row) rows.push({ key: "a:" + row.key, title: row.title, sub: row.sub, keywords: row.keywords, go: () => WB_peekToggleFromPage(me, client) });
+    } catch (e) {}
+  }
   if (onToggleTheme)
     rows.push({
       key: "a:theme",

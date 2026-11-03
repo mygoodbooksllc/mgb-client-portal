@@ -357,9 +357,135 @@ function WB_RightNow({ ctx, onGo }) {
 // deskRef, onDrillStep(step), onCloseTask(), and staffUser plus the template
 // props for TK_DrawerContent. While a task shows, the head, tabs, chips and
 // list panes are hidden (the panes stay mounted; their scroll comes back).
+// Desk client summary preview (R3): the per-person Customize popover in the
+// Desk head. Glance and Right now on or off, what shows while the Desk is
+// closed, and Reset Desk (my Desk keys only; star pins stay). Saved in this
+// browser for this person (WB_deskPrefsWrite). Rendered only while the
+// preview is on.
+const WB_DESK_CLOSED_CHOICES = [
+  ["both", "Both"],
+  ["rail", "Rail only"],
+  ["bar", "Bar only"],
+  ["neither", "Neither"],
+];
+function WB_DeskCustomize({ me, prefs, sheet }) {
+  const [open, setOpen] = React.useState(false);
+  const [pos, setPos] = React.useState(null);
+  const btnRef = React.useRef(null);
+  const popRef = React.useRef(null);
+  const p = prefs || { on: { glance: true, rightNow: true }, closed: "both" };
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const r = btnRef.current ? btnRef.current.getBoundingClientRect() : { bottom: 56, right: window.innerWidth - 12 };
+    setPos({ top: Math.round(r.bottom + 6), right: Math.max(8, Math.round(window.innerWidth - r.right)) });
+    const onDown = (e) => {
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      // Esc closes this popover only, not the Desk behind it.
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      setOpen(false);
+      if (btnRef.current) btnRef.current.focus();
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [open]);
+  React.useEffect(() => {
+    if (!open || !pos || !popRef.current) return;
+    const first = popRef.current.querySelector("input,button");
+    if (first && first.focus) first.focus();
+  }, [open, !!pos]);
+  const save = (next) => {
+    if (typeof WB_deskPrefsWrite === "function") WB_deskPrefsWrite(me, next);
+  };
+  const setOn = (k, v) => save({ on: Object.assign({}, p.on, { [k]: v }), closed: p.closed });
+  const setClosed = (c) => save({ on: p.on, closed: c });
+  const reset = () => {
+    if (typeof WB_deskReset === "function") WB_deskReset(me);
+    WB_toast("Desk reset to the defaults. Your star pins stay.");
+    setOpen(false);
+  };
+  return (
+    <>
+      <button
+        type="button"
+        ref={btnRef}
+        className="wb-icon-btn wb-cust-btn"
+        data-tour="wb-desk-customize"
+        aria-label="Customize Desk"
+        title="Customize Desk"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 7h9M19 7h1" />
+          <circle cx="16" cy="7" r="2.2" />
+          <path d="M4 17h1M11 17h9" />
+          <circle cx="8" cy="17" r="2.2" />
+        </svg>
+      </button>
+      {open &&
+        pos &&
+        ReactDOM.createPortal(
+          <div ref={popRef} className="ss-pop wb-cust" role="dialog" aria-label="Customize Desk" style={{ top: pos.top, right: pos.right }}>
+            <div className="ss-pop-title">Customize Desk</div>
+            <p className="ss-pop-note">Saved for you in this browser.</p>
+            <label className="wb-cust-check">
+              <input type="checkbox" checked={p.on.glance !== false} onChange={(e) => setOn("glance", e.target.checked)} />
+              <span>Glance counts at the top</span>
+            </label>
+            <label className="wb-cust-check">
+              <input type="checkbox" checked={p.on.rightNow !== false} onChange={(e) => setOn("rightNow", e.target.checked)} />
+              <span>Right now card</span>
+            </label>
+            <fieldset className="wb-cust-closed">
+              <legend>When the Desk is closed, show</legend>
+              {WB_DESK_CLOSED_CHOICES.map(([v, label]) => (
+                <label key={v} className="wb-cust-radio">
+                  <input type="radio" name="wb-cust-closed" value={v} checked={p.closed === v} onChange={() => setClosed(v)} />
+                  <span>{label}</span>
+                </label>
+              ))}
+              {sheet ? (
+                <p className="ss-pop-note wb-cust-hint">On a phone the bar always shows.</p>
+              ) : (
+                p.closed !== "both" && (
+                  <p className="ss-pop-note wb-cust-hint">
+                    Press <kbd>D</kbd> to open the Desk.
+                  </p>
+                )
+              )}
+            </fieldset>
+            <div className="ss-pop-foot">
+              <button type="button" className="btn-secondary st-btn-sm" onClick={reset}>
+                Reset Desk
+              </button>
+              <button type="button" className="btn-secondary st-btn-sm" onClick={() => setOpen(false)}>
+                Done
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, layout, handle, drill, deskRef, onDrillStep, onCloseTask, staffUser, canManageTemplates, canCreateTemplates, onOpenTemplates, glance, extras, onGlancePick, rightNow, onRightNowGo }) {
   const dock = mode !== "sheet";
   const plusOn = typeof WB_useDeskPlus === "function" ? WB_useDeskPlus(true) : false;
+  // Desk client summary preview: the Customize popover and the p key hint.
+  const peekOn = typeof WB_usePeek === "function" ? WB_usePeek(true) : false;
+  const deskPrefs = typeof WB_useDeskPrefs === "function" ? WB_useDeskPrefs(me, peekOn) : null;
   const hub = s.hub;
   const tab = hub.tab;
   const stack = Array.isArray(drill) ? drill : [];
@@ -482,6 +608,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
             {WB_NAME} <span className="wb-chip-n">{count}</span>
           </h2>
           {s.offline && <span className="wb-offline">Offline</span>}
+          {peekOn && <WB_DeskCustomize me={me} prefs={deskPrefs} sheet={!dock} />}
           <button type="button" className="wb-icon-btn" aria-label={"Close " + WB_NAME} onClick={() => WB_store.setDrawerOpen(false)}>
             ×
           </button>
@@ -645,7 +772,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
           <kbd>D</kbd> opens and closes · <kbd>Esc</kbd> goes back one step
           {dock && handle && handle.show && <> · drag the left edge to change the width</>}
           {tab === "tasks" && <> · <kbd>↑</kbd> <kbd>↓</kbd> move between tasks · use <b>Add to your {WB_SLATE}</b> to add one</>}
-          {tab === "client" && <> · type in the box to find a client · the <b>☆</b> pins one to the top</>}
+          {tab === "client" && <> · type in the box to find a client · the <b>☆</b> pins one to the top{peekOn && <> · <kbd>p</kbd> keeps the page's client</>}</>}
         </p>
         )}
       </section>

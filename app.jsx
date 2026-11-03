@@ -1038,6 +1038,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by WB_peekPreviewOn / WB_usePeek (components/workbench/WB_peek.js).
+    key: "mgb_peek_preview",
+    label: "Desk client summary (preview)",
+    description:
+      "Turns on for you only, in this browser, while the firm-wide desk_peek_enabled switch is off: a short summary at the top of the Desk Client tab (bookkeeper and account manager, the first contact, the Drive folder, a pinned Status or Handoff note, the last client message and your open tasks there, never any money), a Keep on Desk button that holds one client there for 24 hours while you open other pages (also on a client's page and the p key), and a Customize button in the Desk head (Glance, Right now, what shows while the Desk is closed, Reset Desk). The left sidebar's Pin this client shows a star either way. Needs the Desk on. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     // Read by MB_previewOn / MB_useGate (components/members/MB_gate.js).
     key: "mgb_members_preview",
     label: "Members area preview",
@@ -1190,6 +1198,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Desk additions switch)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "Desk additions (preview): supabase/owner-only-deskplus-switch.sql (+ -tests.sql, rolls back) makes tk_settings.deskplus_enabled owner-only (tk__owner_only_key). No row: missing = off. Read by components/workbench/WB_plus.js, never written by the app.",
+  },
+  {
+    name: "Supabase SQL (Desk client summary switch)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Desk client summary (preview): supabase/owner-only-desk-peek-switch.sql (+ -tests.sql, rolls back) makes tk_settings.desk_peek_enabled owner-only (tk__owner_only_key). No row: missing = off. Read by components/workbench/WB_peek.js, never written by the app. No new tables: the summary makes four reads for one client the person can open (rpc tk_request_recipients, drive_folders, pinned client_private_notes, client_messages), all under their existing RLS; bookkeeper and account manager come from the client list already loaded.",
   },
   {
     name: "Supabase SQL (Members area)",
@@ -14190,6 +14203,10 @@ function resettableLocalStorageKeys() {
     // and sessionStorage mgb_op_later:<email> (the client's "Later" for this sign-in; not touched by Reset).
     // Desk additions (hidden preview): mgb_deskplus_preview (a flag, kept),
     // mgb_deskplus_cache (the firm switch deskplus_enabled as last read by WB_plus.js, cleared by Reset).
+    // Desk client summary (hidden preview): mgb_peek_preview (a flag, kept),
+    // mgb_peek_cache (the firm switch desk_peek_enabled as last read by WB_peek.js, cleared by Reset),
+    // mgb_wb_peek:<email> (the Keep on Desk client, when it was kept, and the summary folded or open; cleared by Reset),
+    // mgb_wb_deskprefs:<email> (Customize Desk: Glance, Right now, what shows while closed; cleared by Reset).
     // Create menu (launched 2026-11-02): mgb_create_preview (a flag, kept for a couple of weeks, then removable),
     // mgb_create_cache (the firm switch create_menu_enabled as last read by TB_create.js, cleared by Reset).
     // Members area (hidden preview): mgb_members_preview (a flag, kept),
@@ -15757,6 +15774,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["slatesimple_enabled", "Simpler Slate for all staff (owner only)", "Hidden preview (Slate Stage B, 2026-11-02). Needs Slate plus. True turns the simpler Slate on for every staff member with Slate plus: a labeled sidebar with the account avatar at the bottom in the Slate app, three list controls (Filter, Group and sort, Saved views), a plain-words add line, Today at a glance when no task is open, and More details in an open task; the slate-simpler notice and the Slate basics tour then appear. Off = only people with the Simpler Slate preview flag see it. Off (or missing, the default) keeps Slate exactly as it is. Before turning it on, publish the drafts in docs/staff-guide/drafts/staff-guide-slate-basics.md and whats-new-slate-basics.txt. Owner turns it on (true) from the SQL editor, never from here. Never shown to clients; off in View as."],
             ["create_menu_enabled", "Create menu for all staff (owner only)", "ON since 2026-11-02 (the owner set it to true): every staff member has the Create button (top of the left nav; a round + in the top bar on a phone) and its roomier menu, and the Create menu next-visit notice and tour show once per person. Off (or missing) would bring back the small + icon in the top bar for everyone (set it to false to roll back; never delete the row). Set from the SQL editor, never from here. There is no Classic opt-out. The Create menu preview in Feature flags now changes nothing while this is on. The app only reads this; it never sets it."],
             ["deskplus_enabled", "Desk additions for staff", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk exactly as it is for everyone: no Ledger chip in the Inbox, no Waiting on client, recent messages or recent files on the Client tab, no Ask client or Message buttons there, and no Ask client…, Message… or Time off in the + menu. Owner turns it on (true) from the SQL editor (override first; see the README Desk additions launch checklist), never from here, to give those to every staff member who has the Desk. Each person can try it early with Desk additions preview in Feature flags. Needs the Desk on (wb_enabled, unless the person picked Classic Today)."],
+            ["desk_peek_enabled", "Desk client summary for staff (owner only)", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk Client tab, the left sidebar and the Desk head exactly as they are for everyone: no client summary, no Keep on Desk (button, client page button or p key) and no Customize Desk button. True gives every staff member who has the Desk a short summary at the top of the Client tab (people, first contact, Drive folder, pinned Status or Handoff note, last client message, open task count; never any money), Keep on Desk (one client held for 24 hours), and Customize Desk (Glance, Right now, what shows while closed, Reset Desk; saved per person in their browser). Owner turns it on from the SQL editor, never from here, after publishing the guide text, notice and tour (README Desk client summary launch checklist). Each person can try it early with Desk client summary (preview) in Feature flags. Needs the Desk on."],
             ["members_staff_enabled", "Members area for staff (owner only)", "Owner-only; off = hidden. Off (or missing, the default) hides HR › Members area from every staff member. The owner turns it on (true) from the SQL editor, never from here; until then each person with the permission can try it with Members area preview in Feature flags. Even when on, only admins the owner allowed can list customers. The app only reads it."],
             ["members_area_open", "Members area: customer data open to members (owner only)", "Owner-only; off = closed. Off (or missing, the default) means members and the members-file download can read nothing from the members area except the owner's allowlisted email. The owner turns it on (true) from the SQL editor when the customer-facing members area launches, never from here. Separate from members_staff_enabled, which only shows the staff tab."],
             ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Nothing emails clients and nothing orders gifts either way."],
@@ -17611,7 +17629,7 @@ const USAGE_ACTION_LABELS = {
   // Grouped by the part before the first ":" (usage-stats-2.sql), so the
   // Desk additions clicks wb-hub:client-waiting, wb-hub:client-msg,
   // wb-hub:client-file, wb-hub:client-ask and wb-hub:client-message count here too.
-  "wb-hub": "Desk: Slate and Client tabs opened, clients picked, and (Desk additions preview) Client tab waiting, message and file rows opened, and its Ask client and Message buttons used",
+  "wb-hub": "Desk: Slate and Client tabs opened, clients picked, and (Desk additions preview) Client tab waiting, message and file rows opened, and its Ask client and Message buttons used, and (Desk client summary preview, wb-hub:peek:*) the summary folded, its rows used, and Keep on Desk turned on or off",
   // Desk additions (preview): the + menu's Ask client..., Message... and Time off
   // (wb-quick:ask, wb-quick:message, wb-quick:timeoff).
   "wb-quick": "+ menu (Desk additions preview): Ask client…, Message… and Time off used",
@@ -31657,6 +31675,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             {staffClientTabs && <div id="cl-header-tools" className="cl-header-tools" />}
             <div className="page-header-actions">
               {!showStaffTopBar && !tkShell && <AN_AppNav />}
+              {/* Desk client summary (hidden preview, WB_peek.js): Keep on Desk for
+                  this client. Renders nothing unless the preview or desk_peek_enabled
+                  is on, and fires no reads. */}
+              {staffClientTabs && wbDeskOn && !mhHere && !NON_CLIENT_PAGES.has(effectivePage) && staffUser && client && typeof WB_PeekPageKeep === "function" && (
+                <WB_PeekPageKeep client={client} me={String(staffUser.email).toLowerCase()} deskOn={wbDeskOn} />
+              )}
               {/* "View as client" lives in the tab row's Client view menu
                   (CL_ClientViewMenu, D19). Exits via the preview bar above. */}
               {!NON_CLIENT_PAGES.has(effectivePage) &&
