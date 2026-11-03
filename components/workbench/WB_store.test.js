@@ -532,6 +532,21 @@ t("Client tab recents: the client switcher's own per-person list, when it is loa
   assert.strictEqual(lsKeys[0], "mgb-client-switcher-recent:pat@mgb.com");
 });
 
+t("resetDesk: width and hub state reset in memory, a pending hub save is dropped", () => {
+  const H = "mgb_wb_hub:pat@example.com";
+  const c = load();
+  c.S.join("pat@example.com", false);
+  c.S.setDeskWidth(500);
+  c.S.setHub({ tab: "tasks" });
+  assert.strictEqual(c.S.getState().hub.tab, "tasks");
+  delete c.store[H];
+  c.S.resetDesk();
+  assert.strictEqual(c.S.getState().desk.right.w, 380, "width back to Standard at once");
+  assert.notStrictEqual(c.S.getState().hub.tab, "tasks", "hub tab back to the default");
+  c.advance(1000); // the throttled save setHub queued must not write the old tab back
+  assert.ok(!c.store[H] || !/tasks/.test(c.store[H]), "old hub value not written back");
+});
+
 t("R1 Desk width: per person, saved at once, v1 migrates, junk reads as Standard", () => {
   const D = (e) => "mgb_wb_desk:" + e;
   const c = load();

@@ -157,7 +157,14 @@ function WB__peekNow(deskOn) {
   return WB_peekIsOn(true, WB_peekPreviewOn(), WB__peekLs(WB_PEEK_CACHE_KEY) === "1");
 }
 
-// For non-React callers (the ⌘K row, the p key): the answer now.
+// True only when the FIREWIDE switch (desk_peek_enabled, cached) is on. The
+// tour and tip use this, never the per-person preview: held drafts stay hidden
+// until the owner flips the switch.
+function WB_peekFirmOn() {
+  return WB__peekLs(WB_PEEK_CACHE_KEY) === "1";
+}
+
+// For non-React callers (the Cmd-K row, the p key): the answer now.
 function WB_peekOn(deskOn) {
   if (deskOn !== true) return false;
   if (!WB_peekPreviewOn() && WB__peekSwitch.state === "idle") WB_peekReadSwitch();
@@ -304,12 +311,19 @@ function WB_peekWhich(o) {
 }
 
 // ---- The money guard ----
-// The spec's words, plus a few more that only ever mean money here. Hiding
-// too much is safe (the note is one click away); showing a fee is not.
+// Conservative on purpose: a client's fee, rate or numbers must never show on
+// the Desk, and the note is one click away. Run on the FULL, untrimmed text
+// (before any shortening, so a cut like "1,5..." cannot slip through). Hidden
+// when the text has: a currency symbol or code; a number token of 2+ digits
+// (plain dates like 11/5 and times like 3:30pm are allowed, because staff write
+// them all the time); a number with a k/M suffix; or a money word.
 var WB_PEEK_MONEY_RE =
-  /\$\s?\d|\bfees?\b|\brates?\b|margin|invoice|price|pay(ment)?s?\b|\bpaid\b|payroll|billing|\bbill(s|ed)?\b|\bcosts?\b|salar(y|ies)|\bwages?\b|retainer|discount|refund|\bowe[sd]?\b|[€£¥]|\busd\b|\d{1,3}(,\d{3})+(\.\d+)?\b|\d+(\.\d+)?\s?k\b/i;
+  /[$\u20ac\u00a3\u00a5]|\b(usd|eur|gbp|cad)\b|\d[\d,.]*\s?[km]\b|\d{2}|\d[,.]\d|\b(fees?|rates?|pric(e|es|ed|ing)|quot(e|es|ed|ing)|bill(s|ed|ing)?|invoic(e|es|ed|ing)|profits?|revenues?|budgets?|margins?|retainers?|dollars?|bucks|balances?|ar|ap|charg(e|es|ed|ing)|pay(s|ment|ments|ing|roll)?|paid|owe[sd]?|owing|discounts?|raise[sd]?|raising|per (month|hour|year|week)|monthly|hourly|annual|hours billed|costs?|costing|refunds?|salar(y|ies)|wages?|thousand|million|grand|cash ?flow|income|expenses?|spend|spent|worth|afford)\b|\/\s?(mo|hr|yr|month|hour|year)\b/i;
+// Dates and times only (11/5, 11/5/26, 2026-11-05, 3:30pm, the 10th) are blanked first.
+var WB_PEEK_DATE_RE = /\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\/\d{1,2}(\/\d{2,4})?\b|\b\d{1,2}:\d{2}(\s?[ap]m)?\b|\b\d{1,2}(st|nd|rd|th)\b/gi;
 function WB_peekMoney(text) {
-  return WB_PEEK_MONEY_RE.test(WB__peekStr(text));
+  var t = WB__peekStr(text).replace(WB_PEEK_DATE_RE, " ");
+  return WB_PEEK_MONEY_RE.test(t);
 }
 
 // ---- The whitelist shaper ----
@@ -396,10 +410,11 @@ function WB_peekMessage(rows, clientId) {
   var m = list[0];
   if (!m) return null;
   var staff = m.author_kind === "staff";
+  var hidden = WB_peekMoney(m.body); // the full text, before it is shortened
   var body = WB__peekTrim(m.body, WB_PEEK_MSG_MAX);
   var who = WB__peekTrim(m.author_name, WB_PEEK_NAME_MAX) || (staff ? "MyGoodBooks" : "Client");
   if (WB_peekMoney(who)) who = staff ? "MyGoodBooks" : "Client";
-  var hidden = !!body && WB_peekMoney(body);
+  hidden = hidden && !!body;
   return {
     who: who,
     kindLabel: staff ? "Staff" : "Client",
@@ -640,6 +655,11 @@ function WB_deskReset(email) {
     WB__peekLsSet(k, null);
   });
   WB_peekMemClear();
+  // The in-memory Desk width and hub state too, so the change shows at once and
+  // a pending hub save cannot write the old value back.
+  try {
+    if (typeof WB_store !== "undefined" && WB_store && typeof WB_store.resetDesk === "function") WB_store.resetDesk();
+  } catch (e) {}
   WB__peekFire(WB_DESKPREFS_EVENT, { email: WB__peekEmail(email), reset: true });
   WB__peekFire(WB_PEEK_STATE_EVENT, { email: WB__peekEmail(email) });
 }
@@ -696,11 +716,22 @@ function WB_usePeekKeep(email, on) {
       var onStorage = function (e) {
         if (!e || !e.key || e.key === k) hit();
       };
+      // A keep older than 24 hours must also clear in a tab that stays open:
+      // re-read on focus, when the tab becomes visible and every 5 minutes.
+      var onVis = function () {
+        if (typeof document === "undefined" || document.visibilityState !== "hidden") hit();
+      };
+      var tick = setInterval(hit, 5 * 60 * 1000);
       window.addEventListener(WB_PEEK_STATE_EVENT, hit);
       window.addEventListener("storage", onStorage);
+      window.addEventListener("focus", hit);
+      if (typeof document !== "undefined" && document.addEventListener) document.addEventListener("visibilitychange", onVis);
       return function () {
+        clearInterval(tick);
         window.removeEventListener(WB_PEEK_STATE_EVENT, hit);
         window.removeEventListener("storage", onStorage);
+        window.removeEventListener("focus", hit);
+        if (typeof document !== "undefined" && document.removeEventListener) document.removeEventListener("visibilitychange", onVis);
       };
     },
     [live, email],
@@ -773,6 +804,7 @@ if (typeof module !== "undefined" && module.exports) {
     WB_peekPreviewOn: WB_peekPreviewOn,
     WB_peekReadSwitch: WB_peekReadSwitch,
     WB_peekOn: WB_peekOn,
+    WB_peekFirmOn: WB_peekFirmOn,
     WB_peekKey: WB_peekKey,
     WB_peekParse: WB_peekParse,
     WB_peekSerialize: WB_peekSerialize,

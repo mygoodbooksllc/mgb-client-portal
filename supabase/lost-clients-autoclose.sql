@@ -1,5 +1,5 @@
 -- Lost clients follow-up (owner decision 2026-11-03: auto-close).
--- Applied to production 2026-11-03 (Supabase MCP execute_sql).
+-- Applied to production 2026-11-03; revised 2026-11-03c (once per client per lost date, Chicago p_today, insert trigger).
 --
 -- A. Open tasks and reminders of a lost client are closed automatically.
 --    "Closed" = moved to the Tasks trash (staff_reminders.deleted_at, the same
@@ -12,9 +12,11 @@
 --    (client.tasks_auto_closed, with the count).
 --    Undoing lost (clearing lost_at) does NOT reopen them; an admin can restore
 --    individual tasks from the trash.
---    Runs (1) from a trigger on clients when lost_at is set to today or earlier,
---    and (2) at the start of every live tk__generate run (the nightly cron) for
---    clients whose future lost_at date has now arrived.
+--    Runs (1) from triggers on clients when lost_at is set to today or earlier (update
+--    or insert), and (2) at the start of every live tk__generate run (the nightly
+--    cron) for clients whose future lost_at date has now arrived: ONCE per client
+--    per lost date (marker clients.lost_tasks_closed_at), and only for tasks that
+--    existed by the end of the lost day, so restored or later tasks survive.
 -- B. tk__generate makes no task for a client with a future lost_at when the
 --    task is due on or after lost_at (custom-schedule "occ" templates are
 --    covered by the nightly close once lost_at arrives).
@@ -42,43 +44,65 @@ end
 $f$;
 
 -- 1. The closer. p_client_id null = every lost client.
-create or replace function public.tk_close_lost_client_tasks(p_client_id text default null)
+--    Runs ONCE per client per lost date. clients.lost_tasks_closed_at is the
+--    marker: set when the closer runs for that client. The nightly path
+--    (p_all false) only picks clients whose marker is empty or older than their
+--    lost_at day, and only closes tasks created on or before the end of the lost
+--    day (Chicago), so anything an admin restored or added afterwards survives
+--    every later night. The trigger path (p_all true, lost_at just set) closes
+--    every open task/reminder, as before. Only kind task/reminder rows.
+alter table public.clients add column if not exists lost_tasks_closed_at timestamptz;
+comment on column public.clients.lost_tasks_closed_at is
+  'Lost clients: when tk_close_lost_client_tasks last ran for this client. The nightly run skips a client once this is on or after the start of its lost_at day.';
+
+drop function if exists public.tk_close_lost_client_tasks(text);
+create or replace function public.tk_close_lost_client_tasks(p_client_id text default null, p_today date default null, p_all boolean default false)
 returns integer
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  v_today date := (now() at time zone 'America/Chicago')::date;
+  v_today date := coalesce(p_today, (now() at time zone 'America/Chicago')::date);
   r record;
   v_n int;
   v_total int := 0;
+  v_end timestamptz;
 begin
   for r in
-    select cl.id, cl.name from clients cl
+    select cl.id, cl.name, cl.lost_at from clients cl
      where cl.lost_at is not null and cl.lost_at <= v_today
        and (p_client_id is null or cl.id = p_client_id)
-       and exists (select 1 from staff_reminders s
-                    where s.client_id = cl.id and not s.done and s.deleted_at is null)
+       and (p_all
+            or cl.lost_tasks_closed_at is null
+            or cl.lost_tasks_closed_at < (cl.lost_at::timestamp at time zone 'America/Chicago'))
      order by cl.id
   loop
+    -- end of the lost day, Chicago: tasks created later are never closed by the nightly run
+    v_end := ((r.lost_at + 1)::timestamp at time zone 'America/Chicago');
     update staff_reminders s
        set deleted_at = now()
-     where s.client_id = r.id and not s.done and s.deleted_at is null;
+     where s.client_id = r.id and not s.done and s.deleted_at is null
+       and s.kind in ('task', 'reminder')
+       and (p_all or s.created_at < v_end);
     get diagnostics v_n = row_count;
     v_total := v_total + v_n;
-    perform audit_write('client.tasks_auto_closed', r.id, 'client', r.id,
-      jsonb_build_object('name', r.name, 'closed', v_n, 'how', 'moved to Tasks trash'));
+    update clients set lost_tasks_closed_at = now() where id = r.id;
+    if v_n > 0 then
+      perform audit_write('client.tasks_auto_closed', r.id, 'client', r.id,
+        jsonb_build_object('name', r.name, 'closed', v_n, 'how', 'moved to Tasks trash'));
+    end if;
   end loop;
   return v_total;
 end
 $$;
-comment on function public.tk_close_lost_client_tasks(text) is
-  'Lost clients: moves open tasks/reminders of lost clients (lost_at <= today, Chicago) to the Tasks trash. Not completed work. Trigger and nightly tk__generate only.';
-revoke all on function public.tk_close_lost_client_tasks(text) from public, anon, authenticated;
-grant execute on function public.tk_close_lost_client_tasks(text) to service_role;
+comment on function public.tk_close_lost_client_tasks(text, date, boolean) is
+  'Lost clients: moves open tasks/reminders of lost clients (lost_at <= p_today, Chicago) to the Tasks trash, once per client per lost date (marker clients.lost_tasks_closed_at). Not completed work. Trigger (p_all) and nightly tk__generate only.';
+revoke all on function public.tk_close_lost_client_tasks(text, date, boolean) from public, anon, authenticated;
+grant execute on function public.tk_close_lost_client_tasks(text, date, boolean) to service_role;
 
--- 2. Trigger: server-side, fires when lost_at is set to today or earlier.
+-- 2. Triggers: server-side. Fire when lost_at is set to today or earlier, on
+--    update AND on insert of a client that is already lost.
 create or replace function public.clients_lost_close_tasks()
 returns trigger
 language plpgsql
@@ -86,7 +110,7 @@ security definer
 set search_path = public
 as $$
 begin
-  perform public.tk_close_lost_client_tasks(new.id);
+  perform public.tk_close_lost_client_tasks(new.id, null, true);
   return null;
 end
 $$;
@@ -98,6 +122,14 @@ create trigger clients_lost_close_tasks
   for each row
   when (new.lost_at is not null
         and new.lost_at is distinct from old.lost_at
+        and new.lost_at <= (now() at time zone 'America/Chicago')::date)
+  execute function public.clients_lost_close_tasks();
+
+drop trigger if exists clients_lost_close_tasks_ins on public.clients;
+create trigger clients_lost_close_tasks_ins
+  after insert on public.clients
+  for each row
+  when (new.lost_at is not null
         and new.lost_at <= (now() at time zone 'America/Chicago')::date)
   execute function public.clients_lost_close_tasks();
 
@@ -126,5 +158,15 @@ select pg_temp.mh_patch_fn('public.tk__generate(date,boolean,text,integer,text,u
   $a$'adopted', v_adopted, 'lost_closed', v_lost_closed);   -- recurring asana overlap$a$,
   $a$'lost_closed', v_lost_closed$a$, 1);
 
--- 4. One-time run for clients already lost (Citymark, 2026-10-30).
-select public.tk_close_lost_client_tasks(null) as closed_now;
+-- 3b. The nightly call honors tk__generate's p_today (v_today).
+select pg_temp.mh_patch_fn('public.tk__generate(date,boolean,text,integer,text,uuid)',
+  $a$public.tk_close_lost_client_tasks(p_client_id);$a$,
+  $a$public.tk_close_lost_client_tasks(p_client_id, v_today);$a$,
+  $a$tk_close_lost_client_tasks(p_client_id, v_today)$a$, 1);
+
+-- 4. Backfill: lost clients that exist right now were already closed by the
+--    one-time run on 2026-11-03 (Citymark, lost 2026-10-30). Mark them done so
+--    the nightly run never touches tasks an admin restored since. No closing here.
+update public.clients set lost_tasks_closed_at = now()
+ where lost_at is not null and lost_at <= (now() at time zone 'America/Chicago')::date
+   and lost_tasks_closed_at is null;

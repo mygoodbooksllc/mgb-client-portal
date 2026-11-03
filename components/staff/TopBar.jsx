@@ -455,7 +455,10 @@ function TB_actionRows({ client, showMine, effectiveTheme, onToggleTheme, onSign
   // Desk client summary (hidden preview, WB_peek.js): Keep this client on
   // the Desk. Only on a client's page, in my own session, with the Desk on and
   // the preview or desk_peek_enabled on; otherwise no row.
-  if (showMine && client && typeof WB_peekActionRow === "function" && typeof WB_store !== "undefined") {
+  // Shown only while the client page's own Keep on Desk is mounted
+  // (WB_PeekPageKeep sets MGB_peekKeepMounted: staffClientTabs && wbDeskOn, not
+  // previewing, not View as, not the Slate shell).
+  if (showMine && client && typeof window !== "undefined" && window.MGB_peekKeepMounted > 0 && typeof WB_peekActionRow === "function" && typeof WB_store !== "undefined") {
     try {
       const st = WB_store.getState();
       const me = st && st.me ? String(st.me) : "";

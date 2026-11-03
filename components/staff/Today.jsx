@@ -1692,11 +1692,18 @@ function TD_TodayPage({ staffUser, clients, historyClients, onNavigateToClient, 
         add(c.id, h.band === "red" ? "now" : "week", HL_LABEL[h.band] || h.band, () => LK_go({ clientId: c.id, tab: "overview", item: "at:ov-why" }));
       });
     }
-    (coverage.gaps || []).forEach((g) => add(g.client && g.client.client_id, "week", "No backup while out", () => NAV_go("team", "people")));
+    // A lost client needs no backup coverage; waitClients includes them only so
+    // their replies keep a name.
+    const lostIds = new Set((lostClients || []).map((c) => c.id));
+    (coverage.gaps || []).forEach((g) => {
+      const cid = g.client && g.client.client_id;
+      if (cid && lostIds.has(cid)) return;
+      add(cid, "week", "No backup while out", () => NAV_go("team", "people"));
+    });
     return Object.values(by)
       .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
       .map((e) => ({ key: e.id, title: e.name, chips: e.chips, onClick: e.go || (() => onNavigateToClient(e.id)) }));
-  }, [allClients, waitClients, waiting.rows, closes.blocked, coverage.gaps, health && health.status, health && health.byId, onNavigateToClient]);
+  }, [allClients, waitClients, lostClients, waiting.rows, closes.blocked, coverage.gaps, health && health.status, health && health.byId, onNavigateToClient]);
   // Open Also needs you on one row (Do next's Review, Waiting on others).
   const reveal = (key) => window.dispatchEvent(new CustomEvent("td:reveal", { detail: { key } }));
   // Waiting on others: access and upgrade requests, and replies to chase.

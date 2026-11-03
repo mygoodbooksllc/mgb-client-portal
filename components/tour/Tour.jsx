@@ -1092,11 +1092,12 @@ function TOUR_deskPlusOn() {
   }
 }
 
-// True when the Desk client summary is on for this person (WB_peek.js: preview checkbox or
-// firm switch desk_peek_enabled), never in View as. False keeps the tour as before.
+// True when the Desk client summary is on for this person AND the firm switch
+// desk_peek_enabled is on (a preview person alone sees no tour step), never in View as. False keeps the tour as before.
 function TOUR_peekOn() {
   try {
-    if (typeof WB_peekOn !== "function") return false;
+    if (typeof WB_peekOn !== "function" || typeof WB_peekFirmOn !== "function") return false;
+    if (!WB_peekFirmOn()) return false; // firm switch off: no tour step yet, even for preview people
     if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
     if (typeof WB_store === "undefined" || !WB_store.getState().on) return false;
     return !!WB_peekOn(true);

@@ -31,7 +31,7 @@ The row then shows a **Lost** tag and the date. Only admins see these buttons, a
 
 ### Before you mark one lost
 
-- Open tasks and reminders for the client are **closed automatically** the day the lost date arrives (right away if you pick today or an earlier date). They move to the Tasks **Trash**, so they stop counting as overdue or assigned, and they do **not** count as completed work. Done tasks are never touched. If you need to move a task to another client first, do it before the lost date.
+- Open tasks and reminders for the client are **closed automatically** the day the lost date arrives (right away if you pick today or an earlier date). They move to the Tasks **Trash**, so they stop counting as overdue or assigned, and they do **not** count as completed work. Done tasks are never touched. This happens once per lost date: a task you restore from the Trash, or add for the client later, stays open and is not closed again. If you need to move a task to another client first, do it before the lost date.
 - Remove staff access to the client if nobody should keep it.
 
 ### Undo it

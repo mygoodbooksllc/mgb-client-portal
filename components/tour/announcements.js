@@ -158,11 +158,13 @@ function ANN_deskPlusLaunchOn() {
 
 // True once the owner has switched the Desk client summary on for the firm
 // (tk_settings.desk_peek_enabled, cached as mgb_peek_cache by WB_peek.js).
-// Deliberately not the per-person preview mgb_peek_preview: a preview person
-// sees no launch text.
+// AND the person is not on Classic Today (mgb_wb_classic). Deliberately not the
+// per-person preview mgb_peek_preview: a preview person sees no launch text.
 function ANN_peekLaunchOn() {
   try {
-    return window.localStorage.getItem("mgb_peek_cache") === "1";
+    var ls = window.localStorage;
+    if (ls.getItem("mgb_wb_classic") === "1") return false; // Classic Today: no Desk, no Keep
+    return ls.getItem("mgb_peek_cache") === "1";
   } catch (e) {
     return false;
   }

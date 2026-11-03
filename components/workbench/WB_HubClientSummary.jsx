@@ -402,6 +402,15 @@ function WB_PeekPageKeep(props) {
   var keep = WB_usePeekKeep(email, on);
   var client = props.client || null;
   var id = client && client.id != null ? String(client.id) : null;
+  // Tell the Cmd-K "Keep X on Desk" row that this mount (the app's own gate:
+  // staffClientTabs && wbDeskOn, not previewing, not View as) is live.
+  React.useEffect(function () {
+    if (!on) return undefined;
+    window.MGB_peekKeepMounted = (window.MGB_peekKeepMounted || 0) + 1;
+    return function () {
+      window.MGB_peekKeepMounted = Math.max(0, (window.MGB_peekKeepMounted || 1) - 1);
+    };
+  }, [on]);
   var clientRef = React.useRef(client);
   clientRef.current = client;
   var kept = on && id != null && keep.keptId === id;
@@ -420,7 +429,7 @@ function WB_PeekPageKeep(props) {
     function () {
       if (!on || id == null) return undefined;
       var onKey = function (e) {
-        if (e.key !== "p") return;
+        if (e.key !== "p" || e.repeat) return;
         if (document.querySelector(".tk-dw-layer")) return;
         if (typeof TK_shouldHandleKey !== "function") return;
         var kc = typeof TK_vKeyCtx === "function" ? TK_vKeyCtx() : {};

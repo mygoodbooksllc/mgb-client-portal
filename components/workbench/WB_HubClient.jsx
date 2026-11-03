@@ -105,6 +105,14 @@ function WB_HubClientBody(props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [keptId],
   );
+  // A route change ends the pause: "Show <client>" is this page visit only.
+  React.useEffect(
+    function () {
+      suspendPair[1](null);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [routeId],
+  );
   var countsPair = React.useState(null);
   var paneRef = React.useRef(null);
 

@@ -256,7 +256,8 @@ const TIPS_CATALOG = [
     // docs/staff-guide/drafts/staff-guide-desk-peek.md; add it to tips.md at launch.
     id: "wb-peek-keep",
     roles: "all",
-    match: () => true,
+    // Firm switch only (WB_peekFirmOn): preview-only people get no tip yet.
+    match: () => typeof WB_peekFirmOn === "function" && WB_peekFirmOn(),
     target: "wb-peek-keep",
     snug: true,
     text: "Keep on Desk holds this client on the Client tab while you open other pages, for up to 24 hours. On a client's page, press p to do the same.",

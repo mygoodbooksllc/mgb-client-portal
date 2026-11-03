@@ -707,6 +707,16 @@ var WB_store = (function () {
     if (hubUser) WB__lsSet(WB_deskKey(hubUser), WB_deskSerialize(d));
   }
 
+  // Reset Desk (Customize popover): put the in-memory width and hub state back
+  // to the defaults at once, and cancel any pending throttled save so the old
+  // value is not written back over the cleared keys. Keeps the Desk open or
+  // closed as it is. The caller clears the saved keys.
+  function resetDesk() {
+    if (hubTimer) clearTimeout(hubTimer);
+    hubTimer = null;
+    set({ desk: WB_deskParse(null), hub: Object.assign({}, WB_hubDefault(), { open: state.drawerOpen }) });
+  }
+
   if (typeof window !== "undefined" && window.addEventListener) {
     window.addEventListener("pagehide", flushHub);
   }
@@ -739,6 +749,7 @@ var WB_store = (function () {
     flushHub: flushHub,
     adoptHub: adoptHub,
     setDeskWidth: setDeskWidth,
+    resetDesk: resetDesk,
     drill: drill,
     drillBack: drillBack,
     drillClear: drillClear,

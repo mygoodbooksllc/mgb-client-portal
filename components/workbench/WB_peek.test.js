@@ -135,12 +135,12 @@ t("which + access: kept and not in my list = the no-access state", () => {
 
 // ---- Money guard ----
 t("money: hidden", () => {
-  ["Fee went up in Jan", "$400 a month", "$ 12", "rate change", "Rates are new", "margin low", "invoice late", "Price list", "payment due", "Payments behind", "paid late", "payroll is off", "billing contact", "bill sent", "costs high", "salary question", "wages", "retainer", "discount agreed", "refund", "owes us", "€20", "£5", "1,200 left", "2.5k over"].forEach((s) =>
+  ["Fee went up in Jan", "$400 a month", "$ 12", "rate change", "Rates are new", "margin low", "invoice late", "Price list", "payment due", "Payments behind", "paid late", "payroll is off", "billing contact", "bill sent", "costs high", "salary question", "wages", "retainer", "discount agreed", "refund", "owes us", "€20", "£5", "1,200 left", "2.5k over", "Raised to 650/mo", "Quoted 1200", "Profit down 20% vs budget", "Revenue 1.2M", "Charging 450 a month", "Hourly is 85", "AR is 40000", "1,5", "Quote sent", "Budget is tight", "Balance looks off", "Please charge them", "Ask about 5k", "Renewal 2026", "They are at 85 an hour"].forEach((s) =>
     assert.strictEqual(P.WB_peekMoney(s), true, s),
   );
 });
 t("money: shown", () => {
-  ["Treasurer changed", "Close Oct by the 10th", "Statements attached", "New pastor starts in May", "Separate the accounts", "Accurate now", "Call Jo first", "2025 audit"].forEach((s) =>
+  ["Treasurer changed", "Close Oct by the 10th", "Statements attached", "New pastor starts in May", "Separate the accounts", "Accurate now", "Call Jo first", "Meeting 11/5 at 3:30pm", "Call on 2026-11-05", "Reconcile checking", "Board meets the 3rd", "Send the W-9"].forEach((s) =>
     assert.strictEqual(P.WB_peekMoney(s), false, s),
   );
 });
@@ -255,6 +255,16 @@ t("leak: money-word flag shows See pinned note (T6, pure part)", () => {
   assert.deepStrictEqual(v.flag, { text: "See pinned note", hidden: true });
   const text = deepStrings(v).join(" ");
   assert.ok(!/\$|\bfee\b|\brate\b|margin/i.test(text), text);
+});
+t("leak: money in the FULL message is caught before it is shortened (no truncation gap)", () => {
+  const body = "Hi Ben, thanks for the quick call yesterday about the new quarter and the staffing plan, so the number we agreed on is 1,500 per cycle";
+  const v = P.WB_peekShape(
+    RICH_CLIENT,
+    { message: { status: "ok", data: [{ client_id: "c1", author_kind: "client", author_name: "Jo", body, internal: false, deleted_at: null, created_at: "2026-11-03T00:00:00Z" }] } },
+    "x",
+  );
+  assert.strictEqual(v.message.text, "Open the thread to read it");
+  assert.ok(!/1,5|1500/.test(deepStrings(v).join(" ")));
 });
 t("leak: a money word in the last message or a contact role is never shown", () => {
   const v = P.WB_peekShape(
@@ -607,6 +617,15 @@ function seq() {
     });
     L.sb.WB_deskReset("ana@x.org");
     assert.deepStrictEqual(Object.keys(L.store).sort(), ["mgb_peek_preview", "mgb_wb_desk:bob@x.org"]);
+  });
+  await ta("reset Desk: also resets the in-memory store (width, hub) when one is loaded", async () => {
+    const L = load({});
+    let called = 0;
+    L.sb.WB_store = { resetDesk: () => { called++; } };
+    L.sb.WB_deskReset("ana@x.org");
+    assert.strictEqual(called, 1);
+    L.sb.WB_store = undefined;
+    L.sb.WB_deskReset("ana@x.org"); // no store loaded: still fine
   });
   await ta("prefs: default prefs remove the key; a change writes it and fires the event", async () => {
     const L = load({});

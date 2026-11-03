@@ -4,7 +4,7 @@ import { emailConfigured, esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
 import { loadSignoffs, signoffHtml, signoffText } from "../_shared/signature.ts";
 import { newToken, nudgeEmail, portalLink, respondLink, tokenHashParam } from "../_shared/tk_requests.ts";
-import { isLostClient } from "./lost.ts";
+import { isLostClient, chicagoToday } from "./lost.ts";
 
 // Client-facing emails (supabase/client-emails.sql has the schema + rules).
 //   job "doc_chaser"   : missing-documents reminders (daily cron)
@@ -115,7 +115,7 @@ function gate(job: Job, trigger: Trigger, settings: any, prefs: any, client: any
   // The internal company profile (MGB itself) is not a client: it never gets client emails.
   if (client?.is_internal) return "Internal company profile";
   // Lost clients (lost_at today or earlier) get no automatic client emails.
-  if (isLostClient(client?.lost_at, dateIn(new Date()))) return "Lost client";
+  if (isLostClient(client?.lost_at, chicagoToday())) return "Lost client";
   return null;
 }
 
