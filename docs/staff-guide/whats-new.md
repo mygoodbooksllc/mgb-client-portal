@@ -9,6 +9,17 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-11-05: A simpler Slate
+
+- **Labeled sidebar.** My tasks, Waiting on client, To review, Clients, Projects and People, each with a name. Admins also see Recurring. The pin and the sidebar search are gone; the top search stays.
+- **Three controls.** Filter, Group and sort, and Saved views replace the two rows of buttons. The Mine today and Waiting chips are gone; Waiting on client has its own sidebar item. "4/14/24th" now reads "Month step (4th/14th/24th)".
+- **Type to add.** An add line at the top of My tasks takes a task in plain words and shows what will be saved before Enter.
+- **Today at a glance.** In the Slate app, with no task open, the right side shows overdue, due this week and waiting on client counts (admins also see waiting for review), three tasks to start with, and an add box.
+- **More details.** Less used fields in an open task fold under More details.
+- **Account menu.** In the Slate app, the avatar sits at the bottom of the sidebar.
+
+See [Slate basics](#/help/slate-basics). The Slate basics tour is in the ? menu.
+
 ### 2026-11-03: Lost clients
 Admins can now mark a client **lost** when it stops being a client: **Manage access › Client organizations**, **Mark lost** on its row, then the first day it's no longer a client. From that day it leaves the **Clients** list, the client picker, pickers, alerts, the weekly digest and client health, its repeating tasks stop, and fee revenue stops on that date. Its history stays (under **Lost clients** at the bottom of the **Clients** page, or by typing its name in the picker), its QuickBooks Time hours still count in firm hours and pay cost, and nobody loses sign-in. **Undo lost** puts it back. See [How do I mark a client as lost?](#/help/lost-clients).
 

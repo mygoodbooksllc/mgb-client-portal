@@ -698,7 +698,7 @@ const TIPS_CATALOG = [
     target: "tk-filter-bar",
     snug: true,
     text: "Three controls: Filter narrows the list, Group and sort sets the order, and Saved views keeps a setup under a name to reuse.",
-    slug: "my-tasks",
+    slug: "slate-basics",
     ready: () => typeof TKB_on === "function" && TKB_on() === true && !!document.querySelector(".tkb-bar"),
   },
   {
@@ -708,7 +708,7 @@ const TIPS_CATALOG = [
     target: "tkb-add",
     snug: true,
     text: "Type a task in plain words, like \"Call Acme about payroll tomorrow\", and press Enter. The line under the box shows what will be saved.",
-    slug: "my-tasks",
+    slug: "slate-basics",
     ready: () => !!document.querySelector('[data-tour="tkb-add"]'),
   },
   {
@@ -718,7 +718,7 @@ const TIPS_CATALOG = [
     target: "tkb-glance",
     snug: true,
     text: "Today at a glance: click a count to filter the list, or a task under Start here to open it. Opening a task swaps this panel for the task.",
-    slug: "my-tasks",
+    slug: "slate-basics",
     ready: () => !!document.querySelector('[data-tour="tkb-glance"]'),
   },
   {

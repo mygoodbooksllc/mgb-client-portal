@@ -6,7 +6,7 @@ on the morning of 2026-11-24 asks whether to keep it going.
 
 ## What runs
 
-- **Scheduled task:** `asana-daily-import` (Claude desktop app, Scheduled). It runs daily at 6:30am local time.
+- **Scheduled task:** `asana-daily-import` (Claude desktop app, Scheduled). It runs daily at about 1:13pm local time (inside work hours; moved from 6:30am on 2026-11-03 because the app was closed in the mornings).
   - It only runs while the Claude app is open. If the Mac is asleep or the app is closed, it runs at the next launch.
 - **Reminder:** `asana-daily-import-decide`, one time, on 2026-11-24 at 8:00am local time.
 - **Code:** `scripts/asana-import/dailyImport.js`, with tests in `dailyImport.test.js`.
