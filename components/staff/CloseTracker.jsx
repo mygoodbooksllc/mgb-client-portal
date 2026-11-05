@@ -596,6 +596,9 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
   const toast = (m) => showToast && showToast(m);
   const isAdmin = !!(staffUser && staffUser.role === "admin");
   const close = CT_useCloseStatus(clients, staffUser);
+  // Review board link (docs/review-board-spec.md): real admins with the
+  // preview on only; off = nothing drawn.
+  const rbOn = typeof RB_useOn === "function" ? RB_useOn() : false;
   const { rows, setRows, lateDay, setLateDay, myClientIds, periods, today, statusOf } = close;
   const state = { loading: close.loading, error: close.error };
   const [focus, setFocus] = useState(close.focus);
@@ -840,6 +843,11 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
           )}
           {isAdmin && cc && typeof CC_StaleDaysSetting === "function" && (
             <CC_StaleDaysSetting value={cc.staleDays} toast={toast} />
+          )}
+          {rbOn && (
+            <a className="btn-secondary btn-sm rb-ct-link" href="#/work/review">
+              Open Review board
+            </a>
           )}
         </div>
         <div className="ct-summary" aria-label={`Summary for ${CT_monthLabel(focus, true)}`}>

@@ -72,6 +72,19 @@ const NAV_PLACES = [
       // Review a file (docs/gl-review-spec.md section 8): any staff member,
       // any exported General Ledger, checked in the browser, nothing saved.
       { key: "ledger", label: "Ledger review", help: "ledger-review", visible: () => typeof LR_ReviewFilePage === "function" },
+      // Review board (docs/review-board-spec.md): real admins only, behind the
+      // preview gate (RB_gate.js). Off = no tab, so #/work/review falls back.
+      {
+        key: "review",
+        label: "Review board",
+        keywords: ["deadlines", "check in", "reports", "follow up", "rhythm"],
+        // No help key yet: the guide article is still a draft
+        // (docs/staff-guide/drafts/review-board-guide.md), so ? falls back to
+        // Work's article. Add help: "review-board" when the article is published.
+        admin: true,
+        realAdmin: true,
+        visible: () => typeof RB_on === "function" && RB_on(),
+      },
     ],
   },
   {

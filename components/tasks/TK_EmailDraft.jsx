@@ -119,6 +119,15 @@ function TK_EmailDraftModal(props) {
     }, function () { setLoad("error"); });
   }
   React.useEffect(function () { start(false); }, [task.id, kind]);
+  // Review board email extras (RB_ReviewBoard.jsx, docs/review-board-spec.md
+  // section 5): To/Cc chips, Copy draft, Open in email app, Mark sent. The
+  // function either exists for the whole session or never does, so the hook
+  // order is stable. Off (not a real admin, preview and switch off, View as,
+  // or the recipients call failed): rbx.on is false and this modal is as before.
+  var rbx = typeof RB_useEmailExtras === "function"
+    ? RB_useEmailExtras({ task: task, subject: subject, body: body, ready: load === "ok" })
+    : null;
+  var rbxOn = !!(rbx && rbx.on);
 
   function copy(what, text) {
     TK_emailCopy(text).then(function () {
@@ -156,13 +165,14 @@ function TK_EmailDraftModal(props) {
         ) : null}
         {load === "ok" ? (
           <React.Fragment>
-            {draft.cc ? <p className="tk-dw-hint">{"Suggested CC: " + draft.cc + " (account manager)"}</p> : null}
+            {draft.cc && !(rbxOn && rbx.hideSuggestedCc) ? <p className="tk-dw-hint">{"Suggested CC: " + draft.cc + " (account manager)"}</p> : null}
             {optionNote ? <p className="tk-dw-hint">{optionNote}</p> : null}
             {draft.warnings && draft.warnings.length ? (
               <p className="tk-dw-hint tk-email-draft-warn">
                 {"Could not read: " + draft.warnings.join(", ") + ". Those parts may be empty; check before you send."}
               </p>
             ) : null}
+            {rbxOn ? rbx.top : null}
             <label className="tk-dw-label" htmlFor="tk-email-draft-subject">Subject</label>
             <input
               id="tk-email-draft-subject"
@@ -195,6 +205,7 @@ function TK_EmailDraftModal(props) {
         <button type="button" className="btn-primary" onClick={function () { copy("body", body); }} disabled={load !== "ok"}>
           Copy email
         </button>
+        {rbxOn ? rbx.footer : null}
       </div>
     </ModalShell>
   );

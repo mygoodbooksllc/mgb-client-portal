@@ -3422,7 +3422,10 @@ var TK_api = (function () {
   // Bell: second preliminary month notices for the signed-in person (RLS).
   api.listRhythmNotices = function () {
     return run(function (c) {
+      // Review board Deadline digest rows (kind deadline_digest, no task) have
+      // their own loader (rbApi.listDigests) and must not take these 50 slots.
       return c.from("tk_rhythm_notices").select("id, client_id, period, task_id, kind, created_at")
+        .neq("kind", "deadline_digest")
         .order("created_at", { ascending: false }).limit(50);
     }, { where: "listRhythmNotices" }).then(function (rows) { return rows || []; });
   };

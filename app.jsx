@@ -1046,6 +1046,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by RB_on / RB_useOn (components/staff/RB_gate.js).
+    key: "mgb_reviewboard_preview",
+    label: "Review board (preview)",
+    description:
+      "Turns on for you only, in this browser, while the firm-wide reviewboard_enabled switch is off, the Review board (Work › Review board), the Deadline digest in your bell (once the owner sets the digest list), plus To/Cc chips, Open in email app and Mark sent in email drafts. Real admins only. Nothing emails anyone. Off in View as. To try drafts while the month rhythm is off, also turn on the Month rhythm preview. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     // Read by MB_previewOn / MB_useGate (components/members/MB_gate.js).
     key: "mgb_members_preview",
     label: "Members area preview",
@@ -1188,6 +1196,11 @@ const INFRA_LINKS = [
     note: "task-templates-daily (10:15 UTC) makes due tasks from active recurring templates (Asana templates stay draft/off until an admin turns one on) · tk-ooo-daily (11:00 UTC) runs tk_ooo_daily(): hands tasks back after time off; hands them off on the first day only if ooo_auto_apply = true (off by default) · logs in tk_ooo_runs (admins) · ledger tk_ooo_reassignments · switch ooo_auto_apply in tk_settings · no edge function",
   },
   {
+    name: "Supabase cron (Review board digest)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/integrations/cron/jobs",
+    note: "review-board-digest (10:50 UTC) runs rb_deadline_digest(): one bell entry per person, month and deadline (4th, 14th, 24th) in tk_rhythm_notices kind deadline_digest · writes nothing unless reviewboard_digest_enabled is true and reviewboard_digest_to lists someone · nothing is emailed · SQL in supabase/review-board-digest.sql",
+  },
+  {
     name: "Google Drive (client files)",
     url: "https://drive.google.com/drive/shared-drives",
     note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs, signed Staff Handbook PDFs under Handbook, and Inventory exports) · service account in Supabase secrets",
@@ -1211,6 +1224,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Desk client summary switch)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "Desk client summary (preview): supabase/owner-only-desk-peek-switch.sql (+ -tests.sql, rolls back) makes tk_settings.desk_peek_enabled owner-only (tk__owner_only_key). No row: missing = off. Read by components/workbench/WB_peek.js, never written by the app. No new tables: the summary makes four reads for one client the person can open (rpc tk_request_recipients, drive_folders, pinned client_private_notes, client_messages), all under their existing RLS; bookkeeper and account manager come from the client list already loaded.",
+  },
+  {
+    name: "Supabase SQL (Review board)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Review board (hidden preview): supabase/review-board-switch.sql, review-board.sql and review-board-digest.sql (each with a -tests.sql self-test that rolls back). RPCs rb_board (real admins), rb_draft_recipients (with sent who/when, review-board-sent-read.sql), rb_mark_email_sent and rb_unmark_email_sent (staff with access to the client); table rb_email_sent (Mark sent markers, nothing is emailed); tk_rhythm_notices kind deadline_digest. pg_cron job review-board-digest (50 10 * * * UTC, ten minutes after month-rhythm-daily) runs rb_deadline_digest and writes nothing unless reviewboard_digest_enabled is true and reviewboard_digest_to lists someone. reviewboard_enabled, reviewboard_digest_enabled and reviewboard_digest_to are owner-only (tk__owner_only_key); no row = off. Read by components/staff/RB_gate.js and RB_api.js, never written by the app.",
   },
   {
     name: "Supabase SQL (Members area)",
@@ -14217,6 +14235,9 @@ function resettableLocalStorageKeys() {
     // mgb_wb_deskprefs:<email> (Customize Desk: Glance, Right now, what shows while closed; cleared by Reset).
     // Create menu (launched 2026-11-02): mgb_create_preview (a flag, kept for a couple of weeks, then removable),
     // mgb_create_cache (the firm switch create_menu_enabled as last read by TB_create.js, cleared by Reset).
+    // Review board (hidden preview): mgb_reviewboard_preview (a flag, kept),
+    // mgb_reviewboard_cache (the firm switch reviewboard_enabled as last read by RB_gate.js, cleared by Reset),
+    // mgb_rb_sort (the board's sort column and direction; cleared by Reset).
     // Members area (hidden preview): mgb_members_preview (a flag, kept),
     // mgb_members_cache (the firm switch members_staff_enabled as last read by MB_gate.js, cleared by Reset).
     // Slate plus (hidden preview): mgb_slateplus_preview (a flag, kept),
@@ -15783,6 +15804,9 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["create_menu_enabled", "Create menu for all staff (owner only)", "ON since 2026-11-02 (the owner set it to true): every staff member has the Create button (top of the left nav; a round + in the top bar on a phone) and its roomier menu, and the Create menu next-visit notice and tour show once per person. Off (or missing) would bring back the small + icon in the top bar for everyone (set it to false to roll back; never delete the row). Set from the SQL editor, never from here. There is no Classic opt-out. The Create menu preview in Feature flags now changes nothing while this is on. The app only reads this; it never sets it."],
             ["deskplus_enabled", "Desk additions for staff", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk exactly as it is for everyone: no Ledger chip in the Inbox, no Waiting on client, recent messages or recent files on the Client tab, no Ask client or Message buttons there, and no Ask client…, Message… or Time off in the + menu. Owner turns it on (true) from the SQL editor (override first; see the README Desk additions launch checklist), never from here, to give those to every staff member who has the Desk. Each person can try it early with Desk additions preview in Feature flags. Needs the Desk on (wb_enabled, unless the person picked Classic Today)."],
             ["desk_peek_enabled", "Desk client summary for staff (owner only)", "Owner-only; off = hidden. Off (or missing, the default) keeps the Desk Client tab, the left sidebar and the Desk head exactly as they are for everyone: no client summary, no Keep on Desk (button, client page button or p key) and no Customize Desk button. True gives every staff member who has the Desk a short summary at the top of the Client tab (people, first contact, Drive folder, pinned Status or Handoff note, last client message, open task count; never any money), Keep on Desk (one client held for 24 hours), and Customize Desk (Glance, Right now, what shows while closed, Reset Desk; saved per person in their browser). Owner turns it on from the SQL editor, never from here, after publishing the guide text, notice and tour (README Desk client summary launch checklist). Each person can try it early with Desk client summary (preview) in Feature flags. Needs the Desk on."],
+            ["reviewboard_enabled", "Review board for admins (owner only)", "Owner-only; off = hidden. Off (or missing, the default) keeps Work, the Close tracker, the bell and email drafts exactly as they are: no Review board tab, no Open Review board link, no Deadline digest, no To/Cc chips, Open in email app or Mark sent. True gives every real admin (never bookkeepers, temp admins or View as) Work › Review board, the bell digest (if they are on the digest list) and the email draft extras. Nothing emails anyone. Owner turns it on from the SQL editor, never from here, after publishing the guide text, notice and tour (docs/staff-guide/drafts/review-board-*.md). Each admin can try it early with Review board (preview) in Feature flags."],
+            ["reviewboard_digest_enabled", "Deadline digest in the bell (owner only)", "Owner-only; off = no digest rows. Off (or missing) means the review-board-digest job (50 10 * * * UTC) writes nothing. True plus at least one email in reviewboard_digest_to writes one bell entry per person, month and deadline (4th, 14th, 24th), refreshed daily. The entry only shows for someone who also has the Review board on. Nothing is emailed."],
+            ["reviewboard_digest_to", "Deadline digest list (owner only)", "Owner-only; a JSON list of staff emails (compared lowercase), for example the owner and Jesse. Empty or missing = no digest for anyone. Set from the SQL editor, never from here."],
             ["members_staff_enabled", "Members area for staff (owner only)", "Owner-only; off = hidden. Off (or missing, the default) hides HR › Members area from every staff member. The owner turns it on (true) from the SQL editor, never from here; until then each person with the permission can try it with Members area preview in Feature flags. Even when on, only admins the owner allowed can list customers. The app only reads it."],
             ["members_area_open", "Members area: customer data open to members (owner only)", "Owner-only; off = closed. Off (or missing, the default) means members and the members-file download can read nothing from the members area except the owner's allowlisted email. The owner turns it on (true) from the SQL editor when the customer-facing members area launches, never from here. Separate from members_staff_enabled, which only shows the staff tab."],
             ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Nothing emails clients and nothing orders gifts either way."],
@@ -17556,6 +17580,7 @@ const USAGE_PAGE_TAB_LABELS = {
     manage: "Manage projects",
   },
   messages: { requests: "What we need from you" },
+  work: { review: "Review board" },
 };
 // Action buckets MGB_track() writes (see the hooks in TopBar, StaffGuide,
 // Tour). Add a label here when a new call site is added.
@@ -30498,6 +30523,16 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // the boards' own sync effects (children) run before this component's.
   WD_sync.setPaused("view-as", Boolean(impersonating));
   WD_sync.setPaused("preview", Boolean(isStaffSession && isPreviewingUser));
+  // Review board (components/staff/RB_gate.js): RB_on() needs a real admin
+  // driving their own session. Set during render so children read it on their
+  // first render; the firm switch is read once per page load, real admins only.
+  const rbRealAdmin = Boolean(
+    isStaffSession && staffUser && STAFF_isRealAdmin(staffUser) && !impersonating && !isPreviewingUser,
+  );
+  if (typeof RB_setViewer === "function") RB_setViewer(rbRealAdmin);
+  useEffect(() => {
+    if (rbRealAdmin && typeof RB_switchRead === "function") RB_switchRead();
+  }, [rbRealAdmin]);
   // Same rule for personal settings (components/settings/Settings.jsx).
   ST_store.setPaused("view-as", Boolean(impersonating));
   ST_store.setPaused("preview", Boolean(isStaffSession && isPreviewingUser));

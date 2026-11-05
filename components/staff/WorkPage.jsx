@@ -9,7 +9,8 @@
 // viewed person's open tasks (TK_MyTasks snapshotFor), never TK_store.
 //
 // App mounts it for the "work" page. The open tab lives in the hash
-// (#/work/tasks, #/work/notes, #/work/close, #/work/deadlines) through
+// (#/work/tasks, #/work/notes, #/work/close, #/work/deadlines, and for real
+// admins with the Review board preview on, #/work/review) through
 // NAV_useHashSub, so a
 // deep link opens the right tab and a tab click is not a history entry. Each
 // tab shows the same component the old standalone page showed (MyTasksPage in
@@ -71,7 +72,11 @@ function WK_TasksBadge({ due }) {
 // so tasks and notes tied to a test client or MGB (internal) still show a name.
 function WK_WorkPage({ clients, taskClients, staffUser, statusOverrides, canManageTemplates, canCreateTemplates, onOpenTemplates, myTasksDue, viewingAs }) {
   const isAdmin = !!(staffUser && staffUser.role === "admin");
-  const tabs = NAV_visibleTabs("work", { isAdmin });
+  // Review board (docs/review-board-spec.md): the tab is realAdmin and gated by
+  // RB_on(); RB_useOn re-renders when the gate changes. Off: same tabs as before.
+  const rbOn = typeof RB_useOn === "function" ? RB_useOn() : false;
+  const isRealAdmin = isAdmin && !viewingAs && rbOn;
+  const tabs = NAV_visibleTabs("work", { isAdmin, isRealAdmin });
   const keys = tabs.map((t) => t.key);
   const [tab, setTab] = NAV_useHashSub("work", keys, "tasks");
   const due = WK_useTasksDue(staffUser, myTasksDue);
@@ -148,6 +153,11 @@ function WK_WorkPage({ clients, taskClients, staffUser, statusOverrides, canMana
       ) : (
         <p className="card-subtitle">Deadlines aren't available right now.</p>
       );
+  } else if (tab === "review") {
+    body =
+      typeof RB_ReviewBoardPage === "function" ? (
+        <RB_ReviewBoardPage staffUser={staffUser} clients={realClients} taskClients={taskClients || clients} viewingAs={viewingAs} />
+      ) : null;
   } else if (tab === "ledger") {
     body =
       typeof LR_ReviewFilePage === "function" ? (

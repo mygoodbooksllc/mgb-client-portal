@@ -446,7 +446,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-11-05b", note: "The bar along the bottom of staff pages is off on computers (late count, Next up). Your Desk is still on the right: click its rail or press D." };
+      window.MGB_VERSION = { label: "2026-11-05a", note: "Hidden preview, real admins only: Review board (Work > Review board: every client's 4th, 14th and 24th rhythm tasks, close status, contacts; sortable, filters, deep links), a Deadline digest in the bell, and To/Cc chips, Copy draft, Open in email app and Mark sent in email drafts (nothing is sent from the portal). Developer tools > Feature flags > Review board (preview). Earlier: Fixed the Desk client summary showing up several times. Hidden preview: Desk client summary (money check tightened, Reset Desk applies at once) + Keep on Desk, and a Desk Customize popover (Developer tools > Feature flags > Desk client summary (preview)). The left sidebar's Pin this client now shows a star, like the Desk. Lost clients (open tasks close once on their own, restored tasks stay; client replies from lost clients still reach Today): admins can mark a client lost (with the date they left) on Manage access > Client organizations, and undo it. Lost clients leave current lists, pickers, alerts and digests; their history and QuickBooks Time hours stay." };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -580,6 +580,9 @@
         "components/inbox/TM_logic.js",
         "components/inbox/StaffInbox.jsx",
         "components/inbox/TM_ThreadMenu.jsx",
+        "components/staff/RB_gate.js",
+        "components/staff/RB_logic.js",
+        "components/staff/RB_api.js",
         "components/staff/StaffNav.jsx",
         "components/staff/HoverNav.jsx",
         "components/staff/ClientFlags.jsx",
@@ -597,6 +600,7 @@
         "components/staff/Onboarding.jsx",
         "components/staff/CloseChecks.jsx",
         "components/staff/CloseTracker.jsx",
+        "components/staff/RB_ReviewBoard.jsx",
         "components/staff/ClientClosePage.jsx",
         "components/internal/MgbHome.jsx",
         "components/staff/TaskTemplates.jsx",

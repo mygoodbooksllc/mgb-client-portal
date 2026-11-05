@@ -852,7 +852,7 @@ function TB_prevMonthStart() {
   return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-function TB_useBellItems({ clients, items, me, isAdmin, page }) {
+function TB_useBellItems({ clients, items, me, isAdmin, isRealAdmin, page }) {
   // Settings > Notifications > "Show in the bell" (components/settings).
   const stSnap = typeof ST_useSettings === "function" ? ST_useSettings() : null;
   const [remote, setRemote] = useState({ msgs: [], docs: [], blocked: [] });
@@ -965,6 +965,28 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
     const id = setInterval(() => !document.hidden && loadRhy(), TB_BELL_REFRESH_MS);
     return () => clearInterval(id);
   }, [loadRhy, page]);
+  // Review board Deadline digest (docs/review-board-spec.md section 4b): my
+  // deadline_digest rows (RLS: my own), real admins with RB_on() only. Off:
+  // no request and nothing in the bell.
+  const rbOn = typeof RB_useOn === "function" ? RB_useOn() : false;
+  const rbWant = !!(rbOn && isRealAdmin && me);
+  const [rbDigests, setRbDigests] = useState({ rows: [], rhythm: null });
+  const loadRbDigests = useCallback(() => {
+    if (!rbWant || typeof rbApi === "undefined" || !rbApi || typeof rbApi.listDigests !== "function") {
+      setRbDigests((x) => (x.rows.length ? { rows: [], rhythm: null } : x));
+      return;
+    }
+    Promise.resolve(rbApi.listDigests()).then(
+      (r) => setRbDigests(r && !r.error && r.data && Array.isArray(r.data.rows) ? r.data : { rows: [], rhythm: null }),
+      () => setRbDigests({ rows: [], rhythm: null }),
+    );
+  }, [rbWant]);
+  useEffect(() => {
+    loadRbDigests();
+    if (!rbWant) return undefined;
+    const id = setInterval(() => !document.hidden && loadRbDigests(), TB_BELL_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [loadRbDigests, page]);
   // Slate plus "Blocked by" (hidden preview): "Ready to start" notices for me
   // (tk_dep_my_notices: my own rows, open tasks, last 14 days). Only while
   // TKP_on(); never in View as (TKP_on is false there).
@@ -1119,6 +1141,19 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
             : lkGo({ place: "tasks", tab: "my", item: "task:" + row.task_id }),
       }),
     );
+  rbDigests.rows
+    .filter((row) => row && row.id && row.part && row.counts)
+    .forEach((row) =>
+      out.push({
+        // "rbd:" is not a Settings bell category, so it always shows; the
+        // updated_at in the id brings it back as new when the counts change.
+        id: "rbd:" + row.id + ":" + row.updated_at,
+        at: row.updated_at || row.created_at,
+        title: typeof RB_digestTitle === "function" ? RB_digestTitle(row.part, row.counts, rbDigests.rhythm, row.period) : "Deadline digest",
+        sub: "Deadline digest · Open Review board",
+        go: () => TB_go("#/work/review?period=" + String(row.period || "").slice(0, 7)),
+      }),
+    );
   depNotices
     .filter((row) => row && row.task_id && !skipped(row.client_id))
     .forEach((row) =>
@@ -1186,7 +1221,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
 }
 
 function TB_Bell({ clients, items, me, isAdmin, isRealAdmin, page }) {
-  const list = TB_useBellItems({ clients, items, me, isAdmin, page });
+  const list = TB_useBellItems({ clients, items, me, isAdmin, isRealAdmin, page });
   // Admin alerts ride in the bell for real admins while the left sidebar is on
   // (the sidebar has no Alerts section of its own). Off: the old top bar as before.
   const sbOn = typeof SS_useOn === "function" ? SS_useOn() : false;
