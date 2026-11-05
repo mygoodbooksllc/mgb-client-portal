@@ -337,6 +337,66 @@ t("recipient chips: no main contact turns the first chip on; none at all is empt
   assert.deepStrictEqual(L.RB_recipientChips({ contact: { name: "No email", email: null } }, "").to, []);
 });
 
+// ---- Client contacts gate (docs/client-contacts-spec.md section 5)
+const OPC = require("../client/OP_contacts.js");
+const withList = () => ({
+  contact: { name: "Pat Main", email: "PAT@client.com" },
+  contacts: [{ name: "Kim", email: "kim@client.com", can_answer: true }],
+  logins: [{ name: "In", email: "in@client.com", opted_out: false }],
+  staff: [
+    { role: "account_manager", email: "jesse@mgb.com", name: "Jesse" },
+    { role: "bookkeeper", email: "amy@mgb.com", name: "Amy" },
+  ],
+  contact_list: [
+    { name: "Pat Main", email: "pat@client.com", source: "main", is_main: true, gets_monthly_emails: true },
+    { name: "Mo", email: "mo@client.com", source: "contact", gets_monthly_emails: true },
+    { name: "Off", email: "off@client.com", source: "contact", gets_monthly_emails: true, opted_out: true },
+    { name: "Kim", email: "kim@client.com", source: "contact", can_answer: true },
+    { name: "Gone", email: "gone@client.com", source: "login", opted_out: true },
+    { name: "In", email: "in@client.com", source: "login" },
+    { name: "Amy too", email: "amy@mgb.com", source: "contact" },
+  ],
+});
+t("recipient chips: contactsOn false with contact_list present is identical to today", () => {
+  const d = withList();
+  const today = L.RB_recipientChips(Object.assign({}, d, { contact_list: undefined }), "jesse@mgb.com");
+  assert.deepStrictEqual(L.RB_recipientChips(d, "jesse@mgb.com"), today);
+  assert.deepStrictEqual(L.RB_recipientChips(d, "jesse@mgb.com", { contactsOn: false, toChips: OPC.OPC_toChips }), today);
+  // Gate on but an older server (no key): today's path too.
+  assert.deepStrictEqual(L.RB_recipientChips(Object.assign({}, d, { contact_list: undefined }), "jesse@mgb.com", { contactsOn: true, toChips: OPC.OPC_toChips }), today);
+});
+t("recipient chips: contactsOn reads contact_list (main + monthly on, opted-out off or skipped)", () => {
+  const c = L.RB_recipientChips(withList(), "jesse@mgb.com", { contactsOn: true, toChips: OPC.OPC_toChips });
+  assert.deepStrictEqual(c.to.map((x) => [x.email, x.on, x.source]), [
+    ["pat@client.com", true, "main"],
+    ["mo@client.com", true, "contact"],
+    ["off@client.com", false, "contact"],
+    ["kim@client.com", false, "contact"],
+    ["in@client.com", false, "login"],
+    ["amy@mgb.com", false, "contact"],
+  ]);
+  assert.ok(/Contact list/.test(c.to[1].tip) && /Opted out/.test(c.to[2].tip));
+  // A To address is not repeated as Cc (To first, as today).
+  assert.deepStrictEqual(c.cc.map((x) => [x.email, x.on]), [["jesse@mgb.com", false]]);
+});
+t("recipient chips: contactsOn first-on fallback skips opted-out people", () => {
+  const c = L.RB_recipientChips(
+    { contact_list: [{ email: "o@client.com", source: "contact", opted_out: true }, { email: "k@client.com", source: "contact" }] },
+    "",
+    { contactsOn: true, toChips: OPC.OPC_toChips },
+  );
+  assert.deepStrictEqual(c.to.map((x) => x.on), [false, true]);
+});
+t("row model: contactList only with contactsOn", () => {
+  const rpc = { client_id: "c1", name: "C1", contact: { name: "Pat", email: "p@c.co", source: "main" }, contact_list: [{ name: "Pat", email: "p@c.co", source: "main" }, null, {}] };
+  const off = L.RB_rowModel(rpc, null, null, { today: "2026-11-05" });
+  assert.ok(!("contactList" in off));
+  const on = L.RB_rowModel(rpc, null, null, { today: "2026-11-05", contactsOn: true });
+  assert.strictEqual(on.contactList.length, 1);
+  const { contactList, ...rest } = on;
+  assert.deepStrictEqual(rest, off);
+});
+
 t("mailto: addresses unencoded, subject/body encoded with CRLF", () => {
   const m = L.RB_mailto({ to: ["pat@client.com", "kim@client.com"], cc: ["amy@mgb.com"], subject: "Q&A: café", body: "Hi,\nline two\r\nend" });
   assert.strictEqual(m.full, true);

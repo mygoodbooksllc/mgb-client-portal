@@ -255,7 +255,7 @@ function RB_rowModel(rpcRow, client, closeStatus, ctx) {
     return RB__str(a.name || a.email).localeCompare(RB__str(b.name || b.email));
   });
   var cs = closeStatus || {};
-  return {
+  var out = {
     id: r.client_id || (c && c.id) || "",
     name: RB__str((c && c.name) || r.name || r.client_id),
     test: !!r.test_only || !!(c && c.test_only),
@@ -271,6 +271,14 @@ function RB_rowModel(rpcRow, client, closeStatus, ctx) {
     chips: chips,
     close: { status: cs.status || "not_started", late: !!cs.late, signedOff: cs.signedOff || null },
   };
+  // Client contacts gate (ctx.contactsOn = OPC_isOn()): the one people list
+  // from cc__people. Off, or an older server without the key: today's row.
+  if (x.contactsOn && Array.isArray(r.contact_list)) {
+    out.contactList = r.contact_list.filter(function (k) {
+      return k && (k.name || k.email || k.phone);
+    });
+  }
+  return out;
 }
 
 function RB__cmpText(a, b) {
@@ -437,14 +445,19 @@ function RB_emailOk(email) {
   return RB_EMAIL_RE.test(RB__str(email).trim());
 }
 
-// data = rb_draft_recipients' answer; me = my email.
+// data = rb_draft_recipients' answer; me = my email; opts.contactsOn =
+// OPC_isOn() (client contacts gate). With the gate on and data.contact_list
+// present, To comes from that one list through OPC_toChips (opts.toChips in
+// node tests): main + monthly on, never anyone opted out; opted-out logins
+// skipped; first not-opted-out chip on when none is. Otherwise today's path:
 // -> { to: [{ email, name, on, source }], cc: [...] }, de-duplicated by
 // lowercase email (To first, so a contact who is also staff stays a To chip).
 // To: the main contact (on), then contacts (can_answer first; off), then
 // active logins that have not opted out (off). With no main contact the first
 // chip is on. Cc: the bookkeeper and the account manager, on unless it is me.
-function RB_recipientChips(data, me) {
+function RB_recipientChips(data, me, opts) {
   var d = data || {};
+  var o = opts || {};
   var mine = RB__email(me);
   var seen = {};
   var to = [];
@@ -455,6 +468,19 @@ function RB_recipientChips(data, me) {
     seen[email] = true;
     list.push({ email: email, name: RB__str(p.name).trim(), on: !!on, source: source });
   };
+  var toChips = o.toChips || (typeof OPC_toChips === "function" ? OPC_toChips : null);
+  if (o.contactsOn && Array.isArray(d.contact_list) && toChips) {
+    toChips(d.contact_list, seen).forEach(function (x) {
+      if (RB_emailOk(x.email)) to.push(x);
+    });
+    var staffList = Array.isArray(d.staff) ? d.staff : [];
+    ["bookkeeper", "account_manager"].forEach(function (role) {
+      staffList.forEach(function (s) {
+        if (s && s.role === role) add(cc, s, role, RB__email(s.email) !== mine);
+      });
+    });
+    return { to: to, cc: cc };
+  }
   if (d.contact) add(to, d.contact, "contact", true);
   var contacts = (Array.isArray(d.contacts) ? d.contacts.slice() : []).filter(Boolean);
   contacts.sort(function (a, b) {
@@ -562,6 +588,7 @@ if (typeof module !== "undefined" && module.exports) {
     RB_digestTitle: RB_digestTitle,
     RB_periodOptions: RB_periodOptions,
     RB_periodFromHash: RB_periodFromHash,
+    RB_EMAIL_RE: RB_EMAIL_RE,
     RB_emailOk: RB_emailOk,
     RB_recipientChips: RB_recipientChips,
     RB_mailto: RB_mailto,

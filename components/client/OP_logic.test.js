@@ -290,4 +290,78 @@ t("gift basis: Client gifts tab wires the admin RPCs", () => {
   assert.ok(tab.includes("OP_api.giftDates") && tab.includes("<th>Client since</th>"), "list shows Client since next to the date followed");
 });
 
+// ---- Client contacts gate (docs/client-contacts-spec.md section 6)
+const C = require("./OP_contacts.js");
+t("contactsOn: a phone-only main contact is not complete; gate off it still is", () => {
+  const f = full();
+  f.contact_email = "";
+  f.contact_phone = "(555) 010-0001";
+  assert.strictEqual(L.OP_checkForm(f, { today: TODAY }).complete, true);
+  const on = L.OP_checkForm(f, { today: TODAY, contactsOn: true, checkPeople: C.OPC_checkPeople });
+  assert.strictEqual(on.complete, false);
+  assert.ok(on.missing.includes("contact_email"));
+  assert.strictEqual(L.OP_isComplete(Object.assign(full(), { contact_email: "", contact_phone: "1" }), { contactsOn: true }), false);
+  assert.strictEqual(L.OP_isComplete(Object.assign(full(), { contact_email: "", contact_phone: "1" })), true);
+});
+t("contactsOn: the main email uses the strict class", () => {
+  const f = full();
+  f.contact_email = "pat@example.test?bcc=x";
+  assert.deepStrictEqual(L.OP_checkForm(f, { today: TODAY }).errors, {});
+  assert.ok(L.OP_checkForm(f, { today: TODAY, contactsOn: true }).errors.contact_email);
+  assert.strictEqual(L.OP_STRICT_EMAIL_RE.source, C.OPC_EMAIL_RE.source);
+});
+t("payload has greeting_name and people only when on (and people only with changes)", () => {
+  const f = full();
+  f.greeting_name = "Pastor Jim";
+  f.people = [{ id: null, name: "Ann", email: "ann@example.test", title: "", gets_monthly_emails: true, can_answer: false }];
+  f.people_original = [];
+  const off = L.OP_checkForm(f, { today: TODAY });
+  assert.ok(!("greeting_name" in off.payload) && !("people" in off.payload));
+  const on = L.OP_checkForm(f, { today: TODAY, contactsOn: true, checkPeople: C.OPC_checkPeople });
+  assert.strictEqual(on.payload.greeting_name, "Pastor Jim");
+  assert.strictEqual(on.payload.people.upsert.length, 1);
+  assert.deepStrictEqual(on.payload.people.remove, []);
+  f.people = [];
+  const none = L.OP_checkForm(f, { today: TODAY, contactsOn: true, checkPeople: C.OPC_checkPeople });
+  assert.ok(!("people" in none.payload));
+  assert.strictEqual(none.payload.greeting_name, "Pastor Jim");
+});
+t("people errors block the save under the gate; greeting with a newline is refused", () => {
+  const f = full();
+  f.people = [{ name: "Dup", email: "pat@example.test" }];
+  f.greeting_name = "Jim\nBob";
+  const r = L.OP_checkForm(f, { today: TODAY, contactsOn: true, checkPeople: C.OPC_checkPeople });
+  assert.ok(/Already the main contact/.test(r.errors["people.0.email"]));
+  assert.ok(r.errors.greeting_name);
+  assert.strictEqual(r.complete, false);
+});
+t("initialForm: gate off is unchanged; on uses main_prefill, people and the tombstone blank", () => {
+  const mine = {
+    profile: { contact_name: "Old", contact_email: "old@example.test", contact_phone: "555", greeting_name: "Jim" },
+    prefill: { user_name: "Me", user_email: "me@example.test" },
+  };
+  const off = L.OP_initialForm(mine);
+  assert.strictEqual(off.contact_email, "old@example.test");
+  assert.ok(!("people" in off) && !("greeting_name" in off));
+  const on = L.OP_initialForm(
+    Object.assign({}, mine, {
+      contacts_enabled: true,
+      main_prefill: { name: "New Main", email: "new@example.test", phone: null },
+      people: [
+        { id: "m", name: "New Main", email: "new@example.test", is_main: true },
+        { id: "o", name: "Other", email: "o@example.test", gets_monthly_emails: true },
+      ],
+    }),
+  );
+  assert.strictEqual(on.contact_name, "New Main");
+  assert.strictEqual(on.contact_email, "new@example.test");
+  assert.strictEqual(on.contact_phone, "");
+  assert.strictEqual(on.greeting_name, "Jim");
+  assert.deepStrictEqual(on.people.map((x) => x.id), ["o"]);
+  assert.deepStrictEqual(on.people_original, on.people);
+  const tomb = L.OP_initialForm(Object.assign({}, mine, { contacts_enabled: true, main_prefill: { name: null, email: null, phone: null }, people: [] }));
+  assert.strictEqual(tomb.contact_email, "");
+  assert.strictEqual(tomb.contact_name, "");
+});
+
 console.log("OP_logic: " + n + " checks passed");

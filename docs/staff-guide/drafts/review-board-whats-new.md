@@ -9,3 +9,6 @@ Held until launch. At launch, paste the entry below at the top of the entries in
 - **Email drafts** on month-rhythm tasks now have **To** and **Cc** chips, **Copy draft**, **Open in email app** and **Mark sent** (who and when, with Undo). Nothing is sent from the portal; you still send from your own email.
 
 See [Review board](#/help/review-board).
+
+
+> **Held note (client contacts, 2026-11-05):** when both `reviewboard_enabled` and `org_contacts_enabled` are on (or for test clients / the Org profile contacts preview), the ▸ expander shows one **People** list instead of "Main contact … first portal login" and Portal logins. Each person shows where they came from: **Main contact**, **Main contact (from org profile, not saved as a contact yet)**, **Contact list** or **Portal login**, plus Monthly emails, Can answer, **Added by client** and Opted out. Email-draft To chips come from the same list (main contact and Monthly emails preselected, never anyone opted out). See `drafts/client-contacts-org-profile.md`. Update this text at that launch.

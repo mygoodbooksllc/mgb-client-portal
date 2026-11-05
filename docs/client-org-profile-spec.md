@@ -101,3 +101,10 @@ Owner decisions (2026-10-14, 2026-10-16) are final. Built hidden behind a previe
 14. (SHOULD, adopted) The client UI decides on the RPC's `eligible` value, never on `resolveAccess().isFullAccess`. The digest treats an RPC error as no line. No triggers and no tk__enqueue calls. The dismissal key is `mgb_op_later:<email>` in sessionStorage. Delete rules: client_gifts uses `on delete restrict`; the profile and get-to-know cascade.
 15. (SHOULD, deferred) A unique index on lower(client_users.email) is not added, because it is a shared table outside this feature. Noted for the owner.
 16. SQL self-tests (rolled back) cover: a scoped user, an inactive user, a staff JWT, another org's client_id in the payload, oversized and unknown keys, anon, Feb 29, and audit containing no answer text.
+
+## 10. People to contact (2026-11-05, hidden)
+Full spec: `docs/client-contacts-spec.md` (migration `supabase/client-contacts.sql`, applied 2026-11-05). Gate: `op__contacts_on` = owner-only `tk_settings.org_contacts_enabled` OR `clients.test_only`; staff also need the org-profile gate plus the switch cache or the `mgb_orgcontacts_preview` flag.
+- **Client form (gate on):** the main contact email becomes required ("We email monthly reports here."), a greeting name field ("e.g. Pastor Jim"), and "Other people we should contact" (up to 24 more: name, email, role or title, Gets monthly emails, Can answer our questions). Saved to `client_contacts`, one `is_main` row mirroring the profile contact.
+- **Completeness under the gate:** a main contact email is required, so a phone-only main contact no longer completes. Existing completions stand until the next save. Gate off: the rule in section 3 is unchanged.
+- **Staff card (gate on):** greeting row with a mismatch flag against `client_profile`, and a People to contact section (`data-tour="op-staff-people"`, id `ov-orgprofile-people`) to add, edit, remove and pick the main contact (`staff_client_contact_save`). Notes and role are staff-only.
+- With the gate off, every reply, form and card is as before.

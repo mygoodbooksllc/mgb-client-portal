@@ -93,3 +93,6 @@ Add after the Close tracker stop, behind the same gate:
 ## Usage Stats
 
 `USAGE_PAGE_TAB_LABELS.work.review` = "Review board" is already in app.jsx, so the tab is labeled in Usage Stats as soon as anyone uses it.
+
+
+> **Held note (client contacts, 2026-11-05):** when both `reviewboard_enabled` and `org_contacts_enabled` are on (or for test clients / the Org profile contacts preview), the ▸ expander shows one **People** list instead of "Main contact … first portal login" and Portal logins. Each person shows where they came from: **Main contact**, **Main contact (from org profile, not saved as a contact yet)**, **Contact list** or **Portal login**, plus Monthly emails, Can answer, **Added by client** and Opted out. Email-draft To chips come from the same list (main contact and Monthly emails preselected, never anyone opted out). See `drafts/client-contacts-org-profile.md`. Update this text at that launch.

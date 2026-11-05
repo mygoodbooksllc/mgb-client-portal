@@ -370,8 +370,75 @@ function OPI_countsReport(res) {
   return lines.join("\n");
 }
 
+// Client contacts import plan (docs/client-contacts-spec.md section 9), a
+// DRY RUN. rows = sheet people for ONE client, already mapped to
+// {name, email, title, gets_monthly_emails} (the column map is confirmed by
+// the owner at import time). existing = that client's client_contacts rows
+// {id, email, source, edited_at, deleted_at, name, title, gets_monthly_emails}.
+// -> { insert: [..], update: [{id, set}], skipped_edited: [..], skipped_conflict: [..] }
+// Rules: insert new emails as source 'import' with can_answer false; update
+// only rows with source 'import' and no edited_at, and only fill or change
+// fields the sheet has (never clear one); never delete, never set is_main,
+// never touch client or staff rows (skipped_conflict), never re-create a
+// removed person (skipped_conflict). Bad or missing emails are skipped.
+function OPI_planContacts(rows, existing) {
+  var re = /^[^\s@?&,%#<>"]+@[^\s@?&,%#<>"]+\.[^\s@?&,%#<>"]+$/;
+  var str = function (v) {
+    return v === null || v === undefined ? "" : String(v).trim();
+  };
+  var live = {};
+  var dead = {};
+  (Array.isArray(existing) ? existing : []).forEach(function (k) {
+    if (!k || !k.email) return;
+    var e = str(k.email).toLowerCase();
+    if (k.deleted_at) dead[e] = k;
+    else live[e] = k;
+  });
+  var out = { insert: [], update: [], skipped_edited: [], skipped_conflict: [], skipped_invalid: [] };
+  var seen = {};
+  (Array.isArray(rows) ? rows : []).forEach(function (r, i) {
+    var email = str(r && r.email).toLowerCase();
+    var name = str(r && r.name);
+    if (!email || !re.test(email) || email.length > 254 || !name || name.length > 120) {
+      out.skipped_invalid.push(i);
+      return;
+    }
+    if (seen[email]) {
+      out.skipped_conflict.push(i);
+      return;
+    }
+    seen[email] = true;
+    var title = str(r.title).slice(0, 120);
+    var monthly = !!r.gets_monthly_emails;
+    var k = live[email];
+    if (!k) {
+      if (dead[email]) {
+        out.skipped_conflict.push(i); // staff or the client removed them
+        return;
+      }
+      out.insert.push({ name: name, email: email, title: title || null, gets_monthly_emails: monthly, can_answer: false, source: "import" });
+      return;
+    }
+    if (k.source !== "import" || k.is_main) {
+      out.skipped_conflict.push(i);
+      return;
+    }
+    if (k.edited_at) {
+      out.skipped_edited.push(i);
+      return;
+    }
+    var set = {};
+    if (name !== str(k.name)) set.name = name;
+    if (title && title !== str(k.title)) set.title = title;
+    if (monthly !== !!k.gets_monthly_emails) set.gets_monthly_emails = monthly;
+    if (Object.keys(set).length) out.update.push({ id: k.id, set: set });
+  });
+  return out;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    planContacts: OPI_planContacts,
     parseCsv: OPI_parseCsv,
     normalizeName: OPI_normalizeName,
     similarity: OPI_similarity,

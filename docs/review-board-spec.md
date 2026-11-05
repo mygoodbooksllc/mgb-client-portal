@@ -628,6 +628,11 @@ Access (owner decision 2026-11-05, loosened from the spec's admin-only): anyone 
 
 The `sent` key lets a reopened draft show "Marked sent by <you or name> · <day>, <time>" with Undo, and keeps Mark sent disabled.
 
+### Client contacts addendum (2026-11-05, hidden; `docs/client-contacts-spec.md`)
+`rb_board` (per client) and `rb_draft_recipients` now also return `contact_list` from `cc__people(client)`: `[{name, email, phone, title, role, is_main, gets_monthly_emails, can_answer, opted_out, source, contact_id, added_by_client}]`, never notes. Read order: `main` (the live `is_main` contact row), `profile` (the org-profile contact not yet saved as a row), `contact` (other live `client_contacts`), `login` (active client logins); deduped by email, first wins. `contact` and `contacts`/`logins` keep today's meaning.
+- The UI uses `contact_list` only under `OPC_isOn()`: the expander shows one People list with source labels ("Main contact", "Main contact (from org profile, not saved as a contact yet)", "Contact list", "Portal login") and an "Added by client" note; draft To chips come from `OPC_toChips` (main and Gets monthly emails preselected, never anyone opted out; logins that opted out are left out; if none is preselected, the first not opted out is). Cc is unchanged. Empty To text: "Add people in Organization profile › People to contact."
+- Gate off: the old `contact`/`contacts`/`logins` path, unchanged (the old expander's email link now goes through `RB_mailto`).
+
 ### `rpc('rb_mark_email_sent', { p_task_id, p_to_count })` → `{task_id, kind, to_count, by, at}`
 
 Active staff with access to the task's client (42501 otherwise). Kind comes from the template's `email_kind` (null → 22023 `rb_not_email_task`). `p_to_count` clamped 0..50. Re-marking overwrites by/at. Nothing is sent.

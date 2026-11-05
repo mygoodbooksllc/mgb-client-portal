@@ -20,6 +20,10 @@
 // (MGB_VIEW_AS_READ_RPCS or MGB_VIEW_AS_SILENT_RPCS, spec §3.1a) after
 // checking in SQL that it is STABLE / writes nothing. Unlisted RPCs are
 // blocked with a toast.
+// staff_client_contact_save and tk_retire_client_contact (org profile People
+// to contact, docs/client-contacts-spec.md) are writes and deliberately in
+// neither list: View as blocks them, and the People section hides Edit and
+// Remove there anyway.
 // ----------------------------------------------------------------------------
 window.MGB_VIEW_AS_READ_RPCS = new Set([
   // Client-scoped reads (lists are already filtered to the viewed person's clients).

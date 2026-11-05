@@ -48,3 +48,21 @@
   .op-gifts tr { border-bottom: 1px solid var(--border); padding: 8px 0; }
   .op-gifts td { border: 0; padding: 4px 0; }
 }
+
+/* Client contacts (hidden behind the contacts gate: mine().contacts_enabled
+   for clients, OPC_isOn() for staff). New class names only. */
+.op-people { display: grid; gap: 10px; }
+.op-person { position: relative; border: 1px solid var(--border); border-radius: 8px; padding: 10px 40px 10px 12px; margin: 0; min-width: 0; display: grid; gap: 8px; }
+.op-person legend { padding: 0 4px; margin-bottom: 0; }
+.op-person .op-check { margin-top: 0; margin-right: 14px; }
+.op-person-x { position: absolute; top: 6px; right: 6px; background: none; border: 0; color: var(--text-muted); cursor: pointer; font-size: 14px; padding: 6px; line-height: 1; }
+.op-person-x:hover { color: var(--bad); }
+.op-people-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.op-people-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 8px; font-size: 13.5px; }
+.op-people-row:last-child { border-bottom: 0; }
+.op-people-main { display: grid; gap: 2px; min-width: 0; word-break: break-word; }
+.op-people-meta { color: var(--text-muted); font-size: 12.5px; }
+.op-badges { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.op-badges .pill { font-size: 11px; padding: 1px 7px; }
+.op-people-form { display: grid; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 8px; }
+.op-people-form .op-check { margin-top: 0; margin-right: 14px; }

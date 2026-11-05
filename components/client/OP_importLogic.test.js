@@ -181,4 +181,40 @@ t("CLI script prints counts only", () => {
   }
 });
 
+// ---- Client contacts import plan (docs/client-contacts-spec.md section 9)
+t("planContacts: never touches edited, client or staff rows; never deletes or sets main", () => {
+  const existing = [
+    { id: "i1", email: "imp@example.test", source: "import", edited_at: null, name: "Imp", title: null, gets_monthly_emails: false },
+    { id: "i2", email: "edited@example.test", source: "import", edited_at: "2026-11-01T00:00:00Z", name: "Ed" },
+    { id: "c1", email: "client@example.test", source: "client", edited_at: null, name: "Cli" },
+    { id: "s1", email: "staff@example.test", source: "staff", edited_at: null, name: "Sta" },
+    { id: "m1", email: "main@example.test", source: "import", is_main: true, edited_at: null, name: "Main" },
+    { id: "d1", email: "gone@example.test", source: "import", deleted_at: "2026-10-01T00:00:00Z", name: "Gone" },
+    { id: "same", email: "same@example.test", source: "import", edited_at: null, name: "Same", title: "T", gets_monthly_emails: true },
+  ];
+  const rows = [
+    { name: "Imp Renamed", email: "IMP@example.test", title: "Treasurer", gets_monthly_emails: true },
+    { name: "Ed", email: "edited@example.test" },
+    { name: "Cli", email: "client@example.test" },
+    { name: "Sta", email: "staff@example.test" },
+    { name: "Main", email: "main@example.test" },
+    { name: "Gone", email: "gone@example.test" },
+    { name: "New", email: "new@example.test", title: "", gets_monthly_emails: true },
+    { name: "Bad", email: "bad@x.co?bcc=y" },
+    { name: "New again", email: "NEW@example.test" },
+    { name: "Same", email: "same@example.test", title: "", gets_monthly_emails: true },
+  ];
+  const p = I.planContacts(rows, existing);
+  assert.deepStrictEqual(p.insert, [{ name: "New", email: "new@example.test", title: null, gets_monthly_emails: true, can_answer: false, source: "import" }]);
+  assert.deepStrictEqual(p.update, [{ id: "i1", set: { name: "Imp Renamed", title: "Treasurer", gets_monthly_emails: true } }]);
+  assert.deepStrictEqual(p.skipped_edited, [1]);
+  assert.deepStrictEqual(p.skipped_conflict, [2, 3, 4, 5, 8]);
+  assert.deepStrictEqual(p.skipped_invalid, [7]);
+  assert.ok(!("delete" in p) && !("remove" in p));
+  const all = JSON.stringify(p);
+  assert.ok(!/is_main/.test(all), "never sets is_main");
+  assert.ok(!/"title":""/.test(all), "never clears a field");
+  assert.deepStrictEqual(I.planContacts(null, null), { insert: [], update: [], skipped_edited: [], skipped_conflict: [], skipped_invalid: [] });
+});
+
 console.log("OP_importLogic: " + n + " checks passed");

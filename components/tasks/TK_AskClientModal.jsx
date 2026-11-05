@@ -254,7 +254,8 @@ function TK_AskClientModal(props) {
               <label key={"c:" + c.id} className="tk-ask-person">
                 <input type="checkbox" checked={form.contactIds.indexOf(c.id) >= 0} onChange={function () { toggle("contactIds", c.id); }} />
                 <span className="tk-ask-person-name">{c.name}</span>
-                <span className="tk-ask-person-note">{"Contact" + (c.role ? " · " + c.role : "") + " · answers by link"}</span>
+                <span className="tk-ask-person-note">{"Contact" + (c.role ? " · " + c.role : "") + " · answers by link" +
+                  (c.source === "client" && typeof OPC_isOn === "function" && OPC_isOn() ? " · Added by client" : "")}</span>
               </label>
             );
           })}

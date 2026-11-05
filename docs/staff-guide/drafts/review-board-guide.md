@@ -61,3 +61,6 @@ The draft window on a month-rhythm email task (Draft request, Draft reports, Dra
 - **Mark sent** records that you sent it (**Marked sent by you · 2:14 pm**, with **Undo**). It does not complete the task. The Review board chip shows the marker.
 
 Nothing is ever sent from the portal. You send the email from your own email app.
+
+
+> **Held note (client contacts, 2026-11-05):** when both `reviewboard_enabled` and `org_contacts_enabled` are on (or for test clients / the Org profile contacts preview), the ▸ expander shows one **People** list instead of "Main contact … first portal login" and Portal logins. Each person shows where they came from: **Main contact**, **Main contact (from org profile, not saved as a contact yet)**, **Contact list** or **Portal login**, plus Monthly emails, Can answer, **Added by client** and Opted out. Email-draft To chips come from the same list (main contact and Monthly emails preselected, never anyone opted out). See `drafts/client-contacts-org-profile.md`. Update this text at that launch.

@@ -1999,6 +1999,13 @@ Team Reviews files.
     --project-ref xumsqmhccgfjnlmieqyu` (no `--no-verify-jwt`; bundles `./logic.ts`). No new
     secret. Apply `supabase/staff-auth-repair.sql` first, or the page's missing-account card stays
     hidden and `repair` returns 503 (`ensure` still works).
+- **Client contacts in the org profile** (`supabase/client-contacts.sql`, applied 2026-11-05,
+  hidden behind the owner-only `tk_settings.org_contacts_enabled` plus test clients;
+  `client-contacts-rollback.sql` kept, not run; `client-contacts-tests.sql` rolls back). Additive:
+  new `client_contacts` columns (title, gets_monthly_emails, is_main, source, edited_at),
+  `client_org_profile.greeting_name`, `cc__people`, `staff_client_contact_save`, two triggers
+  (the token-revoke one does nothing while the gate is off), and eight replaced functions that
+  only add keys while off. Spec `docs/client-contacts-spec.md`.
 - **Client files in Google Drive** (`supabase/google-drive-files.sql`, applied 2026-10-06;
   function `supabase/functions/drive-files/`, `verify_jwt` off, checks the caller's JWT itself).
   - Files from the Documents page, the page-wide drop, document requests and client message
@@ -3214,6 +3221,10 @@ Built 2026-10-23 (spec `docs/client-org-profile-spec.md`, SQL `supabase/client-o
 - **Admins:** Team › **Client gifts** (`OP_GiftsTab`, `realAdmin`, tab `visible()` = `OP_isOn()`): `admin_upcoming_anniversaries(30)`, Plan / Mark sent / Skip on `client_gifts` (admin-only RLS), $30-45 budget note, Past gifts, the digest line, and the import **dry run** (paste CSV; no write button; nothing saved).
 - **Digest:** `weekly-admin-digest` adds "Anniversaries coming up: N clients" from `org_anniversaries_digest_count` (null while the switch is off). Deployed 2026-10-25.
 - **Upkeep (published 2026-10-25):** guide `docs/staff-guide/client-org-profile.md` (synced), What's new entry 2026-10-25 (the draft `drafts/whats-new-client-org-profile.txt` is marked PUBLISHED), launch notice `client-org-profile-launch` in `announcements.js` (visible only when `mgb_orgprofile_cache` is "1", never for the preview flag). Nothing emails clients and nothing orders gifts.
+
+#### Org profile contacts (hidden preview, 2026-11-05)
+
+People to contact on the org profile (spec `docs/client-contacts-spec.md`, SQL `supabase/client-contacts.sql`, applied 2026-11-05). Server gate `op__contacts_on` = owner-only `tk_settings.org_contacts_enabled` OR `clients.test_only`; clients decide only on `client_org_profile_mine().contacts_enabled`; staff use `OPC_isOn()` (`components/client/OP_contacts.js`: org-profile gate AND the switch cache `mgb_orgcontacts_cache` or the Dev Tools flag **Org profile contacts (preview)**, `mgb_orgcontacts_preview`). When on: the client form adds a greeting name and "Other people we should contact" and requires a main contact email; the staff Organization profile card adds People to contact (add, edit, remove, main contact; notes and role staff-only) and a greeting mismatch flag; the Review board expander and email-draft To chips read one people list (`contact_list`, with source labels); the tasks drawer shows a title when role is blank, and Ask client marks client-added contacts. Off: everything as before. Guide drafts are held in `docs/staff-guide/drafts/` (client-contacts-org-profile.md, whats-new-client-contacts.md, client-help-org-contacts.md); no notice or tour until launch.
 
 ### Lato font, brand colors and hover menus (firm switches)
 

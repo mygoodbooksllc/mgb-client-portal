@@ -92,6 +92,69 @@ function OP_isOn(serverEnabled) {
   return OP__ls("mgb_orgprofile_cache") === "1";
 }
 
+// Client contacts gate (docs/client-contacts-spec.md section 1): staff read
+// tk_settings.org_contacts_enabled once per page load, the same way as
+// OP_readSwitch, and the answer is cached in mgb_orgcontacts_cache (emits
+// mgb:orgcontacts). OPC_isOn() (OP_contacts.js) reads that cache and the
+// personal preview mgb_orgcontacts_preview. Code never writes the switch.
+var OPC__switch = { state: "idle" }; // idle | reading | done
+function OPC_readSwitch(force) {
+  var c = OP__sb();
+  if (!c || (!force && OPC__switch.state !== "idle")) return;
+  OPC__switch.state = "reading";
+  var fail = function () {
+    OPC__switch.state = "idle";
+  };
+  try {
+    var go = function () {
+      c.from("tk_settings")
+        .select("value")
+        .eq("key", "org_contacts_enabled")
+        .maybeSingle()
+        .then(function (res) {
+          if (!res || res.error) return fail();
+          OPC__switch.state = "done";
+          var before = OP__ls("mgb_orgcontacts_cache");
+          OP__lsSet("mgb_orgcontacts_cache", res.data && OP__switchValue(res.data.value) ? "1" : null);
+          if (OP__ls("mgb_orgcontacts_cache") !== before) OP__emit("mgb:orgcontacts");
+        }, fail);
+    };
+    if (c.auth && typeof c.auth.getSession === "function") {
+      c.auth.getSession().then(function (r) {
+        if (r && r.data && r.data.session) go();
+        else fail();
+      }, fail);
+    } else go();
+  } catch (e) {
+    fail();
+  }
+}
+
+// Re-render hook for the contacts gate (staff): bumps on either cache change.
+function OPC_useGate() {
+  var s = React.useState(0);
+  var bump = s[1];
+  React.useEffect(function () {
+    var on = function () {
+      bump(function (n) {
+        return n + 1;
+      });
+    };
+    var onStorage = function (e) {
+      if (!e || !e.key || /^mgb_org(profile|contacts)_/.test(e.key)) on();
+    };
+    window.addEventListener("mgb:orgprofile", on);
+    window.addEventListener("mgb:orgcontacts", on);
+    window.addEventListener("storage", onStorage);
+    return function () {
+      window.removeEventListener("mgb:orgprofile", on);
+      window.removeEventListener("mgb:orgcontacts", on);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  return typeof OPC_isOn === "function" ? OPC_isOn() : false;
+}
+
 // Re-render hook for staff UI: bumps when the switch cache changes.
 function OP_useGate() {
   var s = React.useState(0);
@@ -130,7 +193,8 @@ function OP__rpc(name, args) {
 }
 
 var OP_api = {
-  // Client: {eligible, enabled, profile, prefill, complete, has_get_to_know}
+  // Client: {eligible, enabled, profile, prefill, complete, has_get_to_know,
+  // contacts_enabled}; with contacts_enabled also main_prefill and people.
   mine: function () {
     return OP__rpc("client_org_profile_mine");
   },
@@ -141,6 +205,23 @@ var OP_api = {
   // Staff: one client's card.
   staffProfile: function (clientId) {
     return OP__rpc("staff_client_org_profile", { p_client_id: clientId });
+  },
+  // Staff (client contacts gate): add or edit one contact. Returns
+  // {id, contact_list}. preview = the person's mgb_orgcontacts_preview; the
+  // server honors it only for a real admin.
+  saveContact: function (clientId, p, preview) {
+    return OP__rpc("staff_client_contact_save", { p_client_id: clientId, p: p, p_preview: !!preview });
+  },
+  // Staff (RLS "staff read client contacts"): role and notes for the edit
+  // form (contact_list never carries notes).
+  contactRows: function (clientId) {
+    var c = OP__sb();
+    if (!c) return Promise.resolve({ data: [], error: null });
+    return c.from("client_contacts").select("id,role,notes").eq("client_id", clientId).is("deleted_at", null);
+  },
+  // Staff: remove (soft delete; revokes that contact's open links).
+  retireContact: function (id) {
+    return OP__rpc("tk_retire_client_contact", { p_id: id });
   },
   // Staff: set or (null) reset Client since.
   setClientSince: function (clientId, iso) {

@@ -8,6 +8,10 @@
 // Get-to-know answers are write-only: they are never read back.
 // Styles: components/client/op.css. Element id "op-prompt" holds the client
 // tour (OP_promptPending in OP_store.js).
+// Client contacts (docs/client-contacts-spec.md section 6): only when
+// mine().contacts_enabled is true, the main contact email is required, and
+// the form adds "How should we greet you in emails?" and "Other people we
+// should contact". With it false the form is exactly as before.
 
 function OP_ClientPrompt({ email }) {
   const st = OP_useMine(true);
@@ -65,8 +69,22 @@ function OP_ClientPrompt({ email }) {
 // never echoes the value; swap the key for its label.
 function OP_saveError(e) {
   const msg = String((e && e.message) || "");
+  if (e && e.code === "23505") return "Someone just changed this list. Reload and try again.";
   if (!msg) return "Please try again.";
   if (/not allowed/i.test(msg)) return "Your sign-in can't change this profile.";
+  // People to contact (gate on). The server names the row, never the value.
+  const row = (s) => {
+    const r = /people(?:\.remove)?\[(\d+)\]/.exec(s);
+    return r ? "Person " + r[1] + ": " : "";
+  };
+  if (/^people_limit/.test(msg)) return /changes/.test(msg) ? "That's too many changes at once. Save some, then the rest." : "You can list up to 25 people in all.";
+  if (/^people_id/.test(msg) || /^people_remove_main/.test(msg)) return "Someone just changed this list. Reload and try again.";
+  if (/^people_email_duplicate/.test(msg)) return row(msg) + "that email is already in the list or is the main contact.";
+  if (/^people\[\d+\]\.email/.test(msg)) return row(msg) + "that doesn't look like an email address.";
+  if (/^people\[\d+\]\.name/.test(msg)) return row(msg) + (/required/.test(msg) ? "add a name." : "check the name.");
+  if (/^people\[\d+\]\.title/.test(msg)) return row(msg) + "check the role or title.";
+  if (/^greeting_name/.test(msg)) return "Greeting: use plain text.";
+  if (/^payload is too large/.test(msg)) return "That's a lot of text at once. Shorten some answers and try again.";
   const m = /^(?:get_to_know\.)?([a-z_]+)(?::)?\s+(.*)$/.exec(msg);
   if (m && OP_FIELD_LABELS[m[1]]) return OP_FIELD_LABELS[m[1]] + ": " + m[2] + ".";
   return "Please check the form and try again.";
@@ -79,11 +97,18 @@ function OP_ClientForm({ data, onLater, onSaved }) {
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState("");
   const [tried, setTried] = React.useState(false);
-  const check = OP_checkForm(form, { orgAddress });
+  const contactsOn = data.contacts_enabled === true;
+  const check = OP_checkForm(form, contactsOn ? { orgAddress, contactsOn, checkPeople: OPC_checkPeople } : { orgAddress });
   const set = (k, v) => setForm((f) => Object.assign({}, f, { [k]: v }));
   const setGtk = (k, v) => setForm((f) => Object.assign({}, f, { gtk: Object.assign({}, f.gtk, { [k]: v }) }));
   const fieldErr = (k) => (check.errors[k] ? <div className="op-err">{check.errors[k]}</div> : null);
   const missing = (k) => tried && check.missing.includes(k);
+  const people = form.people || [];
+  const setPerson = (i, k, v) =>
+    setForm((f) => Object.assign({}, f, { people: (f.people || []).map((r, j) => (j === i ? Object.assign({}, r, { [k]: v }) : r)) }));
+  const addPerson = () => setForm((f) => Object.assign({}, f, { people: (f.people || []).concat([OPC_blankRow()]) }));
+  const removePerson = (i) => setForm((f) => Object.assign({}, f, { people: (f.people || []).filter((_, j) => j !== i) }));
+  const personErr = (i, k) => check.errors["people." + i + "." + k];
   const req = <span className="op-req"> (required)</span>;
 
   const save = async () => {
@@ -201,12 +226,80 @@ function OP_ClientForm({ data, onLater, onSaved }) {
             <h4>Main contact</h4>
             {input("contact_name", "Name", "text", { required: true, autoComplete: "name" })}
             <div className="op-row2">
-              {input("contact_email", "Email", "email", { autoComplete: "email" })}
+              {input("contact_email", "Email", "email", contactsOn ? { required: true, autoComplete: "email" } : { autoComplete: "email" })}
               {input("contact_phone", "Phone", "tel", { autoComplete: "tel" })}
             </div>
             <p className="op-hint" style={{ marginTop: -8 }}>
-              An email or a phone number is enough.
+              {contactsOn ? "We email monthly reports here." : "An email or a phone number is enough."}
             </p>
+            {contactsOn ? (
+              <div className="op-field">
+                <label htmlFor="op-greeting_name">How should we greet you in emails?</label>
+                <input
+                  id="op-greeting_name"
+                  type="text"
+                  value={form.greeting_name || ""}
+                  maxLength={OPC_LIMITS.greeting}
+                  placeholder="e.g. Pastor Jim"
+                  aria-invalid={check.errors.greeting_name ? "true" : undefined}
+                  onChange={(e) => set("greeting_name", e.target.value)}
+                  autoComplete="off"
+                />
+                {fieldErr("greeting_name")}
+              </div>
+            ) : null}
+            {contactsOn ? (
+              <div className="op-people" data-tour="op-client-people">
+                <h4>Other people we should contact</h4>
+                <p className="op-hint" style={{ marginTop: 0 }}>
+                  Treasurer, finance chair, anyone else who should hear from us. Our team may have added some already.
+                </p>
+                {people.map((r, i) => (
+                  <fieldset className="op-person" key={r.id || "new-" + i}>
+                    <legend className="op-label">Person {i + 1}</legend>
+                    <button type="button" className="op-person-x" aria-label={"Remove person " + (i + 1)} onClick={() => removePerson(i)}>
+                      ✕
+                    </button>
+                    <div className="op-row2">
+                      <div className="op-field">
+                        <label htmlFor={"op-p" + i + "-name"}>Name{req}</label>
+                        <input id={"op-p" + i + "-name"} type="text" value={r.name || ""} maxLength={OPC_LIMITS.name}
+                          aria-invalid={personErr(i, "name") ? "true" : undefined}
+                          onChange={(e) => setPerson(i, "name", e.target.value)} autoComplete="off" />
+                        {personErr(i, "name") ? <div className="op-err">{personErr(i, "name")}</div> : null}
+                      </div>
+                      <div className="op-field">
+                        <label htmlFor={"op-p" + i + "-email"}>Email{req}</label>
+                        <input id={"op-p" + i + "-email"} type="email" value={r.email || ""} maxLength={OPC_LIMITS.email}
+                          aria-invalid={personErr(i, "email") ? "true" : undefined}
+                          onChange={(e) => setPerson(i, "email", e.target.value)} autoComplete="off" />
+                        {personErr(i, "email") ? <div className="op-err">{personErr(i, "email")}</div> : null}
+                      </div>
+                    </div>
+                    <div className="op-field">
+                      <label htmlFor={"op-p" + i + "-title"}>Role or title</label>
+                      <input id={"op-p" + i + "-title"} type="text" value={r.title || ""} maxLength={OPC_LIMITS.title}
+                        placeholder="e.g. Treasurer" onChange={(e) => setPerson(i, "title", e.target.value)} autoComplete="off" />
+                      {personErr(i, "title") ? <div className="op-err">{personErr(i, "title")}</div> : null}
+                    </div>
+                    <label className="op-check">
+                      <input type="checkbox" checked={!!r.gets_monthly_emails} onChange={(e) => setPerson(i, "gets_monthly_emails", e.target.checked)} />
+                      <span>Gets monthly emails</span>
+                    </label>
+                    <label className="op-check">
+                      <input type="checkbox" checked={!!r.can_answer} onChange={(e) => setPerson(i, "can_answer", e.target.checked)} />
+                      <span>Can answer our questions</span>
+                    </label>
+                  </fieldset>
+                ))}
+                {check.errors.people ? <div className="op-err">{check.errors.people}</div> : null}
+                {people.length < OPC_MAX_OTHERS ? (
+                  <button type="button" className="link-btn" onClick={addPerson}>
+                    + Add another person
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             <div className="op-field">
               <span className="op-label" id="op-fye-label">
                 Fiscal year end{req}

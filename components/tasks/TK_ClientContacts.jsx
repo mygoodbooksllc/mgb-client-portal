@@ -165,7 +165,11 @@ function TK_ClientContacts(props) {
                     <span className="tk-cc-name">{c.name}</span>
                     <span className="tk-cc-meta">
                       {c.email}
-                      {c.role ? " · " + TK_ccRoleLabel(c.role) : ""}
+                      {c.role
+                        ? " · " + TK_ccRoleLabel(c.role)
+                        : c.title && typeof OPC_isOn === "function" && OPC_isOn()
+                          ? " · " + c.title
+                          : ""}
                       {c.can_answer ? "" : " · can't answer"}
                     </span>
                     {c.notes ? <span className="tk-cc-meta">{c.notes}</span> : null}

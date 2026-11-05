@@ -265,6 +265,21 @@ select pg_temp.ok((select count(*) = 0 from rb_email_sent where task_id = pg_tem
 select pg_temp.expect_err(format('select public.rb_unmark_email_sent(%L)', pg_temp.ctx('g2')), '42501', 'bookkeeper cannot undo other client');
 
 reset role;
+
+-- Client contacts (client-contacts.sql): a main contact row wins on the board
+-- for a test client; contact_list never carries notes.
+insert into client_contacts (client_id, name, email, is_main, notes)
+values ('basic-test', 'RBT Main', 'rbt-main@example.test', true, 'RBT secret note');
+set local role authenticated;
+select pg_temp.as_user(pg_temp.ctx('admin'));
+select pg_temp.ok(pg_temp.crow('basic-test') -> 'contact' ->> 'source' = 'main'
+                  and pg_temp.crow('basic-test') -> 'contact' ->> 'email' = 'rbt-main@example.test',
+                  'main contact row wins on the board');
+select pg_temp.ok(jsonb_typeof(pg_temp.crow('basic-test') -> 'contact_list') = 'array'
+                  and position('RBT secret note' in (pg_temp.crow('basic-test') -> 'contact_list')::text) = 0,
+                  'contact_list present, never notes');
+reset role;
+
 select pg_temp.as_user(null);
 select 'all ok' as result;
 rollback;

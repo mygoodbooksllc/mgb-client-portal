@@ -74,8 +74,53 @@ function RB_Chip({ chip, partLabel, clientName, tour }) {
 
 // The expander row: the main contact, then every portal login (active first,
 // inactive dimmed).
+// A mailto link only for an address that passes the shared email rule
+// (RB_mailto drops anything else); otherwise plain text.
+function RB_mailLink(email) {
+  const href = RB_mailto({ to: [email] }).href;
+  return href !== "mailto:" ? <a href={href}>{email}</a> : <span>{email}</span>;
+}
+
+// Client contacts gate on (row.contactList from cc__people): one "People"
+// block with where each person came from. Off: the blocks below, unchanged.
+function RB_PeopleBlock({ list }) {
+  const label = (p) => (typeof OPC_sourceLabel === "function" ? OPC_sourceLabel(p) : "");
+  return (
+    <div className="rb-exp-block">
+      <span className="rb-exp-label">People</span>
+      {list.length ? (
+        <ul className="rb-exp-list">
+          {list.map((p, i) => (
+            <li key={(p.email || "") + "|" + i} className={p.opted_out ? "rb-inactive" : ""}>
+              {p.name ? <strong>{p.name}</strong> : null}
+              {p.email ? RB_mailLink(p.email) : null}
+              {p.phone ? <span>{p.phone}</span> : null}
+              {p.title || p.role ? <span className="rb-exp-note">{p.title || p.role}</span> : null}
+              {label(p) ? <span className="rb-exp-note">{label(p)}</span> : null}
+              {p.source === "login" && p.is_main ? <span className="rb-exp-note">first portal login</span> : null}
+              {p.gets_monthly_emails ? <span className="rb-exp-note">monthly emails</span> : null}
+              {p.can_answer ? <span className="rb-exp-note">can answer</span> : null}
+              {p.added_by_client ? <span className="rb-exp-note">Added by client</span> : null}
+              {p.opted_out ? <span className="rb-exp-note">opted out</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <span className="rb-exp-line rb-exp-note">No people yet</span>
+      )}
+    </div>
+  );
+}
+
 function RB_ContactExpander({ row }) {
   const c = row.contact;
+  if (Array.isArray(row.contactList)) {
+    return (
+      <div className="rb-expander" data-tour="rb-expander">
+        <RB_PeopleBlock list={row.contactList} />
+      </div>
+    );
+  }
   return (
     <div className="rb-expander" data-tour="rb-expander">
       <div className="rb-exp-block">
@@ -83,7 +128,7 @@ function RB_ContactExpander({ row }) {
         {c ? (
           <span className="rb-exp-line">
             {c.name ? <strong>{c.name}</strong> : null}
-            {c.email ? <a href={"mailto:" + c.email}>{c.email}</a> : null}
+            {c.email ? RB_mailLink(c.email) : null}
             {c.phone ? <span>{c.phone}</span> : null}
             {c.source === "login" ? <span className="rb-exp-note">first portal login</span> : null}
           </span>
@@ -180,6 +225,8 @@ function RB_ReviewBoardPage({ staffUser, clients, taskClients, viewingAs }) {
 
 function RB_Board({ staffUser, clients, taskClients }) {
   const close = CT_useCloseStatus(clients, staffUser);
+  // Client contacts gate (re-renders when the switch cache or preview changes).
+  const contactsOn = typeof OPC_useGate === "function" ? OPC_useGate() : false;
   const options = useMemo(() => RB_periodOptions(close.focus), [close.focus]);
   const [period, setPeriod] = useState(() => RB_periodFromHash(window.location.hash, options) || close.focus);
   const [res, setRes] = useState({ state: "loading", data: null });
@@ -248,11 +295,15 @@ function RB_Board({ staffUser, clients, taskClients }) {
         r,
         c,
         { status: close.statusOf(r.client_id, period), late: close.isLate(r.client_id, period), signedOff: (mc && mc.signed_off_by) || null },
-        { today: d.today, bk: c ? { name: CT_bookkeeperOf(c), key: CT_bookkeeperKey(c) } : null },
+        {
+          today: d.today,
+          bk: c ? { name: CT_bookkeeperOf(c), key: CT_bookkeeperKey(c) } : null,
+          contactsOn: contactsOn,
+        },
       );
     });
     // eslint-disable-next-line
-  }, [res.data, byId, close.rows, close.lateDay, period]);
+  }, [res.data, byId, close.rows, close.lateDay, period, contactsOn]);
 
   const bookkeepers = useMemo(() => {
     const seen = {};
@@ -462,7 +513,7 @@ function RB_useEmailExtras({ task, subject, body, ready }) {
         setLoad({ state: "off", chips: null });
         return;
       }
-      const chips = RB_recipientChips(r.data, me);
+      const chips = RB_recipientChips(r.data, me, { contactsOn: typeof OPC_isOn === "function" && OPC_isOn() });
       const s = {};
       chips.to.concat(chips.cc).forEach((x) => {
         s[x.email] = x.on;
@@ -559,7 +610,7 @@ function RB_useEmailExtras({ task, subject, body, ready }) {
               className={"rb-rcpt" + (sel[x.email] ? " on" : "")}
               aria-pressed={!!sel[x.email]}
               onClick={() => flip(x.email)}
-              title={x.email}
+              title={x.tip || x.email}
             >
               {x.name ? x.name + " · " + x.email : x.email}
             </button>
@@ -573,7 +624,13 @@ function RB_useEmailExtras({ task, subject, body, ready }) {
 
   const top = (
     <div className="rb-email-extras">
-      {chipRow(chips.to, "To", "Add a contact in Client info.")}
+      {chipRow(
+        chips.to,
+        "To",
+        typeof OPC_isOn === "function" && OPC_isOn()
+          ? "Add people in Organization profile › People to contact."
+          : "Add a contact in Client info.",
+      )}
       {chipRow(chips.cc, "Cc", "No bookkeeper or account manager on this client.")}
       {sent ? (
         <p className="tk-dw-hint rb-sent-line">

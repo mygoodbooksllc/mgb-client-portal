@@ -1054,6 +1054,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by OPC_isOn / OPC_useGate (components/client/OP_contacts.js, OP_store.js).
+    key: "mgb_orgcontacts_preview",
+    label: "Org profile contacts (preview)",
+    description:
+      "Turns on for you only, in this browser, while the firm-wide org_contacts_enabled switch is off, the staff side of client contacts: People to contact on a client's Organization profile card (add, edit, remove, pick the main contact), one people list with where each person came from in the Review board contact list, and To chips from that list in email drafts. Real clients see nothing until the owner turns on org_contacts_enabled; test clients (test_only) get the new client form now. Changes on a real client need a real admin. Nothing emails anyone. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     // Read by MB_previewOn / MB_useGate (components/members/MB_gate.js).
     key: "mgb_members_preview",
     label: "Members area preview",
@@ -1229,6 +1237,11 @@ const INFRA_LINKS = [
     name: "Supabase SQL (Review board)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "Review board (hidden preview): supabase/review-board-switch.sql, review-board.sql and review-board-digest.sql (each with a -tests.sql self-test that rolls back). RPCs rb_board (real admins), rb_draft_recipients (with sent who/when, review-board-sent-read.sql), rb_mark_email_sent and rb_unmark_email_sent (staff with access to the client); table rb_email_sent (Mark sent markers, nothing is emailed); tk_rhythm_notices kind deadline_digest. pg_cron job review-board-digest (50 10 * * * UTC, ten minutes after month-rhythm-daily) runs rb_deadline_digest and writes nothing unless reviewboard_digest_enabled is true and reviewboard_digest_to lists someone. reviewboard_enabled, reviewboard_digest_enabled and reviewboard_digest_to are owner-only (tk__owner_only_key); no row = off. Read by components/staff/RB_gate.js and RB_api.js, never written by the app.",
+  },
+  {
+    name: "Supabase SQL (Org profile contacts)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "Org profile contacts (hidden preview): supabase/client-contacts.sql (applied 2026-11-05; client-contacts-rollback.sql undoes it; client-contacts-tests.sql self-test rolls back). Adds client_contacts title/gets_monthly_emails/is_main/source/edited_at, client_org_profile.greeting_name, cc__people (the one people list), staff_client_contact_save (staff People to contact), and extends client_org_profile_mine/save, staff_client_org_profile, rb_board, rb_draft_recipients and tk_request_recipients. Gate op__contacts_on = owner-only tk_settings org_contacts_enabled OR clients.test_only; no row = off, and the request-link revoke trigger is a no-op while off. Read by components/client/OP_store.js (OPC_readSwitch), never written by the app.",
   },
   {
     name: "Supabase SQL (Members area)",
@@ -14238,6 +14251,8 @@ function resettableLocalStorageKeys() {
     // Review board (hidden preview): mgb_reviewboard_preview (a flag, kept),
     // mgb_reviewboard_cache (the firm switch reviewboard_enabled as last read by RB_gate.js, cleared by Reset),
     // mgb_rb_sort (the board's sort column and direction; cleared by Reset).
+    // Org profile contacts (hidden preview): mgb_orgcontacts_preview (a flag, kept),
+    // mgb_orgcontacts_cache (the firm switch org_contacts_enabled as last read by OPC_readSwitch in OP_store.js, cleared by Reset).
     // Members area (hidden preview): mgb_members_preview (a flag, kept),
     // mgb_members_cache (the firm switch members_staff_enabled as last read by MB_gate.js, cleared by Reset).
     // Slate plus (hidden preview): mgb_slateplus_preview (a flag, kept),
@@ -15810,6 +15825,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["members_staff_enabled", "Members area for staff (owner only)", "Owner-only; off = hidden. Off (or missing, the default) hides HR › Members area from every staff member. The owner turns it on (true) from the SQL editor, never from here; until then each person with the permission can try it with Members area preview in Feature flags. Even when on, only admins the owner allowed can list customers. The app only reads it."],
             ["members_area_open", "Members area: customer data open to members (owner only)", "Owner-only; off = closed. Off (or missing, the default) means members and the members-file download can read nothing from the members area except the owner's allowlisted email. The owner turns it on (true) from the SQL editor when the customer-facing members area launches, never from here. Separate from members_staff_enabled, which only shows the staff tab."],
             ["org_profile_enabled", "Client org profile + gifts", "On since 2026-10-25: clients get the profile prompt, staff the Organization profile card and onboarding step, real admins Team › Client gifts, and the weekly digest the anniversaries line, plus the launch notice and tour. Owner-only; off would hide it again. Off (or missing) hides everything in the client org profile build: no client prompt, Needs-you item or ? menu entry, no Organization profile card on a client's Overview, no Team › Client gifts tab, no onboarding step and no digest line. Owner turns it on (true) with one SQL line, never from here. Nothing emails clients and nothing orders gifts either way."],
+            ["org_contacts_enabled", "Org profile contacts (owner only)", "Off (hidden). Owner-only; off (or missing, the default) keeps the org profile, Review board, email drafts and Ask client exactly as they are for real clients: no People to contact section for clients or staff, no greeting name, the old contact list on the board and the old To chips. Test clients (test_only) get it already, and staff with the Org profile contacts preview flag see the staff side. True turns on People to contact for every client and staff member; while it is off, the request-link revoke trigger does nothing on real clients. Owner turns it on (true) with one SQL line, never from here. Nothing emails anyone either way."],
             ["client_page_drop_enabled", "Client page drop + who can see a file (owner only)", "Launched 2026-10-31: on (true) with the pilot set to \"all\". Off (or missing): clients drop files only on Documents and Basic Home as before, every file is seen by everyone at the client, and drive-files refuses any who-can-see rule. Staff with the Client page drop preview flag try it alone (View as is a demo that never uploads). Owner sets it with one SQL line, never from here, together with client_page_drop_pilot: when on, then those clients can drop a file anywhere in the portal (Add a file on phones), name it, pick a folder and type, and choose Everyone, Only these people or Everyone except; staff Documents get the upgrades for everyone. Off again: the rules already saved still apply, no new ones can be set."],
             ["client_page_drop_pilot", "Client page drop: which clients", "Launched 2026-10-31 with \"all\". Owner only. \"all\" or a list of client ids. Missing or empty = no client, even with the switch on. Read by the database (cpd__on) and by the portal; code never writes it."],
             // internalOnly (4th item): only for an admin with the MGB (internal) grant.

@@ -20,6 +20,10 @@ var OP_LIMITS = {
 
 var OP_PHONE_RE = /^[0-9+().\-\s x]+$/;
 var OP_EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// Under the client contacts gate: the same class as OPC_EMAIL_RE / RB_EMAIL_RE
+// / cc__email_ok (no ? & , % # < > ").
+var OP_STRICT_EMAIL_RE = /^[^\s@?&,%#<>"]+@[^\s@?&,%#<>"]+\.[^\s@?&,%#<>"]+$/;
+var OP_CNTRL_RE = /[\u0000-\u001f\u007f-\u009f]/;
 
 // The five optional "Get to know you" questions. Keys match the server.
 var OP_GTK_FIELDS = [
@@ -91,9 +95,12 @@ function OP_validFye(s) {
   return mo >= 1 && mo <= 12 && d >= 1 && d <= OP_daysIn(2024, mo);
 }
 
-// Is the values object complete by the server's rule?
-function OP_isComplete(v) {
+// Is the values object complete by the server's rule? With opts.contactsOn
+// (client contacts gate, docs/client-contacts-spec.md section 6) the main
+// contact needs an email; a phone alone no longer completes it.
+function OP_isComplete(v, opts) {
   v = v || {};
+  var contactsOn = !!(opts && opts.contactsOn);
   var has = function (k) {
     return OP_trim(v[k]) !== "";
   };
@@ -105,16 +112,21 @@ function OP_isComplete(v) {
     has("receiver_name") &&
     has("courier_phone") &&
     has("contact_name") &&
-    (has("contact_email") || has("contact_phone")) &&
+    (contactsOn ? has("contact_email") : has("contact_email") || has("contact_phone")) &&
     has("fiscal_year_end")
   );
 }
 
 // The form's starting values: the saved profile first, then the prefill the
 // RPC sends (client name, org type, fiscal year end, the signed-in user).
+// With mine.contacts_enabled the main contact comes from mine.main_prefill
+// (the live main row; blank when staff removed that person), and the form
+// gains greeting_name and the "other people" rows.
 function OP_initialForm(mine) {
   var p = (mine && mine.profile) || {};
   var pre = (mine && mine.prefill) || {};
+  var contactsOn = !!(mine && mine.contacts_enabled === true);
+  var mp = contactsOn && mine.main_prefill && typeof mine.main_prefill === "object" ? mine.main_prefill : null;
   var pick = function (a, b) {
     return OP_trim(a) !== "" ? String(a) : OP_trim(b) !== "" ? String(b) : "";
   };
@@ -122,7 +134,7 @@ function OP_initialForm(mine) {
   OP_GTK_FIELDS.forEach(function (f) {
     gtk[f.key] = "";
   });
-  return {
+  var form = {
     card_name: pick(p.card_name, pre.name),
     org_type: pick(p.org_type, pick(pre.org_type, pre.entity_type)),
     established_date: p.established_date ? String(p.established_date).slice(0, 10) : "",
@@ -139,10 +151,44 @@ function OP_initialForm(mine) {
     fiscal_year_end: pick(p.fiscal_year_end, OP_validFye(pre.fiscal_year_end) ? OP_trim(pre.fiscal_year_end) : ""),
     gtk: gtk,
   };
+  if (!contactsOn) return form;
+  if (mp && OP_trim(mp.email) !== "") {
+    form.contact_name = pick(mp.name, "");
+    form.contact_email = String(mp.email);
+    form.contact_phone = pick(mp.phone, "");
+  } else if (mp && OP_trim(p.contact_email) !== "") {
+    // The profile person was removed by staff (tombstoned): pick again.
+    form.contact_name = "";
+    form.contact_email = "";
+    form.contact_phone = "";
+  }
+  form.greeting_name = pick(p.greeting_name, "");
+  var people = (Array.isArray(mine.people) ? mine.people : []).filter(function (x) {
+    return x && !x.is_main;
+  });
+  form.people = people.map(function (x) {
+    return {
+      id: x.id || null,
+      name: x.name ? String(x.name) : "",
+      email: x.email ? String(x.email) : "",
+      title: x.title ? String(x.title) : "",
+      gets_monthly_emails: !!x.gets_monthly_emails,
+      can_answer: !!x.can_answer,
+    };
+  });
+  // What was loaded, to send only changes (OPC_checkPeople).
+  form.people_original = form.people.map(function (x) {
+    return Object.assign({}, x);
+  });
+  return form;
 }
 
 // Check a form before it is sent. `opts.orgAddress` is the organization
 // address (for "Same as organization address"); `opts.today` is "YYYY-MM-DD".
+// `opts.contactsOn` (mine().contacts_enabled): the main contact email is
+// required and uses the stricter OPC_EMAIL_RE; greeting_name and the
+// changed "other people" rows go in the payload (`opts.checkPeople` is
+// OPC_checkPeople, passed in so this file stays standalone).
 // Returns { errors: {field: message}, missing: [field], complete, payload }.
 // Errors block a save; missing fields do not (a partial save is allowed and
 // the profile simply stays incomplete).
@@ -179,8 +225,17 @@ function OP_checkForm(form, opts) {
     if (v.length > OP_LIMITS[k]) errors[k] = OP_FIELD_LABELS[k] + " is too long (max 40 characters).";
     else if (!OP_PHONE_RE.test(v)) errors[k] = "Use only digits, spaces and + ( ) - x.";
   });
+  var contactsOn = !!opts.contactsOn;
+  var emailRe = contactsOn ? OP_STRICT_EMAIL_RE : OP_EMAIL_RE;
   var em = val("contact_email");
-  if (em && !errors.contact_email && !OP_EMAIL_RE.test(em)) errors.contact_email = "That doesn't look like an email address.";
+  if (em && !errors.contact_email && !emailRe.test(em)) errors.contact_email = "That doesn't look like an email address.";
+  var greet = "";
+  if (contactsOn) {
+    greet = val("greeting_name");
+    if (greet.length > 80) errors.greeting_name = "Keep the greeting under 80 characters.";
+    else if (OP_CNTRL_RE.test(greet)) errors.greeting_name = "The greeting has characters a name cannot have.";
+    if (OP_CNTRL_RE.test(val("contact_name")) && !errors.contact_name) errors.contact_name = "The name has characters a name cannot have.";
+  }
 
   var fye = val("fiscal_year_end");
   if (fye && !OP_validFye(fye)) errors.fiscal_year_end = "Pick a real month and day.";
@@ -213,6 +268,16 @@ function OP_checkForm(form, opts) {
   // Get-to-know answers go only when the person typed one: sending answers
   // replaces the saved set, and leaving the section empty keeps it.
   if (anyGtk) payload.get_to_know = gtk;
+  if (contactsOn) {
+    payload.greeting_name = greet || null;
+    if (typeof opts.checkPeople === "function") {
+      var pc = opts.checkPeople(form.people || [], em, form.people_original || []);
+      Object.keys(pc.errors).forEach(function (k) {
+        errors[k] = pc.errors[k];
+      });
+      if (pc.payload.upsert.length || pc.payload.remove.length) payload.people = pc.payload;
+    }
+  }
 
   var values = Object.assign({}, payload, { gift_address: gift });
   var missing = [];
@@ -223,13 +288,13 @@ function OP_checkForm(form, opts) {
   if (!values.receiver_name) missing.push("receiver_name");
   if (!values.courier_phone) missing.push("courier_phone");
   if (!values.contact_name) missing.push("contact_name");
-  if (!values.contact_email && !values.contact_phone) missing.push("contact_email");
+  if (!values.contact_email && (contactsOn || !values.contact_phone)) missing.push("contact_email");
   if (!values.fiscal_year_end) missing.push("fiscal_year_end");
 
   return {
     errors: errors,
     missing: missing,
-    complete: Object.keys(errors).length === 0 && OP_isComplete(values),
+    complete: Object.keys(errors).length === 0 && OP_isComplete(values, { contactsOn: contactsOn }),
     payload: payload,
   };
 }
@@ -361,6 +426,7 @@ if (typeof module !== "undefined" && module.exports) {
     OP_LIMITS: OP_LIMITS,
     OP_PHONE_RE: OP_PHONE_RE,
     OP_EMAIL_RE: OP_EMAIL_RE,
+    OP_STRICT_EMAIL_RE: OP_STRICT_EMAIL_RE,
     OP_GTK_FIELDS: OP_GTK_FIELDS,
     OP_FIELD_LABELS: OP_FIELD_LABELS,
     OP_BUDGET_MIN: OP_BUDGET_MIN,

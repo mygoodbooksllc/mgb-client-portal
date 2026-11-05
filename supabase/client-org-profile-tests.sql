@@ -163,8 +163,8 @@ select pg_temp.ok(pg_temp.cnt('select 1 from client_org_profile') = 0 and pg_tem
 -- ---------------------------------------------------------------------
 select pg_temp.expect_err($q$select public.client_org_profile_save('[]'::jsonb)$q$, 'payload must be an object', 'array payload rejected');
 select pg_temp.expect_err($q$select public.client_org_profile_save('"x"'::jsonb)$q$, 'payload must be an object', 'string payload rejected');
-select pg_temp.expect_err($q$select public.client_org_profile_save(jsonb_build_object('junk', repeat('x', 17000)))$q$,
-                          'payload is too large', 'payload over 16 KB rejected');
+select pg_temp.expect_err($q$select public.client_org_profile_save(jsonb_build_object('junk', repeat('x', 25000)))$q$,
+                          'payload is too large', 'payload over the size cap rejected');
 do $$
 begin
   perform public.client_org_profile_save(pg_temp.full_payload() || jsonb_build_object('card_name', 'OPVALUE' || repeat('z', 200)));
@@ -239,8 +239,12 @@ select pg_temp.ok(not (public.client_org_profile_save(pg_temp.full_payload() - '
 select pg_temp.ok((public.client_org_profile_save(pg_temp.full_payload() || '{"established_unknown": true}') ->> 'complete')::boolean,
                   'established "Not sure" satisfies the required date');
 select pg_temp.ok((public.client_org_profile_save(pg_temp.full_payload()) ->> 'complete')::boolean, 'complete again');
-select pg_temp.ok((public.client_org_profile_save(pg_temp.full_payload() || '{"contact_email": null}') ->> 'complete')::boolean,
-                  'main contact with phone only still complete');
+-- client-contacts.sql: with contacts on (test clients), the main contact needs an
+-- email; with contacts off, phone only still completes.
+select pg_temp.ok((public.client_org_profile_save(pg_temp.full_payload() || '{"contact_email": null}') ->> 'complete')::boolean
+                  = not coalesce(public.client_org_profile_mine() -> 'contacts_enabled' = 'true'::jsonb, false),
+                  'main contact with phone only: complete only while contacts are off');
+select pg_temp.ok((public.client_org_profile_save(pg_temp.full_payload()) ->> 'complete')::boolean, 'complete again after phone-only check');
 
 reset role;
 select pg_temp.no_jwt();
