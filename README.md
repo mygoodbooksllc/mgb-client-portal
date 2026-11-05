@@ -2528,6 +2528,7 @@ Team Reviews files.
   phone drawer's Settings row). Upkeep: launch announcement `one-avatar`, guide `getting-started`,
   `staff-settings`, `whats-new`, `MGB_VERSION` `2026-10-19f`; no Usage Stats or Dev Tools label named the
   removed controls, no new event.
+- **Desk info bar turned off, 2026-11-05b** (owner: "not very useful, save it for later"; client only, no SQL). `WB_Drawer.jsx`: `barSaved = !sheet && !railHidden && !WB_infoBarFlag()` joins `barHidden`, so on a computer the `.wb-bar` does not render (and `html.wb-desk-nobar` zeroes `--wb-bar-h`). Phones (sheet) keep it, and so does anyone who hid the rail, so the Desk always has a handle. Bring it back for one person: Developer tools > Feature flags > **Desk info bar** (`mgb_wb_infobar`); firm-wide would mean flipping `WB_infoBarFlag` to a switch. Code, CSS and the "wb-bar" tour targets are kept: the `ann-bar` announcement steps (`ANN_barOn`) and the `desk-width` tip skip themselves while the bar is absent. Guide `workbench` + `whats-new` and `MGB_VERSION` synced.
 - **Desk R1 + R1c: right column, rail and info bar, 2026-10-19g** (spec `docs/desk-right-spec.md`
   §3, decisions 20, 26, 28; client only, no SQL, no edge functions; still off until `wb_enabled`).
   - **Layout:** pure `WB_deskLayout({vw, railW, w, open})` in `WB_logic.js` returns `mode` (`sheet` at

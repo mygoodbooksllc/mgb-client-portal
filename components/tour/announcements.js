@@ -68,6 +68,16 @@ function ANN_hasTarget(key) {
 }
 
 // True when the Desk is on for this person (WB_store loads after this file).
+// The Desk's bottom info bar is off since 2026-11-05 (flag mgb_wb_infobar);
+// steps that point at it only run while it is on the page.
+function ANN_barOn() {
+  try {
+    return !!document.querySelector('[data-tour="wb-bar"]');
+  } catch (e) {
+    return false;
+  }
+}
+
 function ANN_deskOn() {
   try {
     return typeof WB_store !== "undefined" && !!WB_store.getState().on;
@@ -409,6 +419,7 @@ var ANN_REGISTRY = [
       {
         id: "ann-bar",
         targets: ["wb-bar"],
+        when: () => ANN_barOn(),
         title: "The info bar",
         body: () =>
           "This bar along the bottom shows how many tasks are late, how many of today's you have done, your next task and, on a client's pages, that client's open tasks and QuickBooks sync. Click it or press D to open the Desk.",
@@ -686,6 +697,7 @@ var ANN_REGISTRY = [
       {
         id: "ann-bar",
         targets: ["wb-bar"],
+        when: () => ANN_barOn(),
         wait: true,
         title: "Press D, or click the bar",
         body: () =>
@@ -736,7 +748,7 @@ var ANN_REGISTRY = [
       },
       {
         id: "ann-bar",
-        when: () => ANN_deskOn(),
+        when: () => ANN_deskOn() && ANN_barOn(),
         targets: ["wb-bar"],
         wait: true,
         title: "The Desk",
@@ -899,7 +911,7 @@ var ANN_REGISTRY = [
         },
         {
           id: "ann-bar",
-          when: on,
+          when: () => on() && ANN_barOn(),
           targets: ["wb-bar"],
           wait: true,
           title: "The drawer, on every page",
@@ -2167,7 +2179,7 @@ var ANN_REGISTRY = [
         },
         {
           id: "ann-desk",
-          when: () => ANN_deskOn(),
+          when: () => ANN_deskOn() && ANN_barOn(),
           targets: ["wb-bar"],
           wait: true,
           title: "The Desk, and the new Today",

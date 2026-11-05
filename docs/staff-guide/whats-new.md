@@ -9,6 +9,9 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-11-05: The bottom bar is off
+- **No more bar along the bottom of the page.** It showed your late count, today's progress and your next task. Your Desk is still on the right: click its rail or press **D**. On a phone the bar stays, because it is how you open the Desk there.
+
 ### 2026-11-05: A simpler Slate
 
 - **Labeled sidebar.** My tasks, Waiting on client, To review, Clients, Projects and People, each with a name. Admins also see Recurring. The pin and the sidebar search are gone; the top search stays.

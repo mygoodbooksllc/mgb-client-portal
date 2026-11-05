@@ -155,6 +155,15 @@ function WB_useDoneToday(me, today, live) {
 
 // The bottom of the sticky staff top bar: the column and rail start there.
 // Measured, so a preview banner above it is counted.
+// Per-person flag that brings the bottom info bar back (off by default).
+function WB_infoBarFlag() {
+  try {
+    return window.localStorage.getItem("mgb_wb_infobar") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 function WB__deskTop() {
   try {
     const tb = document.querySelector(".tb-bar");
@@ -397,7 +406,12 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page, messagesUnread
   // Customize › When closed (WB_deskClosedShow: a phone always keeps the bar).
   const closedShow = deskPrefs ? WB_deskClosedShow(deskPrefs.closed, sheet ? "sheet" : "dock") : null;
   const railHidden = !!closedShow && !closedShow.rail;
-  const barHidden = !!closedShow && !closedShow.bar && !open;
+  // The bottom info bar is saved for later (owner, 2026-11-05): off unless
+  // Developer tools > Feature flags > Desk info bar (mgb_wb_infobar) is ticked.
+  // Phones keep it (their only way in), and so does anyone who hid the rail,
+  // so the Desk always has a handle.
+  const barSaved = !sheet && !railHidden && !WB_infoBarFlag();
+  const barHidden = (!!closedShow && !closedShow.bar && !open) || barSaved;
   const railHiddenRef = React.useRef(railHidden);
   railHiddenRef.current = railHidden;
   // Shared with WB_useHubKeys / WB_useHubLayers: the mode, where focus is,

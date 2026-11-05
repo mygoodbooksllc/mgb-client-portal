@@ -229,7 +229,7 @@ const TIPS_CATALOG = [
     slug: "workbench",
     ready: () => {
       try {
-        return !!window.matchMedia && !window.matchMedia("(max-width: 760px)").matches;
+        return !!document.querySelector('[data-tour="wb-bar"]') && !!window.matchMedia && !window.matchMedia("(max-width: 760px)").matches;
       } catch (e) {
         return false;
       }

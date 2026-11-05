@@ -1107,6 +1107,14 @@ const FEATURE_FLAGS = [
     reloads: true,
   },
   {
+    // Read by WB_infoBarFlag (components/workbench/WB_Drawer.jsx).
+    key: "mgb_wb_infobar",
+    label: "Desk info bar",
+    description:
+      "Brings back the bar along the bottom of staff pages (late count, today's progress, Next up, the page's client). It was turned off for everyone on 2026-11-05 and saved for later; the Desk still opens from the right-side rail or with D. For you only, in this browser. Phones always keep the bar. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
     key: "mgb_wb_classic",
     label: "Classic Today",
     description:
