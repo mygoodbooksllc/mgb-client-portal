@@ -2801,9 +2801,25 @@ Team Reviews files.
 
 **QuickBooks sync at scale**
 
-- The every-minute cron syncs every connected company in turn, a few seconds each. Past roughly
-  15 companies a sweep takes longer than a minute. Before then, switch to QuickBooks webhooks
-  (sync a company when it changes) instead of polling faster.
+- Webhooks are built (2026-11-06) but **off until the owner sets them up**. The scheduled sweep
+  syncs every due company in turn, a few seconds each, and the Pro cadence is hourly. With
+  webhooks on, QuickBooks tells the portal which company changed and only that one syncs, within
+  about 5 minutes; the hourly poll becomes a 6-hour safety net.
+  - Pieces: `supabase/qbo-webhooks.sql` (**NOT APPLIED**: `qbo_connections.webhook_dirty_at` /
+    `webhook_last_at`, `qbo_usage_settings.webhooks_enabled` (default false) and
+    `webhook_fallback_min` (default 360)), the new function `supabase/functions/qbo-webhook/`
+    (`verify_jwt` off; checks Intuit's `intuit-signature` HMAC against
+    `QBO_PRODUCTION_WEBHOOK_VERIFIER` / `QBO_SANDBOX_WEBHOOK_VERIFIER`, reads only realm ids from
+    the legacy or CloudEvents payload, marks the connection, never stores or logs the payload), and
+    `supabase/functions/qbo-sync/webhook_due.ts` (who the sweep syncs; Plus and Basic keep their
+    schedule, a throttled usage guard ignores webhooks). Tests: `tests/edge/qbo_webhook.test.mjs`.
+  - Turn on: (1) apply `supabase/qbo-webhooks.sql`; (2) deploy `qbo-webhook` with
+    `--no-verify-jwt` and redeploy `qbo-sync`; (3) in the Intuit developer portal, for each app,
+    set the webhook URL to `https://xumsqmhccgfjnlmieqyu.supabase.co/functions/v1/qbo-webhook`,
+    tick the entities qbo-sync reads, and copy the Verifier Token into the matching secret;
+    (4) edit something in the sandbox company and check `webhook_last_at` fills in; (5)
+    `update public.qbo_usage_settings set webhooks_enabled = true where id;`. Roll back with
+    `false`.
 
 **QuickBooks Time hours (backend written, NOT applied)**
 
@@ -2895,6 +2911,10 @@ Team Reviews files.
 
 ## History
 
+- **2026-11-06:** **QuickBooks webhooks built, off** (no front-end change). New function
+  `qbo-webhook`, `supabase/qbo-webhooks.sql` (not applied) and the webhook branch in `qbo-sync`'s
+  scheduled sweep, which behaves exactly as before until `qbo_usage_settings.webhooks_enabled` is
+  true. Setup steps under **QuickBooks sync at scale** in Known gaps and roadmap.
 - **2026-11-03:** **Desk client summary, Keep on Desk and Customize Desk built, hidden** (label 2026-11-03c). Feature flags › **Desk client summary (preview)** (`mgb_peek_preview`) or the owner-only `tk_settings.desk_peek_enabled` (unset = off). `supabase/owner-only-desk-peek-switch.sql` (applied; self-test `-tests.sql` passes, rolls back) adds the key to `tk__owner_only_key`; no row is inserted. New `components/workbench/WB_peek.js` (+ node test) and `WB_HubClientSummary.jsx`; `WB_HubClient.jsx`, `WB_Hub.jsx`, `WB_Drawer.jsx`, `WB_Row.jsx` (shortcut sheet `p` row), `TopBar.jsx` (⌘K row) and `app.jsx` (client header button) call the gate. Notice `desk-client-summary` and tour stops are drafted and held (`ANN_peekLaunchOn`, `TOUR_peekOn`); guide text in `docs/staff-guide/drafts/staff-guide-desk-peek.md`, not synced. Live for everyone: the left sidebar's **Pin this client** shows a star instead of a pushpin (words unchanged).
 - **2026-10-31:** **Members area staff tab built, hidden** (label 2026-10-31g, note "Behind-the-scenes updates."; step 2 front end). New HR tab `members-area` (not the staff roster tab `members`), `components/members/`. Preview checkbox **Members area preview** in Developer tools › Feature flags (`mgb_members_preview`); firm switch `tk_settings.members_staff_enabled` (owner-only, code never writes it, cached in `mgb_members_cache`, event `mgb:members`). `MB_useGate` calls `members_staff_me` only once the preview or the switch is on; the tab shows only when `can_list` is true, and never in View as. Rows come from `members_staff_list`; **Open** (only with `can_open`) asks why first, then `open_member` logs the opening and returns the facts. Owner card **Who can open customers** uses `members_support_people` / `set_members_support`. Developer tools shows `members_staff_enabled` and `members_area_open` read-only. Nothing is announced: no What's new entry, tour, tip or help item while hidden. The guide article, next-visit notice and tour text are drafted in `docs/members-area-draft.md` (not in `docs/staff-guide/`, so nothing syncs to the live guide); publish them at launch. Node tests: `node components/members/MB_logic.test.js`, `node components/members/MB_gate.test.js`.
 - **2026-10-31:** **Client page drop launched for all clients** (label 2026-10-31b, pilot `"all"`). `client_page_drop_enabled` is on, the `client-page-drop` staff notice is dated 2026-10-31, and the six staff-guide articles (add-documents, client-portal, google-drive-files, client-tour, tips, whats-new) carry the launch text via `supabase/staff-guide-client-page-drop.sql`; no other code change.

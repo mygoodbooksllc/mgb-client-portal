@@ -9,6 +9,7 @@ import {
 } from "../_shared/qbo.ts";
 import { FAULT_IN_200_STATUS, faultSummary, faultSummaryOf, isFaultBody } from "./intuit_fault.ts";
 import { mergeRecentRows, pullRecentActivity, RECENT_ENTITIES } from "./recent_activity.ts";
+import { webhookDue, webhookSettingsFrom } from "./webhook_due.ts";
 
 // Pulls a client's books out of QuickBooks into the qbo_* tables
 // (supabase/qbo-data.sql), which the browser then reads through RLS and
@@ -1779,6 +1780,7 @@ async function handle(req: Request): Promise<Response> {
   }
 
   let targets: any[] = [];
+  let webhooksOn = false;
   let skipped = 0;
   let usage: any = null;
 
@@ -1805,10 +1807,26 @@ async function handle(req: Request): Promise<Response> {
     }
     const premiumIntervalMin = Number(usage?.premium_interval_min) || 60;
 
-    const { data, error } = await admin
+    // QuickBooks webhooks (supabase/qbo-webhooks.sql, webhook_due.ts). Off
+    // unless qbo_usage_settings.webhooks_enabled is true. If the columns
+    // aren't there yet (function deployed before the SQL), read the old
+    // column list and behave exactly as before.
+    const { data: whRow } = await admin
+      .from("qbo_usage_settings")
+      .select("webhooks_enabled, webhook_fallback_min")
+      .maybeSingle();
+    const whSettings = webhookSettingsFrom(whRow);
+    webhooksOn = whSettings.enabled;
+    let { data, error }: { data: any[] | null; error: any } = await admin
       .from("qbo_connections")
-      .select("client_id, realm_id, api_env, last_synced_at, last_full_sync_at, close_synced_at")
+      .select("client_id, realm_id, api_env, last_synced_at, last_full_sync_at, close_synced_at, webhook_dirty_at")
       .eq("status", "connected");
+    if (error) {
+      ({ data, error } = await admin
+        .from("qbo_connections")
+        .select("client_id, realm_id, api_env, last_synced_at, last_full_sync_at, close_synced_at")
+        .eq("status", "connected"));
+    }
     if (error) return json({ error: "failed to list connections" }, 500);
     const conns = data || [];
     // Plans, to decide who's due this run. If the lookup fails, fall back
@@ -1822,9 +1840,15 @@ async function handle(req: Request): Promise<Response> {
       if (!planErr) (plans || []).forEach((p: any) => (planById[p.id] = p.plan));
     }
     const now = new Date();
-    targets = conns.filter((c: any) =>
-      isDueForPlan(planById[c.client_id] ?? "premium", c.last_synced_at, now, premiumIntervalMin),
-    );
+    targets = conns.filter((c: any) => {
+      const plan = planById[c.client_id] ?? "premium";
+      const wh = webhookDue(plan, c, now, whSettings, usage?.mode ?? null, premiumIntervalMin);
+      if (wh) {
+        c._webhook = wh.reason === "webhook";
+        return wh.due;
+      }
+      return isDueForPlan(plan, c.last_synced_at, now, premiumIntervalMin);
+    });
     skipped = conns.length - targets.length;
   } else {
     // Mode (b): a signed-in person's own JWT — an active staffer, or an
@@ -2036,18 +2060,38 @@ async function handle(req: Request): Promise<Response> {
   const now = new Date();
   const donorPulls = await donorPullsFor(admin, targets.map((t: any) => t.client_id));
   for (const t of targets) {
+    // Clear the webhook mark before reading, and only if it is still the
+    // value we saw: a notification that lands mid-sync sets a fresh mark and
+    // the next tick syncs again. Restored below if the sync fails.
+    const dirty = t.webhook_dirty_at ?? null;
+    if (dirty) {
+      await admin
+        .from("qbo_connections")
+        .update({ webhook_dirty_at: null })
+        .eq("client_id", t.client_id)
+        .eq("webhook_dirty_at", dirty);
+    }
     const result = await syncClient(admin, t.client_id, t.realm_id, t.api_env ?? null, {
-      cdcSince: cdcSinceFor(t, now),
+      // QuickBooks already told us something changed: skip the CDC question.
+      cdcSince: t._webhook ? null : cdcSinceFor(t, now),
       closeDue: isCloseDue(t.close_synced_at, now),
       donorYears: donorPulls
         ? donorYearsDue(donorPulls.get(t.client_id) || new Map(), now, false)
         : [],
     });
-    if ((result as any).error) errors.push(result);
-    else synced.push(result);
+    if ((result as any).error) {
+      errors.push(result);
+      if (dirty) {
+        await admin
+          .from("qbo_connections")
+          .update({ webhook_dirty_at: dirty })
+          .eq("client_id", t.client_id)
+          .is("webhook_dirty_at", null);
+      }
+    } else synced.push(result);
   }
 
-  return json({ synced, errors, skipped, mode: usage?.mode ?? null });
+  return json({ synced, errors, skipped, mode: usage?.mode ?? null, webhooks: webhooksOn });
 }
 
 function isCloseDue(closeSyncedAt: string | null | undefined, now: Date): boolean {
