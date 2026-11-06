@@ -64,7 +64,7 @@ function DP_useAccessRows(sb, clientId, on, tick) {
 // The list is position: fixed (placed from the button) so the table's
 // scroll box never clips it; it opens upward when there's no room below and
 // closes on scroll or resize.
-function DP_RowMenu({ label, items, off }) {
+function DP_RowMenu({ label, items, off, tourId = "doc-row-menu", btnClass = "dp-menu-btn" }) {
   const [pos, setPos] = React.useState(null);
   const open = !!pos;
   const ref = React.useRef(null);
@@ -103,8 +103,8 @@ function DP_RowMenu({ label, items, off }) {
     };
   }, [open]);
   return (
-    <span className="dp-menu" data-tour="doc-row-menu" data-cpd-off={off ? "" : undefined} ref={ref} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-      <button ref={btnRef} type="button" className="dp-menu-btn" aria-haspopup="menu" aria-expanded={open} aria-label={label} title="More" onClick={toggle}>
+    <span className="dp-menu" data-tour={tourId || undefined} data-cpd-off={off ? "" : undefined} ref={ref} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <button ref={btnRef} type="button" className={btnClass} aria-haspopup="menu" aria-expanded={open} aria-label={label} title="More" onClick={toggle}>
         ⋯
       </button>
       {open && (

@@ -9,6 +9,11 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-11-06: Client demo fixes
+- **Board packet giving.** For a QuickBooks client the Giving section now shows the same totals as **Giving & funds** (this month, year to date, and a table by account), instead of saying giving isn't connected. Donor tables still need per-gift records.
+- **Documents folders.** A folder's delete now lives in a **⋯** menu next to the folder, with the confirm step, in plain client wording. **Rename folder** is in the same menu.
+- **Security & privacy.** Rewritten to say only what is true: MyGoodBooks staff who work on the account can see it, no vendor names, and uploaded files are not part of the daily backup.
+
 ### 2026-11-05: The bottom bar is off
 - **No more bar along the bottom of the page.** It showed your late count, today's progress and your next task. Your Desk is still on the right: click its rail or press **D**. On a phone the bar stays, because it is how you open the Desk there.
 
@@ -57,7 +62,7 @@ Hours in the portal come from QuickBooks Online, which gets them from QuickBooks
 
 ### 2026-10-31: Clients can drop files anywhere
 - **Clients drop a file on any page** of their portal (or tap **+ Add a file** on a phone), then pick a folder, a name, and who at their organization can see it: everyone, only some people, or everyone except some people. MyGoodBooks staff always see every file. Uploads show on the Desk's Inbox like any client file.
-- **On a client's Documents page**, each file's **⋯** has **Rename**, **Who can see it**, **Replace with a new version**, **Copy link** and **History**. Tick several files to move them together, and **✎** renames a folder. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).
+- **On a client's Documents page**, each file's **⋯** has **Rename**, **Who can see it**, **Replace with a new version**, **Copy link** and **History**. Tick several files to move them together, and a folder's **⋯** menu renames it. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).
 
 ### 2026-10-30: Organization tabs reach the client
 Turning a tab off in **Client setup › Manage access › Organization tabs** now hides it for everyone at that client, on their own devices too (before, it only changed what your browser showed). Only admins can change these switches; other staff see them grayed out. If your browser had tabs turned off for a client the old way, they're saved for everyone the first time an admin opens Organization tabs for that client.

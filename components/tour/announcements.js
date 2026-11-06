@@ -1948,7 +1948,7 @@ var ANN_REGISTRY = [
         id: "ann-docs-menu",
         title: "Your Documents page",
         body: () =>
-          "Open a client's Documents. Each file's ⋯ has Rename, Who can see it, Replace with a new version, Copy link and History. Tick several files to move them to a folder or the Trash together, and ✎ renames a folder.",
+          "Open a client's Documents. Each file's ⋯ has Rename, Who can see it, Replace with a new version, Copy link and History. Tick several files to move them to a folder or the Trash together, and a folder's ⋯ menu renames it.",
       },
       {
         id: "ann-done",

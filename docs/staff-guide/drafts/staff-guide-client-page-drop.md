@@ -52,7 +52,7 @@ Same limits as the Documents page: up to 10 files, 25 MB each, PDF, images, CSV,
   - **History** lists uploads, renames, rule changes, trash and restore, with who and when.
 - **Tick files** (or the box in the header for all of them) to **Move to** a folder or **Move to Trash** together. **Clear** unticks them.
 - A small tag beside the document type shows the kind of file: PDF, Excel, Word, Image and so on.
-- **✎** on a folder renames it for everyone. Its files stay in it.
+- A folder's **⋯** menu renames it (**Rename folder**) for everyone. Its files stay in it.
 - **Visible to** shows a lock with **Only 2 people** or **Everyone except 1** for a file with a rule.
 - When you upload on the Documents page, **Who can see: Everyone at the client** (next to **Drive folder**) sets a rule for those files. It shows once page drop is on for that client.
 - In **View as**, files the person can't see (and staff-only files) are left out, and a chip says how many are hidden.
@@ -94,7 +94,7 @@ Same limits as the Documents page: up to 10 files, 25 MB each, PDF, images, CSV,
 ````markdown
 ### 2026-10-31: Clients can drop files anywhere
 - **Clients drop a file on any page** of their portal (or tap **+ Add a file** on a phone), then pick a folder, a name, and who at their organization can see it: everyone, only some people, or everyone except some people. MyGoodBooks staff always see every file. Uploads show on the Desk's Inbox like any client file.
-- **On a client's Documents page**, each file's **⋯** has **Rename**, **Who can see it**, **Replace with a new version**, **Copy link** and **History**. Tick several files to move them together, and **✎** renames a folder. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).
+- **On a client's Documents page**, each file's **⋯** has **Rename**, **Who can see it**, **Replace with a new version**, **Copy link** and **History**. Tick several files to move them together, and a folder's **⋯** menu renames it. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).
 
 ````
 

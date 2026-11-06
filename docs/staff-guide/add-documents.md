@@ -29,7 +29,7 @@ Every client starts with five folders: **Bank statements**, **Financial statemen
 
 - To file a document, use the **Folder** menu in its row.
 - To make a folder, pick **+ New folder…** at the bottom of a row's **Folder** menu, type a name and click **Create and move**. The document goes straight into it. **+ New Folder** at the end of the folder bar works too.
-- Clicking **×** on a folder deletes it for everyone. Its documents go back to **Unfiled**; nothing is deleted.
+- A folder's **⋯** menu has **Delete folder…**. It asks you to confirm, then removes the folder for everyone. Its documents go back to **Unfiled**; nothing is deleted.
 - Clients can add, use and delete folders too. They never see staff-only files, whichever folder those are in.
 
 ### The Staff only folder
@@ -90,7 +90,7 @@ Same limits as the Documents page: up to 10 files, 25 MB each, PDF, images, CSV,
   - **History** lists uploads, renames, rule changes, trash and restore, with who and when.
 - **Tick files** (or the box in the header for all of them) to **Move to** a folder or **Move to Trash** together. **Clear** unticks them.
 - A small tag beside the document type shows the kind of file: PDF, Excel, Word, Image and so on.
-- **✎** on a folder renames it for everyone. Its files stay in it.
+- A folder's **⋯** menu has **Rename folder** (bookkeepers on Pro) and renames it for everyone. Its files stay in it.
 - **Visible to** shows a lock with **Only 2 people** or **Everyone except 1** for a file with a rule.
 - When you upload on the Documents page, **Who can see: Everyone at the client** (next to **Drive folder**) sets a rule for those files. It shows once page drop is on for that client.
 - In **View as**, files the person can't see (and staff-only files) are left out, and a chip says how many are hidden.

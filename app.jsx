@@ -23982,57 +23982,33 @@ function DocumentsPage({ client, isBookkeeper, searchTarget, viewAsEmail }) {
         {folders.map((name) => {
           const count = shownDocs.filter((d) => d.folder === name).length;
           return (
-            <button
-              type="button"
+            <span
               key={name}
-              className={
-                "doc-folder-pill" + (activeFolder === name ? " active" : "")
-              }
-              onClick={() => setActiveFolder(name)}
+              className={"doc-folder-chip" + (activeFolder === name ? " active" : "")}
             >
-              <FolderIcon width="14" height="14" strokeWidth="1.8" />
-              {name}
-              <span className="doc-folder-count">{count}</span>
-              {plus && isBookkeeper && (
-                <span
-                  className="doc-folder-rename"
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Rename folder ${name}`}
-                  title="Rename folder"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDpModal({ kind: "folder", name });
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.stopPropagation();
-                      setDpModal({ kind: "folder", name });
-                    }
-                  }}
-                >
-                  ✎
-                </span>
-              )}
-              <span
-                className="doc-folder-remove"
-                role="button"
-                tabIndex={0}
-                aria-label={`Delete folder ${name}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFolderPendingDelete(name);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.stopPropagation();
-                    setFolderPendingDelete(name);
-                  }
-                }}
+              <button
+                type="button"
+                className={
+                  "doc-folder-pill" + (activeFolder === name ? " active" : "")
+                }
+                onClick={() => setActiveFolder(name)}
               >
-                ×
-              </span>
-            </button>
+                <FolderIcon width="14" height="14" strokeWidth="1.8" />
+                {name}
+                <span className="doc-folder-count">{count}</span>
+              </button>
+              <DP_RowMenu
+                label={`Folder options for ${name}`}
+                tourId={null}
+                btnClass="doc-folder-more"
+                items={[
+                  ...(plus && isBookkeeper
+                    ? [{ label: "Rename folder", onClick: () => setDpModal({ kind: "folder", name }) }]
+                    : []),
+                  { label: "Delete folder\u2026", onClick: () => setFolderPendingDelete(name) },
+                ]}
+              />
+            </span>
           );
         })}
         {addingFolder ? (
@@ -24534,7 +24510,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget, viewAsEmail }) {
 
       {folderPendingDelete && (
         <ConfirmModal
-          title={`Delete "${folderPendingDelete}"?`}
+          title={`Delete the folder "${folderPendingDelete}"?`}
           body="Its documents move back to Unfiled. Nothing is deleted, and this changes the folder for everyone at your organization."
           confirmLabel="Delete folder"
           onConfirm={confirmRemoveFolder}

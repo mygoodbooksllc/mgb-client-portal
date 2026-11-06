@@ -2320,7 +2320,7 @@ function ST_SecurityPrivacy({ client, access, readOnly, onSelectPage }) {
       : "";
   return (
     <>
-      <ST_Card title="Who can see your books" sub="Only people you and MyGoodBooks have set up. That includes MyGoodBooks staff who work on your account.">
+      <ST_Card title="Who can see your books" sub="The people on your own team who have a login, and the MyGoodBooks staff who work on your account.">
         <ul className="st-list">
           <ST_SecRow label="Your access">
             {full
@@ -2354,9 +2354,12 @@ function ST_SecurityPrivacy({ client, access, readOnly, onSelectPage }) {
             connection key is encrypted. You can disconnect any time from your Intuit account settings.
           </ST_SecRow>
           <ST_SecRow label="Where it's stored">
-            Your account information is stored securely in the United States and encrypted when stored and when sent.
+            Your account information and messages are stored in the United States and are encrypted when stored and when sent.
           </ST_SecRow>
-          <ST_SecRow label="Backups">Account details and messages are backed up every day. Uploaded files are kept in MyGoodBooks' secure online file storage.</ST_SecRow>
+          <ST_SecRow label="Backups">
+            Account details and messages are backed up every day. Uploaded files are stored separately and are not part
+            of that daily backup.
+          </ST_SecRow>
           <ST_SecRow label="How we use it">
             Only to run the portal and do your bookkeeping. We never sell your data or use it for ads. We record which
             pages are opened so we can improve the portal.

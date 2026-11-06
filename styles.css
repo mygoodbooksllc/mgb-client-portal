@@ -2635,23 +2635,38 @@ th {
   opacity: 0.7;
 }
 
-.doc-folder-remove {
+/* Folder chip: the pill selects the folder; a separate "⋯" button opens
+   Rename / Delete. They are siblings, never nested. */
+.doc-folder-chip {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  margin: -4px -6px -4px 0;
-  border-radius: 999px;
-  line-height: 1;
-  font-size: 16px;
-  color: inherit;
-  opacity: 0.7;
+  gap: 2px;
 }
 
-.doc-folder-remove:hover {
-  opacity: 1;
-  background: rgba(0, 0, 0, 0.08);
+.doc-folder-chip .dp-menu { margin-left: -2px; }
+
+.doc-folder-more {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.doc-folder-more:hover,
+.doc-folder-more[aria-expanded="true"] {
+  border-color: var(--border);
+  background: var(--hover-bg);
+  color: var(--ink-strong);
+}
+
+.doc-folder-more:focus-visible {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 1px;
 }
 
 .doc-folder-add-trigger {

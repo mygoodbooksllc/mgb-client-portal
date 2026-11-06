@@ -1907,8 +1907,10 @@ Team Reviews files.
     isn't enough history it says so.
   - A Statement of Functional Expenses using the Form 990 columns, with an editable
     category-to-function map.
-  - Giving detail: top and lapsed donors, giving by fund, and pledge progress. Only once giving
-    data is connected (QuickBooks-connected orgs see "Giving isn't included in board packets yet.").
+  - Giving detail: top and lapsed donors, giving by fund, and pledge progress for orgs that keep
+    gift records. QuickBooks-connected orgs get giving for the month, year to date, and a
+    "Giving by account" table from their QuickBooks giving accounts (no donor tables; QuickBooks
+    holds no per-donor records for the packet). With no giving accounts chosen, the packet says so.
   - An editable "what happened this month" summary.
   - Read-only share links (7/30/90 days, can be turned off). They open at `/?share=<token>`
     without signing in, through `get_report_share`.

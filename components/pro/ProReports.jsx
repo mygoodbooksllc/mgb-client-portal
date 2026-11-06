@@ -490,14 +490,42 @@ function prGivingSection(client, periodKey) {
   const pc = pledgeRows.reduce((s, r) => s + r.committed, 0);
   const pr = pledgeRows.reduce((s, r) => s + r.received, 0);
 
+  // QuickBooks clients: totals by giving account from the P&L (givingQbo).
+  // QuickBooks holds no per-donor records, so there are no donor tables.
+  const gq = client.givingQbo;
+  const qboAccounts = gq && Array.isArray(gq.accounts) ? gq.accounts : [];
+  let qbo = null;
+  if (qboAccounts.length > 0) {
+    const gqMonths = Array.isArray(gq.months) ? gq.months : [];
+    const monthRow = gqMonths.find((m) => m && m.key === periodKey);
+    // Year to date as of the packet month, not the last sync.
+    const pYear = String(periodKey).slice(0, 4);
+    const ytdAtPeriod = gqMonths
+      .filter((m) => m && String(m.key).slice(0, 4) === pYear && String(m.key) <= String(periodKey))
+      .reduce((t, m) => t + prNum(m.amount), 0);
+    qbo = {
+      periodTotal: monthRow ? prNum(monthRow.amount) : 0,
+      periodHasData: !!monthRow,
+      ytd: Math.round(ytdAtPeriod * 100) / 100,
+      last12: prNum(gq.last12),
+      accounts: (Array.isArray(gq.byAccount) ? gq.byAccount : []).map((r) => ({
+        account: String(r.account || ""),
+        ytd: prNum(r.ytd),
+        last12: prNum(r.last12),
+      })),
+    };
+  }
+
   return {
     periodLabel: prPeriodLabelFromKey(periodKey),
-    hasAnyGifts: gifts.length > 0,
-    // Giving doesn't sync from QuickBooks yet.
+    hasAnyGifts: gifts.length > 0 || !!qbo,
     emptyText:
-      client.dataSource === "quickbooks"
-        ? "Giving isn't included in board packets yet."
+      client.givingQboHidden
+        ? "Giving totals are organization-wide and are not shown for limited access."
+        : client.dataSource === "quickbooks" && gq
+        ? "No giving accounts are set up in QuickBooks yet. Your bookkeeper can choose which income accounts count as giving."
         : "No giving recorded yet.",
+    qbo,
     totalInPeriod: inPeriod.reduce((s, c) => s + prNum(c.amount), 0),
     giftCount: inPeriod.length,
     topDonors,
@@ -575,7 +603,9 @@ function prDraftSummary({ orgName, timeline, comparisons, budget, cash, giving }
     parts.push(s);
   }
 
-  if (giving.giftCount > 0) {
+  if (giving.qbo && giving.qbo.periodTotal > 0) {
+    parts.push(`Giving recorded this month came to ${prMoney(giving.qbo.periodTotal)}.`);
+  } else if (giving.giftCount > 0) {
     let s = `Giving recorded this month came to ${prMoney(giving.totalInPeriod)} across ${giving.giftCount} gift${giving.giftCount === 1 ? "" : "s"}.`;
     parts.push(s);
   }
@@ -927,6 +957,18 @@ function prBuildPacketPdf(snap) {
       if (!g || !g.hasAnyGifts) {
         y = paragraph((g && g.emptyText) || "No giving recorded yet.", y);
       } else {
+        if (g.qbo) {
+          y = paragraph(`${g.periodLabel}: ${prMoney(g.qbo.periodTotal)}. Year to date: ${prMoney(g.qbo.ytd)}.`, y, { bold: true });
+          y += 2;
+          if (g.qbo.accounts.length) {
+            y = ensure(y, 24);
+            y = table(y, {
+              head: [["Giving by account (as of last sync)", "Year to date", "Past 12 months"]],
+              body: g.qbo.accounts.map((r) => [T(r.account), prMoney(r.ytd), prMoney(r.last12)]),
+              columnStyles: right([1, 2]),
+            });
+          }
+        } else {
         y = paragraph(`${g.periodLabel}: ${prMoney(g.totalInPeriod)} from ${g.giftCount} gift${g.giftCount === 1 ? "" : "s"}.`, y, { bold: true });
         y += 2;
         if (g.topDonors.length) {
@@ -961,8 +1003,9 @@ function prBuildPacketPdf(snap) {
             columnStyles: right(g.byFund.months.map((_, i) => i + 1).concat([g.byFund.months.length + 1])),
           });
         }
+        }
       }
-      if (g && g.pledges.rows.length) {
+      if (g && g.pledges && g.pledges.rows.length) {
         y = ensure(y, 24);
         const t = g.pledges.totals;
         y = table(y, {
@@ -1359,6 +1402,44 @@ function PrGivingBlock({ giving }) {
     <div>
       {!g.hasAnyGifts ? (
         <p className="pr-muted">{g.emptyText || "No giving recorded yet."}</p>
+      ) : g.qbo ? (
+        <>
+          <div className="pr-kpis">
+            <div className="pr-kpi">
+              <span className="kpi-label">Giving, {g.periodLabel}</span>
+              <strong>{prMoney(g.qbo.periodTotal)}</strong>
+            </div>
+            <div className="pr-kpi">
+              <span className="kpi-label">Year to date</span>
+              <strong>{prMoney(g.qbo.ytd)}</strong>
+            </div>
+          </div>
+          {g.qbo.accounts.length > 0 && (
+          <>
+          <h4 className="pr-subhead">Giving by account (as of last sync)</h4>
+          <div className="pr-table-wrap">
+            <table className="tx-table pr-table">
+              <thead>
+                <tr>
+                  <th>Account</th>
+                  <th className="num">Year to date</th>
+                  <th className="num">Past 12 months</th>
+                </tr>
+              </thead>
+              <tbody>
+                {g.qbo.accounts.map((r) => (
+                  <tr key={r.account}>
+                    <td>{r.account}</td>
+                    <td className="num">{prMoney(r.ytd)}</td>
+                    <td className="num">{prMoney(r.last12)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          </>
+          )}
+        </>
       ) : (
         <>
           <div className="pr-kpis">
@@ -1478,7 +1559,7 @@ function PrGivingBlock({ giving }) {
         </>
       )}
 
-      {g.pledges.rows.length > 0 && (
+      {g.pledges && g.pledges.rows.length > 0 && (
         <>
           <h4 className="pr-subhead">Pledge progress</h4>
           <div className="pr-pledges">
