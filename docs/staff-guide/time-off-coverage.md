@@ -14,6 +14,8 @@ Tell the team when you're out, and make sure each of your clients has a **backup
 3. Pick the **First day off** and **Last day off**. Add a **Note** if you like. Every staff member can see it.
 4. Click **Save time off**.
 
+You can also click **+** in the top bar or the Desk rail and pick **Time off**. The same **My time off** window opens, with **Hand my tasks to backups** as on Team › People.
+
 Changed plans? Click **Cancel** next to the dates, then **Yes, cancel it**. Cancelled time off is kept in the records but disappears from the app.
 
 The whole team can see who's out. Clients never see any of it.

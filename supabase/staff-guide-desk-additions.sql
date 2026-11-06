@@ -1,3 +1,4 @@
+-- SUPERSEDED 2026-11-06: do not run. supabase/launch-2026-11-06.sql syncs these articles (re-dated 2026-11-06).
 -- Desk additions (S1-S4) staff guide rows: five articles, targeted replace() updates, body_md only.
 -- Not applied: apply at launch when the owner flips deskplus_enabled.
 -- Articles: workbench (the Desk), time-off-coverage, ask-client, whats-new, tips.

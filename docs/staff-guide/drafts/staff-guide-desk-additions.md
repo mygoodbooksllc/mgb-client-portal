@@ -1,5 +1,7 @@
 # Desk additions: DRAFT guide text
 
+> **PUBLISHED 2026-11-06** (label 2026-11-06c, launch of six previews). The live text is in `docs/staff-guide/` and `supabase/launch-2026-11-06.sql`; this draft is kept for reference.
+
 Draft for the hidden Desk additions preview (localStorage `mgb_deskplus_preview` / firm switch `deskplus_enabled`). Publish at launch, when the owner flips `deskplus_enabled`. Do not copy into the live guide before then.
 
 ## What's new (draft line)

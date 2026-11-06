@@ -1400,6 +1400,14 @@ function TOUR_adminSteps(ctx) {
     ),
     team("feedback", "Team › Feedback", "Bug reports and ideas from staff and clients. Only admins see all of it."),
     team("inventory", "Team › Inventory", "Admins also get Requests, Items, a Roster of who's missing what, the staff Directory and Export to Google Sheet."),
+    // Review board (launched 2026-11-06): firm switch only, never the per-person preview.
+    TOUR_tabStep(
+      "work",
+      "review",
+      "Work › Review board",
+      "Every client's 4th, 14th and 24th tasks for a month, with close status and the client's people. Sort any column; click a chip to open the task.",
+      () => typeof RB_firmOn === "function" && RB_firmOn(),
+    ),
     {
       id: "tasks-review",
       when: (c) => c.isAdmin && window.innerWidth >= 900,

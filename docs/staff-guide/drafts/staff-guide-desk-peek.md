@@ -1,5 +1,7 @@
 # Desk client summary: DRAFT guide text
 
+> **PUBLISHED 2026-11-06** (label 2026-11-06c, launch of six previews). The live text is in `docs/staff-guide/` and `supabase/launch-2026-11-06.sql`; this draft is kept for reference.
+
 Draft for the hidden Desk client summary preview (localStorage `mgb_peek_preview`, Feature flags label "Desk client summary (preview)" / firm switch `desk_peek_enabled`, owner-only). Publish at launch, when the owner flips `desk_peek_enabled`: add the section below to `docs/staff-guide/workbench.md` (slug `workbench`) and sync it, add the tip row to `docs/staff-guide/tips.md`, the What's new line to `whats-new.md`, and re-date the `desk-client-summary` notice in `components/tour/announcements.js`. Do not copy into the live guide before then.
 
 One change ships live with this build and is already true for everyone: the left sidebar's **Pin this client** shows a star instead of a pushpin (the words stay "Pin"). Nothing in the guide named the pushpin, so no guide text changes for it.

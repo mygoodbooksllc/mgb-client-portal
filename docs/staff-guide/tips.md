@@ -62,6 +62,7 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | A client's Overview | Set this client's backup under Edit dates and coverage. A backup doesn't get in automatically; they can request access, or an admin can give it. | [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage) |
 | A client's SOP | After 180 days an SOP shows as stale. Read it through; if it's still right, Mark as still accurate resets the clock. | [How do I write or update a client's SOP?](#/help/client-sops) |
 | Inbox, or a client's Messages | Loop in emails the assigned bookkeeper and adds a staff-only note. @name in a Note does the same; in a Reply the client sees the @name. | [How do I message a client or a teammate?](#/help/inbox) |
+| Inbox | Right-click a client thread, or click its ⋯, to rename, pin, mark done, snooze, reassign or hide it, make a task or copy a link. The client never sees it. | [How do I message a client or a teammate?](#/help/inbox) |
 | Inbox (only while the Desk is on) | A client's last message just says thanks? No reply needed takes the thread off your Desk without sending anything. A new message from them puts it back. | [How do I use the Desk?](#/help/workbench) |
 | A client's Messages | Click i for this client's portal logins, open requests, pinned notes, SOP and recent portal visits, right beside the thread. | [How do I message a client or a teammate?](#/help/inbox) |
 | Any client page | The sync pill: QuickBooks syncs on the plan's schedule (Basic monthly, Pro every hour). Staff can click it to Sync now on any plan after changing something in QuickBooks. | [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection) |
@@ -96,6 +97,8 @@ These show on the Slate pages, after the tips above. **Work › Slate** is a sho
 | Slate | Click a group's heading to fold it; it stays that way next time. Done starts folded, and View can turn the Today group off. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate | Click a status to change it. On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note. | [What's in a task's details?](#/help/task-details) |
 | Slate | Recurring holds the templates that make monthly, quarterly and yearly tasks for each client. Tasks they make show a Recurring tag. | [How do recurring tasks from templates work?](#/help/task-templates) |
+| Desk Client tab | Keep on Desk holds this client on the Client tab while you open other pages, for up to 24 hours. On a client's page, press p to do the same. | [How do I use the Desk?](#/help/workbench) |
+| Any page, Desk open on the Client tab | Waiting on client lists what you've asked this client for that they haven't answered yet. Click one to open it. Their latest messages and files are just below. | [How do I use the Desk?](#/help/workbench) |
 | Slate | Waiting on client lists everything you've asked a client for from a task, longest wait first. Ask client is in a client task's details. | [How do I ask a client something from a task?](#/help/ask-client) |
 | Slate (new) | Group by lists your tasks by due date, client, part of the month or status. Sort and quick chips sit beside it, and the portal remembers your view. | [How do I use my Slate?](#/help/my-tasks) |
 | Slate › Recurring (admins, new) | Month rhythm templates take their dates from Settings. Change the rhythm once instead of editing each template. | [How do recurring tasks from templates work?](#/help/task-templates) |
@@ -132,6 +135,7 @@ These show on the Slate pages, after the tips above. **Work › Slate** is a sho
 
 | Page | Tip | Learn more |
 |---|---|---|
+| Work › Review board | Filter the Review board by bookkeeper or by status, like Has late, to see who needs a nudge. | [Review board](#/help/review-board) |
 | HR › Members | Give a bookkeeper the admin pages for 1 hour, 1 day or 1 week, say while you're away. It ends by itself; Revoke ends it early. | [How do I add staff and manage their access?](#/help/staff-management) |
 | HR › Members | Last seen shows when someone last used the app: their page, browser, app version and last error. Check it first when someone says something's broken. | [How do I add staff and manage their access?](#/help/staff-management) |
 | Team › Client gifts | Anniversary to follow is one choice for the whole firm: the founding date (the default) or Client since. Client since stays on file and shows in the list either way. It changes the date we follow and the weekly digest count. | [What is a client's organization profile, and how do client gifts work?](#/help/client-org-profile) |

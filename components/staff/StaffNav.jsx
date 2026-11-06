@@ -78,9 +78,8 @@ const NAV_PLACES = [
         key: "review",
         label: "Review board",
         keywords: ["deadlines", "check in", "reports", "follow up", "rhythm"],
-        // No help key yet: the guide article is still a draft
-        // (docs/staff-guide/drafts/review-board-guide.md), so ? falls back to
-        // Work's article. Add help: "review-board" when the article is published.
+        // Guide article review-board (published at launch, 2026-11-06).
+        help: "review-board",
         admin: true,
         realAdmin: true,
         visible: () => typeof RB_on === "function" && RB_on(),

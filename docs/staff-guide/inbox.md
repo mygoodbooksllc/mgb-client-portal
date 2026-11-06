@@ -2,7 +2,7 @@
 title: How do I message a client or a teammate?
 section: Daily work
 audience: staff
-keywords: [no reply needed, desk, inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, deleted message, unsend, 24 hours, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email, desk]
+keywords: [no reply needed, desk, inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, deleted message, unsend, 24 hours, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email, desk, thread menu, rename thread, pin thread, done, snooze thread, reassign, hide thread, restore, copy link]
 sort: 140
 ---
 The **Inbox** (in the left rail) holds client conversations and team chat in one place. The bell in the top bar also lists client messages waiting for a reply.
@@ -24,6 +24,32 @@ The **Inbox** (in the left rail) holds client conversations and team chat in one
 ### No reply needed
 
 When the Desk is on and the client wrote last, the thread header has **No reply needed**. Use it when their message doesn't need an answer, like a thank-you: the thread leaves everyone's Desk and **Needs reply** count without sending anything, with **Undo** for a few seconds. A new message from the client puts it back. See [How do I use the Desk?](#/help/workbench).
+
+### Thread actions: rename, pin, done, snooze, reassign, hide
+
+Right-click a client thread in the list, or click its **⋯** (it shows when you point at or tab to the row, and always on a phone or tablet). With the keyboard, **Shift+F10** or the menu key opens it on the selected thread.
+
+- **Rename…** gives the thread a name everyone on staff sees, like "2025 tax documents" (up to 80 characters). The person's name moves to the start of the preview line. **Clear name** puts it back.
+- **Pin to top** keeps the thread at the top of **All** and **Clients**, newest pin first. **Unpin** undoes it.
+- **Mark done** moves the thread out of **All** and **Clients** into the **Done** chip. **Reopen** brings it back, and so does a new message from the client.
+- **Snooze** gives **Tomorrow 8am**, **Next Monday 8am** or **Pick a date…** (up to 30 days ahead), all Central time. The thread waits in the **Snoozed** chip with a **Snoozed until …** tag and comes back at that time, or sooner if the client writes. **Unsnooze** brings it back now.
+- **Reassign…** picks who on staff owns the thread (anyone who can see the client), shown as an **Assigned:** tag. **Unassigned** clears it. Nobody is emailed.
+- **Create task** makes a private task for you, "Reply to …", linked to the thread, and opens it.
+- **Copy link** copies a link to the newest message, to paste to a teammate.
+- **Hide** takes the thread out of the list for everyone. Only an admin can bring it back: admins see a **Hidden** chip and pick **Restore**. If the client writes again, the thread comes back on its own with a **Hidden** tag until an admin restores it.
+
+**Pin**, **Mark done**, **Reopen** and **Snooze** (and **Hide**, for admins) show **Undo** in the message at the bottom for a few seconds.
+
+Good to know:
+
+- It is shared: what one person does, everyone on staff sees. The last change wins.
+- The client never sees names, tags or any of these actions, and nothing is emailed. Each change is kept in an audit log.
+- None of these mark messages read. The unread count, the dots and the bell still count unread messages in a hidden, done or snoozed thread.
+- While you search, done and snoozed threads show too, with their tag (hidden ones only for admins).
+- A link straight to a done, snoozed or hidden thread still opens it; the list switches to **All**.
+- A client's **Messages** tab and the chat drawer have the same menu and tags, but nothing is hidden or moved there.
+- On the Desk, right-click a message row, or open its **⋯** and pick **Thread actions…**, for **Rename…**, **Mark done** / **Reopen**, **Reassign…**, **Create task**, **Copy link** and **Hide** / **Restore**. There is no Snooze or Pin there (the Desk has its own **Snooze**), and the Desk does not hide or reorder rows by these. **Mark done** and **Hide** take the row off the Desk the way **No reply needed** does; **Reopen** (or **Restore**) puts it back once neither **Mark done** nor **Hide** still holds it, and never undoes a **No reply needed** someone set on the Desk. Thread names show only on the Inbox.
+- Team chats have no menu, and it is off during **View as**.
 
 ### Who gets emailed when a client writes
 

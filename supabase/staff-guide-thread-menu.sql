@@ -1,3 +1,4 @@
+-- SUPERSEDED 2026-11-06: do not run. supabase/launch-2026-11-06.sql syncs these articles (re-dated 2026-11-06).
 -- Thread menu staff guide rows: three articles, targeted replace() updates, body_md only.
 -- NOT APPLIED: apply at launch, when the owner flips tk_settings.threadmenu_enabled.
 -- Articles: inbox (new section before "Who gets emailed"), whats-new (new top entry), tips (new row).

@@ -2,7 +2,7 @@
 title: How do I use the Desk?
 section: Getting started
 audience: staff
-keywords: [desk, desk, tasks open in the desk, task in the desk, back to desk, back button, f6, move between desk and page, esc goes back, drill in, slate, the desk, slate tab, reply without leaving the page, reply from the desk, open file, open file from the desk, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, right column, right side, rail, desk rail, info bar, bottom bar, right now, right now card, glance, waiting counts, page client, oldest wait, clean slate, late, done today, next up, qbo sync, chat bubble, messages icon, mentions, press d, d key, w key, resize, resize the desk, desk width, wider, narrower, drag the left edge, page stays usable, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, desk preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the desk, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
+keywords: [desk, desk, tasks open in the desk, task in the desk, back to desk, back button, f6, move between desk and page, esc goes back, drill in, slate, the desk, slate tab, reply without leaving the page, reply from the desk, open file, open file from the desk, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, right column, right side, rail, desk rail, info bar, bottom bar, right now, right now card, glance, waiting counts, page client, oldest wait, clean slate, late, done today, next up, qbo sync, chat bubble, messages icon, mentions, press d, d key, w key, resize, resize the desk, desk width, wider, narrower, drag the left edge, page stays usable, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, desk preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the desk, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task, client summary, client tab summary, keep on desk, kept, p key, customize desk, reset desk, rail only, bar only, ledger chip, waiting on client, recent messages, recent files, ask client, message button, time off]
 sort: 41
 ---
 The **Desk** sits on the right of every staff page, with a slim rail on its right edge. Press **D** anywhere to open it (**W** no longer does): one list of everything that needs you, in order, with tabs for your **Inbox**, your **Slate** (it was called Tasks) and one **Client**. **Today** (the first place in the left rail; the address stays `#/today`) keeps its name and shows only the top of that list as a **Do next** card (always your own items, even while an admin has **Everyone** picked here); the full list stays here and in **Slate**.
@@ -128,6 +128,71 @@ The **Client** tab shows one client's open tasks without leaving the page you're
 - **+ Task** opens quick add for this client. **Open client** goes to the client's page and closes the Desk.
 - **Esc** closes the client list first, then clears what you typed, then closes the Desk.
 - If a client you looked at before is no longer yours, the tab says **You don't have access to this client** and hides it from your pins. The pin comes back if you get access again.
+
+### The Client tab summary
+
+Open your Desk, pick the **Client** tab and choose a client. Under the client's name is a short summary:
+
+- **Who works on it.** The bookkeeper and the account manager. Your own name shows as **You**. No bookkeeper yet says **No bookkeeper assigned**.
+- **First contact.** The client's first request contact (or, with none, the first portal user), with their email. **Copy** puts the email on your clipboard. **+2 more** means there are more; the full list is under **Contacts** lower in the Client tab. With no contacts it says **No contacts yet · Add**, which opens that Contacts list.
+- **Drive folder.** Opens the client's main Google Drive folder in a new tab.
+- **Pinned note.** A pinned **Status** or **Handoff** note on the client, so a heads-up is the first thing you see. If the note mentions fees, rates, payments or any amount, the summary says **See pinned note** instead of the words; open the note on the client's page to read it.
+- **Last message.** The last message from the client and when it came in. Click it to open the chat. Staff-only notes never show here.
+- **Next.** How many of your open tasks for this client there are and how many are late (for example **3 open · 1 late**). Click it to jump to them below.
+
+The summary never shows money: no fees, rates, invoices, payroll or balances.
+
+The arrow on the right folds the summary to one line (on a short screen it starts folded). Your choice is remembered in this browser. Each line loads on its own: if one can't load it says **Couldn't load** with a **Retry** button and the others still show.
+
+**Who sees what.** You only see clients you can open (the same list as the client picker). For any other client the Desk loads nothing at all. The summary is not in the Desk while an admin uses **View as**, because the Desk itself is off then.
+
+### Keep on Desk
+
+Normally the Desk's Client tab follows the page you are on. **Keep on Desk** holds one client there instead, so you can look at another client's page, your Inbox or Slate while that client stays in the Desk.
+
+- On the Client tab, click **Keep on Desk** next to the client's name (it then says **Kept**). Click **Kept** to stop.
+- On a client's page, the **Keep on Desk** button in the page header, the **p** key, or **Keep <client> on Desk** in the search box (⌘K or Ctrl+K) does the same, and opens the Desk on that client.
+- While a client is kept and you open another client's page, the Desk says **Kept · you're on <other client>** with a **Show <other client>** button to look at the page's client for a moment.
+- Picking another client in the Client tab moves the keep to that client, with **Undo**.
+- A keep lasts 24 hours, then the Client tab follows the page again.
+- If you lose access to a kept client, the Desk says **You can't see this client anymore** with a **Stop keeping** button, and shows nothing about the client.
+
+Keep is yours alone and saved in this browser. It is separate from the ☆ pins, which keep clients at the top of the client list.
+
+### Customize Desk
+
+The sliders button in the Desk head (next to ×) opens **Customize Desk**. It is saved for you in this browser.
+
+- **Glance counts at the top** and **Right now card**: turn either off.
+- **When the Desk is closed, show**: **Both** (the rail and the bar, the default), **Rail only**, **Bar only** or **Neither**. With either one hidden, press **D** to open the Desk. On a phone the bar always shows.
+- **Reset Desk** puts your Desk back to the defaults: width, tab, keep, the summary's fold and these choices. Your ☆ pins stay.
+
+### Ledger chip, and the Client tab's lists and buttons
+
+**Ledger chip.** In the Inbox, the chips along the top have a **Ledger** chip just before **Files**. It shows only your Ledger (GL Review) items: flags to look at, reviews to approve, reviews sent back to you, and questions waiting on an answer. Pick **All** to see everything again.
+
+**Under the client's tasks on the Client tab** are three short lists. Each loads on its own; if one can't load it says so with a **Retry** button and the others still show.
+
+- **Waiting on client.** Everything you've asked this client for that they haven't answered yet, longest wait first: what you asked, the day you asked, how many business days it has waited, and the reminder state (**Reminded once**, **Reminded 3 times**, **Reminders paused**, **No reply**). Click a row to open it: a request on a task you can open opens that task in the Desk. If the request sits on a task you can't open (someone else's private task), you see only the request, never the task, and the row opens **Waiting on client** instead. More than 10? **See all in Waiting on client** opens the full list.
+- **Recent messages.** The client's last five messages, newest first: who wrote it, when, and the first line. A message that is only an attachment says *(attachment)*. Staff-only notes never appear here. Click one to open the chat on that person without leaving the page.
+- **Recent files.** The client's last five files, newest first, with the file type and the day it was added. Files in the trash don't show. Click one to open it in Google Drive in a new tab. A file that isn't in Google Drive yet opens the client's **Documents** instead.
+
+You only see clients you can open: bookkeepers see their own clients, admins see every client, and a temporary admin sees the clients they were given.
+
+**Ask client and Message** sit next to **+ Task** on the Client tab:
+
+- **Ask client** opens the same Ask client window you know from a task, but with no task attached. Pick what you need (a question, a document, an approval), write the title and message, choose who should answer, and send. The request then shows right away under **Waiting on client**. Test clients only send you a copy marked [Test], and a client whose emails aren't switched on yet gets a dry run (nothing is emailed and the toast says so). Esc closes the window first; press Esc again to close the Desk.
+- **Message** opens the chat on that client without leaving the page.
+
+### The + menu has three more lines
+
+Click the **+** (top bar, Desk rail, or the top bar on a phone). Three lines join **New task**:
+
+- **Ask client…** On a client's page it opens Ask client for that client straight away. On any other page it first asks which client (type to find one), then opens Ask client.
+- **Message…** On a client's page it opens the chat on that client. On any other page it opens the chat list.
+- **Time off** opens **My time off** in a window: add or remove days you'll be away, and **Hand my tasks to backups** works as it does on Team › People.
+
+**Request document** and **New note** stay as they were.
 
 ### Keyboard shortcuts
 
