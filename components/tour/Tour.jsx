@@ -544,7 +544,10 @@ function TOUR_clientCtx(client, access, extra) {
     pro: !!a.premiumForUser,
     tabs,
     categories: a.categories ? Array.from(a.categories) : [],
-    canEditOrg: kind === "full",
+    // window.MGB_ORG_CAN_EDIT is the server answer (client_org_settings.can_edit),
+    // set by the prefetch below and by Settings; unknown (undefined) keeps the
+    // access-based guess.
+    canEditOrg: kind === "full" && window.MGB_ORG_CAN_EDIT !== false,
     // Per-person access actually narrows what they see (not on Basic,
     // where resolveAccess shows everyone the whole Basic set).
     scoped: kind !== "full" && a.isFullAccess !== true,
@@ -2553,6 +2556,16 @@ function TOUR_Root({
       setRun({ tour: "pro", steps: TOUR_visibleClientSteps(TOUR_proSteps(c), c), index: 0, persist });
     }, 350);
   }, []);
+
+  // Ask the server once whether this person sees Settings > Organization, so
+  // the tour and the setup checklist don't point at a tab they don't have.
+  React.useEffect(() => {
+    const sb = window.mgbSupabase;
+    if (!isRealClient || !sb || window.MGB_ORG_CAN_EDIT !== undefined) return;
+    Promise.resolve(sb.rpc("client_org_settings")).then(({ data, error }) => {
+      if (!error && data) window.MGB_ORG_CAN_EDIT = !!data.can_edit;
+    });
+  }, [isRealClient]);
 
   // First sign-in: start once settings have loaded and say it hasn't run.
   React.useEffect(() => {

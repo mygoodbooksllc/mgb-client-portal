@@ -2056,7 +2056,10 @@ function ST_ClientSettingsPage({
   React.useEffect(() => {
     const sb = window.mgbSupabase;
     if (mode !== "client" || !sb) return;
-    Promise.resolve(sb.rpc("client_org_settings")).then(({ data, error }) => setOrg(error ? null : data));
+    Promise.resolve(sb.rpc("client_org_settings")).then(({ data, error }) => {
+      setOrg(error ? null : data);
+      if (!error && data) window.MGB_ORG_CAN_EDIT = !!data.can_edit;
+    });
   }, [mode, orgRev]);
   const canEditOrg = mode === "client" && org && org.can_edit;
   const tabs =
