@@ -26615,7 +26615,10 @@ function TabSettingsModal({
         <div className="modal-body">
           <p className="card-subtitle" style={{ marginTop: 0 }}>
             Turn a tab off here and nobody at {client.name} sees it, whatever
-            their individual access. Drag ⠿ to reorder the Finances tabs.
+            their individual access. Drag ⠿ to reorder the Finances tabs
+            {canEditOrgTabs && window.TAB_ORDER_COL_OK
+              ? ` for everyone at ${client.name}.`
+              : " in this browser."}
           </p>
           {!canEditOrgTabs && (
             <p
@@ -27364,6 +27367,23 @@ function normalizeHiddenTabs(keys) {
 }
 
 const TAB_ORDER_STORAGE_KEY = "mygoodbooks_tab_order_v1";
+
+// Org tab order in the server's shape (clients.tab_order): known section
+// labels only, each a list of that section's own tab keys, no repeats.
+// Anything else (an old label, a removed tab) is dropped; {} = none saved.
+function normalizeTabOrder(value) {
+  const out = {};
+  if (!value || typeof value !== "object" || Array.isArray(value)) return out;
+  for (const section of NAV_SECTIONS) {
+    const list = value[section.label];
+    if (!Array.isArray(list)) continue;
+    const known = new Set(section.items.map((i) => i.key));
+    const seen = new Set();
+    const keys = list.filter((k) => typeof k === "string" && known.has(k) && !seen.has(k) && seen.add(k));
+    if (keys.length) out[section.label] = keys;
+  }
+  return out;
+}
 
 function loadTabOrder() {
   try {
@@ -28854,7 +28874,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // Org-hidden tabs saved in this session, by client id, on top of
   // client.hiddenTabs from the roster (so the change shows at once).
   const [orgHiddenOverride, setOrgHiddenOverride] = useState({});
-  const [tabOrder, setTabOrder] = useState(loadTabOrder);
+  // This browser's own tab order (the old per-browser setting). Used only
+  // for a client whose org has no saved order (clients.tab_order); see
+  // tabOrder below.
+  const [localTabOrder, setLocalTabOrder] = useState(loadTabOrder);
+  // Org tab orders saved in this session, by client id, on top of
+  // client.tabOrder from the roster (so a drag shows at once).
+  const [orgTabOrderOverride, setOrgTabOrderOverride] = useState({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsTab, setDetailsTab] = useState(null);
@@ -29560,9 +29586,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(TAB_ORDER_STORAGE_KEY, JSON.stringify(tabOrder));
+      localStorage.setItem(TAB_ORDER_STORAGE_KEY, JSON.stringify(localTabOrder));
     } catch (e) {}
-  }, [tabOrder]);
+  }, [localTabOrder]);
 
   // §149 hotfix: this effect is what actually syncs data-theme onto <html> —
   // every CSS rule in styles.css keys off that attribute, not off React
@@ -29943,23 +29969,97 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     );
   };
 
-  const reorderTab = (sectionLabel, fromKey, toKey) => {
-    setTabOrder((prev) => {
-      const section = NAV_SECTIONS.find((s) => s.label === sectionLabel);
-      const currentOrder =
-        (prev[selectedClientId] && prev[selectedClientId][sectionLabel]) ||
-        section.items.map((i) => i.key);
-      const withoutFrom = currentOrder.filter((k) => k !== fromKey);
-      const toIndex = withoutFrom.indexOf(toKey);
-      withoutFrom.splice(toIndex, 0, fromKey);
-      return {
-        ...prev,
-        [selectedClientId]: {
-          ...(prev[selectedClientId] || {}),
-          [sectionLabel]: withoutFrom,
-        },
-      };
-    });
+  // Org tab order (Manage access › Organization tabs, drag ⠿). Saved on the
+  // client row (clients.tab_order, supabase/client-tab-order.sql; admins
+  // only, the same "admins can update clients" policy as hidden_tabs), so
+  // every login at the org and every device sees the same order. A client
+  // with no saved order falls back to this browser's old local order.
+  const orgTabOrderFor = (c) =>
+    normalizeTabOrder(
+      c && Object.prototype.hasOwnProperty.call(orgTabOrderOverride, c.id)
+        ? orgTabOrderOverride[c.id]
+        : c && c.tabOrder,
+    );
+  // Worked out on every render (the roster is small), so a roster reload
+  // (window.mgbReloadRoster) is picked up like client.hiddenTabs is.
+  const tabOrder = { ...localTabOrder };
+  for (const c of CLIENTS) {
+    const org = orgTabOrderFor(c);
+    if (Object.keys(org).length) tabOrder[c.id] = org;
+  }
+  const orgTabOrderLatestRef = useRef({});
+  const applyOrgTabOrder = (clientId, value) => {
+    const next = normalizeTabOrder(value);
+    orgTabOrderLatestRef.current[clientId] = next;
+    const entry = CLIENTS.find((c) => c.id === clientId);
+    if (entry) entry.tabOrder = next;
+    setOrgTabOrderOverride((prev) => ({ ...prev, [clientId]: next }));
+  };
+  const saveOrgTabOrder = async (clientId, next, prev) => {
+    const sb = window.mgbSupabase;
+    if (!sb) return false;
+    applyOrgTabOrder(clientId, next);
+    const { data, error } = await sb
+      .from("clients")
+      .update({ tab_order: next })
+      .eq("id", clientId)
+      .select("tab_order");
+    if (error || !data || !data.length) {
+      applyOrgTabOrder(clientId, prev);
+      return false;
+    }
+    applyOrgTabOrder(clientId, data[0].tab_order);
+    return true;
+  };
+
+  const reorderTab = async (sectionLabel, fromKey, toKey) => {
+    const clientId = selectedClientId;
+    const section = NAV_SECTIONS.find((s) => s.label === sectionLabel);
+    if (!section) return;
+    const prevAll = tabOrder[clientId] || {};
+    const currentOrder =
+      prevAll[sectionLabel] || section.items.map((i) => i.key);
+    const withoutFrom = currentOrder.filter((k) => k !== fromKey);
+    const toIndex = withoutFrom.indexOf(toKey);
+    withoutFrom.splice(toIndex, 0, fromKey);
+    const nextAll = { ...prevAll, [sectionLabel]: withoutFrom };
+    // Admins save it for the whole org (when the column exists); everyone
+    // else, and any database without the column yet, keeps the old
+    // per-browser order.
+    if (canEditOrgTabs && window.TAB_ORDER_COL_OK) {
+      const prevOrg =
+        orgTabOrderLatestRef.current[clientId] || orgTabOrderFor(client);
+      const ok = await saveOrgTabOrder(clientId, nextAll, prevOrg);
+      if (!ok) orgTabsToast("Couldn't save the tab order. Only admins can change Organization tabs.");
+      return;
+    }
+    setLocalTabOrder((prev) => ({ ...prev, [clientId]: nextAll }));
+  };
+
+  // One-time copy of this browser's old tab order for the open client up to
+  // the server, when an admin opens Organization tabs and the org has no
+  // saved order yet. Order only changes the sidebar's sequence, so no prompt.
+  const migrateLegacyTabOrder = async () => {
+    if (!canEditOrgTabs || !window.TAB_ORDER_COL_OK) return;
+    const clientId = client.id;
+    if (Object.keys(orgTabOrderFor(client)).length) return;
+    const local = normalizeTabOrder(localTabOrder[clientId]);
+    if (!Object.keys(local).length) return;
+    const sb = window.mgbSupabase;
+    if (!sb) return;
+    // Only while the server still has none, so a stale browser never
+    // replaces an order another admin saved.
+    const { data, error } = await sb
+      .from("clients")
+      .update({ tab_order: local })
+      .eq("id", clientId)
+      .eq("tab_order", "{}")
+      .select("tab_order");
+    if (!error && data && data.length) applyOrgTabOrder(clientId, data[0].tab_order);
+  };
+  const openOrgTabs = () => {
+    migrateLegacyHiddenTabs();
+    migrateLegacyTabOrder();
   };
 
   const toggleUserPremium = (userId) => {
@@ -32756,7 +32856,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           userAccess={userAccess}
           onToggle={toggleTab}
           canEditOrgTabs={canEditOrgTabs}
-          onOpenOrgTabs={migrateLegacyHiddenTabs}
+          onOpenOrgTabs={openOrgTabs}
           onReorder={reorderTab}
           onToggleUserTab={toggleUserTab}
           onToggleUserCategory={toggleUserCategory}
@@ -32782,7 +32882,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           userAccess={userAccess}
           onToggle={toggleTab}
           canEditOrgTabs={canEditOrgTabs}
-          onOpenOrgTabs={migrateLegacyHiddenTabs}
+          onOpenOrgTabs={openOrgTabs}
           onReorder={reorderTab}
           onToggleUserTab={toggleUserTab}
           onToggleUserCategory={toggleUserCategory}

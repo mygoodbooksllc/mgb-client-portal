@@ -2825,10 +2825,13 @@ Team Reviews files.
 - Per-person category scoping is enforced in the database for `qbo_*` rows and transaction
   questions (`supabase/client-scope-rls.sql` and the live transaction_questions policy). Files in the
   `client-uploads/<client>/shared/` folder are still visible to everyone at the org, by design.
-- The Finances tab order (Manage access → Organization tabs, drag ⠿) and dashboard layouts are
-  saved in each browser's `localStorage`, not in Supabase, so they don't carry across devices or
-  people. Which tabs are hidden is on the server (`clients.hidden_tabs`). The People tab edits
-  sample users.
+- Dashboard layouts and saved views already follow each person across devices
+  (`user_board_layouts`, since 2026-09-30). The Finances tab order (Manage access → Organization
+  tabs, drag ⠿) moves to `clients.tab_order` once `supabase/client-tab-order.sql` is applied
+  (**NOT APPLIED**, built 2026-11-06): admins' drags then save for the whole org and every device,
+  and an admin's old browser order is copied up once while the org has none. Until then, and for
+  non-admins, the order stays per browser (`mygoodbooks_tab_order_v1`). Which tabs are hidden is
+  on the server (`clients.hidden_tabs`). The People tab edits sample users.
 - QuickBooks gaps: no account numbers (masks), bill memos not synced. Reconciliation is only a
   proxy (cleared flags on the last 13 months of bank and card transactions), and CDC only gates
   the full re-read; it doesn't merge deltas.
@@ -2895,6 +2898,11 @@ Team Reviews files.
 
 ## History
 
+- **2026-11-06:** **Org tab order on the server** (label 2026-11-06c). `clients.tab_order`
+  (`supabase/client-tab-order.sql`, not applied; the app keeps the per-browser order until it is),
+  read by index.html's roster loader in its own query (`window.TAB_ORDER_COL_OK`), written by
+  admins from Organization tabs (`reorderTab`, `normalizeTabOrder` in app.jsx, test
+  `tests/tabOrder.test.js`).
 - **2026-11-03:** **Desk client summary, Keep on Desk and Customize Desk built, hidden** (label 2026-11-03c). Feature flags › **Desk client summary (preview)** (`mgb_peek_preview`) or the owner-only `tk_settings.desk_peek_enabled` (unset = off). `supabase/owner-only-desk-peek-switch.sql` (applied; self-test `-tests.sql` passes, rolls back) adds the key to `tk__owner_only_key`; no row is inserted. New `components/workbench/WB_peek.js` (+ node test) and `WB_HubClientSummary.jsx`; `WB_HubClient.jsx`, `WB_Hub.jsx`, `WB_Drawer.jsx`, `WB_Row.jsx` (shortcut sheet `p` row), `TopBar.jsx` (⌘K row) and `app.jsx` (client header button) call the gate. Notice `desk-client-summary` and tour stops are drafted and held (`ANN_peekLaunchOn`, `TOUR_peekOn`); guide text in `docs/staff-guide/drafts/staff-guide-desk-peek.md`, not synced. Live for everyone: the left sidebar's **Pin this client** shows a star instead of a pushpin (words unchanged).
 - **2026-10-31:** **Members area staff tab built, hidden** (label 2026-10-31g, note "Behind-the-scenes updates."; step 2 front end). New HR tab `members-area` (not the staff roster tab `members`), `components/members/`. Preview checkbox **Members area preview** in Developer tools › Feature flags (`mgb_members_preview`); firm switch `tk_settings.members_staff_enabled` (owner-only, code never writes it, cached in `mgb_members_cache`, event `mgb:members`). `MB_useGate` calls `members_staff_me` only once the preview or the switch is on; the tab shows only when `can_list` is true, and never in View as. Rows come from `members_staff_list`; **Open** (only with `can_open`) asks why first, then `open_member` logs the opening and returns the facts. Owner card **Who can open customers** uses `members_support_people` / `set_members_support`. Developer tools shows `members_staff_enabled` and `members_area_open` read-only. Nothing is announced: no What's new entry, tour, tip or help item while hidden. The guide article, next-visit notice and tour text are drafted in `docs/members-area-draft.md` (not in `docs/staff-guide/`, so nothing syncs to the live guide); publish them at launch. Node tests: `node components/members/MB_logic.test.js`, `node components/members/MB_gate.test.js`.
 - **2026-10-31:** **Client page drop launched for all clients** (label 2026-10-31b, pilot `"all"`). `client_page_drop_enabled` is on, the `client-page-drop` staff notice is dated 2026-10-31, and the six staff-guide articles (add-documents, client-portal, google-drive-files, client-tour, tips, whats-new) carry the launch text via `supabase/staff-guide-client-page-drop.sql`; no other code change.
