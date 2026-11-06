@@ -18,7 +18,9 @@ HANDOFF*.md
 # Database blueprint: schema, RLS policies, edge function sources
 supabase/
 
-# Local-only build/tooling
+# Local-only build/tooling. tools/ (the build step) and package.json must be
+# uploaded: Vercel runs them. tools/precompile.mjs copies only the served
+# files into dist/.
 .claude/
 __pycache__/
 .build-cache/

@@ -1,0 +1,10 @@
+{
+  "name": "mgb-client-portal",
+  "private": true,
+  "scripts": {
+    "build": "node tools/precompile.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0"
+  }
+}

@@ -28,9 +28,15 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 ## How it runs
 
-- **No bundler.** `index.html` downloads each source file as plain text and compiles it in the
-  browser with `@babel/standalone`, which handles JSX and TypeScript. Nothing is built ahead
-  of time.
+- **No bundler, one small build step (2026-11-06).** Vercel runs `npm run build`
+  (`tools/precompile.mjs`, esbuild): it copies the site into `dist/` (what Vercel serves) and
+  compiles every file in `__SOURCE_ORDER` ahead of time into `dist/precompiled/<path>.js` with
+  the same settings the browser used (classic JSX, TypeScript types stripped, no bundling, same
+  global scope). `index.html` runs those copies and never downloads Babel. A file with no
+  precompiled copy (local `.claude/serve.js` on the repo folder, or a deploy without the build)
+  is fetched as source and compiled in the browser with `@babel/standalone` exactly as before,
+  which `ensureBabel()` loads on first need. To try the built site locally: `npm install && npm
+  run build`, then serve `dist/`. Tests: `tests/precompile.test.mjs`.
 - **Load order.** `window.__SOURCE_ORDER` in `index.html` lists the files in the order they
   run: `auth-config.js`, `qbo-config.js`, `components/auth/*`, `data.js`,
   `components/dashboard/WidgetDrawer.jsx`, `components/daily-close/*`, `components/qbo/mapQboToClient.js`, `components/pro/*`,
@@ -2815,7 +2821,9 @@ Team Reviews files.
 
 **Code health (Phase 4)**
 
-- Move to Vite (a real build step). That would also allow a stricter CSP.
+- Move to Vite (ES modules). Phase 0, precompiling at build time, is done (2026-11-06; see
+  **How it runs**). Plan for the rest: `app.jsx` split by page first (still global scope, files
+  added to `__SOURCE_ORDER`), then ES modules and a stricter CSP without `'unsafe-inline'`.
 - Split `app.jsx` by page and add a data-access layer.
 - Add tests: `resolveAccess`, fail-closed scoping, operating reserve math, formatters,
   `safeHttpUrl`.
@@ -2895,6 +2903,11 @@ Team Reviews files.
 
 ## History
 
+- **2026-11-06:** **Precompiled at build time** (label 2026-11-06d). `package.json` (esbuild),
+  `tools/precompile.mjs`, `vercel.json` `buildCommand` / `outputDirectory: dist`, and the loader in
+  `index.html` prefers `precompiled/<path>.js`, falling back per file to in-browser Babel. The
+  static Babel `<script>` tag is gone (loaded on demand, same URL and SRI hash). Local check: sign-in
+  shows in about 0.6 s instead of 8 s, and the signed-in staff pages render the same text both ways.
 - **2026-11-03:** **Desk client summary, Keep on Desk and Customize Desk built, hidden** (label 2026-11-03c). Feature flags › **Desk client summary (preview)** (`mgb_peek_preview`) or the owner-only `tk_settings.desk_peek_enabled` (unset = off). `supabase/owner-only-desk-peek-switch.sql` (applied; self-test `-tests.sql` passes, rolls back) adds the key to `tk__owner_only_key`; no row is inserted. New `components/workbench/WB_peek.js` (+ node test) and `WB_HubClientSummary.jsx`; `WB_HubClient.jsx`, `WB_Hub.jsx`, `WB_Drawer.jsx`, `WB_Row.jsx` (shortcut sheet `p` row), `TopBar.jsx` (⌘K row) and `app.jsx` (client header button) call the gate. Notice `desk-client-summary` and tour stops are drafted and held (`ANN_peekLaunchOn`, `TOUR_peekOn`); guide text in `docs/staff-guide/drafts/staff-guide-desk-peek.md`, not synced. Live for everyone: the left sidebar's **Pin this client** shows a star instead of a pushpin (words unchanged).
 - **2026-10-31:** **Members area staff tab built, hidden** (label 2026-10-31g, note "Behind-the-scenes updates."; step 2 front end). New HR tab `members-area` (not the staff roster tab `members`), `components/members/`. Preview checkbox **Members area preview** in Developer tools › Feature flags (`mgb_members_preview`); firm switch `tk_settings.members_staff_enabled` (owner-only, code never writes it, cached in `mgb_members_cache`, event `mgb:members`). `MB_useGate` calls `members_staff_me` only once the preview or the switch is on; the tab shows only when `can_list` is true, and never in View as. Rows come from `members_staff_list`; **Open** (only with `can_open`) asks why first, then `open_member` logs the opening and returns the facts. Owner card **Who can open customers** uses `members_support_people` / `set_members_support`. Developer tools shows `members_staff_enabled` and `members_area_open` read-only. Nothing is announced: no What's new entry, tour, tip or help item while hidden. The guide article, next-visit notice and tour text are drafted in `docs/members-area-draft.md` (not in `docs/staff-guide/`, so nothing syncs to the live guide); publish them at launch. Node tests: `node components/members/MB_logic.test.js`, `node components/members/MB_gate.test.js`.
 - **2026-10-31:** **Client page drop launched for all clients** (label 2026-10-31b, pilot `"all"`). `client_page_drop_enabled` is on, the `client-page-drop` staff notice is dated 2026-10-31, and the six staff-guide articles (add-documents, client-portal, google-drive-files, client-tour, tips, whats-new) carry the launch text via `supabase/staff-guide-client-page-drop.sql`; no other code change.
