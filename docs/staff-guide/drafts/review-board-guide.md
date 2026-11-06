@@ -1,5 +1,7 @@
 # Review board: DRAFT guide text
 
+> **PUBLISHED 2026-11-06** (label 2026-11-06c, launch of six previews). The live text is in `docs/staff-guide/` and `supabase/launch-2026-11-06.sql`; this draft is kept for reference.
+
 Draft for the hidden Review board preview (Feature flags label "Review board (preview)", localStorage `mgb_reviewboard_preview`; firm switch `tk_settings.reviewboard_enabled`, owner-only). Publish at launch, when the owner flips `reviewboard_enabled`: create the guide article with slug `review-board` (the Work › Review board tab's `help` key already points at it), add it to the admin guide's Work section, and sync the guide rows. Do not copy into the live guide before then. Real admins only: bookkeepers, temp admins and View as never see any of this.
 
 ## Review board (article `review-board`)

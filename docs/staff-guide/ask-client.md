@@ -2,10 +2,14 @@
 title: How do I ask a client something from a task?
 section: Daily work
 audience: staff
-keywords: [ask client, ask the client, client request, client requests, question for the client, request approval, request a document from a task, waiting on client, waiting, #/tasks/waiting, send reminder, nudge, email again, resend, record answer, accept answer, ask again, cancel request, turn off links, answer link, client contacts, add contact, treasurer, pastor, dry run, nothing sent, client_request_enabled, what we need from you, messages requests, answer link, /respond, test copy, test client, stop reminders]
+keywords: [ask client, ask the client, client request, client requests, question for the client, request approval, request a document from a task, waiting on client, waiting, #/tasks/waiting, send reminder, nudge, email again, resend, record answer, accept answer, ask again, cancel request, turn off links, answer link, client contacts, add contact, treasurer, pastor, dry run, nothing sent, client_request_enabled, what we need from you, messages requests, answer link, /respond, test copy, test client, stop reminders, ask without a task, ask client from the desk, + menu]
 sort: 114
 ---
 When a task can't move until the client tells you something, sends a file or says yes, ask them from the task. The task waits on the client until they answer, and you see every open ask in one place.
+
+### Ask without a task
+
+From the Desk you can ask a client for something without picking a task. On the Desk's **Client** tab click **Ask client**, or click **+** in the top bar or the Desk rail and pick **Ask client…** (on a page that isn't a client's, pick the client first). It is the same window as on a task, with no task attached. The request shows under **Waiting on client** on the Client tab right away, and in **Slate › Waiting on client**.
 
 ### Ask from a task
 

@@ -847,6 +847,16 @@ const TIPS_CATALOG = [
     slug: "deadlines",
   },
   {
+    // Review board (launched 2026-11-06): firm switch only (RB_firmOn), real admins, never View as.
+    id: "work-review-filters",
+    roles: "admin",
+    match: (r) => r.page === "work" && TIPS_tab("wk-tab-review") && typeof RB_firmOn === "function" && RB_firmOn(),
+    target: "rb-filters",
+    text: "Filter the Review board by bookkeeper or by status, like Has late, to see who needs a nudge.",
+    slug: "review-board",
+    ready: () => !!document.querySelector('[data-tour="rb-filters"]'),
+  },
+  {
     id: "team-backup-access",
     roles: "bookkeeper",
     match: (r) => r.page === "team" && TIPS_tab("tp-tab-people"),

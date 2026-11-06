@@ -1,5 +1,7 @@
 # Review board: DRAFT What's new entry
 
+> **PUBLISHED 2026-11-06** (label 2026-11-06c, launch of six previews). The live text is in `docs/staff-guide/` and `supabase/launch-2026-11-06.sql`; this draft is kept for reference.
+
 Held until launch. At launch, paste the entry below at the top of the entries in `docs/staff-guide/whats-new.md` (after the intro lines), re-dated to launch day, and add these keywords to its front matter: `review board, work review board, deadline digest, digest in the bell, 4th 14th 24th, check in, send reports, follow up, open in email app, mailto, mark sent, to and cc, copy draft`. Then sync the guide row.
 
 ### <launch day>: Review board (admins)

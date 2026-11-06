@@ -1,5 +1,7 @@
 # People to contact: DRAFT guide text (held)
 
+> **PUBLISHED 2026-11-06** (label 2026-11-06c, launch of six previews). The live text is in `docs/staff-guide/` and `supabase/launch-2026-11-06.sql`; this draft is kept for reference.
+
 Draft for the hidden Org profile contacts preview (Feature flags label "Org profile contacts (preview)", localStorage `mgb_orgcontacts_preview`; firm switch `tk_settings.org_contacts_enabled`, owner-only). Publish at launch, when the owner flips `org_contacts_enabled`: fold this into the `client-org-profile` article (or add it as its own section), and sync the guide rows then. Do not copy into the live guide or Supabase `staff_guide` before that.
 
 ## People to contact (in the Organization profile card)

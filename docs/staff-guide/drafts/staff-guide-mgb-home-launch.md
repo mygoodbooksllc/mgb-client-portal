@@ -1,5 +1,7 @@
 # MGB Home: launch notes (S1 to S5)
 
+> **PUBLISHED 2026-11-06** (label 2026-11-06c, launch of six previews). The live text is in `docs/staff-guide/` and `supabase/launch-2026-11-06.sql`; this draft is kept for reference.
+
 MGB Home (spec: `docs/mgb-home-spec.md`) is hidden behind the per-person preview `mgb_home_preview` (Developer tools › Feature flags › MGB Home preview, shown only to admins with the MGB (internal) grant) and the owner-only firm switch `tk_settings.mgb_home_enabled`. Code never writes the switch.
 
 Already live and gated (nothing here is visible to an admin without the MGB (internal) grant, or in View as):

@@ -184,6 +184,19 @@ function ANN_peekLaunchOn() {
 // (tk_settings.threadmenu_enabled, cached as mgb_threadmenu_cache by TM_gate.js),
 // and never during View as. Deliberately not the per-person preview
 // mgb_threadmenu_preview: a preview person sees no launch text.
+// Org profile contacts launch notice: the firm switch as last read (mgb_orgcontacts_cache, filled by
+// OPC_readSwitch in OP_store.js), only while the org profile itself is on, never in View as.
+function ANN_orgContactsLaunchOn() {
+  try {
+    if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
+    if (window.localStorage.getItem("mgb_orgprofile_cache") !== "1") return false;
+    if (typeof OPC_readSwitch === "function") OPC_readSwitch();
+    return window.localStorage.getItem("mgb_orgcontacts_cache") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 function ANN_threadMenuLaunchOn() {
   try {
     if (typeof MGB_viewAsReadOnly === "function" && MGB_viewAsReadOnly()) return false;
@@ -1777,12 +1790,12 @@ var ANN_REGISTRY = [
     },
   },
   {
-    // Desk client summary launch (R1-R3), HELD: visible only once the owner flips
+    // Desk client summary launch (R1-R3), LAUNCHED 2026-11-06: visible only once the owner flips
     // tk_settings.desk_peek_enabled (cached as mgb_peek_cache by WB_peek.js). RE-DATE `date` to the
     // launch day when the switch goes on: the notice stops showing 60 days after `date`. Guide draft:
     // the "Client summary and Keep on Desk" section in docs/staff-guide/workbench.md (sync at launch).
     id: "desk-client-summary",
-    date: "2026-11-03",
+    date: "2026-11-06",
     title: "Client summary on the Desk",
     summary:
       "The Desk's Client tab now starts with a short summary of the client: who works on it, the first contact, the Drive folder, any pinned Status or Handoff note, the last client message and your open tasks. Keep on Desk holds one client there while you open other pages.",
@@ -1840,13 +1853,13 @@ var ANN_REGISTRY = [
     },
   },
   {
-    // Desk additions launch (S1-S4), HELD: visible only once the owner flips tk_settings.deskplus_enabled
+    // Desk additions launch (S1-S4), LAUNCHED 2026-11-06: visible only once the owner flips tk_settings.deskplus_enabled
     // (cached as mgb_deskplus_cache) and the person is not on Classic Today. RE-DATE `date` to the launch
     // day when the switch goes on: the notice stops showing 60 days after `date`. A separate small notice
     // because the Desk itself (new-look-and-layout, ann-desk) is already live. Drafts and guide SQL:
     // docs/staff-guide/drafts/staff-guide-desk-additions.md, supabase/staff-guide-desk-additions.sql.
     id: "desk-client-actions",
-    date: "2026-10-25",
+    date: "2026-11-06",
     title: "More on the Desk",
     summary:
       "The Desk's Client tab now shows what is waiting on the client, their recent messages and recent files, with Ask client and Message buttons. The Create menu has Ask client…, Message… and Time off, and the Inbox has a Ledger chip.",
@@ -1959,12 +1972,12 @@ var ANN_REGISTRY = [
     ],
   },
   {
-    // Thread menu launch, HELD: visible only once the owner flips tk_settings.threadmenu_enabled
+    // Thread menu launch, LAUNCHED 2026-11-06: visible only once the owner flips tk_settings.threadmenu_enabled
     // (cached as mgb_threadmenu_cache), never in View as. Set `date` to the launch day: RE-DATE it when
     // the switch goes on, because the notice stops showing 60 days after `date`.
     // Drafts and guide SQL: docs/staff-guide/drafts/staff-guide-thread-menu.md, supabase/staff-guide-thread-menu.sql.
     id: "thread-menu",
-    date: "2026-10-25",
+    date: "2026-11-06",
     title: "Thread menu in the Inbox",
     summary:
       "Right-click a client thread in the Inbox, or click its ⋯, to rename, pin, mark done, snooze, reassign or hide it, make a task or copy a link. The client never sees it and nothing is emailed.",
@@ -2001,12 +2014,87 @@ var ANN_REGISTRY = [
     ],
   },
   {
-    // MGB Home launch, HELD: visible only to admins with the MGB (internal) grant once the owner flips
+    // Review board launch, 2026-11-06 (docs/review-board-spec.md). Firm switch only (RB_firmOn: a real
+    // admin, not in View as, mgb_reviewboard_cache = "1"); never for the per-person preview alone.
+    // The notice stops showing 60 days after `date`. Guide: article review-board.
+    id: "review-board",
+    date: "2026-11-06",
+    title: "Review board",
+    summary:
+      "Work › Review board shows every client's 4th, 14th and 24th tasks for a month on one screen, with close status and contacts. Sort any column, filter by bookkeeper or status, and click a chip to open the task.",
+    roles: ["admin"],
+    hash: "#/work/review",
+    visible: () => typeof RB_firmOn === "function" && RB_firmOn(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "Review board",
+        body: () => "One screen for the month rhythm across every client. About a minute.",
+      },
+      {
+        id: "ann-rb-tab",
+        targets: ["work-review"],
+        title: "Where it lives",
+        body: () => "Work › Review board. Admins only. The Close tracker has an Open Review board button too.",
+      },
+      {
+        id: "ann-rb-filters",
+        targets: ["rb-filters"],
+        wait: true,
+        title: "Pick the month and narrow it down",
+        body: () =>
+          "Last month is the default; the two before it are in the Month list. Filter by bookkeeper or by status (Has late, Any open, All three done, No task yet, Close not done, Preliminary reports).",
+      },
+      {
+        id: "ann-rb-table",
+        targets: ["rb-table"],
+        wait: true,
+        title: "Every column sorts",
+        body: () =>
+          "Click a header to sort, again to reverse. A chip shows who did each deadline and when, or who it is waiting on; red means late. Click a chip to open the task, the Close pill to open the client's close. The ▸ arrow shows the client's people. To see this again, press ? and pick the launch, or read Review board in Help.",
+      },
+    ],
+  },
+  {
+    // Org profile contacts launch, 2026-11-06 (docs/client-contacts-spec.md). Firm switch only
+    // (mgb_orgcontacts_cache = "1", filled by OPC_readSwitch), never for the preview alone, never in View as.
+    // The notice stops showing 60 days after `date`. Guide: client-org-profile › People to contact.
+    id: "org-profile-contacts",
+    date: "2026-11-06",
+    title: "People to contact",
+    summary:
+      "Each client's Organization profile now has one People to contact list: the main contact, who gets monthly emails and who can answer our questions. Clients keep it up to date; you can add or fix people on the client's Overview.",
+    roles: ["admin", "tempAdmin", "bookkeeper", "accountManager"],
+    hash: "#/clients",
+    visible: () => ANN_orgContactsLaunchOn(),
+    steps: () => [
+      {
+        id: "ann-welcome",
+        title: "People to contact, in one place",
+        body: () =>
+          "Each client now has one list of the people we email, kept up to date by the client and by us. About a minute.",
+      },
+      {
+        id: "ann-opc-card",
+        title: "On a client's Overview",
+        body: () =>
+          "The Organization profile card has People to contact. The main contact gets monthly reports, Monthly emails people are preselected in email drafts, and Can answer requests people can be sent Ask client links. Clients add the other people we should contact in their org profile.",
+      },
+      {
+        id: "ann-opc-more",
+        title: "Good to know",
+        body: () =>
+          "Role and Notes are staff-only; the client sees Title. The Review board and email draft To chips read the same list. To see this again, press ? and pick the launch, or read What is a client's organization profile? in Help.",
+      },
+    ],
+  },
+  {
+    // MGB Home launch, LAUNCHED 2026-11-06: visible only to admins with the MGB (internal) grant once the owner flips
     // tk_settings.mgb_home_enabled (cached as mgb_home_cache), never in View as (ANN_mgbHomeLaunchOn).
     // RE-DATE `date` to the launch day when the switch goes on: the notice stops showing 60 days after it.
     // Spec: docs/mgb-home-spec.md. Drafts: docs/staff-guide/drafts/staff-guide-mgb-home-launch.md.
     id: "mgb-home",
-    date: "2026-10-31",
+    date: "2026-11-06",
     title: "MGB Home",
     summary:
       "MGB (internal) is now MGB Home: the firm's margin, fees, internal time, cost rates, capacity, Master Data sync and our own books in one place. Team › Hours now shows hours only.",

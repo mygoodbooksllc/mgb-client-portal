@@ -1,5 +1,7 @@
 # Review board: DRAFT next-visit notice, tour, tip and ? menu entry
 
+> **PUBLISHED 2026-11-06** (label 2026-11-06c, launch of six previews). The live text is in `docs/staff-guide/` and `supabase/launch-2026-11-06.sql`; this draft is kept for reference.
+
 Held until launch. Nothing below is in `components/tour/announcements.js`, `components/tour/Tour.jsx`, `docs/staff-guide/tips.md` or the ? menu yet. Add them in the launch commit, when the owner flips `tk_settings.reviewboard_enabled` (the same day), so the notice never shows before the board does.
 
 Gate for all of it: `RB_firmOn()` (components/staff/RB_gate.js): a real admin, not in View as, and the firm switch as last read (`mgb_reviewboard_cache` = "1"). Do not use `RB_on()` here: that also counts the per-person preview, and admins trying the preview early should not get the launch notice twice.

@@ -13,6 +13,8 @@ sort: 45
 - **Ledger review** (`#/work/ledger`): **Review a file**. Drop in an exported General Ledger and it's checked in your browser; nothing is saved. See [How does Ledger review work?](#/help/ledger-review).
 - **Deadlines** (`#/work/deadlines`): filing deadlines for every client you can see, with **Mark filed** and **Create task**. See [How do I track filing deadlines?](#/help/deadlines).
 
+Admins also have a **Review board** tab (`#/work/review`): every client's 4th, 14th and 24th tasks for a month on one screen. See [Review board](#/help/review-board).
+
 Bookkeepers see their own clients. Admins see everyone's.
 
 In **View as** (admins), Work shows the bookkeeper's tabs read-only. **Slate** is a read-only snapshot of their tasks with private tasks hidden, and nothing on it can be changed or popped out. (It is the full snapshot, not the short summary.)

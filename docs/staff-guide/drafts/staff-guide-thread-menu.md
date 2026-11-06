@@ -1,5 +1,7 @@
 # Thread menu: DRAFT guide text
 
+> **PUBLISHED 2026-11-06** (label 2026-11-06c, launch of six previews). The live text is in `docs/staff-guide/` and `supabase/launch-2026-11-06.sql`; this draft is kept for reference.
+
 Draft for the hidden thread menu preview (localStorage `mgb_threadmenu_preview` / firm switch `threadmenu_enabled`). Publish at launch, when the owner flips `threadmenu_enabled`. Do not copy into the live guide before then.
 
 Already in the code and shown only while the menu is on for that person: the tour text on the Inbox stop (`Tour.jsx`, `TOUR_threadMenuOn()`), the tip `inbox-thread-menu` (`Tips.jsx`). The next-visit notice `thread-menu` (`announcements.js`) shows only once the firm switch is on (`mgb_threadmenu_cache` = "1"), never to a preview person and never in View as.
