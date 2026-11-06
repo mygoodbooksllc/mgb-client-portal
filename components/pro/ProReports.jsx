@@ -496,7 +496,7 @@ function prGivingSection(client, periodKey) {
     // Giving doesn't sync from QuickBooks yet.
     emptyText:
       client.dataSource === "quickbooks"
-        ? "Giving isn't connected yet, so there's no giving to report."
+        ? "Giving isn't included in board packets yet."
         : "No giving recorded yet.",
     totalInPeriod: inPeriod.reduce((s, c) => s + prNum(c.amount), 0),
     giftCount: inPeriod.length,
@@ -628,7 +628,7 @@ function prBuildSnapshot({ client, timeline, config, summary, notes, fnMap, bran
   const cur = timeline[timeline.length - 1] || null;
   const periodKey = cur ? cur.key : null;
   const periodLabel = (config.periodLabel || "").trim() || (cur ? cur.full : "");
-  const comparisons = prComparisons(timeline, prReportBudget(client)).filter((c) => config.compare[c.key]);
+  const comparisons = prComparisons(timeline, prReportBudget(client)).filter((c) => config.compare[c.key] && c.available);
   const orgName = String(client.name || "");
   return {
     v: 1,
@@ -2392,7 +2392,7 @@ function PrPacketPanel({
             const unavailable = info && !info.available;
             return (
               <label className={"pr-check" + (unavailable ? " pr-check-off" : "")} key={c.key}>
-                <input type="checkbox" checked={!!config.compare[c.key]} onChange={() => toggle("compare", c.key)} />
+                <input type="checkbox" checked={!!config.compare[c.key] && !unavailable} disabled={unavailable} onChange={() => toggle("compare", c.key)} />
                 <span>
                   {c.label}
                   {unavailable && <span className="pr-hint pr-block">{info.reason}</span>}

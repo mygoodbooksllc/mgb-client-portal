@@ -180,7 +180,15 @@
      Scoped to just this word, not a --accent reassignment, since --accent is
      also used for the tab indicator bar and focus outline elsewhere in this
      file, and only the masthead text was reported as off-theme. */
+  color: #8a6d2f;
+}
+.dc-dailyClose[data-theme="dark"] .dc-accentword {
   color: #c7ae86;
+}
+@media (prefers-color-scheme: dark) {
+  .dc-dailyClose:not([data-theme="light"]) .dc-accentword {
+    color: #c7ae86;
+  }
 }
 .dc-mastheadRight {
   text-align: right;

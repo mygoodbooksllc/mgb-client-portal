@@ -61,6 +61,10 @@
     return next;
   }
 
+  const fullDateLabel = (iso) => {
+    const d = parseLocalDate(iso);
+    return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  };
   const shortLabel = (date) => `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}`;
 
   /** "As of Sunday, August 30, 2026 · 7:42 AM · synced from QuickBooks every
@@ -313,7 +317,7 @@
         description:
           lateBills
             .slice(0, 3)
-            .map((p) => `${p.vendor} (due ${p.dueDate})`)
+            .map((p) => `${p.vendor} (due ${fullDateLabel(p.dueDate)})`)
             .join(", ") +
           (lateBills.length > 3 ? `, and ${lateBills.length - 3} more` : "") +
           ".",
@@ -328,7 +332,7 @@
         severity: days > 60 ? "critical" : "serious",
         title: `${r.description} is ${days} days overdue`,
         amount: `$${Math.round(r.amount).toLocaleString("en-US")}`,
-        description: `Due ${r.dueDate}. Still outstanding as of this snapshot.`,
+        description: `Due ${fullDateLabel(r.dueDate)}. Still outstanding as of this snapshot.`,
       });
     });
 
@@ -341,7 +345,7 @@
         severity: "warn",
         title: `${dueSoon.length} bill${dueSoon.length === 1 ? "" : "s"} due within 7 days`,
         amount: `$${Math.round(sum(dueSoon, (p) => p.amount)).toLocaleString("en-US")}`,
-        description: dueSoon.map((p) => `${p.vendor} (${p.dueDate})`).join(", ") + ".",
+        description: dueSoon.map((p) => `${p.vendor} (${fullDateLabel(p.dueDate)})`).join(", ") + ".",
       });
     }
 

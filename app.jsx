@@ -12857,11 +12857,11 @@ const ENTERPRISE_COMPARISON = [
     intro: "What you get on Home:",
     features: [
       "Synced from QuickBooks every hour, plus a Sync now button in the header",
-      "Four numbers up top: Cash, Receivables, Payables and Net income this month (receivables, payables and net income click through to the detail)",
+      "Four numbers up top: Cash, Money owed to you, Bills to pay and Net income this month (money owed, bills and net income click through to the detail)",
       "A low-cash warning on the Cash number (you set the amount; it's saved in this browser)",
       "Cash by Account donut and Top Expense Categories",
       "Receivables Aging with a Collections Queue that opens an email draft",
-      "Cash Flow Forecast (projected from your recent averages), Revenue Trend, and Anomalies & Flags (over budget, past due, due within 7 days)",
+      "Cash Flow Forecast (projected from your recent averages), Revenue Trend, and Needs a look (over budget, past due, due within 7 days)",
       "Customizable cards with saved views, and a one-click PDF snapshot",
     ],
   },
@@ -12902,7 +12902,6 @@ const ENTERPRISE_COMPARISON = [
       "Saved templates like \"Monthly board packet\", rebuilt in one click",
       "Comparison columns: vs budget, vs last month, vs last year, year-to-date, with % change (where there's enough history)",
       "Statement of Functional Expenses (program, management, fundraising) in the Form 990 layout",
-      "Giving reports (top and lapsed donors, giving by fund, pledge progress) once your giving data is connected",
       "A plain-language \"what happened this month\" summary, drafted for you to edit",
       "Read-only share links for your board that expire, no login needed",
       "Your organization's logo and colors on every packet",
@@ -12997,7 +12996,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
 
   return (
     <div className="enterprise-page">
-      <MockBanner text="Upgrading isn't automatic yet — your request goes to your bookkeeper, who switches your plan." />
+      <div className="card-subtitle">Upgrading isn't automatic yet — your request goes to your bookkeeper, who switches your plan.</div>
 
       <div
         className="card"
@@ -24536,7 +24535,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget, viewAsEmail }) {
       {folderPendingDelete && (
         <ConfirmModal
           title={`Delete "${folderPendingDelete}"?`}
-          body="Its documents move back to Unfiled. Nothing is deleted, and this changes the folder for everyone on this client's Documents page."
+          body="Its documents move back to Unfiled. Nothing is deleted, and this changes the folder for everyone at your organization."
           confirmLabel="Delete folder"
           onConfirm={confirmRemoveFolder}
           onCancel={() => setFolderPendingDelete(null)}
@@ -24579,7 +24578,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget, viewAsEmail }) {
           title="Rename folder"
           label="Folder name"
           initial={dpModal.name}
-          hint="Its documents stay in it. Everyone on this client's Documents page sees the new name."
+          hint="Its documents stay in it. Everyone at your organization sees the new name."
           maxLength={60}
           validate={(v) => CPD_folderNameError(v, folders, dpModal.name)}
           onSave={(v) => renameFolder(dpModal.name, v)}

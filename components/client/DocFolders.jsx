@@ -182,7 +182,7 @@ function DF_NewFolderModal({ docName, onCreate, onCancel }) {
             />
           </label>
           <p className="card-subtitle" style={{ margin: "8px 0 0" }}>
-            {error || `${docName} goes in it. Everyone on this client's Documents page sees the new folder.`}
+            {error || `${docName} goes in it. Everyone at your organization sees the new folder.`}
           </p>
         </div>
         <div className="modal-footer">

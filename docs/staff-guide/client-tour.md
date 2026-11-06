@@ -32,7 +32,7 @@ Every stop is left out when that person can't see it. The step count shown (**St
 | Stop | Full on Pro | Full on Basic | Limited | Budget-only |
 |---|---|---|---|---|
 | **Welcome** | Yes | Yes | Yes | Yes |
-| **Home**: what needs them, their organization card | Yes, with **Customize dashboard** and a live snapshot | Yes, then Home at a glance (drop files, latest message, statements, files) and a slim row on what Pro adds | Yes | Yes, their areas of the budget at a glance |
+| **Home**: what needs them, their organization card | Yes, with **Customize overview** (**Customize dashboard** on the non-Pro Dashboard) and a live snapshot | Yes, then Home at a glance (drop files, latest message, statements, files) and a slim row on what Pro adds | Yes | Yes, their areas of the budget at a glance |
 | **Milestone** on Home's organization card | Yes | Yes | Yes | No |
 | **Sync**: Pro updates from QuickBooks every hour, and **Sync now** pulls the latest | Yes, when the organization syncs from QuickBooks | No | On a Pro plan, when the organization syncs from QuickBooks | On a Pro plan, when the organization syncs from QuickBooks |
 | **Finances**: Budget, Bank accounts, Cash flow, Giving & funds | Yes, the tabs they have | No (Basic has no Finances) | Only the tabs they have | Only the budget lines for their areas |

@@ -2198,7 +2198,7 @@ function ST_ClientSettingsPage({
             </ST_Card>
           )}
           {key === "security" && (
-            <ST_Card title="Signing in" sub="You sign in with a one-time link or code we email you, so there's no portal password to change or steal.">
+            <ST_Card title="Signing in" sub="You sign in with a one-time link or code we email you, so there's no portal password to remember or lose.">
               <div className="st-actions st-actions-stack">
                 <button type="button" className="btn-secondary" disabled={readOnly} onClick={onSignOut}>
                   Sign out
@@ -2317,7 +2317,7 @@ function ST_SecurityPrivacy({ client, access, readOnly, onSelectPage }) {
       : "";
   return (
     <>
-      <ST_Card title="Who can see your books" sub="Only people you and MyGoodBooks have set up. No one else.">
+      <ST_Card title="Who can see your books" sub="Only people you and MyGoodBooks have set up. That includes MyGoodBooks staff who work on your account.">
         <ul className="st-list">
           <ST_SecRow label="Your access">
             {full
@@ -2351,10 +2351,9 @@ function ST_SecurityPrivacy({ client, access, readOnly, onSelectPage }) {
             connection key is encrypted. You can disconnect any time from your Intuit account settings.
           </ST_SecRow>
           <ST_SecRow label="Where it's stored">
-            With Supabase, in the United States (Ohio). Everything is encrypted when stored and when sent. The portal
-            is hosted by Vercel and emails are sent through Resend.
+            Your account information is stored securely in the United States and encrypted when stored and when sent.
           </ST_SecRow>
-          <ST_SecRow label="Backups">Account details and messages are backed up every day.</ST_SecRow>
+          <ST_SecRow label="Backups">Account details and messages are backed up every day. Uploaded files are kept in MyGoodBooks' secure online file storage.</ST_SecRow>
           <ST_SecRow label="How we use it">
             Only to run the portal and do your bookkeeping. We never sell your data or use it for ads. We record which
             pages are opened so we can improve the portal.

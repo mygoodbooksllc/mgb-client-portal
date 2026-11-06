@@ -626,10 +626,12 @@ function ProBudgetForecastCard({ client, budget, orgWide }) {
         <div className="card kpi-card">
           <span className="kpi-label">Projected spending at this pace</span>
           <span className="kpi-value">{fmtMoney(totalProjected)}</span>
-          <span className={"kpi-sub " + (totalProjected > totalBudget ? "negative" : "positive")}>
-            {totalProjected > totalBudget
-              ? `${fmtMoney(totalProjected - totalBudget)} over budget`
-              : `${fmtMoney(totalBudget - totalProjected)} under budget`}
+          <span className={"kpi-sub " + (!(totalBudget > 0) ? "neutral" : totalProjected > totalBudget ? "negative" : "positive")}>
+            {!(totalBudget > 0)
+              ? "No budget yet"
+              : totalProjected > totalBudget
+                ? `${fmtMoney(totalProjected - totalBudget)} over budget`
+                : `${fmtMoney(totalBudget - totalProjected)} under budget`}
           </span>
         </div>
         {orgWide && projectedNet != null && (
@@ -692,7 +694,7 @@ function ProBudgetWhatIfCard({ client }) {
   const [giving, setGiving] = useState(0);
   const [expense, setExpense] = useState(0);
   const [newCost, setNewCost] = useState("");
-  const [newCostLabel, setNewCostLabel] = useState("part-time admin");
+  const [newCostLabel, setNewCostLabel] = useState("");
 
   // Closed months only (a QuickBooks client's newest month is month to date).
   const monthly = window.mgbClosedMonths(client.monthly);
@@ -769,7 +771,7 @@ function ProBudgetWhatIfCard({ client }) {
             </label>
             <label className="task-field">
               <span>What it's for</span>
-              <input className="pb-input" type="text" value={newCostLabel}
+              <input className="pb-input" type="text" placeholder="part-time admin" value={newCostLabel}
                 onChange={(e) => setNewCostLabel(e.target.value)} />
             </label>
           </div>
@@ -978,9 +980,9 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
   const totalCurrentAnnual = visibleLines.reduce(
     (s, l) => s + (refByCat[l.category] ? pbNum(refByCat[l.category].budgeted) * 12 : 0), 0);
   const totalProposed = visibleLines.reduce((s, l) => s + pbNum(l.proposed), 0);
-  const pctChange = totalCurrentAnnual > 0
+  const pctChange = totalCurrentAnnual >= 1000
     ? ((totalProposed - totalCurrentAnnual) / totalCurrentAnnual) * 100
-    : 0;
+    : null;
   const monthTotals = useMemo(() => {
     const t = new Array(12).fill(0);
     visibleLines.forEach((l) => pbMonthsOf(l).forEach((v, i) => { t[i] += v; }));
@@ -1347,7 +1349,7 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
           <span className="kpi-label">FY {fiscalYear} Proposed</span>
           <span className="kpi-value">{fmtMoney(totalProposed)}</span>
           <span className="kpi-sub neutral">
-            {(pctChange >= 0 ? "+" : "") + pctChange.toFixed(1)}% vs. current budget × 12
+            {pctChange == null ? "—" : (pctChange >= 0 ? "+" : "") + pctChange.toFixed(1) + "% vs. current budget × 12"}
           </span>
         </button>
       </div>

@@ -2639,13 +2639,14 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
+  margin: -4px -6px -4px 0;
   border-radius: 999px;
   line-height: 1;
-  font-size: 13px;
+  font-size: 16px;
   color: inherit;
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .doc-folder-remove:hover {

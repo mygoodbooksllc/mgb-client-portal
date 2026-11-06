@@ -507,7 +507,7 @@ const TOUR_CLIENT_LABELS = {
   budget: "Budget",
   bank: "Bank accounts",
   receivables: "Cash flow",
-  giving: "Giving",
+  giving: "Giving & funds",
   payroll: "Payroll",
   reports: "Reports",
   documents: "Documents",
@@ -647,10 +647,12 @@ function TOUR_clientSteps(ctx) {
       targets: ["customize", "client-needs"],
       title: "Home",
       body: (key) => {
-        const pick = key === "customize" ? " Use Customize dashboard to pick which cards show and put them in the order you like." : "";
+        const pick = key === "customize" ? ` Use Customize ${ctx.pro && !category ? "overview" : "dashboard"} to pick which cards show and put them in the order you like.` : "";
         if (category) return "Home shows what needs you, then your areas of the budget at a glance." + pick;
         if (ctx.plan === "basic")
-          return "Home shows what needs you and your organization card. Below that you can drop files anywhere on the page and say where they go, and see your latest message and files.";
+          return TOUR_clientDropOn(ctx)
+            ? "Home shows what needs you and your organization card. Below that you can drop files anywhere on the page and say where they go, and see your latest message and files."
+            : "Home shows what needs you and your organization card. Below that you can see your latest message and files.";
         return `Home starts with what needs you, then ${ctx.pro && ctx.qbo ? "a live snapshot of your finances" : "your financial snapshot"}.` + pick;
       },
     },
@@ -755,9 +757,9 @@ function TOUR_clientSteps(ctx) {
       // so the step is centered for them.
       targets: ctx.preview ? undefined : ["#st-tab-organization"],
       press: true,
-      title: "Your organization",
+      title: "Organization",
       body: () =>
-        "Your organization's details, who gets the monthly summary, and your team. Ask us to add someone when a teammate needs access.",
+        "The Organization tab has your organization's details, who gets the monthly summary, and your team. Ask us to add someone when a teammate needs access.",
     },
     {
       id: "plan",

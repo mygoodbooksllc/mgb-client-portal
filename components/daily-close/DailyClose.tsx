@@ -190,8 +190,8 @@ type LiveReportWidgetId =
 
 const LIVE_REPORT_WIDGETS: { id: LiveReportWidgetId; label: string; description: string }[] = [
   { id: "kpi-cash", label: "Cash on Hand", description: "Current balance across cash accounts, with card balances owed" },
-  { id: "kpi-ar", label: "Accounts Receivable", description: "Outstanding balance and overdue amount" },
-  { id: "kpi-ap", label: "Accounts Payable", description: "Outstanding balance and amount due within 7 days" },
+  { id: "kpi-ar", label: "Money Owed to You", description: "Outstanding balance and overdue amount" },
+  { id: "kpi-ap", label: "Bills to Pay", description: "Outstanding balance and amount due within 7 days" },
   { id: "kpi-net", label: "Net Income, MTD", description: "Month-to-date net income and margin" },
   { id: "trend", label: "Revenue vs. Expenses", description: "12-month trend chart" },
   { id: "expense-breakdown", label: "Where the Money Went", description: "Expenses by category, this month" },
@@ -1210,12 +1210,12 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
       head: [["Key metric", "Value"]],
       body: [
         ["Cash on hand", fmtMoney(data.cash.total)],
-        ["Accounts receivable", fmtMoney(data.receivables.total) + ` (${fmtMoney(data.receivables.overdueAmount)} overdue)`],
-        ["Accounts payable", fmtMoney(data.payables.total) + (data.payables.hasPastDue ? " (past due items)" : "")],
+        ["Money owed to you", fmtMoney(data.receivables.total) + ` (${fmtMoney(data.receivables.overdueAmount)} overdue)`],
+        ["Bills to pay", fmtMoney(data.payables.total) + (data.payables.hasPastDue ? " (past due items)" : "")],
         [
           "Net income, MTD",
           fmtMoney(data.netIncome.mtd) +
-            ` (${data.netIncome.marginPct}% margin, target ${data.netIncome.marginTargetPct}%)`,
+            ` (${data.netIncome.marginPct}% margin)`,
         ],
       ],
       columnStyles: { 1: { halign: "right" } },
@@ -1465,8 +1465,9 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                           setEditingFloor((v) => !v);
                         }}
                         title="Set a low-cash alert"
+                        style={{ minHeight: 28 }}
                       >
-                        Alert
+                        Set low-cash alert
                       </button>
                     </div>
                     {editingFloor ? (
@@ -1514,11 +1515,11 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
               if (id === "kpi-ar")
                 return (
                   <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={jumpToAging} key={id} {...wdCard(id)}>
-                    <div className={styles.kpiLabel}>Accounts receivable</div>
+                    <div className={styles.kpiLabel}>Money owed to you</div>
                     <div className={styles.kpiValue}>{fmtMoney(data.receivables.total)}</div>
-                    <div className={`${styles.chip} ${styles.chipWarn}`}>
-                      <span className="dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--warning)" }} />
-                      {fmtMoney(data.receivables.overdueAmount)} overdue
+                    <div className={`${styles.chip} ${data.receivables.overdueAmount > 0 ? styles.chipWarn : styles.chipGood}`}>
+                      <span className="dot" style={{ width: 6, height: 6, borderRadius: "50%", background: data.receivables.overdueAmount > 0 ? "var(--warning)" : "var(--good)" }} />
+                      {data.receivables.overdueAmount > 0 ? `${fmtMoney(data.receivables.overdueAmount)} overdue` : "Nothing overdue"}
                     </div>
                     <div className={styles.kpiFoot} style={{ marginTop: "auto" }}>
                       {data.receivables.openInvoiceCount} open invoices, {data.receivables.customerCount} customers
@@ -1536,7 +1537,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                     key={id}
                     {...wdCard(id)}
                   >
-                    <div className={styles.kpiLabel}>Accounts payable</div>
+                    <div className={styles.kpiLabel}>Bills to pay</div>
                     <div className={styles.kpiValue}>{fmtMoney(data.payables.total)}</div>
                     <div className={`${styles.chip} ${data.payables.hasPastDue ? styles.chipCritical : styles.chipGood}`}>
                       <span
@@ -1573,9 +1574,6 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                       className={styles.kpiMeterFill}
                       style={{ width: `${marginMeterPct}%`, animationDuration: `${growDuration(marginMeterPct)}ms` }}
                     />
-                  </div>
-                  <div className={styles.kpiFoot}>
-                    {pct(data.netIncome.marginPct)} margin &middot; target {pct(data.netIncome.marginTargetPct, 0)}
                   </div>
                 </button>
               );
@@ -1939,7 +1937,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                       aria-selected={tab === "anomalies"}
                       onClick={() => setTab("anomalies")}
                     >
-                      Anomalies &amp; Flags
+                      Needs a look
                     </button>
                   </div>
 
