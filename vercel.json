@@ -1,4 +1,7 @@
 {
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
+  "outputDirectory": "dist",
   "redirects": [
     { "source": "/staff/", "destination": "/staff", "permanent": false },
     { "source": "/slate/", "destination": "/slate", "permanent": false },
