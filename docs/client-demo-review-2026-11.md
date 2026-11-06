@@ -34,12 +34,16 @@ Never flip a switch for the demo. Live switch values were not re-read from the d
 ## Fix before the demo
 
 ### F-01 Documents shows leaked test data · XS (data)
+**Status: FIXED 2026-11-05 (data: sample request cancelled, Bluevine file trashed, grace-community only)**
+
 - **Page:** Documents.
 - **Wrong:** a request "Signed engagement letter (sample) / Sample request for testing" and a file "Bluevine Bank Account (2).pdf". A real bank name on screen looks like another client's file.
 - **Steps:** View as Pastor John Whitfield > Documents.
 - **Fix:** delete both rows (and the Drive file); add 3-4 church-looking documents.
 
 ### F-02 Messages: sample banner and canned August thread (View as only) · XS data / S code
+**Status: FIXED 2026-11-05 (data: 5 seeded messages, ids de300000-0000-4000-8000-00000000000{1..5}; delete them to undo)**
+
 - **Page:** Messages > Conversation.
 - **Wrong:** banner "This is a sample conversation — sending a message here doesn't notify anyone yet." (`app.jsx:25115`) over canned messages dated Aug 20/21 quoting a $142,300 Building Fund balance that contradicts Giving & funds ($61,246) (`data.js:424-425`).
 - **Verified correction:** a real signed-in client always gets the live thread (`app.jsx:30656-30659`), so real clients never see this. It appears because staff View as is not a live client session.
@@ -58,6 +62,8 @@ Never flip a switch for the demo. Live switch values were not re-read from the d
 - **Fix:** remove the add-on from the demo client for the day, or skip.
 
 ### F-05 Board packet says giving and funds are not connected · S (quick) / M (real)
+**Status: FIXED a4afb09 (Board packet Giving reads givingQbo, same as Giving & funds; test added)**
+
 - **Page:** Reports > Board packet (and the Plans page, `app.jsx:12892`).
 - **Wrong:** "Giving isn't connected yet, so there's no giving to report." (`ProReports.jsx:497-500`). The packet reads `client.contributions`, which is always `[]` for QuickBooks clients (`mapQboToClient.js:714`), while the Giving & funds tab shows real giving. (The funds note at `:403-407` is correct: it only shows when there are no funds.)
 - **Fix:** quick: "Giving isn't included in packets yet." Real: feed the packet from the QuickBooks giving data.
@@ -83,6 +89,8 @@ Never flip a switch for the demo. Live switch values were not re-read from the d
 - **Fix:** align the text and targets; trim to the core steps; follow `mgb-ui-upkeep` (guide, tips, README).
 
 ### F-11 Settings › Plan shows a "prototype" flask banner to every client · XS
+**Status: FIXED 2510f96 (flask banner removed)**
+
 - `app.jsx:12987`: `MockBanner "Upgrading isn't automatic yet — your request goes to your bookkeeper…"` passes no `client`, so it shows to everyone, real clients included (confirmed).
 - **Fix:** plain subtitle line.
 
@@ -91,11 +99,15 @@ Never flip a switch for the demo. Live switch values were not re-read from the d
 - Appear when tables or connection are missing. **Fix:** "Saving isn't available right now."; show file names to staff only. Not seen in the live sweep; low chance on the demo client.
 
 ### F-13 Documents: staff voice and a risky × · S
+**Status: FIXED a4afb09 (folder delete and rename in a confirmed ⋯ menu, client wording)**
+
 - Delete-folder confirm: "…changes the folder for everyone on this client's Documents page." and new-folder modal "Everyone on this client's Documents page sees the new folder." (`app.jsx:24002-24019, 24522-24524`).
 - Clients can create and delete shared folders (database allows it: `document-folders.sql:54-56`). The delete × is a 16px span inside the folder chip, an easy mis-click on a shared screen (`styles.css:2638-2647`).
 - **Fix:** "everyone at your organization"; make the × a real button 24px or larger, or put delete in a menu. Do not click folder chips' × during the demo.
 
 ### F-14 Security & privacy tab: claims to confirm with the owner before anyone reads them aloud · S (wording)
+**Status: FIXED a4afb09 (Security & privacy claims made true; no vendor names)**
+
 Text a client reads (`Settings.jsx`): "Only people you and MyGoodBooks have set up. No one else." (:2320); "The connection key is encrypted." (:2350); "With Supabase, in the United States (Ohio). Everything is encrypted when stored and when sent… hosted by Vercel… sent through Resend." (:2354); "Account details and messages are backed up every day." (:2357); working files "never shared outside MyGoodBooks" (:2337); "no portal password to change or steal." (:2201).
 - Problems: "No one else" is contradicted by staff with access; vendor names mean nothing to a pastor; a code comment (`:2292`) notes daily backups do not include uploaded files, so "backed up" is true only for account details and messages.
 - **Fix:** reword; keep to what is true (see presenter guide).
